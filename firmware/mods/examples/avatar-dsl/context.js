@@ -5,7 +5,11 @@ export const DEFAULT_CONTEXT = Object.freeze([
   320, 240, 1, 0, 0, 1, 0, 0, 0, 0, 65535, 0, 65504, 0, 65535, 8, 0, 0, 0, 0, 0, 0, 50, 90, 4, 60, 1, 0, 10, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
 ])
-const clamp = (v, lo, hi) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : lo)
+function clamp(v, lo, hi) {
+  // Preserve non-number/non-finite and signed-zero semantics with fewer calls.
+  if (!Number.isFinite(v) || v <= lo) return lo
+  return v >= hi ? hi : v
+}
 export function rgb565(rgb) {
   return ((clamp(rgb.r, 0, 255) >> 3) << 11) | ((clamp(rgb.g, 0, 255) >> 2) << 5) | (clamp(rgb.b, 0, 255) >> 3)
 }

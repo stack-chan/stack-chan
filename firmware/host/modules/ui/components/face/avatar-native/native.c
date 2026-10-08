@@ -27,7 +27,7 @@ typedef struct {
  AvdsOutline outlines[32];
  uint16_t count, outlineCount, draws;
  uint32_t instructions, elapsed, evaluations, updates, ticks, preparations, rasterPasses, failures, geometryChanges;
- uint64_t vmUs, geometryUs, rasterSubmitUs, rasterUs, rasterStartUs;
+ uint64_t vmUs, geometryUs, rasterSubmitUs, rasterUs, rasterStartUs, contextUs, stateUs, copiedBytes;
  AvdsError error;
  uint8_t enabled, paused, disposed, stateBreath, hasFrame;
 } AvdsFaceState;
@@ -141,7 +141,8 @@ static int drawable(const int32_t *c) {
 static void evaluate(AvdsFace *self) {
  AvdsFaceState *s=(*self)->engine;
  if (!s || s->paused || s->disposed) return;
- memcpy(s->context,s->state,sizeof(s->context));
+ uint64_t contextStart=nowUs();
+ memcpy(s->context,s->state,sizeof(s->context)); s->copiedBytes+=sizeof(s->context);
  s->context[3]=(float)s->elapsed;
  float breath=(float)sin((s->elapsed*2*3.14159265358979323846)/4000);
  if (!s->stateBreath || s->error) s->context[4]=breath;
@@ -152,6 +153,7 @@ static void evaluate(AvdsFace *self) {
   memcpy(s->context+12,s->safeContext+12,(AVDS_CONTEXT-12)*sizeof(float));
   s->context[2]=s->safeContext[2]; s->context[31]=s->context[8];
  }
+ s->contextUs+=durationUs(contextStart);
  if (s->hasFrame && !memcmp(s->context,s->lastContext,sizeof(s->context))) return;
  s->preparations++;
  uint64_t start=nowUs(); s->evaluations++;
@@ -181,17 +183,26 @@ static void evaluate(AvdsFace *self) {
  }
  changed |= geometryChanged;
  unsigned outline=0;
+ unsigned oldOutline=0;
  for (unsigned i=0;i<s->vm.count;i++) {
   const int32_t *c=s->vm.commands[i];
+  const int32_t *previous=s->commands[i];
+  int previousDrawable=i<s->count && drawable(previous);
   if (drawable(c)) {
-   // Rebuild when primitive indices changed, including preceding zero-size shapes.
-   if (geometryChanged) { buildOutline(s->outlines+outline,c); s->geometryChanges++; }
+   // Stable slots reuse their exact geometry. Rebuild on index shifts, including
+   // preceding zero-size primitives; earlier writes only touch lower new slots.
+   if (!s->hasFrame || !previousDrawable || oldOutline!=outline || memcmp(c,previous,7*sizeof(int32_t))) {
+    buildOutline(s->outlines+outline,c); s->geometryChanges++;
+   }
    outline++;
+  }
+  if (previousDrawable) oldOutline++;
+  if (!s->hasFrame || i>=s->count || memcmp(c,previous,sizeof(s->commands[0]))) {
+   memcpy(s->commands[i],c,sizeof(s->commands[0])); s->copiedBytes+=sizeof(s->commands[0]);
   }
  }
  s->outlineCount=outline; s->count=s->vm.count;
- memcpy(s->commands,s->vm.commands,s->count*sizeof(s->commands[0]));
- memcpy(s->lastContext,s->context,sizeof(s->context)); s->hasFrame=1;
+ memcpy(s->lastContext,s->context,sizeof(s->context)); s->copiedBytes+=sizeof(s->context); s->hasFrame=1;
  s->geometryUs+=durationUs(start);
  if (changed) PiuContentInvalidate(self,NULL);
 }
@@ -291,9 +302,11 @@ static AvdsFaceState *state(xsMachine *the, AvdsFace *self) {
 }
 void xs_avds_face_context(xsMachine *the) {
  AvdsFace *self=checkedFace(the); AvdsFaceState *s=state(the,self); float ctx[AVDS_CONTEXT];
+ uint64_t start=nowUs();
  readContext(the,xsArg(0),ctx);
  if (memcmp(ctx,s->safeContext,3*sizeof(float))) xsRangeError("AVDS: immutable geometry");
- memcpy(s->state,ctx,sizeof(ctx)); s->updates++;
+ memcpy(s->state,ctx,sizeof(ctx)); s->copiedBytes+=sizeof(ctx)*2; s->updates++;
+ s->stateUs+=durationUs(start);
  // Visible animation has one native evaluation clock. Host state writes are
  // coalesced into its next tick; stopped/unbound faces prepare immediately.
  if (!s->enabled || !(*self)->application) evaluate(self);
@@ -333,6 +346,7 @@ void xs_avds_face_stats(xsMachine *the) {
  STAT("geometryChanges",s->geometryChanges); STAT("vmUs",s->vmUs); STAT("geometryUs",s->geometryUs);
  STAT("rasterSubmitUs",s->rasterSubmitUs); STAT("elapsed",s->elapsed); STAT("nativeBytes",sizeof(*s));
  STAT("rasterUs",s->rasterUs);
+ STAT("contextUs",s->contextUs); STAT("stateUs",s->stateUs); STAT("copiedBytes",s->copiedBytes);
  STAT("instructions",s->vm.steps); STAT("commands",s->count); STAT("disposed",s->disposed);
 #undef STAT
 }

@@ -10,6 +10,7 @@
     "$(MODDABLE)/modules/files/flash/manifest.json"
   ],
   "modules": {
+    "m5stackchan-screen": "./host/screen",
     "axp2101-power-capture": "../../modules/power/platforms/axp2101-power-capture",
     "embedded:sensor/Touch/FT6x06": "./host/ft6206_async_m5stackchan",
     "setup/m5stackchan-power": "./setup-target",
@@ -24,6 +25,7 @@
     }
   },
   "config": {
+    "screen": "m5stackchan-screen",
     "driver": {
       "type": "m5stackchan",
       "typeLocked": true,

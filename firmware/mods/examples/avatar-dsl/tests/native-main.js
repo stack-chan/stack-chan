@@ -180,6 +180,8 @@ b.onFaceUpdate(first.content, state)
 const stage = new Container(null, { left: 0, top: 0, width: 320, height: 240, contents: [first.content] })
 let step = 0
 export default new Application(null, {
+  // Exercise multi-row raster bands against the unchanged small-buffer reference.
+  pixels: 320 * 16,
   displayListLength: 4096,
   commandListLength: 4096,
   skin: new Skin({ fill: 'black' }),

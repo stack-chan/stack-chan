@@ -17,3 +17,9 @@ export const RasterProbe = Template(
 export function microseconds() {
   return native('xs_avds_probe_us').call(this)
 }
+export function instrumentDisplay(dispatch) {
+  return native('xs_avds_probe_display').call(this, dispatch)
+}
+export function displayStats() {
+  return native('xs_avds_probe_display_stats').call(this)
+}

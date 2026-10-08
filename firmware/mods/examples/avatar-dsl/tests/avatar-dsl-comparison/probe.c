@@ -5,6 +5,7 @@
 #include "xsmc.h"
 #include "commodettoPocoBlit.h"
 #include <string.h>
+#include <stdlib.h>
 
 typedef struct ProbeStruct ProbeRecord, *Probe;
 typedef Probe PiuProbe;
@@ -83,3 +84,76 @@ void xs_avds_probe_stats(xsMachine *the) {
 #undef STAT
 }
 void xs_avds_probe_us(xsMachine *the) { xsmcSetNumber(xsResult,clockUs()); }
+
+// Preserve driver buffers, lengths, async flags, queue sizes and wait behavior.
+// sendUs includes copy/queue and SPI completion waits, not just wire time.
+typedef struct {
+ PixelsOutDispatch dispatch, original;
+ PixelsOutDispatchRecord record;
+ void *refcon;
+ xsSlot screen;
+ uint64_t beginUs, sendUs, endUs, displayUs, cycleUs, bytes;
+ uint32_t begins, sends, ends, syncSends, asyncSends, cycleCount;
+ uint32_t beginAt, lastEnd, cycleMin, cycleMax;
+} DisplayProbe;
+static DisplayProbe *display;
+static void displayBegin(void *it, CommodettoCoordinate x, CommodettoCoordinate y, CommodettoDimension w, CommodettoDimension h) {
+ DisplayProbe *p=it; uint32_t start=clockUs(); p->beginAt=start;
+ p->original->doBegin(p->refcon,x,y,w,h);
+ p->beginUs+=(uint32_t)(clockUs()-start); p->begins++;
+}
+static void displaySend(PocoPixel *pixels, int length, void *it) {
+ DisplayProbe *p=it; uint32_t start=clockUs();
+ p->original->doSend(pixels,length,p->refcon);
+ p->sendUs+=(uint32_t)(clockUs()-start); p->sends++;
+ p->bytes+=length<0?-length:length;
+ if (length<0) p->asyncSends++; else p->syncSends++;
+}
+static void displayContinue(void *it) {
+ DisplayProbe *p=it; uint32_t start=clockUs();
+ p->original->doContinue(p->refcon);
+ p->endUs+=(uint32_t)(clockUs()-start);
+ p->displayUs+=(uint32_t)(clockUs()-p->beginAt);
+}
+static void displayEnd(void *it) {
+ DisplayProbe *p=it; uint32_t start=clockUs();
+ p->original->doEnd(p->refcon);
+ p->endUs+=(uint32_t)(clockUs()-start);
+ uint32_t end=clockUs(); p->displayUs+=(uint32_t)(end-p->beginAt); p->ends++;
+ if (p->lastEnd) {
+  uint32_t cycle=end-p->lastEnd; p->cycleUs+=cycle; p->cycleCount++;
+  if (cycle<p->cycleMin) p->cycleMin=cycle;
+  if (cycle>p->cycleMax) p->cycleMax=cycle;
+ }
+ p->lastEnd=end;
+}
+static void displayAdapt(void *it, CommodettoRectangle r) {
+ DisplayProbe *p=it; if (p->original->doAdaptInvalid) p->original->doAdaptInvalid(p->refcon,r);
+}
+static void displayDelete(void *it) { if (display==it) display=NULL; free(it); }
+static void displayMark(xsMachine *the, void *it, xsMarkRoot markRoot) { DisplayProbe *p=it; if (p) (*markRoot)(the,&p->screen); }
+static const xsHostHooks displayHooks={displayDelete,displayMark,NULL};
+void xs_avds_probe_display(xsMachine *the) {
+ if (display) xsUnknownError("AVDS: display probe already installed");
+ void *refcon=xsmcGetHostData(xsArg(0));
+ PixelsOutDispatch original=refcon?*(PixelsOutDispatch*)refcon:NULL;
+ if (!original || !original->doBegin || !original->doSend || !original->doEnd || !original->doContinue)
+  xsUnknownError("AVDS: unsupported display dispatch");
+ DisplayProbe *p=calloc(1,sizeof(*p)); if (!p) xsUnknownError("AVDS: display probe allocation");
+ xsResult=xsNewHostObject(displayDelete); xsmcSetHostData(xsResult,p); xsSetHostHooks(xsResult,(xsHostHooks*)&displayHooks);
+ p->record=*original; p->record.doBegin=displayBegin; p->record.doContinue=displayContinue;
+ p->record.doEnd=displayEnd; p->record.doSend=displaySend;
+ p->record.doAdaptInvalid=original->doAdaptInvalid?displayAdapt:NULL;
+ p->dispatch=&p->record; p->original=original; p->refcon=refcon;
+ p->screen=xsArg(0); p->cycleMin=UINT32_MAX; display=p;
+}
+void xs_avds_probe_display_stats(xsMachine *the) {
+ DisplayProbe *p=display; if (!p) xsUnknownError("AVDS: display probe not installed");
+ xsmcVars(1); xsmcSetNewObject(xsResult);
+#define STAT(name,value) xsmcSetNumber(xsVar(0),(double)(value)); xsmcSet(xsResult,xsID(name),xsVar(0))
+ STAT("beginUs",p->beginUs); STAT("sendUs",p->sendUs); STAT("endUs",p->endUs); STAT("displayUs",p->displayUs);
+ STAT("cycleUs",p->cycleUs); STAT("cycleCount",p->cycleCount); STAT("cycleMin",p->cycleMin); STAT("cycleMax",p->cycleMax);
+ STAT("begins",p->begins); STAT("sends",p->sends); STAT("ends",p->ends); STAT("bytes",p->bytes);
+ STAT("syncSends",p->syncSends); STAT("asyncSends",p->asyncSends);
+#undef STAT
+}

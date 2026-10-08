@@ -200,7 +200,7 @@ export default new Application(null, {
         // Preserve the reference fixture's cleared/disposed terminal image.
         stage.remove(stage.first)
         // Start after the preceding final capture has finished.
-        Timer.set(async () => {
+        async function verifyNativeAnimation() {
           // Change-free partial updates really retain a partial dirty region;
           // state changes above intentionally invalidate the full canvas.
           const wait = () => new Promise((resolve) => Timer.set(resolve, 40))
@@ -292,7 +292,8 @@ export default new Application(null, {
               }, 4200)
             }, 80)
           }, 100)
-        }, 40)
+        }
+        Timer.set(verifyNativeAnimation, 40)
         return
       }
       const index = Math.floor(step / 24),

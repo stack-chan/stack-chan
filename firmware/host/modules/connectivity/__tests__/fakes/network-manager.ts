@@ -1,8 +1,10 @@
+import type { NetworkConnectionState } from '../../network-state.js'
+
 export type StartNetworkConnectionOptions = {
   ssid: string
   password: string
   scanBeforeConnect?: boolean
-  onStateChanged?: (state: unknown) => void
+  onStateChanged?: (state: NetworkConnectionState) => void
   onConnected?: () => void
   onError?: (reason?: string) => void
 }

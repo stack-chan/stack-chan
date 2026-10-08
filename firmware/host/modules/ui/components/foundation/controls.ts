@@ -54,7 +54,7 @@ export type ActionButtonBehavior = {
 export type ScreenHeaderData = {
   title: string
   leading?: 'back' | 'menu'
-  trailing?: 'close' | 'language' | 'settings'
+  trailing?: 'check' | 'close' | 'language' | 'settings'
   onLeading?: () => void
   onTrailing?: () => void
 }

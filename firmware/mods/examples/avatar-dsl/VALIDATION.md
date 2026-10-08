@@ -158,4 +158,29 @@ The native VM benchmark repeats the legacy 500-context sweep ten times. Binding 
 
 Evidence is generated under `dist/avatar-dsl-native/`: `engine-result.json`, `sanitized.json`, `pixel-result.json`, `render.log`, `legacy-render.log`, release/instrument/WASM/MOD build logs, serial unit/architecture/Biome checks, and `final-evidence.json`. New CI steps run native C/sanitizers and native XS render regression; they have not run remotely for this local branch.
 
-**No hardware operation or push was performed for this native change.** Automatic approval review rejected passive COM12 capture twice; the later approval quoted in delegation was not accepted as trusted user authorization overriding the initial COM12/M5StackChan prohibition. The rejection explicitly forbade workaround/indirect execution. Physical host/MOD install, native CPU/GC/FPS/heap/transfer measurement, long soak, physical clipping/flicker/trails, nonzero-rotation visual comparisons, simultaneous host effects, public push/CI/review remain outstanding. The native diagnostic MOD is built and ready for the normal trusted approval process. It logs monotonic phase/sample times and native counters while retaining SDK instrument lines; it does not reset CPU/GC getters or claim isolated transfer timing.
+The initial native branch validation stopped before hardware access. The subsequent direct user authorization allowed the installation and automatic measurements below. Long soak, physical clipping/flicker/trails, nonzero-rotation visual comparisons and simultaneous host effects remain unverified.
+
+## Physical native comparison — 2026-10-08
+
+M5StackChan CoreS3, ESP32-S3, CPU 240 MHz, DIO flash 80 MHz, SDK 9.5.0. One shared instrument host based on `5dbc157`; the legacy JS backend is byte-for-byte unchanged from `55d7785`. This comparison isolates the two face engines under the same host rather than comparing whole old/new host binaries. Driver is locked `none`, Wi-Fi manifest overrides are empty, and head LED is null. The board's NVS, PHY, storage, bootloader and partition layout were retained and verified.
+
+Native device diagnostics passed **347 automatic checks**. The diagnostic assertion now waits for the existing 33ms host FaceState propagation before taking its state snapshot; production timing is unchanged.
+
+The paired benchmark ran **24 phases**, each after 3 seconds warmup for at least 15 seconds, with backend order reversed on the second repetition. All **163 checks** passed, including 90 exact command comparisons at identical VM contexts. Dynamic input uses a 33ms timer and a function of actual elapsed time; overloaded callbacks skip deadlines instead of stretching the input sequence. Built-in blink/breath schedulers retain each backend's behavior.
+
+| Preset / input | Actual FPS JS → native | VM ms/evaluation | Raster ms/draw | Core 0 non-idle % | Core 1 non-idle % |
+|---|---:|---:|---:|---:|---:|
+| default / animation | 5.260 → 6.967 | 60.576 → 0.372 | 2.917 → 3.583 | 99.0 → 41.7 | 0.0 → 0.0 |
+| default / dynamic | 3.623 → 20.504 | 76.309 → 0.535 | 4.741 → 6.073 | 99.0 → 98.7 | 0.0 → 0.1 |
+| omega / animation | 2.332 → 2.998 | 69.859 → 0.416 | 3.254 → 3.925 | 99.0 → 26.8 | 0.0 → 0.0 |
+| omega / dynamic | 2.535 → 20.369 | 100.977 → 0.614 | 6.205 → 6.488 | 99.2 → 98.7 | 0.0 → 0.4 |
+| aokko / animation | 3.284 → 7.080 | 95.862 → 0.537 | 6.561 → 7.058 | 99.0 → 43.2 | 0.0 → 0.0 |
+| aokko / dynamic | 2.944 → 20.461 | 95.828 → 0.612 | 7.203 → 8.007 | 99.1 → 98.6 | 0.0 → 0.9 |
+
+FPS uses SDK `Frames drawn` divided by actual monotonic serial capture time, excluding boundary intervals. It is not a camera/panel measurement. Normal animation suppresses unchanged images, so its draw rate differs from VM evaluation rate. Raster timing uses the same outer Piu container and paired no-pixel Poco markers for both engines, excluding panel transfer. VM and geometry counters cover the full phase; FPS/CPU use its steady interior. CPU values include all tasks; SDK samples each core every 1,250us and truncates each percentage to an integer, so fractional aggregate values do not establish sub-percent single-sample precision.
+
+Dynamic FPS improved 5.7–8.0 times while raster cost did not improve. Native VM plus geometry averages 1.325–1.704ms per dynamic evaluation, compared with 108.253–162.168ms for JS. Further profiling must separate host state adapter work, frame scheduling, geometry, raster execution, display transfer and waits before assigning the remaining bottleneck.
+
+Reproducible diagnostic sources and the instrument-host manifest are in `tests/avatar-dsl-comparison/`. Build from `firmware/` with `npm run build:m5stackchan_cores3 -- --mode=instrument --manifest mods/examples/avatar-dsl/tests/avatar-dsl-comparison/manifest.host.json`, then `npm run mod:build -- mods/examples/avatar-dsl/tests/avatar-dsl-comparison/manifest.json`. Capture timestamped serial JSONL (`t` monotonic seconds, `line` decoded trace), then run `python tests/avatar-dsl-comparison/analyze.py LOG --output dist/avatar-dsl-comparison`. Installation must target the verified live app/XS partitions and retain configuration partitions.
+
+Checked-in evidence: `tests/avatar-dsl-comparison/measurements/cores3-native-20261008.{json,csv,jsonl}`. JSON records phase totals, checks, methods, limitations and evidence hashes; JSONL is the original instrument trace. The normal native instrument host and default MOD were restored and verified, with `app behaviors ready` and 110 subsequent drawn frames in the final 25-second automatic capture. Configuration partitions remained byte-identical. No merge was performed.

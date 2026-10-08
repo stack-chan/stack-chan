@@ -109,6 +109,9 @@ export async function onContextCreated(robot) {
       robot.face.setEyeOpen('left', 1)
       robot.face.setEyeOpen('right', 1)
       robot.face.setMouthOpen(emotion % 2)
+      // Host FaceState notifications are batched on its timer. Let that
+      // observable update arrive before checking the native renderer snapshot.
+      await wait(140)
       face.renderer.snapshot(snapshot, commands)
       check(
         snapshot[9] === [0, 3, 2, 1, 5, 4][emotion] && snapshot[8] === emotion % 2,

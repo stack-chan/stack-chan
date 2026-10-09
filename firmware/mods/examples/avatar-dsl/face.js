@@ -202,11 +202,11 @@ class AvatarBehavior extends Behavior {
       const drawable = op === Op.FillRect || op === Op.FillCircle || op === Op.FillTriangle
       shape.visible =
         drawable && clip.w > 0 && clip.h > 0 && (op === Op.FillTriangle || (w > 0 && (op === Op.FillCircle || h > 0)))
-      if (!drawable || (op !== Op.FillTriangle && (w <= 0 || (op === Op.FillRect && h <= 0)))) continue
       if (clipChanged) {
         this.clipContainers[i].coordinates = { left: clip.x, top: clip.y, width: clip.w, height: clip.h }
         shape.coordinates = { left: -clip.x, top: -clip.y, width: this.context[0], height: this.context[1] }
       }
+      if (!drawable || (op !== Op.FillTriangle && (w <= 0 || (op === Op.FillRect && h <= 0)))) continue
       // Pool is fixed. Changed paths/Skin do allocate in this initial prototype.
       // Absolute paths keep their canvas coordinates inside a clipping parent.
       if (geometryChanged) {

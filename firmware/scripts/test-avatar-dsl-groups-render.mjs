@@ -25,6 +25,19 @@ writeFileSync(
     compile(`
 fn draw()
  let s=mouth_open
+ -- Change the clip while each primitive is hidden, then reappear in the same
+ -- clip: the cached reference must not retain its earlier container bounds.
+ let extent=20
+ if s == 1 then extent=0 end
+ begin_group(245+min(s,1)*10,10,40,20)
+ fill_rect(240,10,extent*3,20,0x001F)
+ end_group()
+ begin_group(245+min(s,1)*10,40,40,20)
+ fill_rect(240,40,60,extent,0xF81F)
+ end_group()
+ begin_group(245+min(s,1)*10,70,40,25)
+ fill_circle(270,82,extent*0.9,0x07E0)
+ end_group()
  fill_rect(250,130,s,8,0xF800)
  fill_circle(260,160,s,0x07E0)
  if s % 2 == 0 then
@@ -163,6 +176,19 @@ const load = (label) => {
     }
   return logical
 }
+const reappeared = load('reference 2 full')
+for (const [x, y, primitive] of [
+  [250, 15, 'zero-width rect'],
+  [250, 45, 'zero-height rect'],
+  [254, 82, 'zero-radius circle'],
+]) {
+  const offset = ((y + 9) * 320 + x + 7) * 4
+  assert.deepEqual(
+    [...reappeared.subarray(offset, offset + 4)],
+    [0, 0, 0, 255],
+    `${primitive} reappears with the clip changed while hidden`,
+  )
+}
 for (let i = 0; i < 18; i++) {
   const native = load(`native ${i} damage`)
   assert.ok(native.equals(load(`native ${i} full`)), `native dirty/full ${i}`)
@@ -202,6 +228,7 @@ const result = {
   rotation,
   retainedFailurePairs: 1,
   zeroSizeSlotChanges: true,
+  degenerateClipTransitions: 3,
   reorderedOverlap: true,
   clipOnlyChanges: true,
   dirtyFullPairs: 18,

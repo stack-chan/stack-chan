@@ -19,6 +19,8 @@ Validation: Ubuntu 24.04 WSL x86_64, clean Moddable SDK 9.5.0, GCC 13.3.0:
 
 CI environment correction: the first group-only [Bundle run](https://github.com/stack-chan/stack-chan/actions/runs/38000664322) compiled all six release firmwares, but the separate CoreS3 ABI step could not find `xtensa-esp32s3-elf-gcc`. The build wrapper's ESP-IDF environment does not persist into another step. The ABI step now explicitly sources `$IDF_PATH/export.sh` after the xs-dev exports. This correction changes only the test environment, not the renderer or SPI implementation. The [Build run](https://github.com/stack-chan/stack-chan/actions/runs/38000664307) passed all tests, including the strict-clip raster suites.
 
+Reference regression follow-up: a visible primitive can become zero-sized while its group clip moves, then become visible again with that same clip. The JS reference now updates its clip container before skipping degenerate geometry, keeping the cached clip and container coordinates consistent. The added real-raster regression covers zero-width rectangles, zero-height rectangles and zero-radius circles over continuous frames. Before the correction, the zero-width case painted a blue pixel outside its new clip at head `6096d67`; the expected pixel was black. After the correction, all four rotations (228 pairs) and the existing 82 native/reference images passed. The native implementation is unchanged.
+
 Host payload estimates over 120 evaluations per workload, including the first full frame and retaining the old implementation's unchanged-command suppression:
 
 | Preset | Mouth bytes / reduction | Blink bytes / reduction | Breath bytes / reduction | Dynamic bytes / reduction |

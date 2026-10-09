@@ -1,0 +1,36 @@
+--- a/firmware/host/modules/ui/components/face/avatar-native/native.c
++++ b/firmware/host/modules/ui/components/face/avatar-native/native.c
+@@ -186 +185,0 @@
+- unsigned oldOutline=0;
+@@ -189,2 +187,0 @@
+-  const int32_t *previous=s->commands[i];
+-  int previousDrawable=i<s->count && drawable(previous);
+@@ -192,5 +189,2 @@
+-   // Stable slots reuse their exact geometry. Rebuild on index shifts, including
+-   // preceding zero-size primitives; earlier writes only touch lower new slots.
+-   if (!s->hasFrame || !previousDrawable || oldOutline!=outline || memcmp(c,previous,7*sizeof(int32_t))) {
+-    buildOutline(s->outlines+outline,c); s->geometryChanges++;
+-   }
++   // Rebuild when primitive indices changed, including preceding zero-size shapes.
++   if (geometryChanged) { buildOutline(s->outlines+outline,c); s->geometryChanges++; }
+@@ -199,4 +192,0 @@
+-  if (previousDrawable) oldOutline++;
+-  if (!s->hasFrame || i>=s->count || memcmp(c,previous,sizeof(s->commands[0]))) {
+-   memcpy(s->commands[i],c,sizeof(s->commands[0])); s->copiedBytes+=sizeof(s->commands[0]);
+-  }
+@@ -204,0 +195 @@
++ memcpy(s->commands,s->vm.commands,s->count*sizeof(s->commands[0])); s->copiedBytes+=s->count*sizeof(s->commands[0]);
+--- a/firmware/mods/examples/avatar-dsl/context.js
++++ b/firmware/mods/examples/avatar-dsl/context.js
+@@ -8,5 +8 @@
+-function clamp(v, lo, hi) {
+-  // Preserve non-number/non-finite and signed-zero semantics with fewer calls.
+-  if (!Number.isFinite(v) || v <= lo) return lo
+-  return v >= hi ? hi : v
+-}
++const clamp = (v, lo, hi) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : lo)
+--- a/firmware/mods/examples/avatar-dsl/tests/avatar-dsl-comparison/screen-probe.js
++++ b/firmware/mods/examples/avatar-dsl/tests/avatar-dsl-comparison/screen-probe.js
+@@ -3 +3 @@
+-import Screen from 'm5stackchan-screen'
++import Screen from 'ili9341'

@@ -4,6 +4,14 @@
   "description": "A firmware of M5Stack Stack-chan module",
   "main": "host/app/main.ts",
   "scripts": {
+    "avatar-dsl:compile": "node mods/examples/avatar-dsl/tools/compile-presets.mjs",
+    "test:avatar-dsl": "node --test mods/examples/avatar-dsl/tests/vm.test.mjs",
+    "test:avatar-dsl:native": "node scripts/test-avatar-dsl-native.mjs",
+    "test:avatar-dsl:native:build": "npm run test:avatar-dsl:native && node scripts/run-mcconfig.mjs -dn -m -p lin/m5stack -t build mods/examples/avatar-dsl/tests/manifest.native.json",
+    "test:avatar-dsl:native:render": "node scripts/test-avatar-dsl-native-render.mjs",
+    "test:avatar-dsl:oracle": "node mods/examples/avatar-dsl/tools/generate-oracle.mjs",
+    "test:avatar-dsl:render": "node scripts/test-avatar-dsl-render.mjs",
+    "test:avatar-dsl:render:build": "node scripts/run-mcconfig.mjs -dn -i -m -p lin/m5stack -t build mods/examples/avatar-dsl/tests/manifest.json",
     "test:jitome-face-render": "node scripts/test-jitome-face-render.mjs",
     "test:jitome-face-render:build": "node scripts/run-mcconfig.mjs -dn -m -p lin/m5stack -t build host/modules/ui/components/face/jitome/__tests__/jitome-face-render/manifest.json",
     "benchmark:jitome-face:build:cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32/m5stack_cores3 -t build benchmarks/jitome-face/manifest.json",
@@ -25,7 +33,7 @@
     "generate-apidoc": "npm exec --prefix tools/typedoc -- typedoc --skipErrorChecking --entryPointStrategy expand --plugin typedoc-plugin-markdown --out docs/api ./host",
     "vendor:stackchan-dock": "node scripts/vendor-stackchan-dock.mjs",
     "test": "npm run test:unit",
-    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\" scripts/lib/build-output.test.mjs scripts/lib/build-variant.test.mjs scripts/lib/firmware-bundle.test.mjs scripts/lib/firmware-command.test.mjs scripts/lib/idf-dependencies.test.mjs scripts/lib/mod-flash.test.mjs scripts/lib/moddable-version.test.mjs scripts/lib/module-test-sharding.test.mjs scripts/lib/release-validation.test.mjs host/modules/audio/*.test.mjs mods/examples/podcast/*.test.mjs",
+    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\" scripts/lib/build-output.test.mjs scripts/lib/build-variant.test.mjs scripts/lib/firmware-bundle.test.mjs scripts/lib/firmware-command.test.mjs scripts/lib/idf-dependencies.test.mjs scripts/lib/mod-flash.test.mjs scripts/lib/moddable-version.test.mjs scripts/lib/module-test-sharding.test.mjs scripts/lib/release-validation.test.mjs host/modules/audio/*.test.mjs mods/examples/podcast/*.test.mjs mods/examples/avatar-dsl/tests/vm.test.mjs",
     "test:moddable": "node scripts/run-module-tests.js",
     "test:opus-decoder-device:build": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"host/modules/audio/__tests__/opus-decoder-device/manifest.device.json\"",
     "test:web-radio-device:build": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/modules/audio/__tests__/web-radio-device/manifest.json\"",
@@ -89,7 +97,12 @@
     "scan": "xs-dev scan",
     "erase-flash": "esptool erase-flash",
     "install-hook": "lefthook install",
-    "uninstall-hook": "lefthook uninstall"
+    "uninstall-hook": "lefthook uninstall",
+    "test:avatar-dsl:damage": "node scripts/test-avatar-dsl-damage.mjs",
+    "test:avatar-dsl:groups:render": "node scripts/test-avatar-dsl-groups-render.mjs",
+    "test:avatar-dsl:groups:rotations": "node scripts/test-avatar-dsl-groups-rotations.mjs",
+    "test:avatar-dsl:esp32:abi": "python3 scripts/test-avatar-dsl-esp32-abi.py",
+    "test:avatar-dsl:groups:build": "node scripts/run-mcconfig.mjs -dn -i -m -p lin/m5stack -t build mods/examples/avatar-dsl/tests/manifest.groups.json"
   },
   "type": "module",
   "repository": {

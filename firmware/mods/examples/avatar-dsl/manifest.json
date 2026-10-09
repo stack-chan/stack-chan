@@ -1,0 +1,15 @@
+{
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "modules": {
+    "*": "./mod",
+    "avatar-dsl/face": "./native-face",
+    "avatar-dsl/context": "./context"
+  },
+  "resources": {
+    "*": [
+      "./assets/default_face.avbc",
+      "./assets/omega_mouth.avbc",
+      "./assets/aokko_face.avbc"
+    ]
+  }
+}

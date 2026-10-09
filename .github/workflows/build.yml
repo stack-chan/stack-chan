@@ -88,6 +88,12 @@ jobs:
       - name: Run firmware tests
         working-directory: ./firmware
         run: npm run test
+      - name: Verify native AVDS engine and sanitizers
+        working-directory: ./firmware
+        run: npm run test:avatar-dsl:native && AVDS_SANITIZE=1 npm run test:avatar-dsl:native
+      - name: Verify AVDS strict clip and continuous damage planning
+        working-directory: ./firmware
+        run: npm run test:avatar-dsl:damage && AVDS_SANITIZE=1 npm run test:avatar-dsl:damage
       - name: Run legacy name checks
         working-directory: ./firmware
         run: npm run check:legacy-names
@@ -156,6 +162,12 @@ jobs:
       - name: Smoke test Linux simulator startup
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:lin
+      - name: Compare native Avatar DSL pixels and lifecycle
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:avatar-dsl:native:render
+      - name: Compare strict groups, continuous damage, and historical preset pixels
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:avatar-dsl:groups:rotations
       - name: Smoke test mini app on Linux simulator
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:mini-app:lin

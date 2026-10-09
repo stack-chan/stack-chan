@@ -1,0 +1,83 @@
+{
+  "repository": "https://github.com/ciniml/stackchan-idf",
+  "commit": "419385ef1b875137140085bd50d34dee331f30c2",
+  "targetBase": "876b91ebc475fc05d8e196659c315bebca11bb7c",
+  "format": "AVDS",
+  "version": 1,
+  "license": "BSL-1.0",
+  "copyright": "2026 Kenta IDA <fuga@fugafuga.org>",
+  "features": [
+    "all pinned numeric opcodes",
+    "functions/locals/while",
+    "draw primitives/groups",
+    "context IDs 0x00..0x28",
+    "mouth_form fallback",
+    "accessories slots 0..7"
+  ],
+  "portSources": [
+    "components/avatar_vm/vm.cpp",
+    "components/avatar_vm/decoder.cpp",
+    "components/avatar_vm/include/avatar_vm/bytecode.hpp"
+  ],
+  "files": [
+    {
+      "local": "../../../tools/avatar-dsl/compiler/compile.js",
+      "upstream": "tools/avatar_dsl/compile.js",
+      "sha256": "38449742d214343fd178e8ec04469245d1b1c677abb0a6a20f2f2dfef7d957ba"
+    },
+    {
+      "local": "../../../tools/avatar-dsl/compiler/emitter.js",
+      "upstream": "tools/avatar_dsl/emitter.js",
+      "sha256": "dfb6eab11edbb375f9a6f14038454b8d0c5f7503ad027c09ea65b2b3322d89dd"
+    },
+    {
+      "local": "../../../tools/avatar-dsl/compiler/lexer.js",
+      "upstream": "tools/avatar_dsl/lexer.js",
+      "sha256": "b5fac0a871c4400e49d1c63bfe54c4af79356a8b09f54510bc1ebf0b5634b490"
+    },
+    {
+      "local": "../../../tools/avatar-dsl/compiler/parser.js",
+      "upstream": "tools/avatar_dsl/parser.js",
+      "sha256": "3ca970c8d9c0a1f0fb0ca090f0d968d387d16a36a02213952de649d0aee484a5"
+    },
+    {
+      "local": "vendor/compiler/opcodes.js",
+      "upstream": "tools/avatar_dsl/opcodes.js",
+      "sha256": "8e441527d503cc68fe7e55d676979545106439fad014819d62a89b90e6c9ac11"
+    },
+    {
+      "local": "../../../tools/avatar-dsl/compiler/opcodes.js",
+      "upstream": "tools/avatar_dsl/opcodes.js",
+      "sha256": "8e441527d503cc68fe7e55d676979545106439fad014819d62a89b90e6c9ac11"
+    },
+    {
+      "local": "../../../tools/avatar-dsl/compiler/cli.mjs",
+      "upstream": "tools/avatar_dsl/cli.mjs",
+      "sha256": "4517061e59dc308e51afb8ce9754a23cdcf1298caf0a69c90f4db0f6974286d9"
+    },
+    {
+      "local": "../../../tools/avatar-dsl/compiler/package.json",
+      "upstream": "tools/avatar_dsl/package.json",
+      "sha256": "b48de0274b5e89cecac86898a4d9d195269fe23a09e632b59d2d3b610e075e9f"
+    },
+    {
+      "local": "tests/upstream-presets/default_face.avdsl",
+      "upstream": "assets/default_face.avdsl",
+      "sha256": "81c0663ec3bd9bf001f16410336398f52d40458aaf8b185ea994ac9da8bf5c56"
+    },
+    {
+      "local": "tests/upstream-presets/omega_mouth.avdsl",
+      "upstream": "assets/omega_mouth.avdsl",
+      "sha256": "7be7f588d293078708ca8b4f73d3b0958393bfde4fd8524d49a5ac698a7154fa"
+    },
+    {
+      "local": "tests/upstream-presets/aokko_face.avdsl",
+      "upstream": "assets/aokko_face.avdsl",
+      "sha256": "e79915587de132294331e6fcd9b0d58376681c47e9f74d402ec4f9c8c3ba7a02"
+    }
+  ],
+  "hashEncoding": "UTF-8 with CRLF normalized to LF",
+  "adaptations": [
+    "Bundled preset group extents are expanded for strict absolute clipping; original sources and bytecode are retained in tests/upstream-presets. Compiler and numeric VM remain unchanged."
+  ]
+}

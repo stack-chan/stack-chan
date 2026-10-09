@@ -17,6 +17,8 @@ Validation: Ubuntu 24.04 WSL x86_64, clean Moddable SDK 9.5.0, GCC 13.3.0:
 - Actual ESP32-S3 native C compilation passed for **0/90/180/270** using flags extracted from the completed release build. DWARF confirms `FT_Pos=4`, `PocoCoordinate=2`, `PocoDimension=2`, `PocoOutlineRecord=16` at 0 / `20` otherwise. Fixed `AvdsFaceState` storage is **13,872 bytes** at 0 / **14,128** otherwise on this MCU ABI; this is not live free-heap measurement.
 - Independent read-only review found no confirmed production defect and also reviewed the additional test diff.
 
+CI environment correction: the first group-only [Bundle run](https://github.com/stack-chan/stack-chan/actions/runs/38000664322) compiled all six release firmwares, but the separate CoreS3 ABI step could not find `xtensa-esp32s3-elf-gcc`. The build wrapper's ESP-IDF environment does not persist into another step. The ABI step now explicitly sources `$IDF_PATH/export.sh` after the xs-dev exports. This correction changes only the test environment, not the renderer or SPI implementation. The [Build run](https://github.com/stack-chan/stack-chan/actions/runs/38000664307) passed all tests, including the strict-clip raster suites.
+
 Host payload estimates over 120 evaluations per workload, including the first full frame and retaining the old implementation's unchanged-command suppression:
 
 | Preset | Mouth bytes / reduction | Blink bytes / reduction | Breath bytes / reduction | Dynamic bytes / reduction |

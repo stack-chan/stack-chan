@@ -177,7 +177,7 @@ fn collar()
   let band_h = sz(24)
   let gx = tx(0)
   let gw = sz(320)
-  begin_group(gx, band_y - sz(14), gw, band_h + sz(16) + sz(14))
+  begin_group(gx, band_y - sz(14), gw, band_h + sz(16))
   fill_rect(gx, band_y, gw, band_h, 0xF800)
   -- bell: gold disc on the band, dark slit + clapper dot below
   let bx = tx(160)

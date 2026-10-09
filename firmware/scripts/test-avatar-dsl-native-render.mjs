@@ -12,7 +12,7 @@ function run(cmd, args, options = {}) {
   assert.equal(result.status, 0, result.stdout + result.stderr)
   return result.stdout + result.stderr
 }
-// Regenerate the unmodified JS/Piu reference under the same SDK/platform.
+// Regenerate the explicit strict-group-clip JS/Piu reference under the same SDK.
 writeFileSync(path.join(directory, 'legacy-render.log'), run('npm', ['run', 'test:avatar-dsl:render']))
 writeFileSync(path.join(directory, 'build.log'), run('npm', ['run', 'test:avatar-dsl:native:build']))
 const runner = path.join(buildOutputDirectory, 'avatar-dsl-render/screen-runner')

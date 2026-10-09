@@ -17,7 +17,10 @@
       "../assets/*.avbc",
       "./numeric.avbc",
       "../../../../dist/avatar-dsl-native/oracle.bin",
-      "../../../../dist/avatar-dsl-native/primitive-overflow.avbc"
+      "../../../../dist/avatar-dsl-native/primitive-overflow.avbc",
+      "../../../../dist/avatar-dsl-native/upstream-default_face.avbc",
+      "../../../../dist/avatar-dsl-native/upstream-omega_mouth.avbc",
+      "../../../../dist/avatar-dsl-native/upstream-aokko_face.avbc"
     ]
   },
   "build": { "NAME": "avatar-dsl-native-render" },

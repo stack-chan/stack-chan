@@ -7,6 +7,7 @@
 #include "commodettoPocoOutline.h"
 #include "commodettoPocoBlit.h"
 #include "avds-engine.h"
+#include "avds-render.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,9 +26,12 @@ typedef struct {
  float state[AVDS_CONTEXT], context[AVDS_CONTEXT], safeContext[AVDS_CONTEXT], lastContext[AVDS_CONTEXT];
  int32_t commands[AVDS_COMMANDS][AVDS_STRIDE];
  AvdsOutline outlines[32];
+ AvdsRenderFrame frame;
  uint16_t count, outlineCount, draws;
  uint32_t instructions, elapsed, evaluations, updates, ticks, preparations, rasterPasses, failures, geometryChanges;
  uint64_t vmUs, geometryUs, rasterSubmitUs, rasterUs, rasterStartUs, contextUs, stateUs, copiedBytes;
+ uint64_t damagePixels;
+ uint32_t damageUpdates, fullUpdates;
  AvdsError error;
  uint8_t enabled, paused, disposed, stateBreath, hasFrame;
 } AvdsFaceState;
@@ -175,13 +179,13 @@ static void evaluate(AvdsFace *self) {
  s->vmUs+=durationUs(start);
  if (e) return; // Last complete frame remains visible; no partial publication.
  start=nowUs();
- int geometryChanged=!s->hasFrame || s->count!=s->vm.count;
- int changed=geometryChanged || s->lastContext[11]!=s->context[11];
- for (unsigned i=0;i<s->vm.count;i++) {
-  if (memcmp(s->vm.commands[i],s->commands[i],7*sizeof(int32_t))) geometryChanged=1;
-  if (s->vm.commands[i][7]!=s->commands[i][7]) changed=1;
- }
- changed |= geometryChanged;
+ AvdsRenderFrame next;
+ // VM already validates groups/coordinates and the primitive limit. Keep the
+ // published frame atomic even if independent render validation ever fails.
+ if (avds_render_prepare(s->vm.commands,s->vm.count,(int32_t)s->context[0],(int32_t)s->context[1],&next)) return;
+ int full=!s->hasFrame || s->lastContext[11]!=s->context[11];
+ AvdsRect damage=full?(AvdsRect){0,0,(int32_t)s->context[0],(int32_t)s->context[1]}:
+  avds_render_damage(s->commands,&s->frame,s->vm.commands,&next);
  unsigned outline=0;
  unsigned oldOutline=0;
  for (unsigned i=0;i<s->vm.count;i++) {
@@ -202,9 +206,21 @@ static void evaluate(AvdsFace *self) {
   }
  }
  s->outlineCount=outline; s->count=s->vm.count;
+ for (unsigned i=0;i<next.count;i++) {
+  const AvdsPrimitive *a=s->frame.primitives+i,*b=next.primitives+i;
+  if (i>=s->frame.count || a->command!=b->command || memcmp(&a->clip,&b->clip,2*sizeof(AvdsRect))) {
+   s->frame.primitives[i]=*b; s->copiedBytes+=sizeof(*b);
+  }
+ }
+ s->frame.count=next.count;
  memcpy(s->lastContext,s->context,sizeof(s->context)); s->copiedBytes+=sizeof(s->context); s->hasFrame=1;
  s->geometryUs+=durationUs(start);
- if (changed) PiuContentInvalidate(self,NULL);
+ if (damage.w && damage.h) {
+  PiuRectangleRecord area;
+  PiuRectangleSet(&area,damage.x,damage.y,damage.w,damage.h);
+  s->damageUpdates++; s->fullUpdates+=full; s->damagePixels+=(uint64_t)damage.w*damage.h;
+  PiuContentInvalidate(self,&area);
+ }
 }
 static PocoColor color(Poco poco, uint16_t c) {
  unsigned r=(c>>11)&31,g=(c>>5)&63,b=c&31;
@@ -241,9 +257,30 @@ static void drawAux(void *it, PiuView *view, PiuCoordinate x, PiuCoordinate y, P
  submitMarker(poco,s,0,x,y,w,h);
 #endif
  PocoRectangleFill(poco,color(poco,(uint16_t)s->lastContext[11]),255,x,y,w,h);
- unsigned outline=0;
- for (unsigned i=0;i<s->count;i++) if (drawable(s->commands[i]))
-  PocoOutlineFill(poco,color(poco,(uint16_t)s->commands[i][7]),255,(PocoOutline)s->outlines[outline++].bytes,x,y);
+ // Clear the damaged pixels first, then replay ALL intersecting primitives in
+ // source order. Unchanged foreground/background masks must be replayed too.
+ for (unsigned i=0;i<s->frame.count;i++) {
+  const AvdsPrimitive *p=s->frame.primitives+i;
+  if (!p->bounds.w || !p->bounds.h) continue;
+  // ClipPush can return false both for an empty intersection and for stack
+  // exhaustion. Only pop if it actually pushed (SDK 9.5 contract).
+  uint8_t depth=poco->stackDepth;
+  if (PocoClipPush(poco,x+p->clip.x,y+p->clip.y,p->clip.w,p->clip.h)) {
+   PocoOutline o=(PocoOutline)s->outlines[i].bytes;
+#if (90 == kPocoRotation) || (180 == kPocoRotation) || (270 == kPocoRotation)
+   PocoOutlineRotate(o,poco->width,poco->height);
+#endif
+   // SDK Outline CBoxes and coordinates are 16-bit. Full primitive extents
+   // can exceed that even with valid int16 operands. The conservative visible
+   // box is always canvas-sized; retain full FT geometry for identical AA.
+   PocoCoordinate bx=p->bounds.x,by=p->bounds.y;
+   PocoDimension bw=p->bounds.w,bh=p->bounds.h;
+   rotateCoordinatesAndDimensions(poco->width,poco->height,bx,by,bw,bh);
+   o->xMin=bx; o->yMin=by; o->w=bw; o->h=bh; o->cboxValid=1;
+   PocoOutlineFill(poco,color(poco,(uint16_t)s->commands[p->command][7]),255,o,x,y);
+  }
+  if (poco->stackDepth!=depth) PocoClipPop(poco);
+ }
 #if mxInstrument
  submitMarker(poco,s,1,x,y,w,h);
 #endif
@@ -347,6 +384,7 @@ void xs_avds_face_stats(xsMachine *the) {
  STAT("rasterSubmitUs",s->rasterSubmitUs); STAT("elapsed",s->elapsed); STAT("nativeBytes",sizeof(*s));
  STAT("rasterUs",s->rasterUs);
  STAT("contextUs",s->contextUs); STAT("stateUs",s->stateUs); STAT("copiedBytes",s->copiedBytes);
+ STAT("damagePixels",s->damagePixels); STAT("damageUpdates",s->damageUpdates); STAT("fullUpdates",s->fullUpdates);
  STAT("instructions",s->vm.steps); STAT("commands",s->count); STAT("disposed",s->disposed);
 #undef STAT
 }

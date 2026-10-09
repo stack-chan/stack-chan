@@ -167,12 +167,11 @@ fn mouth_omega(cx, cy, color, bg, bo)
   let my = cy + bo
   let ext = sz(m * 22)                -- 縦方向の伸び (m=0 で 0、m=1 で大きく)
 
-  -- Strict clip includes both lobes and the floor at my + 1 + ext * 2.
   -- グループ bbox: ω 本体 + 下方への伸び ext + 床 thick + 余白 を覆う。
   -- ※ DirectCanvas (PSRAM 無) はこの bbox 内のみクリアするので、開閉で
   --    最大に伸びる範囲を漏らさず覆っておかないと前フレームの残骸が出る。
   let gw_half = dx + r + 2
-  begin_group(cx - gw_half, my - r - 2, gw_half * 2, r + max(r, 1 + ext * 2 + thick) + 4)
+  begin_group(cx - gw_half, my - r - 2, gw_half * 2, r + ext + thick + 6)
 
   -- 1) 左右に塗りつぶし円 (ロブ本体)
   fill_circle(cx - dx, my, r, color)
@@ -236,7 +235,7 @@ fn collar()
   let band_h = sz(24)
   let gx = tx(0)
   let gw = sz(320)
-  begin_group(gx, band_y - sz(14), gw, band_h + sz(16) + sz(14))
+  begin_group(gx, band_y - sz(14), gw, band_h + sz(16))
   fill_rect(gx, band_y, gw, band_h, 0xF800)
   -- bell: gold disc on the band, dark slit + clapper dot below
   let bx = tx(160)

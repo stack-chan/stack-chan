@@ -12,7 +12,7 @@ import { compile } from '../../../../tools/avatar-dsl/compiler/compile.js'
 const load = (name) => readFileSync(new URL(`../assets/${name}.avbc`, import.meta.url))
 const fixture = JSON.parse(readFileSync(new URL('./oracle.json', import.meta.url)))
 const output = (vm) => Array.from({ length: vm.count }, (_, i) => Array.from(vm.commands.subarray(i * 8, i * 8 + 8)))
-test('pinned provenance hashes preserve upstream compiler/preset sources', () => {
+test('pinned provenance hashes preserve upstream compiler and archived preset sources', () => {
   const p = JSON.parse(readFileSync(new URL('../vendor/PROVENANCE.json', import.meta.url)))
   assert.equal(p.commit, fixture.upstream)
   for (const f of p.files) {
@@ -20,7 +20,7 @@ test('pinned provenance hashes preserve upstream compiler/preset sources', () =>
     assert.equal(createHash('sha256').update(text).digest('hex'), f.sha256, f.local)
   }
 })
-test('unmodified sources compile to bundled resources', () => {
+test('adapted preset sources compile to bundled resources', () => {
   for (const name of ['default_face', 'omega_mouth', 'aokko_face']) {
     const src = readFileSync(new URL(`../assets/${name}.avdsl`, import.meta.url), 'utf8')
     assert.deepEqual(Buffer.from(compile(src)), load(name))
@@ -34,7 +34,11 @@ test('192 pinned C++ RecordingCanvas command sequences: presets, six expressions
     if (!vms.has(f.name))
       vms.set(
         f.name,
-        new AvatarVM(f.name === 'numeric' ? readFileSync(new URL('./numeric.avbc', import.meta.url)) : load(f.name)),
+        new AvatarVM(
+          readFileSync(
+            new URL(f.name === 'numeric' ? './numeric.avbc' : `./upstream-presets/${f.name}.avbc`, import.meta.url),
+          ),
+        ),
       )
     const vm = vms.get(f.name)
     vm.run(new Float32Array(f.context))

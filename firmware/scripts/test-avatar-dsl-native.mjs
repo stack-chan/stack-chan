@@ -39,7 +39,12 @@ const cases = []
 const add = (label, bytes, context = createContext(), instructions = 12000, draws = 96, expected) => {
   cases.push({ label, bytes: Buffer.from(bytes), context, instructions, draws, expected })
 }
-const load = (name) => readFileSync(`${root}/${name === 'numeric' ? 'tests' : 'assets'}/${name}.avbc`)
+const load = (name) => readFileSync(`${root}/${name === 'numeric' ? 'tests' : 'tests/upstream-presets'}/${name}.avbc`)
+for (const name of ['default_face', 'omega_mouth', 'aokko_face']) {
+  writeFileSync(path.join(directory, `upstream-${name}.avbc`), load(name))
+  for (const f of fixture.fixtures.filter((item) => item.name === name))
+    add(`adapted ${name}`, readFileSync(`${root}/assets/${name}.avbc`), new Float32Array(f.context))
+}
 for (const f of fixture.fixtures)
   add(`${f.name} expr=${f.context[9]}`, load(f.name), new Float32Array(f.context), 12000, 96, f.commands)
 for (const source of [

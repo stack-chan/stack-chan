@@ -14,9 +14,7 @@ function check(value, message) {
 const fixtures = JSON.parse(String.fromArrayBuffer(new Resource('oracle.bin'))).fixtures
 const commands = new Int32Array(96 * 8)
 for (const f of fixtures) {
-  const vm = new NativeVM(
-    f.name === 'numeric' ? new Resource('numeric.avbc') : loadPreset(f.name.replace('_face', '').replace('_mouth', '')),
-  )
+  const vm = new NativeVM(new Resource(f.name === 'numeric' ? 'numeric.avbc' : `upstream-${f.name}.avbc`))
   let n
   try {
     n = vm.run(new Float32Array(f.context), commands)
@@ -203,8 +201,8 @@ export default new Application(null, {
         stage.remove(stage.first)
         // Start after the preceding final capture has finished.
         async function verifyNativeAnimation() {
-          // Change-free partial updates really retain a partial dirty region;
-          // state changes above intentionally invalidate the full canvas.
+          // Unchanged partial redraws and changed-state damage both retain their
+          // native dirty regions; full redraws below provide the pixel oracle.
           const wait = () => new Promise((resolve) => Timer.set(resolve, 40))
           for (const item of faces) {
             item.renderer.setMotionsEnabled(false)

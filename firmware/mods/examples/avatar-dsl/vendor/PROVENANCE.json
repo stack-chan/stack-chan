@@ -61,20 +61,23 @@
       "sha256": "b48de0274b5e89cecac86898a4d9d195269fe23a09e632b59d2d3b610e075e9f"
     },
     {
-      "local": "assets/default_face.avdsl",
+      "local": "tests/upstream-presets/default_face.avdsl",
       "upstream": "assets/default_face.avdsl",
       "sha256": "81c0663ec3bd9bf001f16410336398f52d40458aaf8b185ea994ac9da8bf5c56"
     },
     {
-      "local": "assets/omega_mouth.avdsl",
+      "local": "tests/upstream-presets/omega_mouth.avdsl",
       "upstream": "assets/omega_mouth.avdsl",
       "sha256": "7be7f588d293078708ca8b4f73d3b0958393bfde4fd8524d49a5ac698a7154fa"
     },
     {
-      "local": "assets/aokko_face.avdsl",
+      "local": "tests/upstream-presets/aokko_face.avdsl",
       "upstream": "assets/aokko_face.avdsl",
       "sha256": "e79915587de132294331e6fcd9b0d58376681c47e9f74d402ec4f9c8c3ba7a02"
     }
   ],
-  "hashEncoding": "UTF-8 with CRLF normalized to LF"
+  "hashEncoding": "UTF-8 with CRLF normalized to LF",
+  "adaptations": [
+    "Bundled preset group extents are expanded for strict absolute clipping; original sources and bytecode are retained in tests/upstream-presets. Compiler and numeric VM remain unchanged."
+  ]
 }

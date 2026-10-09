@@ -97,7 +97,12 @@
     "scan": "xs-dev scan",
     "erase-flash": "esptool erase-flash",
     "install-hook": "lefthook install",
-    "uninstall-hook": "lefthook uninstall"
+    "uninstall-hook": "lefthook uninstall",
+    "test:avatar-dsl:damage": "node scripts/test-avatar-dsl-damage.mjs",
+    "test:avatar-dsl:groups:render": "node scripts/test-avatar-dsl-groups-render.mjs",
+    "test:avatar-dsl:groups:rotations": "node scripts/test-avatar-dsl-groups-rotations.mjs",
+    "test:avatar-dsl:esp32:abi": "python3 scripts/test-avatar-dsl-esp32-abi.py",
+    "test:avatar-dsl:groups:build": "node scripts/run-mcconfig.mjs -dn -i -m -p lin/m5stack -t build mods/examples/avatar-dsl/tests/manifest.groups.json"
   },
   "type": "module",
   "repository": {

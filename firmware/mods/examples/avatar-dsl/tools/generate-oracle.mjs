@@ -48,7 +48,7 @@ fn draw()
  while i < 3 do fill_circle(i, -i, 1, primary) i = i + 1 end
  f(3.1,7.7)
 end`
-      : readFileSync(path.resolve(root, `../assets/${name}.avdsl`), 'utf8')
+      : readFileSync(path.resolve(root, `../tests/upstream-presets/${name}.avdsl`), 'utf8')
   const buffer = Buffer.from(compile(source)),
     bcFile = path.join(tmp, `${name}.avbc`)
   writeFileSync(bcFile, buffer)

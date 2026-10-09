@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import Resource from 'Resource'
-import { commandClips } from 'avatar-dsl/clips'
 import { createContext, updateContext } from 'avatar-dsl/context'
 import { FaceDriver } from 'avatar-dsl/driver'
 import { Op } from 'avatar-dsl/vendor/compiler/opcodes'
@@ -47,8 +46,6 @@ class AvatarBehavior extends Behavior {
     this.safeVM = new AvatarVM(loadPreset())
     this.driver = new FaceDriver(() => this.render())
     this.shapes = []
-    this.clipContainers = []
-    this.previousClips = []
     this.previous = new Int32Array(MAX_COMMANDS * COMMAND_STRIDE)
     this.previousCount = -1
     this.colors = new Uint16Array(MAX_COMMANDS)
@@ -73,16 +70,7 @@ class AvatarBehavior extends Behavior {
         visible: false,
       })
       this.shapes.push(shape)
-      const clip = new Container(null, {
-        left: 0,
-        top: 0,
-        width: this.context[0],
-        height: this.context[1],
-        clip: true,
-        contents: [shape],
-      })
-      this.clipContainers.push(clip)
-      content.add(clip)
+      content.add(shape)
     }
     this.invalidator = new Port(null, { left: 0, top: 0, width: this.context[0], height: this.context[1] })
     content.add(this.invalidator)
@@ -175,7 +163,6 @@ class AvatarBehavior extends Behavior {
       this.background = bg
     }
     let changed = count !== this.previousCount
-    const clips = commandClips(commands, count, this.context[0], this.context[1])
     for (let i = 0; i < count; i++) {
       const offset = i * COMMAND_STRIDE,
         shape = this.shapes[i]
@@ -183,16 +170,7 @@ class AvatarBehavior extends Behavior {
       for (let j = 0; j < COMMAND_STRIDE - 1; j++)
         if (commands[offset + j] !== this.previous[offset + j]) geometryChanged = true
       const colorChanged = i >= this.previousCount || commands[offset + 7] !== this.previous[offset + 7]
-      const clip = clips[i],
-        previousClip = this.previousClips[i]
-      const clipChanged =
-        !!clip &&
-        (!previousClip ||
-          clip.x !== previousClip.x ||
-          clip.y !== previousClip.y ||
-          clip.w !== previousClip.w ||
-          clip.h !== previousClip.h)
-      if (!geometryChanged && !colorChanged && !clipChanged) continue
+      if (!geometryChanged && !colorChanged) continue
       changed = true
       const op = commands[offset],
         x = commands[offset + 1],
@@ -200,15 +178,10 @@ class AvatarBehavior extends Behavior {
         w = commands[offset + 3],
         h = commands[offset + 4]
       const drawable = op === Op.FillRect || op === Op.FillCircle || op === Op.FillTriangle
-      shape.visible =
-        drawable && clip.w > 0 && clip.h > 0 && (op === Op.FillTriangle || (w > 0 && (op === Op.FillCircle || h > 0)))
-      if (!drawable || (op !== Op.FillTriangle && (w <= 0 || (op === Op.FillRect && h <= 0)))) continue
-      if (clipChanged) {
-        this.clipContainers[i].coordinates = { left: clip.x, top: clip.y, width: clip.w, height: clip.h }
-        shape.coordinates = { left: -clip.x, top: -clip.y, width: this.context[0], height: this.context[1] }
-      }
+      shape.visible = drawable && (op === Op.FillTriangle || (w > 0 && (op === Op.FillCircle || h > 0)))
+      if (!shape.visible) continue
       // Pool is fixed. Changed paths/Skin do allocate in this initial prototype.
-      // Absolute paths keep their canvas coordinates inside a clipping parent.
+      // Groups are buffered-composition hints, never Piu clips/translations.
       if (geometryChanged) {
         const path = new Outline.CanvasPath()
         if (op === Op.FillRect) path.rect(x, y, w, h)
@@ -231,7 +204,6 @@ class AvatarBehavior extends Behavior {
     for (let i = count; i < this.previousCount; i++) this.shapes[i].visible = false
     for (let i = 0; i < count * COMMAND_STRIDE; i++) this.previous[i] = commands[i]
     this.previousCount = count
-    this.previousClips = clips
     // Full damage is deliberate until command dirty bounds are validated.
     if (changed) this.invalidator.invalidate(0, 0, this.context[0], this.context[1])
   }

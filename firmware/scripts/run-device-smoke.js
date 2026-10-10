@@ -4,26 +4,25 @@
 //
 // Channels:
 //   xsbug (default) - `mcrun -dn -x` bridges device traces over serial2xsbug
-//     to a local log server; passes when the smoke MOD traces its completion
+//     to SDK xsdb; passes when the smoke MOD traces its completion
 //     line. Requires a debug-build host firmware on the device (use --flash
 //     for a full build+deploy first). The xsbug serial bridge is known to be
 //     flaky on CoreS3, so failed attempts retry automatically.
-//   serial - watches the raw serial port for crash markers only. trace()
-//     output is NOT visible on raw serial (it only flows over the xsbug
-//     protocol in debug builds), so this mode is a boot-stability smoke, not
-//     a completion check. Requires UPLOAD_PORT.
+//   serial - requires an observed completion marker as well as no crash.
+//     Debug trace() uses xsbug, not raw serial: use the xsbug channel for those
+//     tests. Silence is inconclusive and fails. Requires UPLOAD_PORT.
 //
 // Usage:
 //   UPLOAD_PORT=/dev/ttyACM0 npm run test:device
 //   npm run test:device -- --device stackchan_rt --flash
 //   UPLOAD_PORT=/dev/ttyACM0 npm run test:device -- --channel serial
 import { spawn, spawnSync } from 'node:child_process'
-import { createReadStream, mkdtempSync } from 'node:fs'
+import { closeSync, constants, mkdtempSync, openSync, readSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { devices, resolveDevice } from './lib/devices.mjs'
-import { startXsbugServer } from './lib/xsbug-log-server.js'
+import { startXsdbSession } from './lib/xsdb-session.mjs'
 
 const TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS ?? '120000', 10)
 const RETRIES = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_RETRIES ?? '2', 10)
@@ -68,17 +67,6 @@ function killProcessGroup(child) {
   }
 }
 
-function decodeXsbugLog(log) {
-  return Array.from(log.matchAll(/<log>([\s\S]*?)<\/log>/g), ([, text]) => text)
-    .join('')
-    .replaceAll('&#10;', '\n')
-    .replaceAll('&#13;', '\r')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&amp;', '&')
-}
-
 function flashHostFirmware() {
   console.log(`[device-smoke] building and deploying host firmware for ${device.label}`)
   const result = spawnSync(
@@ -94,7 +82,7 @@ function flashHostFirmware() {
 
 async function runXsbugAttempt(attempt) {
   const logPath = join(workRoot, `attempt-${attempt}.xsbug.log`)
-  const logServer = startXsbugServer(logPath)
+  const logServer = await startXsdbSession(logPath, join(workRoot, `xsdb-${attempt}`), process.env.MODDABLE)
   const port = await logServer.ready
   console.log(`[device-smoke] attempt ${attempt}: mcrun -dn -x 127.0.0.1:${port} ${modManifest}`)
 
@@ -133,17 +121,17 @@ async function runXsbugAttempt(attempt) {
     })
 
     const poll = setInterval(() => {
-      const decoded = decodeXsbugLog(logServer.getLog())
+      const decoded = logServer.getLog()
       const fresh = decoded.slice(echoedLength)
       echoedLength = decoded.length
       for (const line of fresh.split('\n')) {
         if (line.includes('smoke]')) console.log(`[device] ${line}`)
       }
-      if (okPattern.test(decoded)) {
-        finish('ok')
-      } else if (failurePattern.test(decoded)) {
-        console.error(`[device-smoke] failure marker in device log; full log: ${logPath}`)
+      if (logServer.getError() || failurePattern.test(decoded)) {
+        console.error(`[device-smoke] debugger error or failure marker; full log: ${logPath}`)
         finish('failure')
+      } else if (okPattern.test(decoded)) {
+        finish('ok')
       }
     }, 200)
 
@@ -166,29 +154,42 @@ async function runSerialWatch() {
     process.exit(1)
   }
 
-  console.log(`[device-smoke] watching ${serialPort} for ${TIMEOUT_MS}ms (crash markers only)`)
+  console.log(`[device-smoke] watching ${serialPort} for ${TIMEOUT_MS}ms (completion and crash markers)`)
   return await new Promise((resolveRun) => {
     let output = ''
-    const stream = createReadStream(serialPort, { encoding: 'utf8' })
+    // A blocking fs stream can keep Node's worker thread alive after timeout
+    // while a silent tty never satisfies its pending read. Poll a nonblocking
+    // descriptor instead so failure really terminates within the time limit.
+    const descriptor = openSync(serialPort, constants.O_RDONLY | constants.O_NONBLOCK)
+    const buffer = Buffer.alloc(4096)
     const finish = (status) => {
       clearTimeout(timer)
-      stream.close()
+      clearInterval(poll)
+      closeSync(descriptor)
       resolveRun(status)
     }
-    stream.on('data', (chunk) => {
-      output += chunk
-      process.stdout.write(chunk)
-      if (crashPattern.test(output)) {
-        console.error('[device-smoke] crash marker on serial console')
-        finish('failure')
+    const poll = setInterval(() => {
+      try {
+        const count = readSync(descriptor, buffer, 0, buffer.length)
+        if (!count) return finish('disconnected')
+        const chunk = buffer.toString('utf8', 0, count)
+        output += chunk
+        process.stdout.write(chunk)
+        if (crashPattern.test(output)) finish('failure')
+        else if (okPattern.test(output)) finish('ok')
+      } catch (error) {
+        if (error.code === 'EAGAIN') return
+        console.error(`[device-smoke] serial read failed: ${error.message}`)
+        finish('error')
       }
-    })
-    stream.on('error', (error) => {
-      console.error(`[device-smoke] serial read failed: ${error.message}`)
-      finish('error')
-    })
-    const timer = setTimeout(() => finish('ok'), TIMEOUT_MS)
+    }, 50)
+    const timer = setTimeout(() => finish('timeout'), TIMEOUT_MS)
   })
+}
+
+if (channel === 'xsbug' && !process.env.MODDABLE) {
+  console.error('[device-smoke] xsdb requires MODDABLE to select the SDK')
+  process.exit(1)
 }
 
 if (hasFlag(rawArgs, 'flash')) flashHostFirmware()

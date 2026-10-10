@@ -1,0 +1,159 @@
+import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { delimiter, join, relative } from 'node:path'
+import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { jsonEvents, startXsdbSession, successfulTestSummary } from './xsdb-session.mjs'
+
+test('xsdb JSON events tolerate prompts, pretty printing, escaped strings and split chunks', () => {
+  const expected = [
+    { event: 'log', data: { text: 'a "quote", \\ and {braces}' } },
+    { event: 'test_summary', data: { total: 4, failed: 0, passed: 3, skipped: 1 } },
+    { event: 'set', error: 'SDK command rejected' },
+  ]
+  for (const chunkSize of [1, 2, 17, 256]) {
+    const actual = []
+    const parse = jsonEvents((event) => actual.push(event))
+    const output = `[podcast artwork] {"error":"Error: Artwork cancelled"}\nxsdb listening on port 123.\n(xsdb) ${expected.map((event) => JSON.stringify(event, null, 2)).join('\n(xsdb) ')}`
+    for (let offset = 0; offset < output.length; offset += chunkSize) parse(output.slice(offset, offset + chunkSize))
+    assert.deepEqual(actual, expected)
+  }
+})
+
+test('a suite requires observed passes, consistent counts and no failure or stopped reason', () => {
+  const complete = { total: 4, failed: 0, passed: 3, skipped: 1 }
+  assert.equal(successfulTestSummary(complete), true)
+  for (const data of [
+    undefined,
+    {},
+    { ...complete, failed: 1 },
+    { ...complete, reason: 'stopped' },
+    { ...complete, reason: 'test app did not restart within 30 seconds' },
+    { total: 4, failed: 0, passed: 0, skipped: 4 },
+    { ...complete, total: 5 },
+  ]) {
+    assert.equal(Boolean(successfulTestSummary(data)), false)
+  }
+})
+
+test('serial smoke requires observed completion and terminates on a quiet virtual tty', {
+  skip: process.platform !== 'linux' ? 'Linux PTY required; physical hardware is not tested' : false,
+}, () => {
+  const probe = spawnSync(
+    'python3',
+    [
+      '-c',
+      `
+import os, pty, subprocess, json, sys
+results = []
+for name, payload, expected in [('quiet', b'', 1), ('complete', b'M5StackChan CoreS3 smoke] complete\\n', 0), ('crash', b'Guru Meditation\\n', 1)]:
+    master, slave = pty.openpty()
+    env = {**os.environ, 'UPLOAD_PORT': os.ttyname(slave), 'STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS': '300'}
+    child = subprocess.Popen(['node', 'scripts/run-device-smoke.js', '--channel', 'serial'], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    try:
+        first = child.stdout.readline()
+        if payload: os.write(master, payload)
+        output = first + child.communicate(timeout=2)[0]
+        results.append({'case': name, 'exit': child.returncode, 'expected': expected, 'output': output})
+    finally:
+        if child.poll() is None: child.kill(); child.communicate()
+        os.close(master); os.close(slave)
+env = {**os.environ}; env.pop('UPLOAD_PORT', None)
+child = subprocess.run(['node', 'scripts/run-device-smoke.js', '--channel', 'serial'], env=env, capture_output=True, text=True, timeout=2)
+results.append({'case': 'no-device', 'exit': child.returncode, 'expected': 1, 'output': child.stdout + child.stderr})
+print(json.dumps(results))
+`,
+    ],
+    { cwd: fileURLToPath(new URL('../..', import.meta.url)), encoding: 'utf8', timeout: 10000 },
+  )
+  assert.equal(probe.status, 0, probe.stderr)
+  const results = JSON.parse(probe.stdout)
+  assert.equal(results.length, 4)
+  for (const result of results) assert.equal(result.exit, result.expected, `${result.case}: ${result.output}`)
+})
+
+test('xsbug smoke polls SDK-decoded logs and requires completion without a failure', {
+  skip: process.platform !== 'linux' ? 'Linux fake child fixture required; hardware is not tested' : false,
+}, () => {
+  const root = mkdtempSync(join(tmpdir(), 'stackchan-xsdb-smoke-fixture-'))
+  const sdkTool = join(root, 'sdk', 'tools', 'xsbug-log')
+  const bin = join(root, 'bin')
+  mkdirSync(sdkTool, { recursive: true })
+  mkdirSync(bin)
+  // Fake SDK/transport processes exercise the real session JSON adapter and
+  // smoke runner's xsbug polling path. They never access a device or flash.
+  writeFileSync(
+    join(sdkTool, 'xsbug-log.js'),
+    `console.log('xsdb listening on port ' + process.env.XSBUG_LOG_PORT);
+setTimeout(() => {
+  if (process.env.STACKCHAN_FAKE_SDK_ERROR) console.log(JSON.stringify({event: 'set', error: 'SDK command rejected'}));
+  console.log(JSON.stringify({event: 'log', data: {text: process.env.STACKCHAN_FAKE_LOG}}, null, 2));
+}, 50);
+setInterval(() => {}, 1000);
+`,
+  )
+  writeFileSync(join(bin, 'mcrun'), '#!/bin/sh\nexec node -e "setInterval(() => {}, 1000)"\n', { mode: 0o700 })
+  try {
+    for (const [name, text, expected] of [
+      ['complete', 'M5StackChan CoreS3 smoke] complete', 0],
+      ['failure-before-completion', 'XS abort\nM5StackChan CoreS3 smoke] complete', 1],
+      ['quiet', '', 1],
+      ['debugger-error', 'M5StackChan CoreS3 smoke] complete', 1],
+    ]) {
+      const result = spawnSync(process.execPath, ['scripts/run-device-smoke.js', '--channel', 'xsbug'], {
+        cwd: fileURLToPath(new URL('../..', import.meta.url)),
+        env: {
+          ...process.env,
+          MODDABLE: join(root, 'sdk'),
+          PATH: `${bin}${delimiter}${process.env.PATH}`,
+          STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS: '500',
+          STACKCHAN_DEVICE_SMOKE_RETRIES: '0',
+          STACKCHAN_FAKE_LOG: text,
+          STACKCHAN_FAKE_SDK_ERROR: name === 'debugger-error' ? '1' : '',
+        },
+        encoding: 'utf8',
+        timeout: 4000,
+      })
+      const output = result.stdout + result.stderr
+      assert.equal(result.status, expected, `${name}: ${output}`)
+      assert.doesNotMatch(output, /ReferenceError|decodeXsbugLog/)
+      assert.match(output, /attempt 1: mcrun/)
+      assert.match(output, expected === 0 ? /PASS/ : /FAIL \((failure|timeout)\)/)
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('relative xsdb project paths load JSON preferences from the child cwd', async () => {
+  const root = mkdtempSync(join(process.cwd(), '.xsdb-relative-fixture-'))
+  const sdkTool = join(root, 'sdk', 'tools', 'xsbug-log')
+  mkdirSync(sdkTool, { recursive: true })
+  // Match the SDK's documented XSBUG_PROJECT preference lookup in a child
+  // process, so a doubled relative path produces plain text and fails.
+  writeFileSync(
+    join(sdkTool, 'xsbug-log.js'),
+    `import fs from 'node:fs';
+import path from 'node:path';
+let prefs = {};
+try { prefs = JSON.parse(fs.readFileSync(path.join(process.env.XSBUG_PROJECT || process.cwd(), '.xsdb.json'))); } catch {}
+console.log('xsdb listening on port ' + process.env.XSBUG_LOG_PORT);
+setTimeout(() => console.log(prefs.outputFormat === 'json' ? JSON.stringify({event: 'log', data: {text: 'ok'}}, null, 2) : '[Thread 1] ok'), 50);
+setInterval(() => {}, 1000);
+`,
+  )
+  let session
+  try {
+    const project = relative(process.cwd(), join(root, 'session'))
+    session = await startXsdbSession(join(root, 'runtime.log'), project, join(root, 'sdk'))
+    await session.ready
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    assert.match(session.getLog(), /^ok$/m)
+    assert.equal(session.getError(), undefined)
+  } finally {
+    await session?.close()
+    rmSync(root, { recursive: true, force: true })
+  }
+})

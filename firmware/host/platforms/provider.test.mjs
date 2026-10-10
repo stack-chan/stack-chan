@@ -44,7 +44,7 @@ async function loadDevice(board) {
   }
   await builtin.link(link)
   await builtin.evaluate()
-  for (const io of ['digital', 'i2c', 'pwm', 'serial']) {
+  for (const io of ['analog', 'digital', 'i2c', 'pulsecount', 'pulsewidth', 'pwm', 'serial', 'spi']) {
     const module = await sourceModule(`config/${io}`, path.join(sdk, 'modules/io', io, 'config.js'))
     await module.link(link)
     await module.evaluate()
@@ -64,14 +64,32 @@ for (const board of ['m5stackchan_cores3', 'stackchan_rt', 'takao_core2_sg90']) 
     assert.equal(device.i2c.internal.io, device.io.I2C)
     assert.equal(device.serial.default.io, device.io.Serial)
     assert.equal(device.rtc.clock.io, device.io.SMBus)
-    assert.equal(typeof device.io.PWM, 'function')
-    assert.equal(typeof device.io.Digital, 'function')
-    assert.equal(typeof device.io.DigitalBank, 'function')
-    for (const io of ['Analog', 'SPI', 'PulseCount', 'PulseWidth']) {
-      assert.equal(device.io[io], undefined)
+    for (const io of [
+      'Analog',
+      'Digital',
+      'DigitalBank',
+      'I2C',
+      'SMBus',
+      'PulseCount',
+      'PulseWidth',
+      'PWM',
+      'Serial',
+      'SPI',
+    ]) {
+      assert.equal(typeof device.io[io], 'function')
     }
-    assert.equal(device.analog, undefined)
-    assert.equal(device.spi, undefined)
+    assert.equal(device.analog.default.io, device.io.Analog)
+    assert.equal(device.spi.default.io, device.io.SPI)
+    for (const [lowercase, legacy] of [
+      ['analog', 'Analog'],
+      ['i2c', 'I2C'],
+      ['serial', 'Serial'],
+      ['spi', 'SPI'],
+    ]) {
+      assert.equal(device[legacy], device[lowercase])
+    }
+    const legacyRTC = new device.peripheral.RTC({})
+    assert.equal(legacyRTC.options.clock, device.rtc.clock)
     assert.equal(Object.isFrozen(device), true)
     const imu = new device.sensor.IMU({})
     assert.equal(imu.options.sensor.io, device.io.SMBus)

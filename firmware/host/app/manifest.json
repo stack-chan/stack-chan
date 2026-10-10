@@ -122,21 +122,5 @@
         "lib": ["es2025", "esnext.disposable"]
       }
     }
-  },
-  "platforms": {
-    "esp32": {
-      "modules": {
-        "~": [
-          "$(IO)/analog/*",
-          "$(IO)/analog/esp32/*",
-          "$(IO)/pulsecount/*",
-          "$(IO)/pulsecount/esp32/*",
-          "$(IO)/pulsewidth/*",
-          "$(IO)/pulsewidth/esp32/*",
-          "$(IO)/spi/*",
-          "$(IO)/spi/esp32/*"
-        ]
-      }
-    }
   }
 }

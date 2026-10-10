@@ -1,0 +1,34 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifestRoundRect.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "ui-controls": "../../controls",
+    "ui-theme": "../../theme",
+    "localization": "../../../../localization",
+    "localization-core": "../../../../localization-core"
+  },
+  "resources": {
+    "*": ["../../../../../../app/strings/*"],
+    "*-mask": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "localization": true,
+        "monochrome": true
+      }
+    ]
+  },
+  "preload": ["ui-controls"],
+  "creation": {
+    "stack": 2048
+  },
+  "build": {
+    "NAME": "ui-controls"
+  }
+}

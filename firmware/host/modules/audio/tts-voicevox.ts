@@ -1,6 +1,7 @@
 /* eslint-disable prefer-const */
 
 import type HTTPClient from 'embedded:network/http/client'
+import type { HTTPClientProvider } from 'embedded:network/http/client'
 import { File } from 'file'
 import Headers from 'headers'
 import config from 'mc/config'
@@ -15,11 +16,7 @@ const QUERY_PATH = `${config.file.root}query.json`
 declare const device: {
   network: {
     http: {
-      client: typeof HTTPClient.constructor & {
-        io: typeof HTTPClient
-        socket: unknown
-        dns: unknown
-      }
+      client: HTTPClientProvider
     }
   }
 }

@@ -1,5 +1,6 @@
 import { createFaceState, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
 import {
+  type BehaviorConstructor,
   type Container as PiuContainer,
   type Content as PiuContent,
   type Port as PiuPort,
@@ -90,14 +91,14 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
     width?: number
     height?: number
     clip: boolean
-    Behavior: typeof Behavior
+    Behavior: BehaviorConstructor<PiuContainer>
   }
 
   const containerOptions: BalloonContainerOptions = {
     name: opts.name ?? 'MultiRowBalloon',
     height: o.height,
     clip: true,
-    Behavior: class extends Behavior {
+    Behavior: class extends Behavior<PiuContainer> {
       ensureParts(self: PiuContainer) {
         const w = resolveWidth(self)
         const h = resolveHeight(self)

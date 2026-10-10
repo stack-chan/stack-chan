@@ -1,4 +1,5 @@
 import loadPreferences, { loadModConfig, loadPreferenceConfig } from 'loadPreference'
+import System from 'embedded:system'
 import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
@@ -28,7 +29,6 @@ type DeviceButton = {
 type GlobalEnvironment = {
   application?: ReturnType<typeof showStartupSplash>
   button?: Partial<Record<'a' | 'c', DeviceButton>> & { power?: LaunchShortcutButton }
-  System: { restart(): void }
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
@@ -57,7 +57,7 @@ function installModManagerShortcut(): void {
         application: ReturnType<typeof showStartupSplash>,
       ) => Promise<'back'>
       await startModManager(globalEnv.application ?? showStartupSplash())
-      globalEnv.System.restart()
+      System.restart?.()
     } catch (error) {
       trace(`[mods] shortcut failed: ${startupErrorClass(error)}\n`)
     }
@@ -174,7 +174,7 @@ async function main() {
         (failedApplication.behavior === failedBehavior && failedApplication.first === failedContent))
     ) {
       try {
-        showStartupError({ phase, error, onRestart: () => globalEnv.System.restart() })
+        showStartupError({ phase, error, onRestart: () => System.restart?.() })
         installModManagerShortcut()
       } catch (displayError) {
         trace(`[main] startup error display failed ${startupErrorClass(displayError)}\n`)

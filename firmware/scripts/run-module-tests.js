@@ -378,6 +378,9 @@ async function runOne(manifestPath, index) {
   try {
     const port = await logServer.ready
     if (!(await buildManifest({ manifestPath, platform, port, name, output }))) {
+      // tsc can emit JavaScript despite a type error. Do not let a later warm
+      // build reuse that output and hide the original compile failure.
+      removeBuildOutput(platform, name)
       return { label, ok: false, reason: 'build failed', output }
     }
 

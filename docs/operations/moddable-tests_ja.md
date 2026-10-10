@@ -16,7 +16,7 @@ npm run test:moddable -- --sdk
 
 `--sdk` はSDK自身のPiu Skinテストをtestmc、XS Mathテストをtest262で実行します。両者はpreloadによる組み込みオブジェクトの凍結が異なるため混用しません。SDKのフルtestmc manifestはLinux非対応のOTA Updateを含むので、共通testmc・Piu・checksum画面・公式texture fixtureだけのmanifestを `firmware/dist/tmp/testmc/` に生成します。この専用構成は毎回再生成して古いmodule mappingのxsbを再利用しません。
 
-結果はxsdbの `test_summary` の実測値です。1件以上のPASS、FAILゼロ、停止理由なし、総件数の整合性を要求します。全SKIP・未接続・タイムアウト・abort・debuggerの異常終了はPASSにしません。既存テストも最終 `ok` マーカーを実行中のXSから観測する必要があります。
+結果はxsdbの `test_summary` の実測値です。1件以上のPASS、FAILゼロ、停止理由なし、総件数の整合性を要求します。全SKIP・未接続・タイムアウト・abort・debuggerの異常終了はPASSにしません。既存テストも最終 `ok` マーカーを実行中のXSから観測する必要があります。 TypeScriptは型エラーでもJavaScriptを生成することがあるため、失敗したbuildの専用tmp/bin出力は破棄し、次のwarm buildが失敗出力を再利用しないようにします。
 
 `STACKCHAN_MODULE_TEST_LOG_DIR` を指定すると、その配下の実行別フォルダーにJSONログとSDK reportを保存します。省略時は一時フォルダーです。CIは `dist/test-logs` を失敗時もartifactとして保存します。`STACKCHAN_MODULE_TEST_TIMEOUT_MS` と `STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS` で実行/ビルド上限を設定できます。SIGINT/SIGTERM中断は非zeroで終了し、このrunner自身の子プロセスだけを終了します。
 

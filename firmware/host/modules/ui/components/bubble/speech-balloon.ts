@@ -1,7 +1,7 @@
 import { createFaceState, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
 import {
-  Container,
   type BehaviorConstructor,
+  Container,
   Content,
   type Container as PiuContainer,
   type Content as PiuContent,

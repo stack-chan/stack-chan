@@ -1,4 +1,5 @@
 import { Application, Container, Skin } from 'piu/MC'
+import { assert as check } from 'testing/assert'
 import {
   ActionButton,
   IconView,
@@ -27,9 +28,6 @@ const icons = [
   'volume',
   'wifi',
 ]
-function check(value, message) {
-  if (!value) throw new Error(message)
-}
 const grid = new Container(null, {
   left: 0,
   right: 0,

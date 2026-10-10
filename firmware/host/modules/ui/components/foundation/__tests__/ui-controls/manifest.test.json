@@ -1,16 +1,10 @@
 {
   "include": [
-    "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODDABLE)/examples/manifest_piu.json",
-    "$(MODDABLE)/modules/piu/MC/outline/manifestRoundRect.json"
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
   ],
   "modules": {
-    "main": "./main",
-    "ui-controls": "../../controls",
-    "ui-theme": "../../theme",
-    "localization": "../../../../localization",
-    "localization-core": "../../../../localization-core"
+    "main": "./ui-controls.test"
   },
   "resources": {
     "*": ["../../../../../../app/strings/*"],

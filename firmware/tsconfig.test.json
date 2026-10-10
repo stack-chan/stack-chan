@@ -271,6 +271,9 @@
       ],
       "media-player": [
         "./host/modules/audio/platforms/m5stackchan-cores3/media-player.ts"
+      ],
+      "embedded:network/http/*": [
+        "./node_modules/@moddable/typings/embedded_network/http/*.d.ts"
       ]
     },
     "types": [

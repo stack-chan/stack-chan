@@ -1,3 +1,4 @@
+import System from 'embedded:system'
 import Flash from 'flash'
 import { localize } from 'localization'
 import { type ModFlash, validateXsaArchive, writeAndVerifyXsaArchive } from 'mod-installer'
@@ -8,11 +9,9 @@ import Timer from 'timer'
 import { ActionButton, ScreenHeader } from 'ui-controls'
 import { UI, uiStyles } from 'ui-theme'
 
-const runtime = globalThis as typeof globalThis & { System: { restart(): void } }
-
 export function startModManager(
   application: PiuApplication,
-  restart: () => void = () => runtime.System.restart(),
+  restart: () => void = () => System.restart!(),
 ): Promise<'back'> {
   return new Promise((resolve) => {
     const styles = uiStyles()

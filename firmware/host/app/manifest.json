@@ -10,6 +10,7 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
+    "$(MODULES)/io/system/manifest.json",
     "../modules/motion/manifest.json",
     "../modules/audio/manifest.json",
     "../modules/connectivity/manifest.json",
@@ -105,7 +106,7 @@
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 24,
-        "characters": "Stack-chan[・＿・]0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "characters": "Stack-chan[\u30fb\uff3f\u30fb]0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         "monochrome": true
       }
     ]

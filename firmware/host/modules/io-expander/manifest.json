@@ -16,5 +16,10 @@
         "strictFunctionTypes": false
       }
     }
+  },
+  "platforms": {
+    "esp32": {
+      "include": ["$(MODDABLE)/modules/io/i2c/manifest.json"]
+    }
   }
 }

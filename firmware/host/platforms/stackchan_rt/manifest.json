@@ -5,7 +5,8 @@
   "include": ["$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json"],
   "modules": {
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
-    "pins/audioout": "../core_s3_audioout"
+    "pins/audioout": "../core_s3_audioout",
+    "sdk-board-provider": "$(BUILD)/devices/esp32/targets/m5stack_cores3/host/provider"
   },
   "config": {
     "driver": {

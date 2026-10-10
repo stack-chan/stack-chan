@@ -48,7 +48,7 @@ type DeviceEnvironment = {
     delay: (milliseconds: number) => void
   }
   device?: {
-    I2C?: {
+    i2c?: {
       internal?: Record<string, unknown>
     }
     io?: {
@@ -81,7 +81,7 @@ function createDefaultSensorOptions(address: number): I2COptions {
     throw new Error('device.io.SMBus is not available')
   }
   return {
-    ...(globalEnv.device?.I2C?.internal ?? {}),
+    ...(globalEnv.device?.i2c?.internal ?? {}),
     io,
     address,
     hz: 100_000,

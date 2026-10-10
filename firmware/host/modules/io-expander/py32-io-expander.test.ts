@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { getSharedPY32IOExpander, normalizeLedRange, rgbToRgb565 } from './py32-io-expander.js'
+import { getSharedPY32IOExpander, normalizeLedRange, PY32IOExpander, rgbToRgb565 } from './py32-io-expander.js'
 
 describe('PY32 IO Expander helpers', () => {
   it('converts RGB888 to RGB565 in the same layout as the reference firmware', () => {
@@ -55,4 +55,30 @@ describe('PY32 IO Expander helpers', () => {
       globalWithModdableHooks.trace = previousTrace
     }
   })
+})
+
+it('constructs the expander on the standard internal i2c bus', () => {
+  let received: Record<string, unknown> | undefined
+  class FakeSMBus {
+    constructor(options: Record<string, unknown>) {
+      received = options
+    }
+    readUint8(_register: number) {
+      return 0
+    }
+    writeUint8(_register: number, _byte: number) {}
+    writeBuffer(_register: number, _buffer: Uint8Array) {}
+  }
+  const env = globalThis as typeof globalThis & { device?: unknown }
+  const previous = env.device
+  env.device = { i2c: { internal: { data: 12, clock: 11, port: 1 } }, io: { SMBus: FakeSMBus } }
+  try {
+    new PY32IOExpander()
+    assert.equal(received?.data, 12)
+    assert.equal(received?.clock, 11)
+    assert.equal(received?.port, 1)
+    assert.equal(received?.address, 0x6f)
+  } finally {
+    env.device = previous
+  }
 })

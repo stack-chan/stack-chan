@@ -15,12 +15,20 @@
     "setup/m5stackchan-power": "./setup-target",
     "stackchan-sdcard": "./sd-card",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
-    "pins/audioout": "../core_s3_audioout"
+    "pins/audioout": "../core_s3_audioout",
+    "sdk-board-provider": "$(BUILD)/devices/esp32/targets/m5stack_cores3/host/provider"
   },
   "preload": ["axp2101-power-capture"],
   "platforms": {
     "esp32/m5stackchan_cores3": {
-      "dependency": [{ "idf": "fatfs" }, { "idf": "esp_driver_sdspi" }]
+      "dependency": [
+        {
+          "idf": "fatfs"
+        },
+        {
+          "idf": "esp_driver_sdspi"
+        }
+      ]
     }
   },
   "config": {

@@ -1,6 +1,5 @@
 /* eslint-disable prefer-const */
 
-import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import { fetch } from 'fetch'
 import MP3Streamer from 'mp3streamer'

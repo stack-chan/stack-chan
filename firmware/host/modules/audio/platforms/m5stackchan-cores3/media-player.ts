@@ -1,5 +1,5 @@
-import MP3Streamer from 'buffered-mp3streamer'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
+import MP3Streamer from 'buffered-mp3streamer'
 import type { MediaCapability, MediaProgress, MediaStartOptions, MediaState } from 'capabilities'
 import Timer from 'timer'
 import { URL } from 'url'

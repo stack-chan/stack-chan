@@ -2,20 +2,21 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, join } from 'node:path'
+import { delimiter, join, relative } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { jsonEvents, successfulTestSummary } from './xsdb-session.mjs'
+import { jsonEvents, startXsdbSession, successfulTestSummary } from './xsdb-session.mjs'
 
 test('xsdb JSON events tolerate prompts, pretty printing, escaped strings and split chunks', () => {
   const expected = [
     { event: 'log', data: { text: 'a "quote", \\ and {braces}' } },
     { event: 'test_summary', data: { total: 4, failed: 0, passed: 3, skipped: 1 } },
+    { event: 'set', error: 'SDK command rejected' },
   ]
   for (const chunkSize of [1, 2, 17, 256]) {
     const actual = []
     const parse = jsonEvents((event) => actual.push(event))
-    const output = `xsdb listening on port 123.\n(xsdb) ${expected.map((event) => JSON.stringify(event, null, 2)).join('\n(xsdb) ')}`
+    const output = `[podcast artwork] {"error":"Error: Artwork cancelled"}\nxsdb listening on port 123.\n(xsdb) ${expected.map((event) => JSON.stringify(event, null, 2)).join('\n(xsdb) ')}`
     for (let offset = 0; offset < output.length; offset += chunkSize) parse(output.slice(offset, offset + chunkSize))
     assert.deepEqual(actual, expected)
   }
@@ -86,7 +87,10 @@ test('xsbug smoke polls SDK-decoded logs and requires completion without a failu
   writeFileSync(
     join(sdkTool, 'xsbug-log.js'),
     `console.log('xsdb listening on port ' + process.env.XSBUG_LOG_PORT);
-setTimeout(() => console.log(JSON.stringify({event: 'log', data: {text: process.env.STACKCHAN_FAKE_LOG}}, null, 2)), 50);
+setTimeout(() => {
+  if (process.env.STACKCHAN_FAKE_SDK_ERROR) console.log(JSON.stringify({event: 'set', error: 'SDK command rejected'}));
+  console.log(JSON.stringify({event: 'log', data: {text: process.env.STACKCHAN_FAKE_LOG}}, null, 2));
+}, 50);
 setInterval(() => {}, 1000);
 `,
   )
@@ -96,6 +100,7 @@ setInterval(() => {}, 1000);
       ['complete', 'M5StackChan CoreS3 smoke] complete', 0],
       ['failure-before-completion', 'XS abort\nM5StackChan CoreS3 smoke] complete', 1],
       ['quiet', '', 1],
+      ['debugger-error', 'M5StackChan CoreS3 smoke] complete', 1],
     ]) {
       const result = spawnSync(process.execPath, ['scripts/run-device-smoke.js', '--channel', 'xsbug'], {
         cwd: fileURLToPath(new URL('../..', import.meta.url)),
@@ -106,6 +111,7 @@ setInterval(() => {}, 1000);
           STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS: '500',
           STACKCHAN_DEVICE_SMOKE_RETRIES: '0',
           STACKCHAN_FAKE_LOG: text,
+          STACKCHAN_FAKE_SDK_ERROR: name === 'debugger-error' ? '1' : '',
         },
         encoding: 'utf8',
         timeout: 4000,
@@ -117,6 +123,37 @@ setInterval(() => {}, 1000);
       assert.match(output, expected === 0 ? /PASS/ : /FAIL \((failure|timeout)\)/)
     }
   } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('relative xsdb project paths load JSON preferences from the child cwd', async () => {
+  const root = mkdtempSync(join(process.cwd(), '.xsdb-relative-fixture-'))
+  const sdkTool = join(root, 'sdk', 'tools', 'xsbug-log')
+  mkdirSync(sdkTool, { recursive: true })
+  // Match the SDK's documented XSBUG_PROJECT preference lookup in a child
+  // process, so a doubled relative path produces plain text and fails.
+  writeFileSync(
+    join(sdkTool, 'xsbug-log.js'),
+    `import fs from 'node:fs';
+import path from 'node:path';
+let prefs = {};
+try { prefs = JSON.parse(fs.readFileSync(path.join(process.env.XSBUG_PROJECT || process.cwd(), '.xsdb.json'))); } catch {}
+console.log('xsdb listening on port ' + process.env.XSBUG_LOG_PORT);
+setTimeout(() => console.log(prefs.outputFormat === 'json' ? JSON.stringify({event: 'log', data: {text: 'ok'}}, null, 2) : '[Thread 1] ok'), 50);
+setInterval(() => {}, 1000);
+`,
+  )
+  let session
+  try {
+    const project = relative(process.cwd(), join(root, 'session'))
+    session = await startXsdbSession(join(root, 'runtime.log'), project, join(root, 'sdk'))
+    await session.ready
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    assert.match(session.getLog(), /^ok$/m)
+    assert.equal(session.getError(), undefined)
+  } finally {
+    await session?.close()
     rmSync(root, { recursive: true, force: true })
   }
 })

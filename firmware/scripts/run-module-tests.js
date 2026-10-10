@@ -47,7 +47,7 @@ if (!MODDABLE) {
 ensureBuildOutputDirectory()
 const outputArgs = moddableOutputArguments()
 const firmwareRoot = process.cwd()
-const logRoot = process.env.STACKCHAN_MODULE_TEST_LOG_DIR ?? tmpdir()
+const logRoot = resolve(process.env.STACKCHAN_MODULE_TEST_LOG_DIR ?? tmpdir())
 mkdirSync(logRoot, { recursive: true })
 const workRoot = mkdtempSync(join(logRoot, 'stackchan-module-tests-'))
 console.log(`Moddable runtime: simulator; hardware: NOT RUN; logs: ${workRoot}`)

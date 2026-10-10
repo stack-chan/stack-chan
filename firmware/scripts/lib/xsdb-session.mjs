@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
-import { delimiter, join } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 
 // xsdb emits pretty-printed JSON mixed with prompts. Frame JSON objects across
 // arbitrary pipe chunks; braces inside escaped trace strings are not framing.
@@ -27,7 +27,7 @@ export function jsonEvents(onEvent) {
         } catch {
           /* non-JSON debugger text */
         }
-        if (event) onEvent(event)
+        if (typeof event?.event === 'string') onEvent(event)
         frame = ''
       }
     }
@@ -39,6 +39,7 @@ export function successfulTestSummary(data) {
 }
 
 export async function startXsdbSession(logPath, project, sdk, onEvent = () => {}) {
+  project = resolve(project)
   // Reserve an ephemeral port first. A collision is an error, never consent to
   // xsdb's prompt to kill an unrelated debugger using the port.
   const port = await new Promise((resolve, reject) => {

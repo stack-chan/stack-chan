@@ -1,6 +1,7 @@
 import { createFaceState, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
 import {
   Container,
+  type BehaviorConstructor,
   Content,
   type Container as PiuContainer,
   type Content as PiuContent,
@@ -73,7 +74,7 @@ type BalloonContainerOptions = {
   width?: number
   height?: number
   clip: boolean
-  Behavior: typeof Behavior
+  Behavior: BehaviorConstructor<PiuContainer>
 }
 
 function resolveDimension(value: number | undefined, fallback: number): number {
@@ -204,7 +205,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   const containerOptions: BalloonContainerOptions = {
     name: opts.name ?? 'SpeechBalloon',
     clip: true,
-    Behavior: class extends Behavior {
+    Behavior: class extends Behavior<PiuContainer> {
       ensureParts(self: PiuContainer) {
         const w = resolveWidth(self)
         if (background && bodyText && layoutWidth === w) return

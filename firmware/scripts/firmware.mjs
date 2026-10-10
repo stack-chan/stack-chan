@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
@@ -17,9 +17,10 @@ import {
   writeBuildVariant,
 } from './lib/build-variant.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
+import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
-import { prepareCoreS3VersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
+import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -60,6 +61,8 @@ const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
+let toolManifest = manifest
+let expectedDescriptorVersion
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
 const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs, command)
 const outputArgs = moddableOutputArguments()
@@ -99,6 +102,40 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
   }
 }
 
+if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
+  try {
+    const moddableDirectory = process.env.MODDABLE
+    if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
+    const versionSdkconfig = prepareVersionSdkconfig({
+      platformName: deviceName,
+      moddableDirectory,
+      sourceDirectory: path.join(moddableDirectory, 'build/devices/esp32/targets', device.sdkconfigTarget, 'sdkconfig'),
+      partitionSourcePath: path.join(
+        moddableDirectory,
+        'build/devices/esp32/targets',
+        device.sdkconfigTarget,
+        'sdkconfig/partitions.csv',
+      ),
+    })
+    expectedDescriptorVersion = versionSdkconfig.version
+    // The included board manifest overrides SDKCONFIGPATH from the environment.
+    // Apply this last, as the standard release bundle wrapper does.
+    const overrideDirectory = path.join(buildOutputDirectory, 'generated', 'host-manifests', deviceName)
+    const overrideManifest = path.join(overrideDirectory, 'sdkconfig.json')
+    mkdirSync(overrideDirectory, { recursive: true })
+    writeFileSync(overrideManifest, JSON.stringify({ build: { SDKCONFIGPATH: versionSdkconfig.directory } }))
+    toolManifest = path.join(
+      path.dirname(path.resolve(manifest)),
+      `stack-chan-host.${deviceName}.${process.pid}.manifest.json`,
+    )
+    writeFileSync(toolManifest, JSON.stringify({ include: [path.resolve(manifest), overrideManifest] }))
+    process.on('exit', () => rmSync(toolManifest, { force: true }))
+  } catch (error) {
+    console.error(`[stack-chan] firmware version could not be prepared: ${error.message}`)
+    process.exit(1)
+  }
+}
+
 const buildVariantChanged =
   !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
 
@@ -126,12 +163,18 @@ switch (command) {
       '-t',
       'build',
       ...outputArgs,
-      path.resolve(manifest),
+      path.resolve(toolManifest),
       ...args,
     ])
+    if (expectedDescriptorVersion) {
+      validateFirmwareBundleTarget(
+        path.join(buildOutputDirectory, 'bin', 'esp32', deviceName, buildMode, hostApplicationName),
+        expectedDescriptorVersion,
+      )
+    }
     break
   case 'flash':
-    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(toolManifest), ...args])
     break
   case 'deploy':
     run('mcconfig', [
@@ -142,12 +185,12 @@ switch (command) {
       '-t',
       'deploy',
       ...outputArgs,
-      path.resolve(manifest),
+      path.resolve(toolManifest),
       ...args,
     ])
     break
   case 'debug':
-    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(toolManifest), ...args])
     break
   case 'mod':
   case 'mod:build': {

@@ -1,10 +1,11 @@
 import MP3Streamer from 'buffered-mp3streamer'
+import type { HTTPClientProvider } from 'embedded:network/http/client'
 import type { MediaCapability, MediaProgress, MediaStartOptions, MediaState } from 'capabilities'
 import Timer from 'timer'
 import { URL } from 'url'
 import WebRadioAudioOut from 'web-radio-audio-out'
 
-type NetworkTransport = new (options: never) => unknown
+type NetworkTransport = HTTPClientProvider
 type Session = { audio: WebRadioAudioOut; streamer?: MP3Streamer; generation: number }
 
 declare const device: {

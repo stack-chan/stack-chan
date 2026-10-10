@@ -1,6 +1,7 @@
 /* eslint-disable prefer-const */
 
 import type HTTPClient from 'embedded:network/http/client'
+import type { HTTPClientProvider } from 'embedded:network/http/client'
 import { fetch } from 'fetch'
 import MP3Streamer from 'mp3streamer'
 import type AudioOut from 'pins/audioout'
@@ -12,11 +13,7 @@ import { URL } from 'url'
 declare const device: {
   network: {
     https: {
-      client: typeof HTTPClient.constructor & {
-        io: typeof HTTPClient
-        socket: unknown
-        dns: unknown
-      }
+      client: HTTPClientProvider
     }
   }
 }

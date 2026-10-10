@@ -1,6 +1,7 @@
 /* eslint-disable prefer-const */
 
 import type HTTPClient from 'embedded:network/http/client'
+import type { HTTPClientProvider } from 'embedded:network/http/client'
 import type AudioOut from 'pins/audioout'
 import { runTTSPlayback } from 'tts-playback-lifecycle'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
@@ -10,11 +11,7 @@ import WavStreamer from 'wavstreamer'
 declare const device: {
   network: {
     http: {
-      client: typeof HTTPClient.constructor & {
-        io: typeof HTTPClient
-        socket: unknown
-        dns: unknown
-      }
+      client: HTTPClientProvider
     }
   }
 }

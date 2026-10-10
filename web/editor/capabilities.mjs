@@ -1,4 +1,4 @@
-import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from './xs-compatibility.mjs'
+import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE, xsArchiveVersionRangeForFirmware } from './xs-compatibility.mjs'
 import { t } from '../i18n.mjs'
 
 export const CAPABILITIES = Object.freeze({
@@ -29,9 +29,9 @@ export const DEVICE_PROFILES = Object.freeze({
     label: 'M5Stack-chan CoreS3',
     status: 'supported',
     deviceInstall: true,
-    xsArchiveVersion: [17, 8, 2],
+    xsArchiveVersion: [17, 9, 2],
     xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
-    firmwareVersionPrefixes: ['9.5.'],
+    firmwareVersionPrefixes: ['9.5.', '10.0.'],
     chipPatterns: ['ESP32-S3'],
     entrypoints: ['mod', 'miniapp'],
     capabilities: Object.values(CAPABILITIES),
@@ -40,9 +40,9 @@ export const DEVICE_PROFILES = Object.freeze({
     label: 'Webシミュレーター',
     status: 'supported',
     deviceInstall: false,
-    xsArchiveVersion: [17, 8, 2],
+    xsArchiveVersion: [17, 9, 2],
     xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
-    firmwareVersionPrefixes: ['9.5.'],
+    firmwareVersionPrefixes: ['10.0.'],
     chipPatterns: [],
     entrypoints: ['mod', 'miniapp'],
     capabilities: [
@@ -186,18 +186,20 @@ export function inspectDeploymentCompatibility(
     }
   }
   if (profile.xsArchiveVersion) {
+    const archiveRange =
+      (profile.deviceInstall && xsArchiveVersionRangeForFirmware(firmwareVersion)) || profile.xsArchiveVersionRange
     if (requireArchive && xsVersion === undefined) {
       diagnostics.push({
         code: 'VP_XS_VERSION_MISSING',
         message: t('MODのXSバージョンを確認できません'),
       })
-    } else if (xsVersion !== undefined && !isXsVersionCompatible(xsVersion, profile.xsArchiveVersionRange)) {
+    } else if (xsVersion !== undefined && !isXsVersionCompatible(xsVersion, archiveRange)) {
       const detectedXsVersion = Array.isArray(xsVersion) ? xsVersion.join('.') : t('不明')
       diagnostics.push({
         code: 'VP_XS_VERSION_MISMATCH',
         message: t('{profile}のXS {expected}に対して、MODはXS {actual}です', {
           profile: t(profile.label),
-          expected: `${profile.xsArchiveVersionRange.slice(0, 2).join('.')}–${profile.xsArchiveVersionRange.slice(2).join('.')}`,
+          expected: `${archiveRange.slice(0, 2).join('.')}–${archiveRange.slice(2).join('.')}`,
           actual: detectedXsVersion,
         }),
       })

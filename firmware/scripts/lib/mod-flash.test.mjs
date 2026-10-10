@@ -243,3 +243,44 @@ test('9.5 MOD preflight rejects an out-of-range archive before writing', () => {
     rmSync(fixture, { recursive: true, force: true })
   }
 })
+
+test('CLI MOD preflight uses the detected SDK archive range before any write', () => {
+  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1']) {
+    for (const minor of [6, 7, 8, 9, 10]) {
+      const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-flash-range-'))
+      try {
+        const archivePath = path.join(fixture, 'mod.xsa')
+        const archive = makeArchive(128)
+        archive[17] = minor
+        writeFileSync(archivePath, archive)
+        const calls = []
+        const options = {
+          archivePath,
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            const command = args.find((arg) => ['read-flash', 'write-flash', 'verify-flash'].includes(arg))
+            calls.push(command)
+            if (command === 'read-flash') {
+              writeFileSync(
+                args.at(-1),
+                calls.length === 1
+                  ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                  : makeAppHeader({ version: firmwareVersion, projectName: 'xs_esp32' }),
+              )
+            }
+          },
+        }
+        const accepted = minor >= 7 && minor <= (firmwareVersion.startsWith('9.5.') ? 8 : 9)
+        if (accepted) {
+          assert.deepEqual(installModArchive(options).archiveVersion, [17, minor, 0])
+          assert.deepEqual(calls, ['read-flash', 'read-flash', 'write-flash', 'verify-flash'])
+        } else {
+          assert.throws(() => installModArchive(options), /Incompatible XS archive/)
+          assert.deepEqual(calls, ['read-flash', 'read-flash'])
+        }
+      } finally {
+        rmSync(fixture, { recursive: true, force: true })
+      }
+    }
+  }
+})

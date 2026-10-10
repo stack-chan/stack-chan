@@ -19,11 +19,7 @@ import { MouthSprite } from 'parts/image/mouth-sprite'
 import { Mouth } from 'parts/mouth'
 import { RelaxedEye } from 'parts/relaxed-eye'
 import { RelaxedMouth } from 'parts/relaxed-mouth'
-import type {
-  Container as PiuContainer,
-  ContainerDictionary as PiuContainerDictionary,
-  Content as PiuContent,
-} from 'piu/MC'
+import type { Container as PiuContainer, ContainerDictionary as PiuContainerDictionary } from 'piu/MC'
 
 type TemplateCtor<TData> = {
   new (behaviorData?: TData, dictionary?: PiuContainerDictionary): PiuContainer
@@ -31,7 +27,7 @@ type TemplateCtor<TData> = {
 }
 
 export type FaceBaseParams = {
-  contents?: PiuContent[]
+  contents?: PiuContainerDictionary['contents']
   motions?: FaceMotion[]
   intervalMs?: number
   left?: number

@@ -1,8 +1,4 @@
-let writes = 0
-
-export function writeCount(): number {
-  return writes
-}
+import { flashTestState } from 'flash-test-state'
 
 export default class FlashStub {
   readonly byteLength = 64
@@ -10,7 +6,7 @@ export default class FlashStub {
   readonly storage = new Uint8Array(this.byteLength)
 
   constructor(_partition: string) {
-    writes = 0
+    flashTestState.writes = 0
   }
 
   erase(sector: number): void {
@@ -20,7 +16,7 @@ export default class FlashStub {
 
   write(offset: number, byteLength: number, buffer: Uint8Array): void {
     this.storage.set(buffer.subarray(0, byteLength), offset)
-    writes += 1
+    flashTestState.writes += 1
   }
 
   read(offset: number, byteLength: number): ArrayBuffer {

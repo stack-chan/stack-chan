@@ -4,7 +4,7 @@
 //
 // Channels:
 //   xsbug (default) - `mcrun -dn -x` bridges device traces over serial2xsbug
-//     to a local log server; passes when the smoke MOD traces its completion
+//     to SDK xsdb; passes when the smoke MOD traces its completion
 //     line. Requires a debug-build host firmware on the device (use --flash
 //     for a full build+deploy first). The xsbug serial bridge is known to be
 //     flaky on CoreS3, so failed attempts retry automatically.
@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { devices, resolveDevice } from './lib/devices.mjs'
-import { startXsbugServer } from './lib/xsbug-log-server.js'
+import { startXsdbSession } from './lib/xsdb-session.mjs'
 
 const TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS ?? '120000', 10)
 const RETRIES = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_RETRIES ?? '2', 10)
@@ -67,17 +67,6 @@ function killProcessGroup(child) {
   }
 }
 
-function decodeXsbugLog(log) {
-  return Array.from(log.matchAll(/<log>([\s\S]*?)<\/log>/g), ([, text]) => text)
-    .join('')
-    .replaceAll('&#10;', '\n')
-    .replaceAll('&#13;', '\r')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&amp;', '&')
-}
-
 function flashHostFirmware() {
   console.log(`[device-smoke] building and deploying host firmware for ${device.label}`)
   const result = spawnSync(
@@ -93,7 +82,7 @@ function flashHostFirmware() {
 
 async function runXsbugAttempt(attempt) {
   const logPath = join(workRoot, `attempt-${attempt}.xsbug.log`)
-  const logServer = startXsbugServer(logPath)
+  const logServer = await startXsdbSession(logPath, join(workRoot, `xsdb-${attempt}`), process.env.MODDABLE)
   const port = await logServer.ready
   console.log(`[device-smoke] attempt ${attempt}: mcrun -dn -x 127.0.0.1:${port} ${modManifest}`)
 
@@ -138,11 +127,11 @@ async function runXsbugAttempt(attempt) {
       for (const line of fresh.split('\n')) {
         if (line.includes('smoke]')) console.log(`[device] ${line}`)
       }
-      if (okPattern.test(decoded)) {
-        finish('ok')
-      } else if (failurePattern.test(decoded)) {
-        console.error(`[device-smoke] failure marker in device log; full log: ${logPath}`)
+      if (logServer.getError() || failurePattern.test(decoded)) {
+        console.error(`[device-smoke] debugger error or failure marker; full log: ${logPath}`)
         finish('failure')
+      } else if (okPattern.test(decoded)) {
+        finish('ok')
       }
     }, 200)
 
@@ -196,6 +185,11 @@ async function runSerialWatch() {
     }, 50)
     const timer = setTimeout(() => finish('timeout'), TIMEOUT_MS)
   })
+}
+
+if (channel === 'xsbug' && !process.env.MODDABLE) {
+  console.error('[device-smoke] xsdb requires MODDABLE to select the SDK')
+  process.exit(1)
 }
 
 if (hasFlag(rawArgs, 'flash')) flashHostFirmware()

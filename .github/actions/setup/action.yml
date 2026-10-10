@@ -8,7 +8,7 @@ inputs:
   target-branch:
     description: "Target branch or tag to setup environment"
     required: false
-    default: "9.5.0"
+    default: "10.0.0"
   install-emscripten:
     description: "Install Emscripten for WASM builds"
     required: false

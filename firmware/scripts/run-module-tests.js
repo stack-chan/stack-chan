@@ -430,7 +430,7 @@ if (allManifestPaths.length === 0) {
 }
 
 assertUniqueNames(allManifestPaths)
-const shard = parseModuleTestShard()
+const shard = sdkOnly ? { index: 0, total: 1 } : parseModuleTestShard()
 const manifestPaths = selectModuleTestShard(allManifestPaths, shard)
 const shardLabel = `${shard.index + 1}/${shard.total}`
 const suiteStartedAt = performance.now()

@@ -134,7 +134,7 @@ jobs:
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
 
       - name: Run SDK Piu and XS regressions through xsdb
-        if: matrix.shard == 0
+        if: ${{ !cancelled() && matrix.shard == 0 }}
         working-directory: ./firmware
         env:
           STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
@@ -210,7 +210,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "9.5.0"
+          target-branch: "10.0.0"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware

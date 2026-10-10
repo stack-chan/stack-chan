@@ -22,7 +22,7 @@ npm run test:moddable -- --sdk
 
 ## 実機の扱い
 
-CIジョブの名前と出力はシミュレーター実行です。各実行は `hardware: NOT RUN` を表示します。シミュレーターのPASSからGPIO、SD、音声、サーボ、物理タッチ、RAM上限の実機PASSを推定しません。
+CIの実行ログにはシミュレーター実行であることを明示します。各実行は `hardware: NOT RUN` を表示します。シミュレーターのPASSからGPIO、SD、音声、サーボ、物理タッチ、RAM上限の実機PASSを推定しません。
 
 既にdebug firmwareと検証MODが入った専用実機を使う場合は、実機担当者がポートを確認したうえで既存のread-onlyシリアル監視を使えます。
 
@@ -39,4 +39,4 @@ xsdbによるSDK testmc/test262の実機テストには、対応したdebug test
 
 ## 変更の影響
 
-Issue #729 / #706。release impact: none。テストと開発手順のみで、配布firmware/Webの機能変更やrelease noteはありません。自前xsbug通信を通常module testから外し、SDK xsdbを正式な実行経路にしました。従来の実機smoke接続には既存serverを維持します。
+Issue #729 / #706。release impact: none。テストと開発手順のみで、配布firmware/Webの機能変更やrelease noteはありません。自前xsbug通信を通常module testから外し、SDK xsdbを正式な実行経路にしました。実機smokeのxsbug channelも同じxsdbを使い、自前のTCP/XML debugger実装を削除しました。既存の `test:device` はMOD書き込みを含むので、接続確認を除き専用検証機で別途実行してください。

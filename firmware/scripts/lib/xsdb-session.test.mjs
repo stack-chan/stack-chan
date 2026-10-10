@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { delimiter, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { jsonEvents, successfulTestSummary } from './xsdb-session.mjs'
@@ -68,4 +71,52 @@ print(json.dumps(results))
   const results = JSON.parse(probe.stdout)
   assert.equal(results.length, 4)
   for (const result of results) assert.equal(result.exit, result.expected, `${result.case}: ${result.output}`)
+})
+
+test('xsbug smoke polls SDK-decoded logs and requires completion without a failure', {
+  skip: process.platform !== 'linux' ? 'Linux fake child fixture required; hardware is not tested' : false,
+}, () => {
+  const root = mkdtempSync(join(tmpdir(), 'stackchan-xsdb-smoke-fixture-'))
+  const sdkTool = join(root, 'sdk', 'tools', 'xsbug-log')
+  const bin = join(root, 'bin')
+  mkdirSync(sdkTool, { recursive: true })
+  mkdirSync(bin)
+  // Fake SDK/transport processes exercise the real session JSON adapter and
+  // smoke runner's xsbug polling path. They never access a device or flash.
+  writeFileSync(
+    join(sdkTool, 'xsbug-log.js'),
+    `console.log('xsdb listening on port ' + process.env.XSBUG_LOG_PORT);
+setTimeout(() => console.log(JSON.stringify({event: 'log', data: {text: process.env.STACKCHAN_FAKE_LOG}}, null, 2)), 50);
+setInterval(() => {}, 1000);
+`,
+  )
+  writeFileSync(join(bin, 'mcrun'), '#!/bin/sh\nexec node -e "setInterval(() => {}, 1000)"\n', { mode: 0o700 })
+  try {
+    for (const [name, text, expected] of [
+      ['complete', 'M5StackChan CoreS3 smoke] complete', 0],
+      ['failure-before-completion', 'XS abort\nM5StackChan CoreS3 smoke] complete', 1],
+      ['quiet', '', 1],
+    ]) {
+      const result = spawnSync(process.execPath, ['scripts/run-device-smoke.js', '--channel', 'xsbug'], {
+        cwd: fileURLToPath(new URL('../..', import.meta.url)),
+        env: {
+          ...process.env,
+          MODDABLE: join(root, 'sdk'),
+          PATH: `${bin}${delimiter}${process.env.PATH}`,
+          STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS: '500',
+          STACKCHAN_DEVICE_SMOKE_RETRIES: '0',
+          STACKCHAN_FAKE_LOG: text,
+        },
+        encoding: 'utf8',
+        timeout: 4000,
+      })
+      const output = result.stdout + result.stderr
+      assert.equal(result.status, expected, `${name}: ${output}`)
+      assert.doesNotMatch(output, /ReferenceError|decodeXsbugLog/)
+      assert.match(output, /attempt 1: mcrun/)
+      assert.match(output, expected === 0 ? /PASS/ : /FAIL \((failure|timeout)\)/)
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })

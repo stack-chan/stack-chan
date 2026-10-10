@@ -121,7 +121,7 @@ async function runXsbugAttempt(attempt) {
     })
 
     const poll = setInterval(() => {
-      const decoded = decodeXsbugLog(logServer.getLog())
+      const decoded = logServer.getLog()
       const fresh = decoded.slice(echoedLength)
       echoedLength = decoded.length
       for (const line of fresh.split('\n')) {

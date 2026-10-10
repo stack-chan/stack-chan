@@ -1,8 +1,8 @@
 // Board-specific additions to the SDK's manifest-composed device interfaces.
 declare module 'embedded:provider/builtin' {
-  import type { PinSpecifier } from 'embedded:io/_common'
   import type RTC from 'embedded:RTC'
   import type { RTCOptions } from 'embedded:RTC'
+  import type { PinSpecifier } from 'embedded:io/_common'
 
   interface Device {
     pin: DevicePin

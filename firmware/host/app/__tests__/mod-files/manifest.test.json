@@ -1,0 +1,12 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODULES)/io/files/posix/manifest.json",
+    "../../../modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./mod-files.test",
+    "mod-files": "../../mod-files",
+    "mod-installer": "../../mod-installer"
+  }
+}

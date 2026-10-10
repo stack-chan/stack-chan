@@ -160,3 +160,59 @@ test('Touch switches ECMA-419 polling from idle to active interval while a point
   fakeTimer.advance(1)
   assert.equal(events.at(-1)?.phase, 'ended')
 })
+
+test('Touch legacy driver preserves valid coordinates and rejects incomplete samples', async () => {
+  installBareSpecifierPackages()
+  const [{ default: Touch }, { default: fakeTimer }] = await Promise.all([
+    import('../touch.js'),
+    import('timer') as Promise<{ default: FakeTimer }>,
+  ])
+  fakeTimer.reset()
+  ;(globalThis as typeof globalThis & { trace: (...messages: unknown[]) => void }).trace = () => {}
+
+  type LegacyPoint = { state?: number; down?: boolean; x?: number; y?: number }
+  class LegacyDriver {
+    static current: LegacyDriver
+    points: LegacyPoint[] = []
+    next: LegacyPoint = {}
+    constructor() {
+      LegacyDriver.current = this
+    }
+    read(points: LegacyPoint[]) {
+      Object.assign(points[0], this.next)
+    }
+  }
+  const events: TouchInputEvent[] = []
+  const touch = new Touch(LegacyDriver, { count: 1 })
+  touch.onEvent = (event) => events.push(event)
+  const driver = LegacyDriver.current
+  for (const next of [
+    { state: 1 },
+    { state: 1, x: 10, y: 20 },
+    { state: 2, x: 11, y: 21 },
+    { state: 3 },
+    { state: 1, x: 1, y: undefined },
+    { state: 1, x: undefined, y: 1 },
+    { state: 1, x: 0, y: 0 },
+    { state: 0, x: undefined, y: undefined },
+    { state: 1, x: 2, y: 3 },
+  ]) {
+    driver.next = next
+    fakeTimer.advance(15)
+  }
+  touch.close()
+  assert.deepEqual(
+    events.map((event) => event.phase),
+    ['began', 'moved', 'ended', 'began', 'began'],
+  )
+  assert.deepEqual(
+    events.map(({ x, y }) => [x, y]),
+    [
+      [10, 20],
+      [11, 21],
+      [11, 21],
+      [0, 0],
+      [2, 3],
+    ],
+  )
+})

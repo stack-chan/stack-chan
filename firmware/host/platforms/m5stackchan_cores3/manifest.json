@@ -7,7 +7,8 @@
   "include": [
     "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",
     "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json",
-    "$(MODDABLE)/modules/files/flash/manifest.json"
+    "$(MODDABLE)/modules/files/flash/manifest.json",
+    "$(MODULES)/io/files/esp32/manifest_sdspi.json"
   ],
   "modules": {
     "axp2101-power-capture": "../../modules/power/platforms/axp2101-power-capture",
@@ -15,14 +16,11 @@
     "setup/m5stackchan-power": "./setup-target",
     "stackchan-sdcard": "./sd-card",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
-    "pins/audioout": "../core_s3_audioout"
+    "pins/audioout": "../core_s3_audioout",
+    "mod-files": "../../app/mod-files",
+    "stackchan-sdroot": "./sd-root"
   },
   "preload": ["axp2101-power-capture"],
-  "platforms": {
-    "esp32/m5stackchan_cores3": {
-      "dependency": [{ "idf": "fatfs" }, { "idf": "esp_driver_sdspi" }]
-    }
-  },
   "config": {
     "driver": {
       "type": "m5stackchan",
@@ -93,6 +91,19 @@
     },
     "ft6206": {
       "hz": 400000
+    },
+    "file": {
+      "root": "#/sdcard",
+      "format": 0,
+      "maxOpen": 1
+    },
+    "sdcard": {
+      "cs": 4,
+      "miso": 35,
+      "mosi": 37,
+      "sck": 36,
+      "spi_port": "SPI3_HOST",
+      "hz": 20000000
     }
   }
 }

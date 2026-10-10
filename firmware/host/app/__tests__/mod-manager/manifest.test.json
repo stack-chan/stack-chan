@@ -1,14 +1,16 @@
 {
   "include": [
     "../../../modules/ui/manifest.json",
-    "../../../modules/testing/manifest.json"
+    "../../../modules/testing/manifest.json",
+    "$(MODULES)/io/system/manifest.json"
   ],
   "modules": {
     "main": "./mod-manager.test",
     "mod-manager": "../../mod-manager",
     "mod-installer": "../../mod-installer",
     "flash": "./flash-stub",
-    "stackchan-sdcard": "./sd-card-stub"
+    "stackchan-sdcard": "./sd-card-stub",
+    "flash-test-state": "./flash-test-state"
   },
   "resources": {
     "*": ["../../strings/*"],

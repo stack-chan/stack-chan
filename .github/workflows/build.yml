@@ -130,7 +130,22 @@ jobs:
         env:
           STACKCHAN_MODULE_TEST_SHARD_INDEX: ${{ matrix.shard }}
           STACKCHAN_MODULE_TEST_SHARD_TOTAL: 2
+          STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
+
+      - name: Run SDK Piu and XS regressions through xsdb
+        if: matrix.shard == 0
+        working-directory: ./firmware
+        env:
+          STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable -- --sdk
+      - name: Upload simulator test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moddable-simulator-logs-${{ matrix.shard }}
+          path: firmware/dist/test-logs
+          if-no-files-found: warn
 
   test-smoke:
     needs: changes

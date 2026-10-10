@@ -8,17 +8,16 @@
 //     line. Requires a debug-build host firmware on the device (use --flash
 //     for a full build+deploy first). The xsbug serial bridge is known to be
 //     flaky on CoreS3, so failed attempts retry automatically.
-//   serial - watches the raw serial port for crash markers only. trace()
-//     output is NOT visible on raw serial (it only flows over the xsbug
-//     protocol in debug builds), so this mode is a boot-stability smoke, not
-//     a completion check. Requires UPLOAD_PORT.
+//   serial - requires an observed completion marker as well as no crash.
+//     Debug trace() uses xsbug, not raw serial: use the xsbug channel for those
+//     tests. Silence is inconclusive and fails. Requires UPLOAD_PORT.
 //
 // Usage:
 //   UPLOAD_PORT=/dev/ttyACM0 npm run test:device
 //   npm run test:device -- --device stackchan_rt --flash
 //   UPLOAD_PORT=/dev/ttyACM0 npm run test:device -- --channel serial
 import { spawn, spawnSync } from 'node:child_process'
-import { createReadStream, mkdtempSync } from 'node:fs'
+import { closeSync, constants, mkdtempSync, openSync, readSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
@@ -166,28 +165,36 @@ async function runSerialWatch() {
     process.exit(1)
   }
 
-  console.log(`[device-smoke] watching ${serialPort} for ${TIMEOUT_MS}ms (crash markers only)`)
+  console.log(`[device-smoke] watching ${serialPort} for ${TIMEOUT_MS}ms (completion and crash markers)`)
   return await new Promise((resolveRun) => {
     let output = ''
-    const stream = createReadStream(serialPort, { encoding: 'utf8' })
+    // A blocking fs stream can keep Node's worker thread alive after timeout
+    // while a silent tty never satisfies its pending read. Poll a nonblocking
+    // descriptor instead so failure really terminates within the time limit.
+    const descriptor = openSync(serialPort, constants.O_RDONLY | constants.O_NONBLOCK)
+    const buffer = Buffer.alloc(4096)
     const finish = (status) => {
       clearTimeout(timer)
-      stream.close()
+      clearInterval(poll)
+      closeSync(descriptor)
       resolveRun(status)
     }
-    stream.on('data', (chunk) => {
-      output += chunk
-      process.stdout.write(chunk)
-      if (crashPattern.test(output)) {
-        console.error('[device-smoke] crash marker on serial console')
-        finish('failure')
+    const poll = setInterval(() => {
+      try {
+        const count = readSync(descriptor, buffer, 0, buffer.length)
+        if (!count) return finish('disconnected')
+        const chunk = buffer.toString('utf8', 0, count)
+        output += chunk
+        process.stdout.write(chunk)
+        if (crashPattern.test(output)) finish('failure')
+        else if (okPattern.test(output)) finish('ok')
+      } catch (error) {
+        if (error.code === 'EAGAIN') return
+        console.error(`[device-smoke] serial read failed: ${error.message}`)
+        finish('error')
       }
-    })
-    stream.on('error', (error) => {
-      console.error(`[device-smoke] serial read failed: ${error.message}`)
-      finish('error')
-    })
-    const timer = setTimeout(() => finish('ok'), TIMEOUT_MS)
+    }, 50)
+    const timer = setTimeout(() => finish('timeout'), TIMEOUT_MS)
   })
 }
 

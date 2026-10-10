@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import System from './system.js'
 import Microphone from '../../modules/audio/wasm/microphone.js'
 import Speaker from '../../modules/audio/wasm/speaker.js'
 import FallbackCamera from '../../modules/camera/lin/camera.js'
 import Camera from '../../modules/camera/wasm/camera.js'
 import { WasmDriver } from '../../modules/motion/wasm/wasm-driver.js'
+import System from './system.js'
 
 type Rotation = { y: number; p: number; r: number }
 type MotionCompletion = (error?: unknown) => void

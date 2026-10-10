@@ -11,7 +11,7 @@ import { UI, uiStyles } from 'ui-theme'
 
 export function startModManager(
   application: PiuApplication,
-  restart: () => void = () => System.restart!(),
+  restart: () => void = () => System.restart?.(),
 ): Promise<'back'> {
   return new Promise((resolve) => {
     const styles = uiStyles()

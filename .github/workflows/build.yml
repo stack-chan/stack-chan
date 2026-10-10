@@ -118,9 +118,9 @@ jobs:
           path: |
             ./firmware/dist/tmp/lin
             ./firmware/dist/bin/lin
-          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v1-shard-${{ matrix.shard }}-${{ github.sha }}
+          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v2-shard-${{ matrix.shard }}-${{ github.sha }}
           restore-keys: |
-            ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v1-shard-${{ matrix.shard }}-
+            ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v2-shard-${{ matrix.shard }}-
       - name: Run manifest preflight
         if: matrix.shard == 0
         working-directory: ./firmware

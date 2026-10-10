@@ -89,7 +89,9 @@
     "scan": "xs-dev scan",
     "erase-flash": "esptool erase-flash",
     "install-hook": "lefthook install",
-    "uninstall-hook": "lefthook uninstall"
+    "uninstall-hook": "lefthook uninstall",
+    "test:ui-controls": "node scripts/test-ui-controls.mjs",
+    "test:ui-controls:build": "node scripts/run-mcconfig.mjs -dn -m -p lin/m5stack -t build host/modules/ui/components/foundation/__tests__/ui-controls/manifest.test.json"
   },
   "type": "module",
   "repository": {

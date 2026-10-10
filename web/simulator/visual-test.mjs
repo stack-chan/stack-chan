@@ -34,6 +34,17 @@ try {
   await page.getByText('シミュレーターを実行中').waitFor({ timeout: 45_000 })
   assert.equal(await page.locator('canvas[aria-label="ｽﾀｯｸﾁｬﾝ3Dシミュレーター"]').count(), 1)
   assert.equal(await page.getByRole('button', { name: 'カメラを接続' }).count(), 1)
+  // A rendered shell can remain visible after the XS machine aborts.
+  await page.waitForFunction(
+    () => /app behaviors ready|XS abort|stack overflow|startup failed/i.test(document.body.innerText),
+    undefined,
+    { timeout: 45_000 }
+  )
+  const firmwareLog = await page.getByRole('log').innerText()
+  console.log(firmwareLog)
+  await page.screenshot({ path: '/tmp/stackchan-simulator-runtime.png', fullPage: true })
+  assert.doesNotMatch(firmwareLog, /XS abort|stack overflow|startup failed/i)
+  assert.ok(firmwareLog.includes('[main] app behaviors ready'), 'firmware startup must complete')
   assert.deepEqual(errors, [])
   await page.screenshot({ path: '/tmp/stackchan-simulator-runtime.png', fullPage: true })
 } finally {

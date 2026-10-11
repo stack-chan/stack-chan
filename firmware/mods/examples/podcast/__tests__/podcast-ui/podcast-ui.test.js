@@ -193,4 +193,4 @@ for (const [locale, field, failure, retry, paused] of [
   app.empty()
 }
 setLocale('ja')
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

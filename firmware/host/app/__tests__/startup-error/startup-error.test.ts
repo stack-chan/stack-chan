@@ -126,5 +126,5 @@ function run() {
   environment.application = undefined
   showStartupError({ phase: 'initialization', error: new Error('early failure'), onRestart: restart })
   equal(screenStrings().includes('Startup failed'), true, 'failure before any splash must still create an error view')
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }

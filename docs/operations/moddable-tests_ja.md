@@ -1,42 +1,38 @@
-# Moddable v10の回帰テスト
+# Stack-chan の Moddable モジュールテスト
 
-`firmware/` の既存 `test:moddable` を使います。debug buildをXvfb上のLinuxシミュレーターで実行し、SDKのxsdbからJSONイベントを受け取ります。xsdbの依存saxophoneは `npm ci` でfirmware側へ導入します。SDK checkoutやグローバル設定へ書き込みません。
+`firmware/` で `npm run test:moddable` を実行します。Stack-chan の既存 `manifest.test.json` を探し、debug build を Linux mcsim で実行します。Piu を使うテストは `lin/m5stack`、その他は `lin` が対象です。SDK 自身の Skin／Math テストを実行するオプションはありません。
+
+SDK の標準 xsbug-log が TCP/XML 通信を処理し、既存 runner がテキストログと完了マーカーを観測します。SDK checkout とグローバル設定は変更しません。SDK 依存の saxophone は firmware の `npm ci` で用意します。
 
 ```sh
 cd firmware
 npm ci
-# 専用SDKのexportを使う。MODDABLEとPATHは同じSDKを指すこと。
+# 専用 SDK の環境を読み込み、MODDABLE と PATH を揃える
 npm run test:moddable
-npm run test:moddable -- --sdk
 ```
 
-必要なホストツールはLinux用SDK build tools、Node.js、xvfb-runです。並列実行にはdbus-run-sessionも必要です。共有マシンでは `STACKCHAN_MODULE_TEST_JOBS=1` にしてビルド側のmake並列数も制限してください。
+必要なツールは Linux 用 SDK build tools、Node.js、xvfb-run です。並列実行には dbus-run-session も必要です。共有マシンでは `STACKCHAN_MODULE_TEST_JOBS=1` にし、make 側の並列数も制限してください。既存 manifest やディレクトリを引数に指定すると対象を絞れます。テストがゼロなら失敗します。全体にテストが存在する場合の空 shard は正常に終了します。
 
-通常のコマンドは既存の `manifest.test.json` を動的に探し、Piuを使うものは `lin/m5stack`、その他は `lin` で実行します。引数で既存manifestやディレクトリを絞れます。見つかったテストがゼロなら失敗します。CIの正当な空shardは、全体にテストが存在する場合だけ空のまま終了します。
+## 完了と失敗
 
-`--sdk` はSDK自身のPiu Skinテストをtestmc、XS Mathテストをtest262で実行します。両者はpreloadによる組み込みオブジェクトの凍結が異なるため混用しません。SDKのフルtestmc manifestはLinux非対応のOTA Updateを含むので、共通testmc・Piu・checksum画面・公式texture fixtureだけのmanifestを `firmware/dist/tmp/testmc/` に生成します。この専用構成は毎回再生成して古いmodule mappingのxsbを再利用しません。
+各テストは必要な assertion と非同期処理を終えてから、独立した行として `trace('@@STACKCHAN_TEST:PASS@@\n')` を出します。既存の `ok` と同じ終了位置にあり、import 直後や Promise の完了前には出しません。共通 assertion の失敗と最終 Promise の rejection は `@@STACKCHAN_TEST:FAIL@@` を出します。捕捉して処理する例外の診断ログだけを FAIL にしません。
 
-結果はxsdbの `test_summary` の実測値です。1件以上のPASS、FAILゼロ、停止理由なし、総件数の整合性を要求します。全SKIP・未接続・タイムアウト・abort・debuggerの異常終了はPASSにしません。既存テストも最終 `ok` マーカーを実行中のXSから観測する必要があります。 TypeScriptは型エラーでもJavaScriptを生成することがあるため、失敗したbuildの専用tmp/bin出力は破棄し、次のwarm buildが失敗出力を再利用しないようにします。 この修正以前の失敗生成物が残るローカル環境では、最初の再試験に `STACKCHAN_MODULE_TEST_CLEAN=1` を指定します。CIのmodule cache世代も更新し、古い失敗生成物を復元しません。
+runner は完全なマーカー行を判定します。標準 xsbug-log の thread 表示と prompt、端末制御文字を扱い、UTF-8 の文字と行が複数の stdout chunk に分かれても保持します。診断の JSON や裸の `ok`、マーカーに言及する文章は完了になりません。FAIL と致命的停止を PASS より先に確認します。未接続、タイムアウト、debugger の stderr／異常終了、完了前の mcsim 終了も失敗です。完了を出さない例外は、致命的停止またはタイムアウトとして検出します。
 
-`STACKCHAN_MODULE_TEST_LOG_DIR` を指定すると、その配下の実行別フォルダーにJSONログとSDK reportを保存します。省略時は一時フォルダーです。CIは `dist/test-logs` を失敗時もartifactとして保存します。`STACKCHAN_MODULE_TEST_TIMEOUT_MS` と `STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS` で実行/ビルド上限を設定できます。SIGINT/SIGTERM中断は非zeroで終了し、このrunner自身の子プロセスだけを終了します。
+起動した debugger と simulator は終了時・SIGINT/SIGTERM 中断時に片付けます。テストごとにポート、project、X display、DBus、XDG_CONFIG_HOME を分け、他の作業と設定を共有しません。
 
-## 実機の扱い
+## ログと再試験
 
-CIの実行ログにはシミュレーター実行であることを明示します。各実行は `hardware: NOT RUN` を表示します。シミュレーターのPASSからGPIO、SD、音声、サーボ、物理タッチ、RAM上限の実機PASSを推定しません。
+`STACKCHAN_MODULE_TEST_LOG_DIR` の下に実行別のログを保存します。省略時は一時フォルダーです。CI は失敗時も `dist/test-logs` を artifact に残します。実行と build の上限は `STACKCHAN_MODULE_TEST_TIMEOUT_MS` と `STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS` で指定できます。
 
-既にdebug firmwareと検証MODが入った専用実機を使う場合は、実機担当者がポートを確認したうえで既存のread-onlyシリアル監視を使えます。
+型エラーでも TypeScript が JavaScript を生成する場合があります。build が失敗した専用 tmp/bin 出力は破棄し、次回の warm build が失敗した生成物を使わないようにします。古い生成物が残る環境では、初回の再試験に `STACKCHAN_MODULE_TEST_CLEAN=1` を指定してください。
 
-```sh
-cd firmware
-UPLOAD_PORT=/dev/ttyACM0 npm run test:device -- --channel serial
-```
+xsbug-log の待受を確認してから mcsim を起動します。テストごとの DBus と設定ディレクトリで simulator を分離します。SIGINT／SIGTERM 中断は非ゼロで終了し、この runner が起動した子プロセスだけを停止します。
 
-この経路はシリアル設定と読み取りのみです。`--flash` を付けません。debugの `trace()` はraw serialには流れないため、そのMODはxsbug経路で確認します。raw serialへ完了を出すMODだけがこの監視で成功できます。標準の完了マーカーは `M5StackChan CoreS3 smoke] complete` です。他の検証MODでは `STACKCHAN_DEVICE_SMOKE_OK` にそのMOD固有の完了マーカーを指定します。無言・通常hostのログだけ・クラッシュ・切断・タイムアウトは失敗です。
+## 実機との区別
 
-xsdbによるSDK testmc/test262の実機テストには、対応したdebug test appがあらかじめ必要です。SDKの正式手順に従って専用機で接続し、`test modules/piu/Skin` / `test xs/built-ins/Math` と `info tests` の結果を保存してください。test appの導入にはfirmware書き込みが伴うため、通常のCIやこのシミュレーターコマンドに自動flashを含めません。実機未確保なら `NOT RUN（実機未確保）` を記録します。
+このコマンドは `hardware: NOT RUN` と表示し、実機へ flash しません。シミュレーターで成功しても GPIO、SD、音声、サーボ、物理タッチ、RAM 上限の実機検証を通過したことにはなりません。
 
-リリースの物理操作項目は [実機チェックリスト](release-device-test_ja.md) を併用し、候補SHA・ボード・SDK・実行した項目・ログを対応付けてください。
+debug firmware と検証 MOD が入った専用実機の smoke は既存 `test:device` で別途確認します。raw serial の監視は `UPLOAD_PORT=/dev/tty... npm run test:device -- --channel serial` です。`--flash` は付けません。完了を serial に出す MOD が必要です。通常の host ログ、無言、切断、クラッシュ、timeout は成功にしません。debug の trace は xsbug channel を使います。
 
-## 変更の影響
-
-Issue #729 / #706。release impact: none。テストと開発手順のみで、配布firmware/Webの機能変更やrelease noteはありません。自前xsbug通信を通常module testから外し、SDK xsdbを正式な実行経路にしました。実機smokeのxsbug channelも同じxsdbを使い、自前のTCP/XML debugger実装を削除しました。既存の `test:device` はMOD書き込みを含むので、接続確認を除き専用検証機で別途実行してください。
+リリースの物理操作は [実機チェックリスト](release-device-test_ja.md) に従い、候補 SHA・ボード・SDK・実施項目・ログを残してください。Issue #729 / #706 に関連します。release impact は none で、配布 firmware／Web の機能変更はありません。

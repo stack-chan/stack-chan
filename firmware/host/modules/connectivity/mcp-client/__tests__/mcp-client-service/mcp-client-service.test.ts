@@ -175,10 +175,11 @@ async function testMCPClient(): Promise<void> {
   }
 
   trace('\n=== Test Complete ===\n')
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 // Start the test
 testMCPClient().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`Test execution failed: ${error}\n`)
 })

@@ -561,7 +561,7 @@ test('Moddable test manifests use local test modules as main entries', () => {
   }
 })
 
-test('Moddable test main entries trace ok and avoid not ok status strings', () => {
+test('Moddable test main entries declare the runner completion protocol', () => {
   const manifestPaths = walkFiles(MODULE_ROOT).filter((path) => path.endsWith('manifest.test.json'))
 
   for (const manifestPath of manifestPaths) {
@@ -574,8 +574,12 @@ test('Moddable test main entries trace ok and avoid not ok status strings', () =
       : join(dirname(manifestPath), `${mainEntry.slice(2)}.js`)
     const source = readFileSync(testFile, 'utf8')
 
-    assert.match(source, /trace\(['"]ok\\n['"]\)/, `${testFile} should trace ok on success`)
-    assert.doesNotMatch(source, /not ok/, `${testFile} should not use not ok for failure status`)
+    assert.match(source, /@@STACKCHAN_TEST:PASS@@/, `${testFile} should declare the completion marker`)
+    assert.doesNotMatch(
+      source,
+      /trace\(['"](?:not )?ok\\n['"]\)/,
+      `${testFile} should not use the obsolete completion protocol`,
+    )
   }
 })
 

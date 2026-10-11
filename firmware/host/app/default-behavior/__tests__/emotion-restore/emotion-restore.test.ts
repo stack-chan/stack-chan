@@ -182,4 +182,4 @@ for (const [motion, selected] of [
   equal(robot.emotion, Emotion.ANGRY, 'a new petting reaction after expiry should retain its base')
 }
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

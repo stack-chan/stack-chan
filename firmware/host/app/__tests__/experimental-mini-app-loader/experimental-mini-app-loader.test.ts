@@ -75,4 +75,4 @@ const registry = new MiniAppRegistry()
 registerExperimentalMiniApps(pack, registry)
 equal(registry.list().length, 1, 'validated archive definitions should register')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

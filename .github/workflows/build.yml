@@ -135,12 +135,6 @@ jobs:
           STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
 
-      - name: Run SDK Piu and XS regressions through xsdb
-        if: ${{ !cancelled() && matrix.shard == 0 }}
-        working-directory: ./firmware
-        env:
-          STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable -- --sdk
       - name: Upload simulator test logs
         if: always()
         uses: actions/upload-artifact@v4

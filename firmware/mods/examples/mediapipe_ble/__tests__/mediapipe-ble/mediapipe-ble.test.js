@@ -169,4 +169,4 @@ equal(eyeStates[eyeStates.length - 1].value, 1, 'timeout should reopen the right
 equal(mouthStates[mouthStates.length - 1], 0, 'timeout should close the mouth')
 equal(Object.keys(handStates[handStates.length - 1]).length, 0, 'timeout should hide both hands')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

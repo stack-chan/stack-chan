@@ -47,4 +47,4 @@ app.post('/post/form', async (c) => {
   return c.text(`form: ${JSON.stringify(form)}`)
 })
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

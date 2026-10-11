@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { parseModuleTestShard, selectModuleTestShard } from './lib/module-test-sharding.mjs'
-import { startXsdbSession, successfulTestSummary } from './lib/xsdb-session.mjs'
+import { moduleTestResult, startXsdbSession } from './lib/xsdb-session.mjs'
 
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
 // Piu/GTK tests can spend more than 15 seconds starting mcsim while another
 // manifest is compiling on a shared CI runner. Successful tests still return
-// as soon as they trace `ok`; this only gives a cold simulator more headroom.
+// as soon as they trace the PASS marker; this only gives a cold simulator more headroom.
 const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '30000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '360000', 10)
 const FILTER = process.env.STACKCHAN_MODULE_TEST_FILTER
@@ -52,7 +52,7 @@ mkdirSync(logRoot, { recursive: true })
 const workRoot = mkdtempSync(join(logRoot, 'stackchan-module-tests-'))
 console.log(`Moddable runtime: simulator; hardware: NOT RUN; logs: ${workRoot}`)
 // xsbug emits `# Exception` for caught Promise rejections too. Fatal aborts are
-// explicit; a stopped runtime without either a fatal marker or `ok` times out.
+// explicit; a stopped runtime without either a fatal marker or test completion times out.
 const children = new Set()
 const debuggers = new Set()
 for (const [signal, status] of [
@@ -67,7 +67,6 @@ for (const [signal, status] of [
 }
 
 const fatalFailurePattern = /XS abort|stack overflow|module not found|Cannot find module|unhandled exception/i
-const okPattern = /^ok$/m
 
 function relativePath(path) {
   return relative(firmwareRoot, path)
@@ -208,7 +207,7 @@ function formatProcessFailure(label, result) {
 }
 
 async function buildManifest({ manifestPath, platform, port, name, output }) {
-  if (CLEAN || sdkOnly) removeBuildOutput(platform, name)
+  if (CLEAN) removeBuildOutput(platform, name)
   const label = `mcconfig ${relativePath(manifestPath)}`
   const result = await runProcess(
     'mcconfig',
@@ -242,7 +241,7 @@ function killProcessGroup(child) {
   }
 }
 
-async function runSimulator({ binDir, port, logServer, display, configHome, suite }) {
+async function runSimulator({ binDir, port, logServer, display, configHome }) {
   const simulator = join(MODDABLE, 'build', 'bin', 'lin', 'release', 'mcsim')
   if (!existsSync(simulator)) throw new Error(`mcsim not found at ${simulator}`)
 
@@ -300,11 +299,11 @@ async function runSimulator({ binDir, port, logServer, display, configHome, suit
       const log = logServer.getLog()
       if (logServer.getError()) {
         finish({ status: 'debugger-error', message: logServer.getError() })
-      } else if (suite?.summary) {
-        finish({ status: successfulTestSummary(suite.summary) ? 'ok' : 'test-failed' })
       } else if (fatalFailurePattern.test(log)) {
         finish({ status: 'failure-marker' })
-      } else if (!suite && okPattern.test(log)) {
+      } else if (moduleTestResult(log) === 'fail') {
+        finish({ status: 'test-failed' })
+      } else if (moduleTestResult(log) === 'pass') {
         finish({ status: 'ok' })
       }
     }, 100)
@@ -358,19 +357,10 @@ async function collectManifestPaths(args) {
 }
 
 async function runOne(manifestPath, index) {
-  const suite = sdkOnly
-    ? { path: basename(dirname(manifestPath)) === 'testmc' ? 'modules/piu/Skin' : 'xs/built-ins/Math' }
-    : undefined
   const name = basename(dirname(manifestPath))
-  const platform = suite ? 'lin/m5stack' : selectPlatform(manifestPath)
+  const platform = selectPlatform(manifestPath)
   const logPath = join(workRoot, `${name}.xsbug.log`)
-  const logServer = await startXsdbSession(logPath, join(workRoot, `xsdb-${name}`), MODDABLE, (event) => {
-    if (!suite) return
-    if (!suite.started && event.event === 'print' && event.data.text.startsWith('Connected to')) {
-      suite.started = true
-      logServer.command(`test ${suite.path}`)
-    } else if (event.event === 'test_summary') suite.summary = event.data
-  })
+  const logServer = await startXsdbSession(logPath, join(workRoot, `xsdb-${name}`), MODDABLE)
   debuggers.add(logServer)
   const label = `${relativePath(manifestPath)} [${platform}]`
   const output = []
@@ -387,9 +377,8 @@ async function runOne(manifestPath, index) {
     const binDir = readBinDir(platform, name)
     const configHome = join(workRoot, `config-${name}`)
     mkdirSync(configHome, { recursive: true })
-    const result = await runSimulator({ binDir, port, logServer, display: DISPLAY_BASE + index, configHome, suite })
+    const result = await runSimulator({ binDir, port, logServer, display: DISPLAY_BASE + index, configHome })
     if (result.status === 'ok') {
-      if (suite) output.push(JSON.stringify(suite.summary))
       return { label, ok: true, output }
     }
     output.push(...formatRuntimeFailure(manifestPath, result, logPath))
@@ -401,44 +390,19 @@ async function runOne(manifestPath, index) {
 }
 
 const args = process.argv.slice(2)
-const sdkOnly = args.includes('--sdk')
-// SDK's full testmc manifest includes OTA Update, which has no Linux backend.
-// Compose only the SDK's shared test app and Piu; keep the SDK source untouched.
-const testmcManifest = join(buildOutputDirectory, 'tmp', 'testmc', 'manifest.json')
-if (sdkOnly) {
-  mkdirSync(dirname(testmcManifest), { recursive: true })
-  writeFileSync(
-    testmcManifest,
-    JSON.stringify({
-      include: [
-        join(MODDABLE, 'tools/testmc/manifest_common.json'),
-        join(MODDABLE, 'examples/manifest_piu.json'),
-        join(MODDABLE, 'modules/crypt/digest/manifest.json'),
-      ],
-      modules: {
-        '~': [join(MODDABLE, 'tools/testmc/commodettoChecksumOut-nop')],
-        'commodetto/checksumOut': join(MODDABLE, 'tools/testmc/commodettoChecksumOut'),
-      },
-      resources: { '*-mask': [join(MODDABLE, 'tools/testmc/assets/circleish')] },
-      config: { format: 'RGB565LE' },
-    }),
-  )
-}
-const allManifestPaths = sdkOnly
-  ? [testmcManifest, join(MODDABLE, 'tools/test262/manifest.json')]
-  : await collectManifestPaths(args)
+const allManifestPaths = await collectManifestPaths(args)
 if (allManifestPaths.length === 0) {
   console.error('No runnable Moddable test manifests found; no tests ran.')
   process.exit(1)
 }
 
 assertUniqueNames(allManifestPaths)
-const shard = sdkOnly ? { index: 0, total: 1 } : parseModuleTestShard()
+const shard = parseModuleTestShard()
 const manifestPaths = selectModuleTestShard(allManifestPaths, shard)
 const shardLabel = `${shard.index + 1}/${shard.total}`
 const suiteStartedAt = performance.now()
 
-let jobs = sdkOnly ? 1 : Math.min(JOBS, manifestPaths.length)
+let jobs = Math.min(JOBS, manifestPaths.length)
 if (jobs > 1 && !HAS_DBUS_RUN_SESSION) {
   console.warn('dbus-run-session not found; running 1 job at a time (concurrent mcsim instances would collide)')
   jobs = 1

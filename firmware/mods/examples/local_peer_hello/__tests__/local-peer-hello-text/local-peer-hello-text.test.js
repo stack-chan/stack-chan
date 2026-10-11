@@ -27,4 +27,4 @@ equal(extractReceivedText({ text: '受信テキスト' }), '受信テキスト',
 equal(extractReceivedText({ text: 123 }), undefined, 'non-string payload text should be rejected')
 equal(extractReceivedText(['text']), undefined, 'array payload should be rejected')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

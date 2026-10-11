@@ -18,4 +18,4 @@ equal(networkManagerTest.getStopCount(), 1, 'clearing Wi-Fi credentials should s
 equal(Preference.get('wifi', 'ssid'), '', 'clearing Wi-Fi should persist an empty SSID override')
 equal(Preference.get('wifi', 'password'), '', 'clearing Wi-Fi should persist an empty password override')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

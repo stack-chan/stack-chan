@@ -779,9 +779,10 @@ async function runTests() {
     equal(buttons.size, 0, 'mini app does not install drawer controls')
   }
   Timer.reset()
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 runTests().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`unhandled exception in media tests: ${error.message}\n${error.stack}\n`)
   throw error
 })

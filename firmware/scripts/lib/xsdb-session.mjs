@@ -2,46 +2,19 @@ import { spawn } from 'node:child_process'
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { delimiter, join, resolve } from 'node:path'
+import { createInterface } from 'node:readline'
+import { stripVTControlCharacters } from 'node:util'
 
-// xsdb emits pretty-printed JSON mixed with prompts. Frame JSON objects across
-// arbitrary pipe chunks; braces inside escaped trace strings are not framing.
-export function jsonEvents(onEvent) {
-  let frame = '',
-    depth = 0,
-    quoted = false,
-    escaped = false
-  return (chunk) => {
-    for (const character of chunk) {
-      if (!depth && character !== '{') continue
-      frame += character
-      if (quoted) {
-        if (escaped) escaped = false
-        else if (character === '\\') escaped = true
-        else if (character === '"') quoted = false
-      } else if (character === '"') quoted = true
-      else if (character === '{') depth++
-      else if (character === '}' && --depth === 0) {
-        let event
-        try {
-          event = JSON.parse(frame)
-        } catch {
-          /* non-JSON debugger text */
-        }
-        if (typeof event?.event === 'string') onEvent(event)
-        frame = ''
-      }
-    }
-  }
+// Accept a whole trace line, including the SDK's thread/prompt decoration.
+// JSON diagnostics or text that merely mentions a marker are not completion.
+export function moduleTestResult(log) {
+  const markers = [...log.matchAll(/^(?:\(xsdb\) *)?(?:\[Thread \d+\] )?@@STACKCHAN_TEST:(PASS|FAIL)@@\r?$/gm)]
+  if (markers.some((match) => match[1] === 'FAIL')) return 'fail'
+  if (markers.length) return 'pass'
 }
 
-export function successfulTestSummary(data) {
-  return data?.passed > 0 && data.failed === 0 && !data.reason && data.total === data.passed + data.skipped
-}
-
-export async function startXsdbSession(logPath, project, sdk, onEvent = () => {}) {
+export async function startXsdbSession(logPath, project, sdk) {
   project = resolve(project)
-  // Reserve an ephemeral port first. A collision is an error, never consent to
-  // xsdb's prompt to kill an unrelated debugger using the port.
   const port = await new Promise((resolve, reject) => {
     const server = createServer()
     server.on('error', reject)
@@ -51,10 +24,7 @@ export async function startXsdbSession(logPath, project, sdk, onEvent = () => {}
     })
   })
   mkdirSync(project, { recursive: true })
-  writeFileSync(
-    join(project, '.xsdb.json'),
-    JSON.stringify({ outputFormat: 'json', testTimeout: 30, testLog: project }),
-  )
+  writeFileSync(join(project, '.xsdb.json'), JSON.stringify({ outputFormat: 'text', timestamps: 'off' }))
   writeFileSync(logPath, '')
   let log = '',
     error,
@@ -70,19 +40,16 @@ export async function startXsdbSession(logPath, project, sdk, onEvent = () => {}
   })
   const ready = new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('xsdb startup timeout')), 10000)
-    const parse = jsonEvents((event) => {
-      if (event.error) error = JSON.stringify(event.error)
-      if (event.event === 'log') log += `${event.data.text}\n`
-      onEvent(event)
-    })
     child.stdout.setEncoding('utf8')
-    child.stdout.on('data', (chunk) => {
-      appendFileSync(logPath, chunk)
-      if (chunk.includes('xsdb listening on port')) {
+    child.stdout.on('data', (chunk) => appendFileSync(logPath, chunk))
+    // readline retains split lines; stdout's decoder retains split UTF-8 bytes.
+    createInterface({ input: child.stdout }).on('line', (line) => {
+      line = stripVTControlCharacters(line)
+      log += `${line}\n`
+      if (line.includes(`xsdb listening on port ${port}.`)) {
         clearTimeout(timeout)
         resolve(port)
       }
-      parse(chunk)
     })
     child.stderr.on('data', (chunk) => {
       appendFileSync(logPath, chunk)
@@ -104,7 +71,6 @@ export async function startXsdbSession(logPath, project, sdk, onEvent = () => {}
     ready,
     getLog: () => log,
     getError: () => error,
-    command: (command) => child.stdin.write(`${command}\n`),
     close: async () => {
       if (closed) return
       await new Promise((resolve) => {

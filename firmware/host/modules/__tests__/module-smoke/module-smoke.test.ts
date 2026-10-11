@@ -101,4 +101,4 @@ equal(getAxp2101Power(), power, 'capture the SDK peripheral instance')
 equal(readBatteryLevel(), 75, 'read the battery through the captured SDK peripheral')
 equal(power.readUint8(0xa4), 75, 'capture preserves register reads and writes')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

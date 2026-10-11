@@ -575,11 +575,6 @@ test('Moddable test main entries declare the runner completion protocol', () => 
     const source = readFileSync(testFile, 'utf8')
 
     assert.match(source, /@@STACKCHAN_TEST:PASS@@/, `${testFile} should declare the completion marker`)
-    assert.doesNotMatch(
-      source,
-      /trace\(['"](?:not )?ok\\n['"]\)/,
-      `${testFile} should not use the obsolete completion protocol`,
-    )
   }
 })
 

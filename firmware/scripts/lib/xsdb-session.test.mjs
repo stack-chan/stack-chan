@@ -193,3 +193,47 @@ test('smoke startup timeout closes the quiet debugger', () => {
     rmSync(f.root, { recursive: true, force: true })
   }
 })
+
+test('smoke runtime timeout terminates a TERM-resistant mcrun before returning', {
+  skip: process.platform !== 'linux',
+}, () => {
+  const f = fixture(
+    "console.log('xsdb listening on port ' + process.env.XSBUG_LOG_PORT + '.');setInterval(()=>{},1000);",
+  )
+  const bin = join(f.root, 'bin')
+  const pidFile = join(f.root, 'pid')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'package.json'), JSON.stringify({ type: 'commonjs' }))
+  writeFileSync(
+    join(bin, 'mcrun'),
+    `#!${process.execPath}\nrequire('node:fs').writeFileSync(process.env.STACKCHAN_FIXTURE_PID, String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000);\n`,
+    { mode: 0o700 },
+  )
+  let pid
+  try {
+    const result = spawnSync(process.execPath, ['scripts/run-device-smoke.js'], {
+      cwd: firmwareRoot,
+      env: {
+        ...process.env,
+        MODDABLE: f.sdk,
+        PATH: `${bin}${delimiter}${process.env.PATH}`,
+        STACKCHAN_FIXTURE_PID: pidFile,
+        STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS: '500',
+        STACKCHAN_DEVICE_SMOKE_RETRIES: '0',
+      },
+      encoding: 'utf8',
+      timeout: 5000,
+    })
+    pid = Number(readFileSync(pidFile, 'utf8'))
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    assert.match(result.stderr, /timed out after 500ms/)
+    assert.throws(() => process.kill(pid, 0), /ESRCH/)
+  } finally {
+    if (pid) {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch {}
+    }
+    rmSync(f.root, { recursive: true, force: true })
+  }
+})

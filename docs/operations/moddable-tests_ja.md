@@ -19,7 +19,7 @@ npm run test:moddable
 
 runner は完全なマーカー行を判定します。標準 xsbug-log の thread 表示と prompt、端末制御文字を扱い、UTF-8 の文字と行が複数の stdout chunk に分かれても保持します。診断の JSON や裸の `ok`、マーカーに言及する文章は完了になりません。FAIL と致命的停止を PASS より先に確認します。未接続、タイムアウト、debugger の stderr／異常終了、完了前の mcsim 終了も失敗です。完了を出さない例外は、致命的停止またはタイムアウトとして検出します。
 
-起動した debugger と simulator は終了時・SIGINT/SIGTERM 中断時に片付けます。テストごとにポート、project、X display、DBus、XDG_CONFIG_HOME を分け、他の作業と設定を共有しません。
+起動した debugger と simulator は終了時・SIGINT/SIGTERM 中断時に片付けます。build と simulator のプロセスグループは SIGTERM で停止し、2秒後も終了しなければ SIGKILL に進み、終了を待ちます。終了待ちの間に届いた FAIL・致命的停止・debugger エラーも PASS より優先します。テストごとにポート、project、X display、DBus、XDG_CONFIG_HOME を分け、他の作業と設定を共有しません。
 
 ## ログと再試験
 

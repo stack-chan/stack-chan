@@ -13,6 +13,32 @@ export function moduleTestResult(log) {
   if (markers.length) return 'pass'
 }
 
+// Only use for owned children spawned with detached: true.
+const stopping = new WeakMap()
+export function stopProcessGroup(child) {
+  if (!child.pid) return Promise.resolve()
+  if (stopping.has(child)) return stopping.get(child)
+  const signal = (name) => {
+    try {
+      process.kill(-child.pid, name)
+    } catch {
+      child.kill(name)
+    }
+  }
+  const stopped = new Promise((resolve) => {
+    const timeout = setTimeout(() => signal('SIGKILL'), 2000)
+    child.once('close', () => {
+      clearTimeout(timeout)
+      // A wrapper may exit while a descendant that closed its pipes is alive.
+      signal('SIGKILL')
+      resolve()
+    })
+    signal('SIGTERM')
+  })
+  stopping.set(child, stopped)
+  return stopped
+}
+
 export async function startXsdbSession(logPath, project, sdk) {
   project = resolve(project)
   const port = await new Promise((resolve, reject) => {

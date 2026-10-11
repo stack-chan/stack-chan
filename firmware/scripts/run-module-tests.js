@@ -7,7 +7,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { parseModuleTestShard, selectModuleTestShard } from './lib/module-test-sharding.mjs'
-import { moduleTestResult, startXsdbSession } from './lib/xsdb-session.mjs'
+import { moduleTestResult, startXsdbSession, stopProcessGroup } from './lib/xsdb-session.mjs'
 
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
@@ -60,7 +60,7 @@ for (const [signal, status] of [
   ['SIGTERM', 143],
 ]) {
   process.once(signal, async () => {
-    for (const child of children) killProcessGroup(child)
+    await Promise.all([...children].map(stopProcessGroup))
     await Promise.all([...debuggers].map((session) => session.close()))
     process.exit(status)
   })
@@ -192,7 +192,7 @@ function runProcess(command, args, { timeout }) {
     })
     const timer = setTimeout(() => {
       timedOut = true
-      killProcessGroup(child)
+      void stopProcessGroup(child)
     }, timeout)
     child.on('error', (error) => {
       clearTimeout(timer)
@@ -238,15 +238,6 @@ async function buildManifest({ manifestPath, platform, port, name, output }) {
   return false
 }
 
-function killProcessGroup(child) {
-  if (!child.pid || child.killed) return
-  try {
-    process.kill(-child.pid, 'SIGTERM')
-  } catch {
-    child.kill('SIGTERM')
-  }
-}
-
 async function runSimulator({ binDir, port, logServer, display, configHome }) {
   const simulator = join(MODDABLE, 'build', 'bin', 'lin', 'release', 'mcsim')
   if (!existsSync(simulator)) throw new Error(`mcsim not found at ${simulator}`)
@@ -279,12 +270,18 @@ async function runSimulator({ binDir, port, logServer, display, configHome }) {
 
     children.add(child)
     child.once('close', () => children.delete(child))
-    const finish = (result) => {
+    const finish = async (result) => {
       if (settled) return
       settled = true
       clearTimeout(timeout)
       clearInterval(poll)
-      killProcessGroup(child)
+      await stopProcessGroup(child)
+      // Output can arrive while the owned process group is shutting down.
+      if (result.status === 'ok') {
+        if (logServer.getError()) result = { status: 'debugger-error', message: logServer.getError() }
+        else if (fatalFailurePattern.test(logServer.getLog())) result = { status: 'failure-marker' }
+        else if (moduleTestResult(logServer.getLog()) === 'fail') result = { status: 'test-failed' }
+      }
       resolveRun({ ...result, stdout, stderr, log: logServer.getLog() })
     }
 

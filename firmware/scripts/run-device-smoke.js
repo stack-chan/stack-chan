@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { devices, resolveDevice } from './lib/devices.mjs'
-import { startXsdbSession } from './lib/xsdb-session.mjs'
+import { startXsdbSession, stopProcessGroup } from './lib/xsdb-session.mjs'
 
 const TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS ?? '120000', 10)
 const RETRIES = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_RETRIES ?? '2', 10)
@@ -60,15 +60,6 @@ const workRoot = mkdtempSync(join(tmpdir(), 'stackchan-device-smoke-'))
 ensureBuildOutputDirectory()
 const outputArgs = moddableOutputArguments()
 
-function killProcessGroup(child) {
-  if (!child.pid || child.killed) return
-  try {
-    process.kill(-child.pid, 'SIGTERM')
-  } catch {
-    child.kill('SIGTERM')
-  }
-}
-
 function flashHostFirmware() {
   console.log(`[device-smoke] building and deploying host firmware for ${device.label}`)
   const result = spawnSync(
@@ -106,12 +97,13 @@ async function runXsbugAttempt(attempt) {
       child.stdout.on('data', (chunk) => process.stdout.write(chunk))
       child.stderr.on('data', (chunk) => process.stderr.write(chunk))
 
-      const finish = (status) => {
+      const finish = async (status) => {
         if (settled) return
         settled = true
         clearTimeout(timeout)
         clearInterval(poll)
-        killProcessGroup(child)
+        await stopProcessGroup(child)
+        if (status === 'ok' && (logServer.getError() || failurePattern.test(logServer.getLog()))) status = 'failure'
         resolveRun(status)
       }
 

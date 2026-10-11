@@ -43,3 +43,4 @@ try {
   Files.delete(fixture)
 }
 trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

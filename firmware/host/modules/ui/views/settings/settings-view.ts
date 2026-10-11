@@ -566,8 +566,8 @@ function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: read
 
             onDraw(port: PiuPort) {
               if (!this.data) return
-              port.fillColor(UI.colors.listBackground, 0, 0, port.width, port.height)
-              port.fillColor(UI.colors.text, 0, port.height - 1, port.width, 1)
+              port.fillColor(UI.colors.surface, 0, 0, port.width, port.height)
+              port.fillColor(UI.colors.surfacePressed, 0, port.height - 1, port.width, 1)
               drawSignalIcon(port, this.data.network.signal, 10, 11)
               port.drawString(fitSSID(this.data.network.ssid), getNetworkStyle(), UI.colors.text, 42, 4, 268, 32)
             }

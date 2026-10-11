@@ -64,13 +64,16 @@ for (let y = 0; y < 24; y++)
     )
   }
 
-assert.deepEqual([...pixel(normal, 20, 100)], [0, 0, 0, 255], 'list row corner should be square and black')
+assert.ok(pixel(normal, 20, 100).equals(pixel(normal, 250, 182)), 'square list row should share the header background')
+const rowBackground = pixel(normal, 100, 130)
+const rowBoundary = pixel(normal, 100, 143)
+const brightness = (color) => color[0] + color[1] + color[2]
 assert.ok(
-  pixel(normal, 100, 143).equals(pixel(normal, 43, 49)),
-  'list row boundary should be white like the enabled icon',
+  brightness(rowBoundary) > brightness(rowBackground) && brightness(rowBoundary) < brightness(rowBackground) * 2,
+  'list boundary should be slightly brighter than its gray background',
 )
 assert.ok(!pixel(normal, 100, 130).equals(pixel(pressed, 100, 130)), 'press should visibly highlight the row')
-assert.ok(pixel(normal, 100, 130).equals(pixel(disabled, 100, 130)), 'disabled row should retain its black background')
+assert.ok(pixel(normal, 100, 130).equals(pixel(disabled, 100, 130)), 'disabled row should retain the header background')
 assert.ok(!pixel(normal, 100, 130).equals(pixel(selected, 100, 130)), 'selected row should retain a visible highlight')
 assert.ok(!pixel(normal, 43, 129).equals(pixel(disabled, 43, 129)), 'disabled row should mute its icon')
 assert.ok(pixel(normal, 2, 182).equals(pixel(normal, 250, 182)), 'back button should have only the header background')

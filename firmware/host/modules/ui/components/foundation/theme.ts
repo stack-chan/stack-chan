@@ -11,7 +11,6 @@ export const UI = Object.freeze({
   space: 8,
   colors: {
     background: '#101214',
-    listBackground: '#000000',
     surface: '#202428',
     surfacePressed: '#30363c',
     border: '#4b535b',
@@ -57,9 +56,9 @@ export function uiStyles(): FoundationStyles {
   if (cached && cachedFont === font) return cached
   cachedFont = font
   cached = {
-    row: new Skin({ fill: UI.colors.listBackground, stroke: UI.colors.text, borders: { bottom: 1 } }),
-    rowPressed: new Skin({ fill: UI.colors.surfacePressed, stroke: UI.colors.text, borders: { bottom: 1 } }),
-    rowDisabled: new Skin({ fill: UI.colors.listBackground, stroke: UI.colors.textMuted, borders: { bottom: 1 } }),
+    row: new Skin({ fill: UI.colors.surface, stroke: UI.colors.surfacePressed, borders: { bottom: 1 } }),
+    rowPressed: new Skin({ fill: UI.colors.surfacePressed, stroke: UI.colors.border, borders: { bottom: 1 } }),
+    rowDisabled: new Skin({ fill: UI.colors.surface, stroke: UI.colors.surfacePressed, borders: { bottom: 1 } }),
     screen: new Skin({ fill: UI.colors.background }),
     surface: new Skin({ fill: UI.colors.surface }),
     pressed: new Skin({ fill: UI.colors.surfacePressed }),

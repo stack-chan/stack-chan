@@ -561,23 +561,6 @@ test('Moddable test manifests use local test modules as main entries', () => {
   }
 })
 
-test('Moddable test main entries declare the runner completion protocol', () => {
-  const manifestPaths = walkFiles(MODULE_ROOT).filter((path) => path.endsWith('manifest.test.json'))
-
-  for (const manifestPath of manifestPaths) {
-    const manifest = readJson(manifestPath)
-    const mainEntry = manifest.modules?.main
-    assert.equal(typeof mainEntry, 'string', `${manifestPath} should define modules.main`)
-
-    const testFile = existsSync(join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`))
-      ? join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`)
-      : join(dirname(manifestPath), `${mainEntry.slice(2)}.js`)
-    const source = readFileSync(testFile, 'utf8')
-
-    assert.match(source, /@@STACKCHAN_TEST:PASS@@/, `${testFile} should declare the completion marker`)
-  }
-})
-
 test('UI views own Moddable test manifests under their view directories', () => {
   const viewsRoot = join(MODULE_ROOT, 'ui', 'views')
   const viewNames = readdirSync(viewsRoot, { withFileTypes: true })

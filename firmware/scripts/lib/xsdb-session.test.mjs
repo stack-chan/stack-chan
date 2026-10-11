@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
-import { spawn, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { delimiter, join, relative } from 'node:path'
 import { test } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -37,7 +36,12 @@ function fixture(source) {
   mkdirSync(join(sdk, 'tools', 'xsbug-log'), { recursive: true })
   writeFileSync(join(sdk, 'package.json'), JSON.stringify({ type: 'commonjs' }))
   writeFileSync(join(sdk, 'tools', 'xsbug-log', 'xsbug-log.js'), source)
-  return { root, sdk, project: relative(firmwareRoot, join(root, 'project')), log: join(root, 'runtime.log') }
+  return {
+    root,
+    sdk,
+    project: relative(firmwareRoot, join(root, 'project')),
+    log: join(root, 'runtime.log'),
+  }
 }
 
 test('text preferences, split readiness/UTF-8/marker, caught diagnostics and cleanup', async () => {
@@ -108,64 +112,18 @@ test('startup exit rejects readiness and a TERM-resistant debugger is killed', a
   }
 })
 
-test('serial smoke observes completion, crash, quiet timeout and missing port without hardware', {
-  skip: process.platform !== 'linux' ? 'Linux FIFO required; physical hardware is not tested' : false,
-}, async () => {
-  const root = mkdtempSync(join(tmpdir(), 'stackchan-serial-fixture-'))
-  const bin = join(root, 'bin')
-  mkdirSync(bin)
-  // A FIFO exercises the nonblocking read/timeout path; no serial device is opened.
-  writeFileSync(join(bin, 'stty'), '#!/bin/sh\nexit 0\n', { mode: 0o700 })
-  try {
-    for (const [name, payload, expected] of [
-      ['quiet', '', 1],
-      ['complete', 'M5StackChan CoreS3 smoke] complete\n', 0],
-      ['crash', 'Guru Meditation\n', 1],
-    ]) {
-      const fifo = join(root, name)
-      assert.equal(spawnSync('mkfifo', [fifo]).status, 0)
-      const writer = spawn(process.execPath, [
-        '-e',
-        `const fs=require('node:fs'); const fd=fs.openSync(process.argv[1],'w'); if(process.argv[2])fs.writeSync(fd,process.argv[2]); setInterval(()=>{},1000);`,
-        fifo,
-        payload,
-      ])
-      const child = spawn(process.execPath, ['scripts/run-device-smoke.js', '--channel', 'serial'], {
-        cwd: firmwareRoot,
-        env: {
-          ...process.env,
-          PATH: `${bin}${delimiter}${process.env.PATH}`,
-          UPLOAD_PORT: fifo,
-          STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS: '300',
-        },
-      })
-      let output = ''
-      child.stdout.on('data', (c) => (output += c))
-      child.stderr.on('data', (c) => (output += c))
-      const guard = setTimeout(() => child.kill('SIGKILL'), 3000)
-      try {
-        const code = await new Promise((resolve) => child.once('close', resolve))
-        assert.equal(code, expected, `${name}: ${output}`)
-        assert.match(output, name === 'quiet' ? /FAIL \(timeout\)/ : expected === 0 ? /PASS/ : /FAIL \(failure\)/)
-      } finally {
-        clearTimeout(guard)
-        writer.kill('SIGKILL')
-        await new Promise((resolve) => writer.once('close', resolve))
-      }
-    }
-    const env = { ...process.env }
-    delete env.UPLOAD_PORT
-    const result = spawnSync(process.execPath, ['scripts/run-device-smoke.js', '--channel', 'serial'], {
-      cwd: firmwareRoot,
-      env,
-      encoding: 'utf8',
-      timeout: 2000,
-    })
-    assert.equal(result.status, 1)
-    assert.match(result.stdout + result.stderr, /requires UPLOAD_PORT/)
-  } finally {
-    rmSync(root, { recursive: true, force: true })
-  }
+test('raw serial fails immediately and directs standard smoke traces to xsbug', () => {
+  const env = { ...process.env }
+  delete env.MODDABLE
+  delete env.UPLOAD_PORT
+  const result = spawnSync(process.execPath, ['scripts/run-device-smoke.js', '--channel', 'serial'], {
+    cwd: firmwareRoot,
+    env,
+    encoding: 'utf8',
+    timeout: 2000,
+  })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /standard smoke MOD uses trace\(\) via xsbug; use --channel xsbug/)
 })
 
 test('xsbug smoke uses text logs and fails on fatal output, silence or stderr', {
@@ -201,6 +159,37 @@ test('xsbug smoke uses text logs and fails on fatal output, silence or stderr', 
       assert.equal(result.status, expected, `${name}: ${result.stdout}${result.stderr}`)
     }
   } finally {
+    rmSync(f.root, { recursive: true, force: true })
+  }
+})
+
+test('smoke startup timeout closes the quiet debugger', () => {
+  const f = fixture(
+    "require('node:fs').writeFileSync(process.env.STACKCHAN_FIXTURE_PID, String(process.pid));setInterval(()=>{},1000);",
+  )
+  const pidFile = join(f.root, 'pid')
+  let pid
+  try {
+    const result = spawnSync(process.execPath, ['scripts/run-device-smoke.js'], {
+      cwd: firmwareRoot,
+      env: {
+        ...process.env,
+        MODDABLE: f.sdk,
+        STACKCHAN_FIXTURE_PID: pidFile,
+      },
+      encoding: 'utf8',
+      timeout: 14000,
+    })
+    pid = Number(readFileSync(pidFile, 'utf8'))
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    assert.match(result.stderr, /xsdb startup timeout/)
+    assert.throws(() => process.kill(pid, 0), /ESRCH/)
+  } finally {
+    if (pid) {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch {}
+    }
     rmSync(f.root, { recursive: true, force: true })
   }
 })

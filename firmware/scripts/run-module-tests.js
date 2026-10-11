@@ -139,8 +139,14 @@ function platformBuildSegment(platform) {
 
 function removeBuildOutput(platform, name) {
   const segment = platformBuildSegment(platform)
-  rmSync(join(buildOutputDirectory, 'tmp', segment, 'debug', name), { recursive: true, force: true })
-  rmSync(join(buildOutputDirectory, 'bin', segment, 'debug', name), { recursive: true, force: true })
+  rmSync(join(buildOutputDirectory, 'tmp', segment, 'debug', name), {
+    recursive: true,
+    force: true,
+  })
+  rmSync(join(buildOutputDirectory, 'bin', segment, 'debug', name), {
+    recursive: true,
+    force: true,
+  })
 }
 
 function readBinDir(platform, name) {
@@ -217,19 +223,19 @@ async function buildManifest({ manifestPath, platform, port, name, output }) {
 
   if (result.error) {
     output.push(result.error.stack ?? result.error.message)
-    return false
-  }
-  if (result.timedOut) {
+  } else if (result.timedOut) {
     output.push(`${label} timed out after ${BUILD_TIMEOUT_MS}ms`)
     if (result.stdout.length > 0) output.push(result.stdout)
     if (result.stderr.length > 0) output.push(result.stderr)
-    return false
-  }
-  if (result.status !== 0) {
+  } else if (result.status !== 0) {
     output.push(...formatProcessFailure(label, result))
-    return false
+  } else {
+    return true
   }
-  return true
+  // tsc may emit JavaScript after a type error; discard it before any retry,
+  // including a worker build after the shared-library warmup.
+  removeBuildOutput(platform, name)
+  return false
 }
 
 function killProcessGroup(child) {
@@ -368,16 +374,19 @@ async function runOne(manifestPath, index) {
   try {
     const port = await logServer.ready
     if (!(await buildManifest({ manifestPath, platform, port, name, output }))) {
-      // tsc can emit JavaScript despite a type error. Do not let a later warm
-      // build reuse that output and hide the original compile failure.
-      removeBuildOutput(platform, name)
       return { label, ok: false, reason: 'build failed', output }
     }
 
     const binDir = readBinDir(platform, name)
     const configHome = join(workRoot, `config-${name}`)
     mkdirSync(configHome, { recursive: true })
-    const result = await runSimulator({ binDir, port, logServer, display: DISPLAY_BASE + index, configHome })
+    const result = await runSimulator({
+      binDir,
+      port,
+      logServer,
+      display: DISPLAY_BASE + index,
+      configHome,
+    })
     if (result.status === 'ok') {
       return { label, ok: true, output }
     }

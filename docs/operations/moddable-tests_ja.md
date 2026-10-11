@@ -25,7 +25,7 @@ runner は完全なマーカー行を判定します。標準 xsbug-log の thre
 
 `STACKCHAN_MODULE_TEST_LOG_DIR` の下に実行別のログを保存します。省略時は一時フォルダーです。CI は失敗時も `dist/test-logs` を artifact に残します。実行と build の上限は `STACKCHAN_MODULE_TEST_TIMEOUT_MS` と `STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS` で指定できます。
 
-型エラーでも TypeScript が JavaScript を生成する場合があります。build が失敗した専用 tmp/bin 出力は破棄し、次回の warm build が失敗した生成物を使わないようにします。古い生成物が残る環境では、初回の再試験に `STACKCHAN_MODULE_TEST_CLEAN=1` を指定してください。
+型エラーでも TypeScript が JavaScript を生成する場合があります。worker と並列実行前の warmup のどちらも、build が失敗した専用 tmp/bin 出力は破棄し、次回の warm build が失敗した生成物を使わないようにします。古い生成物が残る環境では、初回の再試験に `STACKCHAN_MODULE_TEST_CLEAN=1` を指定してください。
 
 xsbug-log の待受を確認してから mcsim を起動します。テストごとの DBus と設定ディレクトリで simulator を分離します。SIGINT／SIGTERM 中断は非ゼロで終了し、この runner が起動した子プロセスだけを停止します。
 
@@ -33,6 +33,6 @@ xsbug-log の待受を確認してから mcsim を起動します。テストご
 
 このコマンドは `hardware: NOT RUN` と表示し、実機へ flash しません。シミュレーターで成功しても GPIO、SD、音声、サーボ、物理タッチ、RAM 上限の実機検証を通過したことにはなりません。
 
-debug firmware と検証 MOD が入った専用実機の smoke は既存 `test:device` で別途確認します。raw serial の監視は `UPLOAD_PORT=/dev/tty... npm run test:device -- --channel serial` です。`--flash` は付けません。完了を serial に出す MOD が必要です。通常の host ログ、無言、切断、クラッシュ、timeout は成功にしません。debug の trace は xsbug channel を使います。
+debug firmware と検証 MOD が入った専用実機の smoke は既存 `test:device` の xsbug channel で別途確認します。標準 smoke MOD の `trace()` は xsbug に届くため、raw serial reader は用意しません。`--channel serial` は理由を表示して直ちに失敗します。通常の host ログ、無言、クラッシュ、timeout は成功にしません。debugger の待受 timeout でも、起動した debugger を終了させます。
 
 リリースの物理操作は [実機チェックリスト](release-device-test_ja.md) に従い、候補 SHA・ボード・SDK・実施項目・ログを残してください。Issue #729 / #706 に関連します。release impact は none で、配布 firmware／Web の機能変更はありません。

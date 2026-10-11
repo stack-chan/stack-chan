@@ -19,6 +19,11 @@ Update the host before installing newly compiled MODs. SDK 10 hosts accept XS
 require those modules in the host. Archive compatibility alone does not prove
 runtime compatibility.
 
+CLI MOD installation also accepts only SDK 9.5.x and 10.0.x hosts. Unknown
+SDK versions are rejected before writing or verifying flash, even when the
+connected host version matches the local SDK. Update unsupported older hosts
+before installing MODs.
+
 Retained SDK 9.5 archive acceptance is not a new build or physical-device PASS
 for the SDK 10 host. Physical validation of the migrated features remains
 required; this note does not claim a completed release or hardware acceptance.

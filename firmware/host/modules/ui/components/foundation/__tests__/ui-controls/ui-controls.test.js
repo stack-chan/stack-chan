@@ -95,6 +95,7 @@ export default new Application(null, {
         app.stop()
         trace('RENDER COMPLETE\n')
         trace('ok\n')
+        trace('@@STACKCHAN_TEST:PASS@@\n')
       }
       step++
     }

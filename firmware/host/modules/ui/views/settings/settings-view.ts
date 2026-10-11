@@ -320,34 +320,38 @@ const SettingsMenuView = {
                 new ActionButton(
                   {
                     icon: 'wifi',
+                    appearance: 'row',
                     label: localize('settings.wifiTitle'),
                     onTap: () => context.actions.navigate(SettingsViewId.WIFI),
                   },
-                  { left: 8, right: 8 },
+                  { left: 0, right: 0 },
                 ),
                 new ActionButton(
                   {
                     icon: 'volume',
+                    appearance: 'row',
                     label: localize('settings.volumeTitle'),
                     onTap: () => context.actions.navigate(SettingsViewId.VOLUME),
                   },
-                  { left: 8, right: 8 },
+                  { left: 0, right: 0 },
                 ),
                 new ActionButton(
                   {
                     icon: 'clock',
+                    appearance: 'row',
                     label: localize('settings.timezoneTitle'),
                     onTap: () => context.actions.navigate(SettingsViewId.TIMEZONE),
                   },
-                  { left: 8, right: 8 },
+                  { left: 0, right: 0 },
                 ),
                 new ActionButton(
                   {
                     icon: 'language',
+                    appearance: 'row',
                     label: localize('settings.languageTitle'),
                     onTap: () => context.actions.navigate(SettingsViewId.LANGUAGE),
                   },
-                  { left: 8, right: 8 },
+                  { left: 0, right: 0 },
                 ),
               ],
             }),
@@ -562,8 +566,8 @@ function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: read
 
             onDraw(port: PiuPort) {
               if (!this.data) return
-              port.fillColor(UI.colors.background, 0, 0, port.width, port.height)
-              port.fillColor(UI.colors.border, 0, port.height - 1, port.width, 1)
+              port.fillColor(UI.colors.listBackground, 0, 0, port.width, port.height)
+              port.fillColor(UI.colors.text, 0, port.height - 1, port.width, 1)
               drawSignalIcon(port, this.data.network.signal, 10, 11)
               port.drawString(fitSSID(this.data.network.ssid), getNetworkStyle(), UI.colors.text, 42, 4, 268, 32)
             }
@@ -746,11 +750,12 @@ const SettingsLanguageView = {
             new ActionButton(
               {
                 icon: 'language',
+                appearance: 'row',
                 label: localize(key),
                 selected: context.state.language === locale,
                 onTap: () => context.actions.selectLanguage(locale),
               },
-              { left: 8, right: 8, top: UI.headerHeight + 8 + index * (UI.touchTarget + 8) },
+              { left: 0, right: 0, top: UI.headerHeight + index * UI.touchTarget },
             ),
         ),
       ],
@@ -777,11 +782,12 @@ const SettingsTimezoneView = {
         {
           name: `timezone-${preset.id}`,
           icon: 'clock',
+          appearance: 'row',
           label: `${localize(preset.labelKey)}  ${formatUtcOffset(preset.offsetMinutes)}`,
           selected: preset.id === selectedTimezone,
           onTap: () => selectTimezone(preset.id),
         },
-        { left: 8, right: 8 },
+        { left: 0, right: 0 },
       )
       choiceButtons.push({ id: preset.id, button })
       return button

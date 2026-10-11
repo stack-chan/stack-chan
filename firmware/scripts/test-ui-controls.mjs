@@ -41,10 +41,11 @@ assert.ok(
   actual.equals(gunzipSync(readFileSync(golden))),
   'enabled/disabled icons differ from the original Port framebuffer',
 )
-assert.equal([...log.matchAll(/^FRAME /gm)].length, 4, 'grid and normal/disabled/selected states must render')
+assert.equal([...log.matchAll(/^FRAME /gm)].length, 5, 'grid and normal/pressed/disabled/selected states must render')
 const normal = readFileSync(path.join(directory, 'frame-001.rgba'))
-const disabled = readFileSync(path.join(directory, 'frame-002.rgba'))
-const selected = readFileSync(path.join(directory, 'frame-003.rgba'))
+const pressed = readFileSync(path.join(directory, 'frame-002.rgba'))
+const disabled = readFileSync(path.join(directory, 'frame-003.rgba'))
+const selected = readFileSync(path.join(directory, 'frame-004.rgba'))
 const pixel = (frame, x, y) => frame.subarray((y * 320 + x) * 4, (y * 320 + x + 1) * 4)
 assert.ok(!pixel(normal, 43, 49).equals(pixel(disabled, 43, 49)), 'disabled button should mute its icon')
 assert.ok(pixel(normal, 43, 49).equals(pixel(selected, 43, 49)), 're-enabled button should restore its icon color')
@@ -63,8 +64,20 @@ for (let y = 0; y < 24; y++)
     )
   }
 
+assert.deepEqual([...pixel(normal, 20, 100)], [0, 0, 0, 255], 'list row corner should be square and black')
+assert.ok(
+  pixel(normal, 100, 143).equals(pixel(normal, 43, 49)),
+  'list row boundary should be white like the enabled icon',
+)
+assert.ok(!pixel(normal, 100, 130).equals(pixel(pressed, 100, 130)), 'press should visibly highlight the row')
+assert.ok(pixel(normal, 100, 130).equals(pixel(disabled, 100, 130)), 'disabled row should retain its black background')
+assert.ok(!pixel(normal, 100, 130).equals(pixel(selected, 100, 130)), 'selected row should retain a visible highlight')
+assert.ok(!pixel(normal, 43, 129).equals(pixel(disabled, 43, 129)), 'disabled row should mute its icon')
+assert.ok(pixel(normal, 2, 182).equals(pixel(normal, 250, 182)), 'back button should have only the header background')
+assert.ok(pixel(normal, 2, 204).equals(pixel(normal, 0, 0)), 'back button must not extend below the header')
+
 // Port drawing historically extends one pixel past the 24px check bounds.
 // Retain that behavior while checking the inner geometry against the old 32px grid.
 console.log(
-  'PASS: 17 original icon silhouettes/colors in both enabled states; tap, drag, cancel, disable/re-enable; four real framebuffer states',
+  'PASS: 17 original icon silhouettes/colors in both enabled states; tap, drag, cancel, disable/re-enable; square list rows, icon-only aligned Back; five real framebuffer states',
 )

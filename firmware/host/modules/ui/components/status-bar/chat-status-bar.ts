@@ -456,6 +456,7 @@ export const ChatStatusBar = Container.template((options: ChatStatusBarOptions =
         {
           name: 'backButton',
           icon: 'back',
+          appearance: 'plain',
           action: 'onMiniAppBack',
           enabled: true,
         },

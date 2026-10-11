@@ -1,5 +1,5 @@
 import type { Container as PiuContainer, Content as PiuContent, Port as PiuPort } from 'piu/MC'
-import { Container, Label, Port } from 'piu/MC'
+import { Container, Content, Label, Port } from 'piu/MC'
 import RoundRect from 'piu/RoundRect'
 import { UI, uiStyles } from 'ui-theme'
 
@@ -30,6 +30,7 @@ export type ActionButtonData = {
   action?: string
   enabled?: boolean
   selected?: boolean
+  appearance?: 'row' | 'plain'
   tone?: 'default' | 'accent' | 'success' | 'danger'
 }
 
@@ -39,6 +40,10 @@ type MutableButtonData = ActionButtonData & {
 }
 
 function actionButtonSkin(data: MutableButtonData, styles: ReturnType<typeof uiStyles>) {
+  if (data.appearance === 'row') {
+    if (!data.enabled) return styles.rowDisabled
+    return data.selected ? styles.rowPressed : styles.row
+  }
   if (!data.enabled) return styles.disabled
   if (data.selected || data.tone === 'accent') return styles.accent
   if (data.tone === 'success') return styles.success
@@ -216,7 +221,7 @@ export const ActionButton = Container.template(($: ActionButtonData) => {
   data.selected = $.selected === true
   const styles = uiStyles()
   const iconOnly = !data.label
-  const contents: PiuContent[] = [new IconView(data, { name: 'icon', left: iconOnly ? 6 : 8, top: 6 })]
+  const contents: PiuContent[] = [new IconView(data, { name: 'icon', left: iconOnly ? undefined : 8 })]
   if (data.label) {
     contents.push(
       new Label(null, {
@@ -236,15 +241,19 @@ export const ActionButton = Container.template(($: ActionButtonData) => {
     height: UI.touchTarget,
     active: data.enabled,
     contents: [
-      new RoundRect(null, {
-        name: 'background',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        radius: UI.radius,
-        skin: actionButtonSkin(data, styles),
-      }),
+      ...(data.appearance === 'plain'
+        ? []
+        : [
+            new (data.appearance === 'row' ? Content : RoundRect)(null, {
+              name: 'background',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              ...(data.appearance === 'row' ? {} : { radius: UI.radius }),
+              skin: actionButtonSkin(data, styles),
+            }),
+          ]),
       ...contents,
     ],
     Behavior: class extends Behavior implements ActionButtonBehavior {
@@ -262,7 +271,7 @@ export const ActionButton = Container.template(($: ActionButtonData) => {
         this.startY = y
         this.moved = false
         const background = container.content('background')
-        if (background) background.skin = styles.pressed
+        if (background) background.skin = this.data.appearance === 'row' ? styles.rowPressed : styles.pressed
       }
       onTouchMoved(container: PiuContainer, _id: number, x: number, y: number) {
         if (Math.abs(x - this.startX) > 8 || Math.abs(y - this.startY) > 8) {
@@ -325,9 +334,10 @@ export const ScreenHeader = Container.template(($: ScreenHeaderData) => {
       new ActionButton(
         {
           icon: $.leading,
+          appearance: $.leading === 'back' ? 'plain' : undefined,
           onTap: $.onLeading,
         },
-        { left: 0, top: -2, width: UI.touchTarget, height: UI.touchTarget },
+        { left: 0, top: 0, width: UI.headerHeight, height: UI.headerHeight },
       ),
     )
   }
@@ -338,7 +348,7 @@ export const ScreenHeader = Container.template(($: ScreenHeaderData) => {
           icon: $.trailing,
           onTap: $.onTrailing,
         },
-        { right: 0, top: -2, width: UI.touchTarget, height: UI.touchTarget },
+        { right: 0, top: 0, width: UI.headerHeight, height: UI.headerHeight },
       ),
     )
   }

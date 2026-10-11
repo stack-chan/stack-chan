@@ -260,7 +260,7 @@ const DrawerChoiceBack = Container.template(() => {
     height: 44,
     active: true,
     skin: skins.drawerButtonSkin,
-    contents: [new IconView({ icon: 'back', enabled: true }, { left: 6, top: 6 })],
+    contents: [new IconView({ icon: 'back', enabled: true, selected: false }, { left: 6, top: 6 })],
     Behavior: class extends Behavior {
       startX = 0
       startY = 0

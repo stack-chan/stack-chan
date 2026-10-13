@@ -26,5 +26,5 @@ press((application.first as PiuContainer).last as PiuContainer)
 Timer.set(() => {
   equal(flashTestState.writes, 1, 'confirmed XSA should be written once')
   equal(restarts, 1, 'verified XSA should restart the host')
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }, 10)

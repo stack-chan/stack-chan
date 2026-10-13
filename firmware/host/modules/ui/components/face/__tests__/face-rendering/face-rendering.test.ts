@@ -327,4 +327,4 @@ assert(
   appDrivenLeftEyelid.fillOutline !== initialAppDrivenEyelid,
   'AppController-hosted face should update eyelid outlines for blinking',
 )
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

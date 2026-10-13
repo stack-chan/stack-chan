@@ -77,4 +77,4 @@ equal(singingCallbackCalls, 1, 'completed device singing should invoke its callb
 equal(singingCallbackError, undefined, 'completed device singing should not report an error')
 equal(tts.streaming, false, 'completed device singing should clear streaming state')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

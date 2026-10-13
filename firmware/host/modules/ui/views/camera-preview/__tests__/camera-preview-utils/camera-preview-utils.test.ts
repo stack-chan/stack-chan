@@ -119,4 +119,4 @@ const beCopy = new Uint8Array(
 equalBytes(beCopy, [0xf8, 0x00, 0x07, 0xe0], 'BE source kept in display byte order')
 assert(beCopy.buffer !== beSource.buffer, 'copyRgb565Frame should retain a new buffer')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

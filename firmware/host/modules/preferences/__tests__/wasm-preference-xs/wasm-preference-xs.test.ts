@@ -45,4 +45,4 @@ expectThrow(() => Reflect.apply(Preference.set, Preference, ['test', 'object', {
 equal(Preference.get('test', 'object'), 'previous', 'a rejected object should preserve the existing value')
 Preference.delete('test', 'object')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

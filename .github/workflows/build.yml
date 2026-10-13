@@ -206,7 +206,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "10.0.0"
+          target-branch: "10.0.1"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware

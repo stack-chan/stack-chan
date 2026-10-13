@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - feat/moddable-v10-foundation
       - main
     paths:
       - "firmware/**"
@@ -17,6 +18,7 @@ on:
   pull_request:
     branches:
       - develop
+      - feat/moddable-v10-foundation
       - main
     paths:
       - "firmware/**"
@@ -195,7 +197,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "9.5.0"
+          target-branch: "10.0.0"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware

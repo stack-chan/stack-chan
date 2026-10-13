@@ -41,7 +41,7 @@ equal(Preference.get('test', 'volume'), 'previous', 'a rejected float should pre
 Preference.delete('test', 'volume')
 
 Preference.set('test', 'object', 'previous')
-expectThrow(() => Preference.set('test', 'object', {}), 'unsupported type')
+expectThrow(() => Reflect.apply(Preference.set, Preference, ['test', 'object', {}]), 'unsupported type')
 equal(Preference.get('test', 'object'), 'previous', 'a rejected object should preserve the existing value')
 Preference.delete('test', 'object')
 

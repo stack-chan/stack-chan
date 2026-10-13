@@ -1,9 +1,9 @@
 declare module "mp3streamer" {
   import type AudioOut from "pins/audioout"
-  import type HTTPClient from "embedded:network/http/client";
-  type MP3StreamerOptions = {
+  import type { HTTPClientProvider } from "embedded:network/http/client";
+  export type MP3StreamerOptions<Output = AudioOut> = {
     protocol?: "http" | "https",
-    http: typeof HTTPClient.constructor
+    http: HTTPClientProvider
     host: string,
     port: number,
     path: string,
@@ -16,7 +16,7 @@ declare module "mp3streamer" {
     onCheckpoint?: (point: { offset: number; seconds: number }) => void
     onOutputStart?: (seconds: number) => void
     audio: {
-      out: AudioOut,
+      out: Output,
       sampleRate?: number,
       stream: number,
     },
@@ -33,6 +33,23 @@ declare module "mp3streamer" {
 }
 
 declare module "buffered-mp3streamer" {
-  import MP3Streamer from "mp3streamer"
-  export default MP3Streamer
+  import type AudioOut from "pins/audioout"
+  import type { MP3StreamerOptions } from "mp3streamer"
+  // CoreS3's worker streamer uses a shared PCM ring instead of Mixer callbacks.
+  interface SharedPCMOutput {
+    attachSharedOutput(
+      output: { readableView(maximum?: number): Uint8Array; advanceRead(count: number): void },
+      completion: Int32Array,
+      onWritten: () => void,
+    ): void
+    detachSharedOutput(output: { readableView(maximum?: number): Uint8Array; advanceRead(count: number): void }): void
+    pumpSharedOutput(): void
+    start(): void
+    stop(): void
+    close(): void
+  }
+  export default class BufferedMP3Streamer {
+    constructor(options: MP3StreamerOptions<AudioOut | SharedPCMOutput>);
+    close(): void;
+  }
 }

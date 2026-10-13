@@ -516,6 +516,11 @@ class WasmView {
   }
 
   #handleFirmwarePrint(text) {
+    if (String(text).trim() === '[system] restart') {
+      queueMicrotask(() => {
+        if (!this.disposed) this.restart().catch(this.onError)
+      })
+    }
     this.#applyFirmwareDriverTrace(text)
     this.#appendTrace(text)
     console.log(`[firmware] ${text}`)

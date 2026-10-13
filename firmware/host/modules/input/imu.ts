@@ -28,7 +28,7 @@ export default class IMU {
   #interval: number
   #lastSample: IMUSample = {}
   #sampleErrorReported = false
-  onEvent: (event: IMUInputEvent) => void
+  onEvent?: (event: IMUInputEvent) => void
 
   constructor(IMUConstructor: IMUConstructor, options: IMUOptions = {}) {
     this.#recognizer = new MotionRecognizer(options)

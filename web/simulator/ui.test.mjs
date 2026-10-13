@@ -4,6 +4,7 @@ import { describe, it } from 'node:test'
 
 import { profileFor } from '../editor/capabilities.mjs'
 import { xsArchiveVersion } from '../editor/mod-builder.mjs'
+import { isXsVersionCompatible } from '../editor/xs-compatibility.mjs'
 
 describe('simulator MOD sample', () => {
   it('documents that the sample visibly changes the face after restart', () => {
@@ -14,7 +15,7 @@ describe('simulator MOD sample', () => {
 
   it('matches the XS version supported by the simulator profile', () => {
     const archive = readFileSync(new URL('./samples/stackchan-sample-mod.xsa', import.meta.url))
-    assert.deepEqual(xsArchiveVersion(archive), profileFor('simulator').xsArchiveVersion)
+    assert.equal(isXsVersionCompatible(xsArchiveVersion(archive), profileFor('simulator').xsArchiveVersionRange), true)
   })
 
   it('does not expose host-specific build paths', () => {

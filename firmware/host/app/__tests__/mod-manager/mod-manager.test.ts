@@ -1,4 +1,4 @@
-import { writeCount } from 'flash'
+import { flashTestState } from 'flash-test-state'
 import startModManager from 'mod-manager'
 import type { Container as PiuContainer } from 'piu/MC'
 import { Application } from 'piu/MC'
@@ -24,7 +24,7 @@ const scroller = list.first?.next as PiuContainer
 press((scroller.first as PiuContainer).first as PiuContainer)
 press((application.first as PiuContainer).last as PiuContainer)
 Timer.set(() => {
-  equal(writeCount(), 1, 'confirmed XSA should be written once')
+  equal(flashTestState.writes, 1, 'confirmed XSA should be written once')
   equal(restarts, 1, 'verified XSA should restart the host')
   trace('ok\n')
 }, 10)

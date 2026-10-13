@@ -90,7 +90,7 @@ test('deployment compatibility checks chip family and runtime XS archive range',
     ['VP_FIRMWARE_VERSION_MISMATCH']
   )
   const simulatorInstall = inspectDeploymentCompatibility('simulator', {
-    firmwareVersion: '9.5.0',
+    firmwareVersion: '10.0.0',
     requireFirmware: true,
   })
   assert.deepEqual(

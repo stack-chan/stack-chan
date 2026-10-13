@@ -2,7 +2,8 @@
   "include": [
     "../../../modules/ui/manifest.json",
     "../../../modules/testing/manifest.json",
-    "$(MODULES)/base/modules/manifest.json"
+    "$(MODULES)/base/modules/manifest.json",
+    "$(MODULES)/io/system/manifest.json"
   ],
   "resources": {
     "*": ["../../strings/*"],

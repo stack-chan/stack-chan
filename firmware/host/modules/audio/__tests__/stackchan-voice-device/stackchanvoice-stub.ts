@@ -6,7 +6,10 @@ export default class StackchanVoice {
 
   #finished = false
 
-  constructor(preset: number, resource: { name: string }) {
+  constructor(preset: number, resource: object) {
+    if (!('name' in resource) || typeof resource.name !== 'string') {
+      throw new TypeError('dictionary Resource fake must record its name')
+    }
     state.constructors.push({ preset, resourceName: resource.name })
   }
 

@@ -9,9 +9,7 @@ import type {
   Port as PiuPort,
   Scroller as PiuScroller,
   Skin as PiuSkin,
-  SkinConstructor as PiuSkinConstructor,
   Style as PiuStyle,
-  StyleConstructor as PiuStyleConstructor,
 } from 'piu/MC'
 import { Column, Container, Label, Port, Scroller, Skin, Style } from 'piu/MC'
 import type { SettingsNetworkEntry } from 'settings-network-list'
@@ -144,7 +142,7 @@ function getNetworkStyle() {
 
 function getKeyboardFieldSkinTemplate(): SkinTemplate {
   if (!keyboardFieldSkinTemplate) {
-    keyboardFieldSkinTemplate = Skin.template({ fill: '#ffffff' }) as SkinTemplate
+    keyboardFieldSkinTemplate = Skin.template({ fill: '#ffffff' })
   }
   return keyboardFieldSkinTemplate
 }
@@ -156,7 +154,7 @@ function getKeyboardFieldStyleTemplate(): StyleTemplate {
       color: '#000000',
       horizontal: 'left',
       vertical: 'middle',
-    }) as StyleTemplate
+    })
   }
   return keyboardFieldStyleTemplate
 }
@@ -845,5 +843,5 @@ export const settingsViews: readonly SettingsViewDefinition[] = [
   SettingsVolumeView,
 ]
 
-type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }
-type StyleTemplate = PiuStyleConstructor & { new (): PiuStyle }
+type SkinTemplate = ReturnType<typeof Skin.template>
+type StyleTemplate = ReturnType<typeof Style.template>

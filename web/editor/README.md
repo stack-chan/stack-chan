@@ -1,6 +1,6 @@
 # Stack-chan Block Editor
 
-Device installation requires a Moddable 9.5.x host. Update older firmware before installing MODs; see the [SDK 9.5 migration guide](../../docs/migrations/moddable-9.5.md).
+Device installation accepts Moddable 9.5.x and 10.0.x hosts within each host's XS archive range. The bundled SDK 10.0 compiler produces XS 17.9 archives, which require a 10.0.x host; a 9.5.x host accepts only XS 17.7–17.8 archives. Update older firmware before installing a newly built MOD. The [SDK 9.5 migration guide](../../docs/migrations/moddable-9.5.md) documents the earlier migration; see [XS version compatibility](#xs-version-compatibility) for current SDK 10 requirements.
 
 Blockly-based MOD editor for Stack-chan. Everything runs client-side:
 
@@ -36,7 +36,7 @@ engine.
 
 ## Rebuilding `vendor/tools.wasm`
 
-The tools binary embeds a Moddable SDK version (currently **9.5.0**, XS 17.8) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
+The tools binary embeds a Moddable SDK version (currently **10.0.0**, XS 17.9) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
 
 ```sh
 cd firmware
@@ -58,9 +58,9 @@ Notes:
 An XS archive only loads when its XS version is compatible with the engine that runs it (`fxMapArchive` checks `XS_MOD_COMPATIBLE ≤ archive ≤ engine`). Practically:
 
 - **Simulator** — `web/simulator/mc.wasm` must be built from the same (or newer) SDK as `vendor/tools.wasm`. Rebuild with `npm run build:wasm` in `firmware/`.
-- **Device** — the flashed Stack-chan firmware must be built from the same (or newer) SDK. A version mismatch is rejected when the firmware maps the archive.
+- **Device** — installation checks the detected host SDK version and its XS major/minor range. A 9.5.x host accepts 17.7–17.8; a 10.0.x host accepts 17.7–17.9. Patch revisions are accepted within those ranges. An archive outside the detected host's range is rejected.
 
-The build status line in the editor shows the XS version of the produced archive (e.g. `XS 17.8.2`).
+The build status line in the editor shows the XS version of the produced archive (e.g. `XS 17.9.2`). Archive acceptance does not establish that a MOD using new SDK 10 modules will run on an older host. The current host adopts SDK 10 System and must be built with SDK 10; SDK 10 Files and RoundRect features likewise require an SDK 10 host; retained 9.5 archive acceptance is not a new validation of that host on SDK 9.5.
 
 ## Simulator install requirements
 
@@ -93,12 +93,14 @@ xsbug handshake on native USB-serial-JTAG parts (CoreS3).
 Requirements:
 
 - A browser with WebSerial (Chrome / Edge).
-- The flashed Stack-chan firmware must be **9.5.x**, and the archive's XS major/minor version must be
-  **17.7–17.8** (patch revisions are accepted) — see [XS version compatibility](#xs-version-compatibility). No debug build needed.
+- The flashed Stack-chan firmware must be **9.5.x or 10.0.x**, and the archive must fit its
+  detected host's range: **17.7–17.8 for SDK 9.5**, **17.7–17.9 for SDK 10**.
+  The bundled SDK 10 compiler produces 17.9 archives, so update a 9.5 host before installing them.
+  See [XS version compatibility](#xs-version-compatibility). No debug build needed.
 - The `-p wasm` archive runs on the ESP32 device because `fxMapArchive` gates only on the
   XS version, skips the signature, and remaps symbols by name at install time — so the
-  build platform need not match the device. Verified end-to-end on an M5Stack CoreS3
-  (face + balloon appear after the auto-reboot).
+  build platform need not match the device. Version acceptance does not replace physical
+  validation of the current firmware and MOD on the target board.
 
 esptool-js 0.5.7 is checked into `vendor/` with its Apache-2.0 license and loaded locally.
 Its self-contained browser bundle inlines pako and the per-chip flasher stubs.

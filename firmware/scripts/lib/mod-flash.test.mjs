@@ -38,7 +38,7 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
   const archivePath = path.join(fixture, 'look_around.xsa')
   const archive = makeArchive(192)
   const partitionTable = makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
-  const appHeader = makeAppHeader({ version: '8.3.1+stackchan.1', projectName: 'xs_esp32' })
+  const appHeader = makeAppHeader({ version: '9.5.0+stackchan.1', projectName: 'xs_esp32' })
   const calls = []
   const scratchPaths = []
 
@@ -49,7 +49,7 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
       chip: 'esp32s3',
       port: '/dev/ttyACM1',
       baud: 921600,
-      expectedFirmwareVersion: '8.3.1',
+      expectedFirmwareVersion: '9.5.0',
       runCommand(command, args) {
         calls.push([command, args])
         if (args.includes('read-flash')) {
@@ -281,6 +281,41 @@ test('CLI MOD preflight uses the detected SDK archive range before any write', (
       } finally {
         rmSync(fixture, { recursive: true, force: true })
       }
+    }
+  }
+})
+
+test('CLI MOD preflight rejects unknown SDKs without writing or verifying flash', () => {
+  for (const version of ['8.3.1', '9.6.0', '10.1.0', '11.0.0', 'unrecognized']) {
+    const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-flash-unknown-sdk-'))
+    const archivePath = path.join(fixture, 'mod.xsa')
+    const calls = []
+    try {
+      writeFileSync(archivePath, makeArchive(128))
+      assert.throws(
+        () =>
+          installModArchive({
+            archivePath,
+            temporaryDirectory: fixture,
+            expectedFirmwareVersion: version,
+            runCommand(_command, args) {
+              const command = args.find((arg) => ['read-flash', 'write-flash', 'verify-flash'].includes(arg))
+              calls.push(command)
+              if (command === 'read-flash') {
+                writeFileSync(
+                  args.at(-1),
+                  Number(args.at(-3)) === 0x8000
+                    ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                    : makeAppHeader({ version: `${version}+stackchan.1`, projectName: 'xs_esp32' }),
+                )
+              }
+            },
+          }),
+        /Unsupported Moddable firmware version/,
+      )
+      assert.deepEqual(calls, ['read-flash', 'read-flash'])
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
     }
   }
 })

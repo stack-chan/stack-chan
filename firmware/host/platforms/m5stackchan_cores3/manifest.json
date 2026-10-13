@@ -18,7 +18,8 @@
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
     "pins/audioout": "../core_s3_audioout",
     "mod-files": "../../app/mod-files",
-    "stackchan-sdroot": "./sd-root"
+    "stackchan-sdroot": "./sd-root",
+    "sdk-board-provider": "$(BUILD)/devices/esp32/targets/m5stack_cores3/host/provider"
   },
   "preload": ["axp2101-power-capture"],
   "config": {

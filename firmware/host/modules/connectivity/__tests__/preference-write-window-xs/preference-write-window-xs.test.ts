@@ -52,5 +52,5 @@ Timer.set(() => {
   server.enableWrites(20)
   server.receiveAndSetPreference('wifi', 'password', 'closed')
   equal(Preference.get('wifi', 'password'), 'fresh', 'closed servers cannot reopen')
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }, 40)

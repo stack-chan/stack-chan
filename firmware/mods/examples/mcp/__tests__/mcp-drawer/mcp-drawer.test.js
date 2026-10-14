@@ -1,6 +1,6 @@
+import { setIPAddress } from 'ecma-wifi'
 import { setMCPServerResult } from 'mcp-server'
 import { onContextCreated } from 'mod'
-import { setIPAddress } from 'net'
 import { assert, equal } from 'testing/assert'
 
 function createContext(ready = { status: 'connected' }) {
@@ -101,10 +101,11 @@ async function runTest() {
   await missingAddress.buttons[0].callback(missingAddress.context)
   assert(missingAddress.balloons[0].includes('IP address is not available'), 'missing IP address should be visible')
 
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runTest().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`MCP drawer test failed: ${String(error)}\n`)
   throw error
 })

@@ -6,4 +6,4 @@ const driver = new PWMServoDriver({
 })
 
 void driver
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

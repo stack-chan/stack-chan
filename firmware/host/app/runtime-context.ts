@@ -463,6 +463,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       playAudio(buffer) {
         return context.playAudio(buffer)
       },
+      get media() {
+        return context.#audioRuntime.media
+      },
       get webRadio() {
         return context.#audioRuntime.webRadio
       },

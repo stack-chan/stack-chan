@@ -173,5 +173,5 @@ service.stop()
 equal(states[2], ChatState.DISCONNECTING, 'state should map to DISCONNECTING')
 equal(states[3], ChatState.DISCONNECTED, 'state should map to DISCONNECTED')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')
 Timer.set(() => {}, 1000)

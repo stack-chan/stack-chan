@@ -178,6 +178,8 @@ void xs_esp32_mp3_decode(xsMachine *the)
 		}
 	}
 
+	xsmcSetInteger(xsResult, info.sample_rate);
+	xsmcSet(xsArg(1), xsID_sampleRate, xsResult);
 	xsmcSetInteger(xsResult, samples);
 	xsmcSet(xsArg(1), xsID_samples, xsResult);
 	xsmcSetInteger(xsResult, consumed);

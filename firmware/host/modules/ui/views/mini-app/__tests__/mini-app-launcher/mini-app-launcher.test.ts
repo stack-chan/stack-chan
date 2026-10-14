@@ -37,4 +37,4 @@ behavior.onTouchBegan?.(button, 0, 10, 10)
 behavior.onTouchEnded?.(button, 0, 10, 10)
 equal(launched, 'test.app', 'launcher action should request the selected app id')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

@@ -108,5 +108,5 @@ equal(
 earlyReadSocket?.options.onError(new Error('TLS failed'))
 equal(postedMessages[postedMessages.length - 1]?.string, 'network error: TLS failed', 'network errors include details')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')
 Timer.set(() => {}, 1000)

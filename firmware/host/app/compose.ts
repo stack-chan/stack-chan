@@ -4,17 +4,18 @@ import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
 import type {
   ConnectivityCapability,
+  MediaCapability,
   RemoteConversationSession,
   RobotLed,
   RobotUI,
   StackchanContext,
   TTS,
-  WebRadioCapability,
 } from 'capabilities'
 import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
 import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
+import { createJitomeFace } from 'jitome-face'
 import Led from 'led'
 import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
@@ -71,7 +72,7 @@ const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 export type HostDeviceEnvironment = GlobalEnvironment['device']
 
-type WebRadioPlayerConstructor = new () => WebRadioCapability
+type MediaPlayerConstructor = new () => MediaCapability
 
 const DEFAULT_UI_DISPLAY_LIST_LENGTH = 4096
 
@@ -144,6 +145,7 @@ export function createStackchanContext(
   ])
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
+    ['jitome', (param) => createStackchanUI(createJitomeFace().content, asUIOptions(param))],
     ['simple', (param) => createStackchanUI(new SimpleFace(), asUIOptions(param))],
     [
       'image',
@@ -205,8 +207,8 @@ export function createStackchanContext(
   const microphone = Modules.has('audio-in') ? new Microphone() : undefined
   const camera = new Camera()
   const speaker = new Speaker({ volume: ttsPrefs.volume })
-  const webRadio = Modules.has('web-radio-player')
-    ? new (Modules.importNow('web-radio-player') as WebRadioPlayerConstructor)()
+  const media = Modules.has('media-player')
+    ? new (Modules.importNow('media-player') as MediaPlayerConstructor)()
     : undefined
 
   const configLed = preferences.led
@@ -262,7 +264,7 @@ export function createStackchanContext(
     remoteConversationSession: options.remoteConversationSession,
     closeHandlers: options.closeHandlers,
     speaker,
-    webRadio,
+    media,
     microphone,
     camera,
     led,

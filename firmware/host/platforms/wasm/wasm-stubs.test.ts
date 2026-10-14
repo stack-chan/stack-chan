@@ -5,6 +5,7 @@ import Speaker from '../../modules/audio/wasm/speaker.js'
 import FallbackCamera from '../../modules/camera/lin/camera.js'
 import Camera from '../../modules/camera/wasm/camera.js'
 import { WasmDriver } from '../../modules/motion/wasm/wasm-driver.js'
+import System from './system.js'
 
 type Rotation = { y: number; p: number; r: number }
 type MotionCompletion = (error?: unknown) => void
@@ -493,5 +494,21 @@ test('WASM speaker plays buffers through the browser Host.AudioOut bridge', asyn
     assert.deepEqual(buffers, [buffer])
   } finally {
     globalThis.Host = previousHost
+  }
+})
+
+// Firmware restart must leave the XS frame before the browser destroys the VM.
+test('WASM System sends one deferred-restart request per VM', () => {
+  const previousTrace = globalThis.trace
+  const calls: unknown[] = []
+  globalThis.trace = (...messages) => {
+    calls.push(messages)
+  }
+  try {
+    System.restart()
+    System.restart()
+    assert.deepEqual(calls, [['[system] restart\n']])
+  } finally {
+    globalThis.trace = previousTrace
   }
 })

@@ -1,4 +1,5 @@
 import AudioOut from 'embedded:io/audio/out'
+import Timer from 'timer'
 
 const OUTPUT_SAMPLE_RATE = 24000
 const AUDIO_QUEUE_LENGTH = 48
@@ -57,6 +58,13 @@ export default class WebRadioAudioOut {
   #writableBytes = 0
   #closed = false
   #started = false
+  #capacity = 0
+  #written = 0
+  #submitted = 0
+  #played = 0
+  #padding = 0
+  #silence = new Uint8Array(1024)
+  #drain: { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof Timer.set> } | undefined
 
   constructor(_options: AudioOutOptions) {
     const Output = AudioOut as unknown as ECMA419AudioOutConstructor
@@ -100,6 +108,40 @@ export default class WebRadioAudioOut {
     if (this.#started) this.#drainWritable()
   }
 
+  /** PCM confirmed consumed by DMA, excluding queued audio and drain padding. */
+  get playedSeconds(): number {
+    return this.#played / (OUTPUT_SAMPLE_RATE * 2)
+  }
+
+  /** Wait for DMA completion, including the driver's partially filled staging block. */
+  drain(): Promise<void> {
+    if (this.#closed || !this.#started || !this.#capacity)
+      return Promise.reject(new Error('Audio output is not running'))
+    if (this.#drain) return Promise.reject(new Error('Audio drain already pending'))
+    return new Promise((resolve, reject) => {
+      // The initial writable capacity is a whole number of DMA blocks. Align
+      // cumulative writes to that capacity and follow audio with one capacity
+      // of silence. This flushes staging without depending on SDK block sizes.
+      this.#padding = this.#capacity + ((this.#capacity - (this.#written % this.#capacity)) % this.#capacity)
+      this.#drain = {
+        resolve,
+        reject,
+        timer: Timer.set(() => this.#cancelDrain(new Error('Audio drain timed out')), 5000),
+      }
+      this.#drainWritable()
+    })
+  }
+
+  #cancelDrain(error: Error): void {
+    const drain = this.#drain
+    this.#drain = undefined
+    this.#padding = 0
+    if (drain) {
+      Timer.clear(drain.timer)
+      drain.reject(error)
+    }
+  }
+
   enqueue(_stream: number, kind: number, value?: unknown): this {
     if (kind === WebRadioAudioOut.Flush) return this
     if (kind === WebRadioAudioOut.Volume) {
@@ -112,8 +154,17 @@ export default class WebRadioAudioOut {
 
   #onWritable(size: number): void {
     if (this.#closed) return
+    if (!this.#capacity) this.#capacity = size
+    this.#played = Math.max(this.#played, Math.min(this.#written, this.#submitted - (this.#capacity - size)))
     this.#writableBytes = size
-    this.#drainWritable()
+    if (this.#drain && !this.#padding && size === this.#capacity) {
+      const drain = this.#drain
+      this.#drain = undefined
+      Timer.clear(drain.timer)
+      drain.resolve()
+      return
+    }
+    if (this.#started) this.#drainWritable()
   }
 
   #drainWritable(): void {
@@ -131,8 +182,17 @@ export default class WebRadioAudioOut {
       Atomics.add(completion, 0, use)
       this.#writableBytes -= use
       sharedWritten += use
+      this.#written += use
+      this.#submitted += use
     }
     if (sharedWritten) this.#onSharedOutputWritten?.()
+    while (this.#drain && this.#padding && this.#writableBytes >= 2) {
+      const use = Math.min(this.#padding, this.#writableBytes, this.#silence.length) & ~1
+      this.#audio.write(this.#silence.subarray(0, use))
+      this.#submitted += use
+      this.#padding -= use
+      this.#writableBytes -= use
+    }
   }
 
   length(stream: number): number {
@@ -150,12 +210,14 @@ export default class WebRadioAudioOut {
   }
 
   stop(): void {
+    this.#cancelDrain(new Error('Audio output stopped'))
     this.#started = false
     this.#audio.stop()
     this.#writableBytes = 0
   }
 
   close(): void {
+    this.#cancelDrain(new Error('Audio output closed'))
     this.#closed = true
     this.#audio.close()
     this.#writableBytes = 0

@@ -140,6 +140,8 @@ The board-specific driver type and servo bus pins live in each subplatform manif
 
 The `m5stackchan` driver adds M5StackChan-specific zero positions, motion limits, and PY32 servo-power control on top of the SCServo protocol. For safety, M5StackChan CoreS3 firmware locks the driver type to `m5stackchan`, while Stack-chan RT firmware locks it to `dynamixel`. Both ignore a different stored `driver.type`.
 
+The dedicated `m5stackchan` driver defaults to the manufacturer's recommended **5–85° pitch range**. In the StackChan rotation convention, this is `rotation.p` from −85° to −5° (provided in radians); a neutral `rotation.p = 0` request is clamped to the 5° lower limit. The calibrated zero position is unchanged. These are defaults: per-device calibration and explicit axis-limit overrides remain supported, so verify mechanical clearance before changing them. [M5Stack warns that extreme pitch angles can cause servo stall and permanent damage](https://docs.m5stack.com/en/StackChan#note).
+
 Put per-device settings such as Wi-Fi credentials and API keys in the board's app manifest under `"config"`. Keep secrets out of commits and add them locally only. On boot, the log line `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` shows the RT serial pins actually in use.
 
 If written correctly, the face of Stack-chan will appear a few seconds after startup.

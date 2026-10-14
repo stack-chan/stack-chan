@@ -131,4 +131,4 @@ assert(!controller.launchMiniApp('missing'), 'unknown mini app ids should be rej
 assert(viewBehavior.main !== viewBehavior.faceMain, 'an unknown id should leave the launcher visible')
 equal(title.string, 'ミニアプリ', 'an unknown id should preserve the launcher AppBar')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

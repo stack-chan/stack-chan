@@ -1,4 +1,10 @@
 {
+  "splash.failed": "Startup failed",
+  "splash.phase.behavior": "Behavior startup",
+  "splash.phase.context": "Robot initialization",
+  "splash.phase.initialization": "System initialization",
+  "splash.phase.launch": "Application launch",
+  "splash.phase.network": "Network connection",
   "status.notConnected": "Disconnected",
   "status.connected": "Connected",
   "status.connecting": "Connecting",

@@ -1,0 +1,15 @@
+{
+  "modules": {
+    "media-player": "./media-player",
+    "web-radio-player": "./web-radio-player",
+    "web-radio-audio-out": "./web-radio-audio-out",
+    "pcm-resampler": "./pcm-resampler",
+    "buffered-mp3streamer": "./worker-mp3streamer",
+    "buffered-mp3streamer-core": "./buffered-mp3streamer",
+    "web-radio-byte-ring": "./shared-byte-ring",
+    "web-radio-stream-worker": "./web-radio-stream-worker",
+    "media-http": "../../media-http",
+    "mp3-frames": "../../mp3-frames",
+    "mp3-metadata": "../../mp3-metadata"
+  }
+}

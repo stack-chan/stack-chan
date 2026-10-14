@@ -26,6 +26,8 @@ export default class PY32Led {
     expander.setPullMode(ledPin, true)
     expander.setDriveMode(ledPin, false)
     expander.setLedCount(this.length)
+    // Allow PY32 to apply the LED count before writing its RGB RAM, as in the M5Stack BSP.
+    Timer.delay(200)
     this.off()
   }
 

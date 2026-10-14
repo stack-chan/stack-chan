@@ -98,7 +98,7 @@ async function testMCPClient(): Promise<void> {
       trace(`  Server Version: ${initResult.serverInfo.version}\n`)
     } catch (error) {
       trace(`✗ Initialize failed: ${error}\n`)
-      return
+      throw error
     }
 
     // Wait a bit before next test to allow garbage collection
@@ -115,7 +115,7 @@ async function testMCPClient(): Promise<void> {
       }
     } catch (error) {
       trace(`✗ List tools failed: ${error}\n`)
-      return
+      throw error
     }
 
     await asyncWait(30)
@@ -128,6 +128,7 @@ async function testMCPClient(): Promise<void> {
       trace(`  Result: ${echoResult.content[0].text}\n`)
     } catch (error) {
       trace(`✗ Echo tool call failed: ${error}\n`)
+      throw error
     }
 
     await asyncWait(30)
@@ -140,6 +141,7 @@ async function testMCPClient(): Promise<void> {
       trace(`  Result: ${addResult.content[0].text}\n`)
     } catch (error) {
       trace(`✗ Add tool call failed: ${error}\n`)
+      throw error
     }
 
     await asyncWait(30)
@@ -152,6 +154,7 @@ async function testMCPClient(): Promise<void> {
       trace(`  Result: ${statusResult.content[0].text}\n`)
     } catch (error) {
       trace(`✗ Get status tool call failed: ${error}\n`)
+      throw error
     }
 
     await asyncWait(30)
@@ -169,16 +172,19 @@ async function testMCPClient(): Promise<void> {
       trace(`✓ Tool call after reset successful: ${echoResult.content[0].text}\n`)
     } catch (error) {
       trace(`✗ Re-initialize after reset failed: ${error}\n`)
+      throw error
     }
   } catch (error) {
     trace(`Test failed with error: ${error}\n`)
+    throw error
   }
 
   trace('\n=== Test Complete ===\n')
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 // Start the test
 testMCPClient().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`Test execution failed: ${error}\n`)
 })

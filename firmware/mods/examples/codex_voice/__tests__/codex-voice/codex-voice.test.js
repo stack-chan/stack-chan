@@ -223,4 +223,4 @@ function createDrawer(events) {
   equal(drawer.buttons[0].initialState, false, 'missing USB capability should leave the button inactive')
 }
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

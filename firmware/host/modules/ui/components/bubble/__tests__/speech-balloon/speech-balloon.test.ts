@@ -206,4 +206,4 @@ Timer.repeat(() => {
 
 assert(app.length === 4, 'four balloons should be attached')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

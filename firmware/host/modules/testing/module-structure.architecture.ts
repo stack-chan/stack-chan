@@ -562,24 +562,6 @@ test('Moddable test manifests use local test modules as main entries', () => {
   }
 })
 
-test('Moddable test main entries trace ok and avoid not ok status strings', () => {
-  const manifestPaths = walkFiles(MODULE_ROOT).filter((path) => path.endsWith('manifest.test.json'))
-
-  for (const manifestPath of manifestPaths) {
-    const manifest = readJson(manifestPath)
-    const mainEntry = manifest.modules?.main
-    assert.equal(typeof mainEntry, 'string', `${manifestPath} should define modules.main`)
-
-    const testFile = existsSync(join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`))
-      ? join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`)
-      : join(dirname(manifestPath), `${mainEntry.slice(2)}.js`)
-    const source = readFileSync(testFile, 'utf8')
-
-    assert.match(source, /trace\(['"]ok\\n['"]\)/, `${testFile} should trace ok on success`)
-    assert.doesNotMatch(source, /not ok/, `${testFile} should not use not ok for failure status`)
-  }
-})
-
 test('UI views own Moddable test manifests under their view directories', () => {
   const viewsRoot = join(MODULE_ROOT, 'ui', 'views')
   const viewNames = readdirSync(viewsRoot, { withFileTypes: true })

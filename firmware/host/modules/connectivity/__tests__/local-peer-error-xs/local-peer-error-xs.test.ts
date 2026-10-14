@@ -15,4 +15,4 @@ const tag = createLocalPeerAuthenticationTag(
 const actualTag = [...tag].map((value) => value.toString(16).padStart(2, '0')).join('')
 if (actualTag !== 'c146beea7bcde4b7933b3a74434b0bfb') throw new Error(`unexpected authentication tag: ${actualTag}`)
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

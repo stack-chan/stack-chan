@@ -1,4 +1,10 @@
 {
+  "splash.failed": "起動に失敗しました",
+  "splash.phase.behavior": "振る舞いの起動",
+  "splash.phase.context": "ロボットの初期化",
+  "splash.phase.initialization": "システムの初期化",
+  "splash.phase.launch": "アプリの起動",
+  "splash.phase.network": "ネットワークの接続",
   "status.notConnected": "未接続",
   "status.connected": "接続済み",
   "status.connecting": "接続中",

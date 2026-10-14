@@ -8,6 +8,7 @@
 #include "commodettoPocoBlit.h"
 #include "avds-engine.h"
 #include "avds-render.h"
+#include "avds-outline.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,36 +110,18 @@ static void avatarSync(AvdsFace *self) {
 // Outline geometry is built directly in bounded storage, using the same 26.6
 // four-cubic circle as CanvasPath.arc(0, 2*pi). No JS paths, Shapes or Skins.
 static void buildOutline(AvdsOutline *storage, const int32_t *c) {
- unsigned n=c[0]==AVDS_RECT?4:c[0]==AVDS_TRIANGLE?3:13;
+ int32_t coordinates[26]; uint8_t pointTags[13];
+ unsigned n=avds_outline_points(c,coordinates,pointTags);
  PocoOutline o=(PocoOutline)storage->bytes;
  memset(storage,0,sizeof(*storage)); o->n_points=n; o->n_contours=1;
  FT_Pos *p=(FT_Pos*)(storage->bytes+sizeof(PocoOutlineRecord));
  uint16_t *contour=(uint16_t*)(p+n*2);
  uint8_t *tags=(uint8_t*)(contour+1);
  *contour=(uint16_t)(n-1);
- if (c[0]==AVDS_RECT) {
-  int32_t xy[8]={c[1],c[2],c[1]+c[3],c[2],c[1]+c[3],c[2]+c[4],c[1],c[2]+c[4]};
-  for (unsigned i=0;i<8;i++) p[i]=(FT_Pos)xy[i]*64;
-  memset(tags,1,n);
- } else if (c[0]==AVDS_TRIANGLE) {
-  for (unsigned i=0;i<6;i++) p[i]=(FT_Pos)c[i+1]*64;
-  memset(tags,1,n);
- } else {
-  const double pi=3.14159265358979323846, delta=pi/2, ratio=(4*tan(delta/4))/3;
-  double theta=0, x1=cos(theta), y1=sin(theta);
-  p[0]=(FT_Pos)((c[3]*x1+c[1])*64); p[1]=(FT_Pos)((c[3]*y1+c[2])*64); tags[0]=1;
-  for (unsigned i=0;i<4;i++) {
-   theta+=delta; double x2=cos(theta), y2=sin(theta);
-   unsigned j=2+i*6;
-   p[j]=(FT_Pos)((c[3]*(x1-y1*ratio)+c[1])*64);
-   p[j+1]=(FT_Pos)((c[3]*(y1+x1*ratio)+c[2])*64);
-   p[j+2]=(FT_Pos)((c[3]*(x2+y2*ratio)+c[1])*64);
-   p[j+3]=(FT_Pos)((c[3]*(y2-x2*ratio)+c[2])*64);
-   p[j+4]=(FT_Pos)((c[3]*x2+c[1])*64); p[j+5]=(FT_Pos)((c[3]*y2+c[2])*64);
-   tags[1+i*3]=tags[2+i*3]=2; tags[3+i*3]=1; x1=x2; y1=y2;
-  }
- }
+ for (unsigned i=0;i<n*2;i++) p[i]=(FT_Pos)coordinates[i];
+ memcpy(tags,pointTags,n);
 }
+
 static int drawable(const int32_t *c) {
  return c[0]==AVDS_TRIANGLE || (c[0]==AVDS_CIRCLE && c[3]>0) || (c[0]==AVDS_RECT && c[3]>0 && c[4]>0);
 }

@@ -1,0 +1,13 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Central camera lens. eye_open is driven by the host's existing blink.
+-- In the web preview, slide Eye open through 1 -> 0.5 -> 0 -> 1.
+fn draw()
+  let cx = tx(160 + 10 * clamp(gaze_h, -1, 1))
+  let cy = ty(112 + 8 * clamp(gaze_v, -1, 1))
+  -- Fixed damage box covers the lens at every supported gaze position.
+  -- Wider metal housing parks opaque leaves outside the original pupil size.
+  begin_group(tx(56), ty(12), sz(208), sz(200))
+  fill_rect(tx(56), ty(12), sz(208), sz(200), 0x39e7)
+  iris_lens(cx, cy, sz(88))
+  end_group()
+end

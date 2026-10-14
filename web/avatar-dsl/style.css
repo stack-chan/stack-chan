@@ -1,0 +1,115 @@
+.avatar-studio .studio-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 24px;
+}
+.avatar-studio section {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+.avatar-studio button,
+.avatar-studio select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--secondary);
+  color: var(--foreground);
+}
+.avatar-studio button:disabled {
+  opacity: 0.5;
+}
+.avatar-studio .studio-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.avatar-studio .source-wrap {
+  display: flex;
+  height: 480px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.avatar-studio .source-wrap pre,
+.avatar-studio textarea {
+  font:
+    13px/1.6 ui-monospace,
+    monospace;
+  padding: 12px;
+  margin: 0;
+  white-space: pre;
+}
+.avatar-studio .source-wrap pre {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  user-select: none;
+}
+.avatar-studio textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  background: var(--background);
+  color: var(--foreground);
+}
+.avatar-studio p {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.avatar-studio [data-error='true'] {
+  color: var(--destructive);
+}
+.avatar-studio .canvas-stage {
+  display: grid;
+  place-items: center;
+  background: #111;
+  padding: 16px;
+  border-radius: 12px;
+}
+.avatar-studio canvas {
+  width: 320px;
+  max-width: 100%;
+  height: auto;
+}
+.avatar-studio .studio-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.avatar-studio .studio-controls label {
+  display: grid;
+  gap: 8px;
+}
+.avatar-studio input[type='range'] {
+  width: 100%;
+}
+.avatar-studio .studio-device {
+  margin: 20px 0;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.avatar-studio dialog {
+  margin: auto;
+  padding: 24px;
+  max-width: min(560px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+}
+.avatar-studio dialog::backdrop {
+  background: #0009;
+}
+@media (max-width: 800px) {
+  .avatar-studio .studio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .avatar-studio .source-wrap {
+    height: 320px;
+  }
+}

@@ -33,9 +33,8 @@ function AvatarEditor() {
                 <option value="omega">Omega mouth</option>
                 <option value="minimal">Minimal</option>
                 <option value="rounded">Rounded eyes</option>
-                <option value="mono">Mono iris</option>
                 <option value="compound">Compound iris</option>
-                <option value="sensor">Mono C SENSOR</option>
+                <option value="Mono eye">Mono eye</option>
               </select>
             </label>
             <div className="studio-toolbar">

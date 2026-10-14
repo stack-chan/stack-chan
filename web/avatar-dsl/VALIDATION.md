@@ -7,6 +7,7 @@
 - base SHA: `457096bbad2c7482b14ccee56de0b9a15e27c311`。合同版の #725 group clip と #717/#718/#726 の既存変更を前提とする。進行中の develop マージへ追従・介入しない。
 - 参照元 task-2/task-6 は読み取りのみ。独立した Git 複製を作成し、他タスクの dirty files は編集しない。
 - task-6 `d2c9700` の現在 tree から既存 web/avatar-dsl の editor-model、preview worker、transfer worker/controller、WebMCP とプリセットを選択して移植。既存履歴 b291b45/fd46b60/88b3eee/972b5cf の機能を継承する。8c6c9f1 の新 opcode・40要素候補は取り込まない。
+- 追加共有 compiler: `5038a62a454ca137b9e65b9a8e24293763c3a084` を元 checkout からローカル Git fetch し、`cherry-pick -x` で `ae72f297a885128a80ccd18946de8032bad422b1` として取り込んだ。5ファイルの指定共有修正のみで、develop 全体の更新や独自 compiler 修正は加えない。
 - C 変更は既存 `buildOutline` の共通ヘッダ抽出のみ。VM、clip planner、native JS API、リソース上限、LCD 転送処理は変更しない。
 - PR、push、merge、公開 deploy、デバイス列挙、COM12 接続、実機への書込みは行わない。
 
@@ -15,10 +16,10 @@
 | 検証 | 結果 |
 | --- | --- |
 | TypeScript + Vite 本番ビルド | 成功。既存の大きい chunk 警告のみ |
-| Web legacy suite | 231 passed、2 optional skipped、0 failed |
+| Web legacy suite | 232 passed、2 optional skipped、0 failed |
 | 既存 React suite | 18 files / 51 tests passed。既存 Base UI button warning あり |
-| native/WASM parity | 402 frames、119685120 bytes の画素一致。commands、clip/bounds、steps も一致 |
-| C SENSOR | 101 開閉位相 × breath -1/0/1、同一 AVBC で検証。円外漏れなし、sensor 矩形は aperture 内、閉眼時消灯、呼吸で幾何不変、再開眼再現 |
+| native/WASM parity | 382 frames、114266112 bytes の画素一致。commands、clip/bounds、steps も一致 |
+| Mono eye | 101 開閉位相 × breath -1/0/1、同一 AVBC で検証。円外漏れなし、sensor 矩形は aperture 内、閉眼時消灯、呼吸で幾何不変、再開眼再現 |
 | 既存 firmware native regression | 870 cases、192 C++ oracle cases、500 mutations passed |
 | 既存 Piu/native regression | 73 reference + 9 cached frames、25190400 bytes、36 partial/full + 3 cached pairs、animation/lifecycle passed |
 | MOD ビルド | 既存 tools.wasm で実 XSA を生成。fixture MOD 9775 bytes、XS ABI 17.9.2。共有 adapter/context と bytecode/fallback の保持を検証 |
@@ -32,22 +33,24 @@
 
 再現可能な JSON/画像は実行後に `avatar-dsl/.test-output/{parity,archive,compiler-acceptance}.json`、`avatar-dsl/artifacts/{browser,webmcp-native}.json`、`sensor-half.png`、`mobile.png` に生成する。これらの出力は Git に含めない。
 
-## 未通過の共有 compiler 受入項目
+## 通過した共有 compiler 受入項目
 
-追加連絡の [PR725 CodeRabbit 指摘](https://github.com/stack-chan/stack-chan/pull/725#discussion_r4272297742) に対し、エディタ独自の compiler/AST validator は実装しない。
+[PR725 CodeRabbit 指摘](https://github.com/stack-chan/stack-chan/pull/725#discussion_r4272297742) の指定共有修正 `5038a62` を `cherry-pick -x` で取り込んだ。元の author と source SHA をコミットメッセージに保持した。エディタ独自の compiler/AST validator は実装していない。
 
-固定ベースの現状は以下の通り。
-
-| 無効 DSL | 現状 |
+| 無効 DSL | 取り込み後の拒否段階 |
 | --- | --- |
-| user-function 引数不足 | compiler は通すが native VM の stack 検証で拒否 |
-| user-function 引数過剰 | **compiler と C VM が受理するため、プレビュー・転送準備にも進める** |
-| void helper の値利用 | compiler は通すが native VM の stack 検証で拒否 |
-| void builtin の値利用 | compiler は通すが native VM の stack 検証で拒否 |
+| user-function 引数不足 | compiler |
+| user-function 引数過剰 | compiler |
+| user-function の void 値利用 | compiler |
+| void builtin の値利用 | 既存 native VM の stack 検証 |
 
-`npm run check:avatar-dsl:compiler` は上記 corpus を共通コンパイラと C runtime に渡し、compiler 段階で拒否されないケースがあれば exit 1 とする。今回の固定ベースでは引数過剰のため未通過。通常 suite の成功とは別の受入ゲートであり、隠して skip しない。
+`npm run check:avatar-dsl:compiler` は通過。引数不正の corpus は void 呼出しを文として置き、値文脈の拒否に先取りされないよう引数数を独立に検証する。user-function の3項目は compiler 拒否を必須とし、builtin 項目は compiler または native VM による拒否を要求する。取り込み元は builtin の compile-time 検証を変更していないため、その段階まで変更されたとは主張しない。すべての corpus はプレビューの成功・転送確認・USB 選択へ進まない。
 
-別担当の共有コンパイラ修正が利用可能になったら、そのコミットだけを取り込み、このゲートとプリセット/native/browser 試験を再実行する。修正確認までは「任意の無効 DSL をすべて拒否する」とは言えない。実機転送の受入は、この修正と実機確認の両方が残る。
+native WebMCP の実ブラウザでも syntax、引数不足、引数過剰、void helper 値、void builtin 値の転送要求が拒否され、undo で回復し、USB chooser/enumeration は0回だった。
+
+共有修正の14件の既存試験は正常 DSL と3 firmware preset の emission 不変を確認する。追加エディタ試験も rounded/compound/Mono eye を独立した upstream emitter snapshot と比較する。`mono-sensor.avdsl` は最初の統合コミット `a31b7590` から変更しない。Mono eye の描画・開閉・呼吸は変更せず、Mono iris の選択肢と独立 sample ファイルのみを削除した。UI のプリセット値、guide の名前、WebMCP sample names は7件で一致し、単眼の名前は正確に `Mono eye`。
+
+接続断後の再開時は既存試験ログの完了結果と作業ツリーを確認した。開いているブラウザの DSL やページを操作・上書きせず、ローカル preview サーバーだけを再起動した。
 
 ## 残る実機・アプリ操作
 

@@ -113,8 +113,15 @@ try {
     assert.match(guide.guide, /begin_group/)
     const snapshot = await call('read')
     const sampleNames = await call('samples')
-    for (const name of ['default', 'aokko', 'omega', 'minimal', 'rounded', 'mono', 'compound', 'sensor'])
+    for (const name of ['default', 'aokko', 'omega', 'minimal', 'rounded', 'compound', 'Mono eye'])
       assert.ok(sampleNames.names.includes(name))
+    assert.equal(sampleNames.names.length, 7)
+    assert.equal(sampleNames.names.includes('mono'), false)
+    const monoEye = await call('samples', { name: 'Mono eye' })
+    assert.equal(monoEye.name, 'Mono eye')
+    const uiNames = await page.locator('#sample option').evaluateAll((options) => options.map((option) => option.value))
+    assert.deepEqual(uiNames.sort(), sampleNames.names.sort())
+    assert.ok(guide.guide.includes('Mono eye'))
     const sample = await call('samples', { name: 'rounded' })
     await call('replace', { source: sample.source, expectedRevision: snapshot.revision })
     await page.waitForFunction(() => !document.getElementById('transfer').disabled)
@@ -145,15 +152,28 @@ try {
     evidence.checks.push(
       'native agent transfer tool builds the real MOD, stages visible confirmation, and cancellation performs zero USB operations'
     )
-    const invalidRevision = (await call('read')).revision
-    await call('replace', { source: 'fn draw(', expectedRevision: invalidRevision })
-    const invalid = await call('read')
-    await assert.rejects(call('request_transfer', { expectedRevision: invalid.revision }))
-    assert.equal(await page.locator('#confirmation').evaluate((dialog) => dialog.open), false)
-    assert.deepEqual(await page.evaluate(() => window.__nativeWebMCPUSBMock), { chooserCalls: 0, enumerationCalls: 0 })
-    await call('undo')
-    await page.waitForFunction(() => !document.getElementById('transfer').disabled)
-    evidence.checks.push('invalid DSL blocks native agent transfer before confirmation or USB access; undo recovers')
+    for (const source of [
+      'fn draw(',
+      'fn f(a) end fn draw() f() end',
+      'fn f(a) end fn draw() f(1,2) end',
+      'fn f() end fn draw() let x=f() end',
+      'fn draw() let x=fill_rect(0,0,1,1,primary) end',
+    ]) {
+      const invalidRevision = (await call('read')).revision
+      await call('replace', { source, expectedRevision: invalidRevision })
+      const invalid = await call('read')
+      await assert.rejects(call('request_transfer', { expectedRevision: invalid.revision }))
+      assert.equal(await page.locator('#confirmation').evaluate((dialog) => dialog.open), false)
+      assert.deepEqual(await page.evaluate(() => window.__nativeWebMCPUSBMock), {
+        chooserCalls: 0,
+        enumerationCalls: 0,
+      })
+      await call('undo')
+      await page.waitForFunction(() => !document.getElementById('transfer').disabled)
+    }
+    evidence.checks.push(
+      'syntax, incorrect user-function arity, void helper and void builtin values block agent transfer before confirmation or USB; undo recovers'
+    )
     assert.deepEqual(errors, [])
     evidence.checks.push('no uncaught browser errors')
   }

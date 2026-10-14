@@ -96,7 +96,7 @@ test('native and WASM commands, clipping plans and RGB565 pixels agree', { skip:
   assert.equal(result.status, 0, result.error?.message ?? result.stderr)
   const cases = []
   const iris = readFileSync(new URL('../samples/iris-lens.avdsl', import.meta.url), 'utf8')
-  for (const name of ['mono', 'compound']) {
+  for (const name of ['compound']) {
     const bytecode = Buffer.from(
       compile(iris + '\n' + readFileSync(new URL(`../samples/${name}-iris.avdsl`, import.meta.url), 'utf8'))
     )

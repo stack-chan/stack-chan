@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { compile } from '../../firmware/tools/avatar-dsl/compiler/compile.js'
+import { emit } from '../../firmware/tools/avatar-dsl/compiler/emitter.js'
+import { emit as upstreamEmit } from '../../firmware/tools/avatar-dsl/compiler/upstream-emitter.js'
+import { parse } from '../../firmware/tools/avatar-dsl/compiler/parser.js'
+import { tokenize } from '../../firmware/tools/avatar-dsl/compiler/lexer.js'
 import { createContext } from '../../firmware/mods/examples/avatar-dsl/context.js'
 import { createRuntime } from './runtime/index.js'
 
@@ -20,7 +24,19 @@ for (let y = 0; y < 240; y++)
       for (let channel = 0; channel < 3; channel++) outside.push((y * 320 + x) * 4 + channel)
 const pixel = (result, x, y) => result.pixels.slice((y * 320 + x) * 4, (y * 320 + x) * 4 + 3)
 
-test('one compiled C SENSOR follows native eye_open through closure and reopening within budgets', () => {
+test('shared compiler fix preserves valid editor presets including dynamic Mono eye', () => {
+  const iris = readFileSync(new URL('./samples/iris-lens.avdsl', import.meta.url), 'utf8')
+  for (const [name, prefix] of [
+    ['mono-sensor', ''],
+    ['rounded-eyes', ''],
+    ['compound-iris', iris],
+  ]) {
+    const source = prefix + '\n' + readFileSync(new URL(`./samples/${name}.avdsl`, import.meta.url), 'utf8')
+    assert.deepEqual(emit(parse(tokenize(source))), upstreamEmit(parse(tokenize(source))))
+  }
+})
+
+test('one compiled Mono eye follows native eye_open through closure and reopening within budgets', () => {
   const full = frame(1)
   const closed = frame(0)
   assert.notDeepEqual(pixel(full, 160, 112), pixel(closed, 160, 112))

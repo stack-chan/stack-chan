@@ -2,7 +2,7 @@
 
 Web tools のホーム・ナビゲーションから `/avatar-dsl/` を開く。既存の Shape 顔エディタも利用できる。DSL を編集・読み込み、C/WASM で検証・プレビューし、DSL または AVBC を保存できる。
 
-共有 compiler の関数呼出し検証修正は固定ベースに未反映。引数過剰の無効 DSL を受理する受入課題が残る。修正取り込み前の実機転送受入は未完了で、再現手順は [VALIDATION.md](VALIDATION.md) を参照。
+共有 compiler 修正 `5038a62a454ca137b9e65b9a8e24293763c3a084` を取り込み、引数数の不正と user-function の void 値利用をコンパイル段階で拒否する。受入ゲートとエディタの拒否経路は [VALIDATION.md](VALIDATION.md) を参照。
 
 ## 小さい統合設計
 
@@ -15,9 +15,9 @@ Web tools のホーム・ナビゲーションから `/avatar-dsl/` を開く。
 
 ESP descriptor は native Avatar DSL モジュールの有無を表さないため、XS ABI の互換判定とは別に native host 導入済みの確認が必要。対応 host が必須であり、SDK の版数だけでは native モジュールの搭載を証明できない。
 
-## プリセットと C SENSOR
+## プリセットと Mono eye
 
-Default/Aokko/Omega、rounded、mono iris、compound iris、minimal と Mono C SENSOR を収録。C SENSOR は task-6 の d2c9700 の固定支点モデル、暗い円形開口、小さいシアンセンサー、外周9 px、センサー30/18 pxを継承する。単眼の境界は五角形の辺を時計回りに延長し、開眼側では五角形が円に外接する。
+Default/Aokko/Omega、rounded、compound iris、minimal と `Mono eye` を収録。Mono iris はユーザー指示で除去。`Mono eye` は task-6 の d2c9700 の固定支点モデル、暗い円形開口、小さいシアンセンサー、外周9 px、センサー30/18 pxを継承する。単眼の境界は五角形の辺を時計回りに延長し、開眼側では五角形が円に外接する。
 
 task-6 の HTML に残っていた絞り計算を既存 DSL の sqrt/四則演算へ移し、一つのバイトコードで host の `eye_open` に追従させた。センサー色は既存 `breath` [-1,1] に追従する。エディタのスライダーは同じコンテキストを WASM に渡すだけで、エクスポート用ソースを再生成しない。host の既存 blink/breath clock を使用するため、MOD に別タイマーを加えない。
 

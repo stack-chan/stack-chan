@@ -1,0 +1,22 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "py32-io-expander": "../../../io-expander/py32-io-expander",
+    "py32-led": "../../py32-led",
+    "main": "./py32-led-init.test"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

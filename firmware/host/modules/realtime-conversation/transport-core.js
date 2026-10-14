@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 
-export function createTransport({ Timer, Native, native, ArrayBuffer: BufferClass }) {
-  return class Transport extends Native('xs_live_transport_destructor') {
+export function createTransport({ Timer, Base, native: binding, ArrayBuffer: BufferClass }) {
+  return class Transport extends Base {
     #timer
     #callback
     #closing
@@ -14,7 +14,7 @@ export function createTransport({ Timer, Native, native, ArrayBuffer: BufferClas
     constructor(callback) {
       super()
       this.#callback = callback
-      native('xs_live_transport_constructor').call(this)
+      binding('xs_live_transport_constructor').call(this)
       // Schedule from completion: replaying expired polls can monopolize XS when
       // the native media tasks temporarily consume a full core.
       this.#timer = Timer.repeat((timer) => {
@@ -25,10 +25,10 @@ export function createTransport({ Timer, Native, native, ArrayBuffer: BufferClas
       }, 20)
     }
     start(options) {
-      native('xs_live_transport_start').call(this, options?.captureOnly === true)
+      binding('xs_live_transport_start').call(this, options?.captureOnly === true)
     }
     acceptAnswer(sdp) {
-      native('xs_live_transport_answer').call(this, sdp)
+      binding('xs_live_transport_answer').call(this, sdp)
     }
     send(data) {
       if (this.#closing || this.#released) throw new Error('Transport is closed')
@@ -40,28 +40,28 @@ export function createTransport({ Timer, Native, native, ArrayBuffer: BufferClas
       // Stop local audio promptly on an explicit close, while DTLS/DataChannel
       // remain alive to receive final usage and session.closed.
       if (data.includes('"session.close"') && JSON.parse(data).type === 'session.close')
-        native('xs_live_audio_quiesce').call(this)
+        binding('xs_live_audio_quiesce').call(this)
       this.#flush()
     }
     #flush() {
       while (this.#outgoing.length) {
         const { data, bytes } = this.#outgoing[0]
-        if (!native('xs_live_transport_send').call(this, data)) break
+        if (!binding('xs_live_transport_send').call(this, data)) break
         this.#outgoing.shift()
         this.#outgoingBytes -= bytes
       }
     }
     setMuted(value) {
-      native('xs_live_transport_mute').call(this, value)
+      binding('xs_live_transport_mute').call(this, value)
     }
     setVolume(value) {
-      native('xs_live_transport_volume').call(this, value)
+      binding('xs_live_transport_volume').call(this, value)
     }
     get stats() {
-      return this.#released ? this.#finalStats : native('xs_live_transport_stats').call(this)
+      return this.#released ? this.#finalStats : binding('xs_live_transport_stats').call(this)
     }
     get diagnostics() {
-      return native('xs_live_transport_diagnostics').call(this)
+      return binding('xs_live_transport_diagnostics').call(this)
     }
     close() {
       if (this.#closing) return this.#closing
@@ -71,7 +71,7 @@ export function createTransport({ Timer, Native, native, ArrayBuffer: BufferClas
       })
       this.#outgoing.length = 0
       this.#outgoingBytes = 0
-      native('xs_live_transport_close').call(this)
+      binding('xs_live_transport_close').call(this)
       return this.#closing
     }
     #poll() {
@@ -83,13 +83,13 @@ export function createTransport({ Timer, Native, native, ArrayBuffer: BufferClas
         }
       }
       for (let i = 0; i < 16; i++) {
-        const event = native('xs_live_transport_read').call(this)
+        const event = binding('xs_live_transport_read').call(this)
         if (!event) break
         if (event.type === 'released') {
           Timer.clear(this.#timer)
-          this.#finalStats = native('xs_live_transport_stats').call(this)
+          this.#finalStats = binding('xs_live_transport_stats').call(this)
           this.#released = true
-          native('xs_live_transport_release').call(this)
+          binding('xs_live_transport_release').call(this)
           this.#resolveClose?.()
           this.#callback = undefined
           break

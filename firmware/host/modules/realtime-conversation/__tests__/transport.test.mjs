@@ -24,7 +24,7 @@ function fixture() {
   const Transport = createTransport({
     Timer,
     ArrayBuffer: { fromString: (text) => new TextEncoder().encode(text).buffer },
-    Native: () => class {},
+    Base: class {},
     native: (name) => () => {
       calls.push(name)
       if (name === 'xs_live_transport_read') return events.shift()

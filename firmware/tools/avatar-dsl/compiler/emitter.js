@@ -61,9 +61,10 @@ class ConstPool {
 }
 
 class FnCompiler {
-  constructor(fn, fnIds, constPool, builtinNames) {
+  constructor(fn, fnIds, fnDecls, constPool, builtinNames) {
     this.fn = fn;
     this.fnIds = fnIds; // name -> fn_id
+    this.fnDecls = fnDecls; // name -> original declaration
     this.consts = constPool;
     this.builtinNames = builtinNames;
     this.code = new CodeBuf();
@@ -101,7 +102,8 @@ class FnCompiler {
       }
       case 'ExprStmt': {
         const isVoid = s.expr.type === 'Call' && this.callReturnsVoid(s.expr.name);
-        this.emitExpr(s.expr);
+        if (isVoid) this.emitCall(s.expr);
+        else this.emitExpr(s.expr);
         if (!isVoid) this.code.emit(Op.Pop);
         return;
       }
@@ -178,6 +180,9 @@ class FnCompiler {
       case 'Un':
         return this.emitUn(e);
       case 'Call':
+        if (this.fnIds.has(e.name) && !Builtins[e.name]) {
+          throw new EmitError(`void function '${e.name}' cannot be used as a value`, e);
+        }
         return this.emitCall(e);
       default:
         throw new EmitError(`unknown expr ${e.type}`, e);
@@ -273,6 +278,10 @@ class FnCompiler {
       return;
     }
     if (this.fnIds.has(e.name)) {
+      const target = this.fnDecls.get(e.name);
+      if (e.args.length !== target.params.length) {
+        throw new EmitError(`function '${e.name}' expects ${target.params.length} args, got ${e.args.length}`, e);
+      }
       // User function — push args left-to-right, then CALL.
       for (const a of e.args) this.emitExpr(a);
       this.code.emit(Op.Call, this.fnIds.get(e.name));
@@ -285,6 +294,7 @@ class FnCompiler {
 export function emit(ast) {
   // Pass 1: assign function IDs. `draw` is the entry (id 0).
   const fnIds = new Map();
+  const fnDecls = new Map(ast.fns.map((fn) => [fn.name, fn]));
   const drawFn = ast.fns.find((f) => f.name === 'draw');
   if (!drawFn) throw new EmitError("program must define a top-level 'fn draw()'");
   if (drawFn.params.length !== 0) {
@@ -305,7 +315,7 @@ export function emit(ast) {
   const compiled = new Array(fnIds.size);
   for (const fn of ast.fns) {
     const id = fnIds.get(fn.name);
-    const fc = new FnCompiler(fn, fnIds, consts, null);
+    const fc = new FnCompiler(fn, fnIds, fnDecls, consts, null);
     fc.emitBlock(fn.body);
     // Ensure trailing RET (idempotent if user wrote it).
     if (fc.code.bytes[fc.code.bytes.length - 1] !== Op.Ret) {

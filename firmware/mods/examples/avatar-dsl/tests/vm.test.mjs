@@ -8,6 +8,10 @@ import { FaceDriver } from 'avatar-dsl/driver'
 import { Op } from 'avatar-dsl/vendor/compiler/opcodes'
 import { AvatarVM, decode } from 'avatar-dsl/vm'
 import { compile } from '../../../../tools/avatar-dsl/compiler/compile.js'
+import { emit } from '../../../../tools/avatar-dsl/compiler/emitter.js'
+import { tokenize } from '../../../../tools/avatar-dsl/compiler/lexer.js'
+import { parse } from '../../../../tools/avatar-dsl/compiler/parser.js'
+import { emit as upstreamEmit } from '../../../../tools/avatar-dsl/compiler/upstream-emitter.js'
 
 const load = (name) => readFileSync(new URL(`../assets/${name}.avbc`, import.meta.url))
 const fixture = JSON.parse(readFileSync(new URL('./oracle.json', import.meta.url)))
@@ -323,5 +327,40 @@ test('500 deterministic byte mutations either validate and terminate within budg
       assert.match(String(error), /AVDS:/)
       if (vm) assert.equal(vm.count, 0)
     }
+  }
+})
+
+test('compiler rejects incorrect user-function arity before producing bytecode', () => {
+  for (const [call, count] of [
+    ['helper()', 0],
+    ['helper(1, 2)', 2],
+  ]) {
+    assert.throws(() => compile(`fn helper(a) end fn draw() ${call} end`), new RegExp(`expects 1 args, got ${count}`))
+  }
+})
+
+test('void user functions are rejected in value contexts but remain valid statements', () => {
+  for (const expression of [
+    'let x = helper(1)',
+    'fill_rect(helper(1), 0, 1, 1, primary)',
+    'if helper(1) then end',
+    'helper(helper(1))',
+  ]) {
+    assert.throws(() => compile(`fn helper(a) end fn draw() ${expression} end`), /cannot be used as a value/)
+  }
+  assert.doesNotThrow(() => compile('fn helper(a) end fn draw() helper(1) end'))
+})
+
+test('valid function calls preserve the independently archived upstream emission', () => {
+  const sources = [
+    'fn helper(a) fill_rect(a, 0, 1, 1, primary) end fn draw() helper(1) helper(2) end',
+    'fn draw() let x = 0 while x < 3 do helper(x) x = x + 1 end end fn helper(a) end',
+    'fn helper(a) if a > 0 then helper(a - 1) end end fn draw() helper(2) end',
+    ...['default_face', 'omega_mouth', 'aokko_face'].map((name) =>
+      readFileSync(new URL(`../assets/${name}.avdsl`, import.meta.url), 'utf8'),
+    ),
+  ]
+  for (const source of sources) {
+    assert.deepEqual(emit(parse(tokenize(source))), upstreamEmit(parse(tokenize(source))))
   }
 })

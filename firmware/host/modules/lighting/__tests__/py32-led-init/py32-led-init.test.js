@@ -1,3 +1,4 @@
+import { getSharedPY32IOExpander } from 'py32-io-expander'
 import PY32Led from 'py32-led'
 import { assert, equal } from 'testing/assert'
 
@@ -34,7 +35,7 @@ class BusyLEDDevice {
   }
 }
 
-globalThis.device = { io: { SMBus: BusyLEDDevice }, i2c: { internal: {} } }
+getSharedPY32IOExpander({ sensor: { io: BusyLEDDevice } })
 const led = new PY32Led({ length: 3 })
 assert(firstRGBAt >= readyAt, 'first RGB write must wait for count application')
 trace(`count-to-RGB gap: ${firstRGBAt - countCompletedAt}ms\n`)
@@ -65,7 +66,8 @@ function expectFailure(register) {
     caught = error
   }
   equal(caught, busError, 'preserve the original SMBus exception')
-  equal(writes.at(-1).register, register, 'stop at the failing transfer without retry')
+  equal(writes.at(-1).register, register, 'stop at the failing transfer')
+  equal(writes.filter((write) => write.register === register).length, 1, 'do not retry a failed transfer')
   equal(
     writes.filter((write) => write.register === 0x24 && write.value & 0x40).length,
     0,

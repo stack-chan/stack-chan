@@ -168,6 +168,6 @@ function runTest() {
     ack(panId + 1)
     assert(result != null, 'original OFF failure is preserved')
   }
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 NativeTimer.set(runTest, 100)

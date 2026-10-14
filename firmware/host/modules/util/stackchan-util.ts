@@ -288,7 +288,7 @@ export type Maybe<T> =
       reason?: string
     }
 
-function hslAuxiliary(v1, v2, hueFraction) {
+function hslAuxiliary(v1: number, v2: number, hueFraction: number): number {
   const frac = (hueFraction + 1) % 1
   if (6 * frac < 1) return v1 + (v2 - v1) * 6 * frac
   if (2 * frac < 1) return v2
@@ -296,7 +296,7 @@ function hslAuxiliary(v1, v2, hueFraction) {
   return v1
 }
 
-export function hslToRgb(h, s, l) {
+export function hslToRgb(h: number, s: number, l: number): number[] {
   const MAX_COLOR_VALUE = 255
   const FULL_CIRCLE_DEGREES = 360
   const ONE_THIRD = 1.0 / 3

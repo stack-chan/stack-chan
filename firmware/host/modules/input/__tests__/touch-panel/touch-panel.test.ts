@@ -94,10 +94,11 @@ async function runTest(): Promise<void> {
   equal(survivingEvents.length, 4, 'close should stop sampling and clear subscribers')
   equal(driver.closed, true, 'close should release the touch panel driver')
 
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runTest().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`TouchPanel test failed: ${String(error)}\n`)
   throw error
 })

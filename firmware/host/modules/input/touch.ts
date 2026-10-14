@@ -43,7 +43,7 @@ export default class Touch {
   #touch: TouchDriver
   #legacyTimer: ReturnType<typeof Timer.repeat> | undefined
   #releaseTimer: ReturnType<typeof Timer.set> | undefined
-  onEvent: (event: TouchInputEvent) => void
+  onEvent?: (event: TouchInputEvent) => void
 
   constructor(TouchConstructor: new (param: unknown) => TouchDriver, options: TouchOptions = {}) {
     trace('[Touch] constructor: instantiating\n')
@@ -73,7 +73,7 @@ export default class Touch {
     }
     const onSample = () => {
       const touch = this.#touch
-      const points = touch.sample()
+      const points = touch.sample?.()
       if (!points) return
 
       let mask = (1 << touchCount) - 1
@@ -145,13 +145,17 @@ export default class Touch {
           case 3:
             if (point.down) {
               point.down = undefined
-              this.onEvent?.(createTouchInputEvent('ended', 0, point.x, point.y, Time.ticks))
+              if (typeof point.x === 'number' && typeof point.y === 'number') {
+                this.onEvent?.(createTouchInputEvent('ended', 0, point.x, point.y, Time.ticks))
+              }
               point.x = undefined
               point.y = undefined
             }
             break
           case 1:
           case 2:
+            // Legacy drivers populate coordinates for active points; incomplete samples emit no event.
+            if (typeof point.x !== 'number' || typeof point.y !== 'number') break
             if (!point.down) {
               point.down = true
               this.onEvent?.(createTouchInputEvent('began', 0, point.x, point.y, Time.ticks))

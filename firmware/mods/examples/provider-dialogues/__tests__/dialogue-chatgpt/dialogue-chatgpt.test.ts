@@ -115,9 +115,10 @@ async function runTest() {
   dialogue.clear()
 
   trace('=== Test Complete ===\n')
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runTest().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`Test execution failed: ${error}\n`)
 })

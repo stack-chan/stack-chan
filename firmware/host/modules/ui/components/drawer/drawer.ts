@@ -1,4 +1,3 @@
-import { localize } from 'localization'
 import {
   Column,
   Container,
@@ -13,7 +12,7 @@ import {
 } from 'piu/MC'
 import Timeline from 'piu/Timeline'
 import { type IconName, IconView } from 'ui-controls'
-import { UI, uiFont } from 'ui-theme'
+import { UI, uiFont, uiStyles } from 'ui-theme'
 
 export type { IconName } from 'ui-controls'
 
@@ -54,11 +53,12 @@ function getDrawerSkins(): DrawerSkins {
   const font = uiFont()
   if (cachedSkins && cachedFont === font) return cachedSkins
   cachedFont = font
+  const styles = uiStyles()
   cachedSkins = {
     scrollerSkin: new Skin({ fill: UI.colors.surface }),
     drawerSkin: new Skin({ fill: UI.colors.surface }),
-    drawerButtonSkin: new Skin({ fill: UI.colors.surface }),
-    drawerButtonPressedSkin: new Skin({ fill: UI.colors.surfacePressed }),
+    drawerButtonSkin: styles.row,
+    drawerButtonPressedSkin: styles.rowPressed,
     drawerButtonStyle: new Style({ font, color: UI.colors.text, horizontal: 'left' }),
     toggleOnSkin: new Skin({ fill: UI.colors.success }),
     toggleOffSkin: new Skin({ fill: UI.colors.disabled }),
@@ -260,16 +260,7 @@ const DrawerChoiceBack = Container.template(() => {
     height: 44,
     active: true,
     skin: skins.drawerButtonSkin,
-    contents: [
-      new Label(null, {
-        left: 12,
-        right: 12,
-        top: 0,
-        bottom: 0,
-        string: localize('drawer.back'),
-        style: skins.drawerButtonStyle,
-      }),
-    ],
+    contents: [new IconView({ icon: 'back', enabled: true, selected: false }, { left: 6, top: 6 })],
     Behavior: class extends Behavior {
       startX = 0
       startY = 0

@@ -4,7 +4,7 @@ Release impact: **minor** (`stack-chan`). This opt-in MOD uses a native AVDS eng
 
 ## Build and use
 
-Use Node, Moddable SDK **9.5.0**, and the repository build environment from `firmware/`:
+Use Node, Moddable SDK **10.0.1**, and the repository build environment from `firmware/`:
 
 ```sh
 npm run avatar-dsl:compile
@@ -88,7 +88,7 @@ npm run check:architecture
 # Linux C compiler; optional ASan/UBSan:
 npm run test:avatar-dsl:native
 AVDS_SANITIZE=1 npm run test:avatar-dsl:native
-# Linux + SDK 9.5.0 + glib headers:
+# Linux + repository-pinned SDK + glib headers:
 npm run test:avatar-dsl:native:render
 npm run test:avatar-dsl:damage
 AVDS_SANITIZE=1 npm run test:avatar-dsl:damage

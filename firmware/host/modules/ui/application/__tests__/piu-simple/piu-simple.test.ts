@@ -113,7 +113,7 @@ behavior.toggleSpeech = () => {
   controller.setDrawerButtonState('toggleSpeech', speechVisible)
 }
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')
 
 let tick = -1
 Timer.repeat(() => {

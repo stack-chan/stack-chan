@@ -17,10 +17,11 @@ export const MiniAppLauncher = Container.template(($: MiniAppLauncherData) => {
         {
           name: `miniApp:${app.id}`,
           icon: app.icon ?? 'play',
+          appearance: 'row',
           label: app.title,
           onTap: () => $.onLaunch(app.id),
         },
-        { left: 8, right: 8, height: 44 },
+        { left: 0, right: 0, height: 44 },
       ),
   )
   const contents: PiuContent[] =

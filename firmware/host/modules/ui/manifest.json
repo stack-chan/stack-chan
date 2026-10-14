@@ -9,6 +9,7 @@
     "$(MODULES)/commodetto/outline/manifest.json",
     "../util/manifest.json",
     "./components/face/jitome/manifest.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifestRoundRect.json",
     "./components/face/avatar-native/manifest.json"
   ],
   "modules": {

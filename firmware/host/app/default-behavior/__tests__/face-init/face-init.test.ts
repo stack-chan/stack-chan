@@ -231,10 +231,11 @@ async function testServoRecovery() {
 async function runAsyncTests() {
   await testSpeakStackchan()
   await testServoRecovery()
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runAsyncTests().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`default behavior async test error: ${String(error)}\n`)
   throw error
 })

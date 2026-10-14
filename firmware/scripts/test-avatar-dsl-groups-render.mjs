@@ -7,7 +7,7 @@ import { compile } from '../tools/avatar-dsl/compiler/compile.js'
 import { buildOutputDirectory } from './lib/build-output.mjs'
 
 const sdk = process.env.MODDABLE
-assert.ok(sdk, 'Set MODDABLE to SDK 9.5.0')
+assert.ok(sdk, 'Set MODDABLE to the repository-pinned SDK')
 const rotation = Number(process.argv[2] ?? 0)
 assert.ok([0, 90, 180, 270].includes(rotation), 'rotation must be 0/90/180/270')
 const resources = path.join(buildOutputDirectory, 'avatar-dsl-groups')

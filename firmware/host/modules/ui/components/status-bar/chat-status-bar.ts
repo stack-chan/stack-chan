@@ -99,7 +99,7 @@ function getSkins(): ChatStatusSkins {
   if (!cachedSkins) {
     cachedSkins = {
       bar: new Skin({ fill: 'transparent' }),
-      chrome: new Skin({ fill: '#202428' }),
+      chrome: new Skin({ fill: UI.colors.surface }),
       levelTrack: new Skin({ fill: '#2c2c2c' }),
       levelFill: new Skin({ fill: '#4caf50' }),
       errorFill: new Skin({ fill: '#ff5252' }),
@@ -456,6 +456,7 @@ export const ChatStatusBar = Container.template((options: ChatStatusBarOptions =
         {
           name: 'backButton',
           icon: 'back',
+          appearance: 'plain',
           action: 'onMiniAppBack',
           enabled: true,
         },

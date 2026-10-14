@@ -1,0 +1,11 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "realtimeConversation/transport-core": "../../transport-core",
+    "*": ["./native-base.c"],
+    "main": "./native-transport-base.test"
+  }
+}

@@ -29,4 +29,4 @@ const rootConfig = normalizeChatConfig({
 equal(rootConfig.type, undefined, 'root chatType should not enable chat')
 equal(rootConfig.apiKey, undefined, 'root chatApiKey should not map to chat config apiKey')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

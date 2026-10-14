@@ -272,4 +272,4 @@ behavior.onUndisplaying?.(bar)
 assert(clock.running === false, 'teardown should stop the clock timer')
 assert(battery.running === false, 'teardown should stop the battery timer')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

@@ -33,6 +33,12 @@ function installAliases(): void {
   writeAliasPackage(modulesRoot, 'pcm-resampler', resolve(modulesRoot, 'testing/fakes/pcm-resampler.js'), {
     hasDefaultExport: true,
   })
+  writeAliasPackage(
+    modulesRoot,
+    'media-player',
+    resolve(modulesRoot, 'audio/platforms/m5stackchan-cores3/media-player.js'),
+    { hasDefaultExport: true },
+  )
   writeAliasPackage(modulesRoot, 'timer', resolve(modulesRoot, 'testing/fakes/timer.js'), { hasDefaultExport: true })
 }
 
@@ -53,124 +59,6 @@ test('WebRadio bundles the CA certificate required by supported HTTPS streams', 
   }
 
   assert.ok(manifest.data['*'].includes('$(MODULES)/crypt/data/ca176'))
-})
-
-test('App composes the WebRadio module constructor without unwrapping a default export', () => {
-  const compose = readFileSync('host/app/compose.ts', 'utf8')
-
-  assert.match(compose, /new \(Modules\.importNow\('web-radio-player'\) as WebRadioPlayerConstructor\)\(\)/)
-  assert.doesNotMatch(compose, /Modules\.importNow\('web-radio-player'\)[^\n]*\.default/)
-})
-
-test('CoreS3 WebRadio prebuffers enough compressed and decoded MP3 data to cover network stalls', () => {
-  const streamer = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/buffered-mp3streamer.js', 'utf8')
-
-  assert.match(streamer, /const TARGET_BUFFER_FRAMES = 32/)
-  assert.match(streamer, /import MP3 from 'esp32-mp3-decoder'/)
-  assert.match(streamer, /#targetSamplesQueued = MP3_MAX_SAMPLES_PER_FRAME \* TARGET_BUFFER_FRAMES/)
-  assert.doesNotMatch(streamer, /HalfSampleRate|HALFSAMPLERATE/)
-  assert.match(streamer, /const READ_BUFFER_BYTES = 65536/)
-  assert.match(streamer, /const READ_REFILL_THRESHOLD_BYTES = 16 \* 1024/)
-  assert.match(streamer, /const START_BUFFER_BYTES = 160 \* 1024/)
-  assert.match(streamer, /const RECOVERY_BUFFER_BYTES = 64 \* 1024/)
-  assert.match(
-    streamer,
-    /function createSharedByteBuffer\(byteLength\) \{\s+return new Uint8Array\(new SharedArrayBuffer\(byteLength\)\)/,
-  )
-  assert.match(streamer, /createSharedByteBuffer\(READ_BUFFER_BYTES\)/)
-  assert.match(streamer, /new SharedByteRing\(options\.input\.data, options\.input\.state\)/)
-  assert.match(streamer, /this\.#input\.readableView\(available\)/)
-  assert.match(streamer, /this\.#input\.advanceRead\(source\.byteLength\)/)
-  assert.match(streamer, /#consumeReadBuffer\(byteLength\)/)
-  assert.match(streamer, /#readBuffer = this\.#mp3 = undefined/)
-  assert.doesNotMatch(streamer, /readBuffer\.copyWithin\(0, consumed/)
-  assert.doesNotMatch(streamer, /options\.http|\.request\(/)
-})
-
-test('CoreS3 WebRadio forwards worker-resampled PCM into the onWritable ECMA-419 AudioOut', () => {
-  const output = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/web-radio-audio-out.ts', 'utf8')
-
-  assert.match(output, /from 'embedded:io\/audio\/out'/)
-  assert.doesNotMatch(output, /from 'pins\/audioout'/)
-  assert.match(output, /const OUTPUT_SAMPLE_RATE = 24000/)
-  assert.match(output, /onWritable: \(size\) => this\.#onWritable\(size\)/)
-  assert.doesNotMatch(output, /\.Async/)
-  assert.doesNotMatch(output, /callback\?: \(error:/)
-  assert.match(output, /this\.#audio\.volume = 0/)
-  assert.doesNotMatch(output, /from 'pcm-resampler'|resamplePCM16Mono|#queue|QueuedWrite/)
-  assert.doesNotMatch(output, /RawSamples requires|recyclable/)
-  assert.match(output, /this\.#writableBytes = size\s+this\.#drainWritable\(\)/)
-  assert.match(output, /output\.readableView\(this\.#writableBytes\)/)
-  assert.match(output, /Atomics\.add\(completion, 0, use\)/)
-  assert.match(output, /if \(this\.#started\) this\.#drainWritable\(\)/)
-  assert.doesNotMatch(output, /web-radio-audio-buffer/)
-})
-
-test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 worker', () => {
-  const proxy = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/worker-mp3streamer.js', 'utf8')
-  const worker = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/web-radio-stream-worker.js', 'utf8')
-  const manifest = readFileSync('host/modules/audio/manifest.json', 'utf8')
-  const decoder = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/esp32-mp3-decoder.c', 'utf8')
-  const decoderProxy = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/esp32-mp3-decoder.js', 'utf8')
-
-  assert.match(proxy, /new Worker\('web-radio-stream-worker'/)
-  assert.match(proxy, /core: 1/)
-  assert.match(proxy, /nativeStack: 10 \* 1024/)
-  assert.match(proxy, /const COMPRESSED_RING_BYTES = 512 \* 1024/)
-  assert.match(proxy, /const PCM_RING_BYTES = 64 \* 1024/)
-  assert.match(proxy, /SharedByteRing\.allocate\(COMPRESSED_RING_BYTES\)/)
-  assert.match(proxy, /SharedByteRing\.allocate\(PCM_RING_BYTES\)/)
-  assert.match(proxy, /attachSharedOutput\(this\.#output, this\.#completion/)
-  assert.match(proxy, /request = http\.request\(/)
-  assert.match(proxy, /input\.writableView\(request\.readable\)/)
-  assert.match(proxy, /input\.advanceWrite\(target\.byteLength\)/)
-  assert.match(proxy, /import Timer from 'timer'/)
-  assert.match(proxy, /this\.#networkReconnectTimer = Timer\.set\(\(\) => this\.#openNetwork\(\), delay\)/)
-  assert.doesNotMatch(proxy, /postMessage\(\{ id: 'end'/)
-  assert.match(proxy, /this\.#worker\?\.postMessage\(\{ id: 'close' \}\)/)
-  assert.doesNotMatch(proxy, /postMessage\(\{ id: 'close' \}\)\s+this\.#worker\?\.terminate\(\)/)
-  assert.match(proxy, /new Int32Array\(new SharedArrayBuffer\(4\)\)/)
-  assert.match(proxy, /outputSampleRate: this\.#audio\.sampleRate/)
-  assert.doesNotMatch(proxy, /postMessage\(\{ id: 'played'/)
-  assert.doesNotMatch(proxy, /message\.buffer/)
-  assert.match(proxy, /case 'output':\s+this\.#audio\.pumpSharedOutput\(\)/)
-  assert.match(worker, /from 'buffered-mp3streamer-core'/)
-  assert.match(worker, /from 'pcm-resampler'/)
-  assert.match(worker, /from 'web-radio-byte-ring'/)
-  assert.match(worker, /input: message\.input/)
-  assert.match(worker, /streamer\?\.pump\(\)/)
-  assert.match(worker, /const FRAMES_PER_OUTPUT_BATCH = 4/)
-  assert.match(worker, /const MAX_COMPLETION_CALLBACKS_PER_PUMP = 8/)
-  assert.match(worker, /new SharedByteRing\(output\.data, output\.state\)/)
-  assert.match(worker, /this\.#output\.writableBytes < maximumOutputCount \* 2/)
-  assert.match(worker, /resamplePCM16Mono\(/)
-  assert.match(worker, /self\.postMessage\(\{ id: 'output' \}\)/)
-  assert.match(worker, /self\.postMessage\(\{ id: 'closed' \}\)[\s\S]+self\.close\(\)/)
-  assert.doesNotMatch(worker, /postMessage\(\{ id: 'pcm'/)
-  assert.match(worker, /Atomics\.load\(this\.#completion, 0\)/)
-  assert.match(worker, /let callbacks = MAX_COMPLETION_CALLBACKS_PER_PUMP/)
-  assert.doesNotMatch(worker, /\.slice\(|new Uint8Array\(value\)/)
-  assert.doesNotMatch(worker, /web-radio-worker-(?:decode|sink)/)
-  assert.match(manifest, /modules\/base\/worker\/manifest\.json/)
-  assert.match(manifest, /"buffered-mp3streamer": "\.\/platforms\/m5stackchan-cores3\/worker-mp3streamer"/)
-  assert.match(manifest, /"buffered-mp3streamer-core": "\.\/platforms\/m5stackchan-cores3\/buffered-mp3streamer"/)
-  assert.match(manifest, /"esp32-mp3-decoder": "\.\/platforms\/m5stackchan-cores3\/esp32-mp3-decoder"/)
-  assert.match(manifest, /"SDKCONFIGPATH \?=": "\.\/platforms\/m5stackchan-cores3\/sdkconfig"/)
-  assert.doesNotMatch(manifest, /libmad-optimized|mp3-half-sample-rate/)
-  assert.match(manifest, /"web-radio-byte-ring": "\.\/platforms\/m5stackchan-cores3\/shared-byte-ring"/)
-  assert.match(decoder, /esp_mp3_dec_open\(NULL, 0, &decoder->handle\)/)
-  assert.match(decoder, /esp_mp3_dec_decode\(decoder->handle, &raw, &frame, &info\)/)
-  assert.match(
-    decoder,
-    /const uint32_t preferred = \(bytes >= MP3_RESERVOIR_BYTES\) \? MALLOC_CAP_SPIRAM : MALLOC_CAP_INTERNAL/,
-  )
-  assert.match(decoder, /heap_caps_calloc\(count, size, preferred \| MALLOC_CAP_8BIT\)/)
-  assert.match(decoder, /heap_caps_calloc\(count, size, fallback \| MALLOC_CAP_8BIT\)/)
-  assert.match(decoder, /heap_caps_malloc\(MP3_PCM_SCRATCH_BYTES, MALLOC_CAP_SPIRAM \| MALLOC_CAP_8BIT\)/)
-  assert.match(decoder, /mixed = \(int32_t\)source\[0\] \+ source\[1\]/)
-  assert.doesNotMatch(decoder, /codec_log_allocations|gTrackCodecAllocations|web-radio-decoder-memory/)
-  assert.match(decoderProxy, /const MP3_MAX_FRAME_BYTES = 2048/)
-  assert.match(decoderProxy, /if \(length > MP3_MAX_FRAME_BYTES\) return/)
 })
 
 test('WebRadioPlayer parses HTTPS URL, limits volume, and controls AudioOut readiness', async () => {

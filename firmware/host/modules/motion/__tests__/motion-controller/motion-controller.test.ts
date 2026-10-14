@@ -137,10 +137,11 @@ async function runTest() {
   equal(nextDriver.appliedRotation?.p, -0.1, 'setPose should delegate pitch to the active driver')
   equal(nextDriver.appliedTime, 0.25, 'setPose should pass motion time to the active driver')
 
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runTest().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`motion controller test failed: ${error}\n`)
   throw error
 })

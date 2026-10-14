@@ -69,4 +69,4 @@ assert(!help.visible, 'close action should hide the overlay')
 tap(named(root, 'app:close'))
 equal(closeCount, 1, 'exit action should delegate to the host context')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

@@ -18,145 +18,39 @@
  *
  */
 
-import RTC from 'embedded:RTC/BM8563'
 import Touch from 'M5StackCoreS3Touch'
-import Analog from 'embedded:io/analog'
-import Digital from 'embedded:io/digital'
-import DigitalBank from 'embedded:io/digitalbank'
-import I2C from 'embedded:io/i2c'
-import PulseCount from 'embedded:io/pulsecount'
-import PulseWidth from 'embedded:io/pulsewidth'
-import PWM from 'embedded:io/pwm'
-import Serial from 'embedded:io/serial'
-import SMBus from 'embedded:io/smbus'
-import SPI from 'embedded:io/spi'
-import IMU from 'embedded:sensor/Accelerometer-Gyroscope-Magnetometer/BMI270'
 import TouchPanel from 'embedded:sensor/Touch/Si12T'
+import device from 'sdk-board-provider'
 
-const device = {
-  I2C: {
-    default: {
-      io: I2C,
-      data: 2,
-      clock: 1,
-    },
-    internal: {
-      io: I2C,
-      data: 12,
-      clock: 11,
-      port: 1,
-    },
-  },
-  Serial: {
-    default: {
-      io: Serial,
-      port: 1,
-      receive: 44,
-      transmit: 43,
-    },
-  },
-  SPI: {
-    default: {
-      io: SPI,
-      clock: 36,
-      in: 35,
-      out: 37,
-      port: 1,
-    },
-  },
-  Analog: {
-    default: {
-      io: Analog,
-      pin: 10,
-    },
-  },
-  io: {
-    Analog,
-    Digital,
-    DigitalBank,
-    I2C,
-    PulseCount,
-    PulseWidth,
-    PWM,
-    Serial,
-    SMBus,
-    SPI,
-  },
-  pin: {
-    displayDC: 15,
-    displaySelect: 5,
-  },
-  peripheral: {
-    Backlight: class {
-      #value = 1
-      set brightness(value) {
-        this.#value = Math.max(0, Math.min(1, value))
-        if (globalThis.power !== undefined) globalThis.power.brightness = this.#value * 100
-      }
-      get brightness() {
-        return this.#value
-      }
-      close() {}
-    },
-    RTC: class {
-      constructor(options) {
-        // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
-        return new RTC({
-          ...options,
-          clock: {
-            ...device.I2C.internal,
-            io: SMBus,
-          },
-        })
-      }
-    },
-  },
-  sensor: {
-    Touch: class {
-      constructor(options) {
-        trace('[m5stackchan-cores3] Touch provider init hz=400000 polling\n')
-        const result = new Touch({
-          ...options,
-          sensor: {
-            ...device.I2C.internal,
-            io: device.io.SMBus,
-            hz: 400_000,
-          },
-        })
-        result.configure({ threshold: 20, active: false, timeout: 10 })
-        // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
-        return result
-      }
-    },
-    TouchPanel: class {
-      constructor(options) {
-        trace(
-          `[m5stackchan-cores3] TouchPanel provider init channels=${options?.channels ?? 3} sensitivityLevel=${options?.sensitivityLevel ?? 3}\n`,
-        )
-        // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
-        return new TouchPanel({
-          ...options,
-          sensor: {
-            ...device.I2C.internal,
-            io: device.io.SMBus,
-          },
-        })
-      }
-    },
-    IMU: class {
-      constructor(options) {
-        // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
-        return new IMU({
-          ...options,
-          sensor: {
-            ...device.I2C.internal,
-            address: 0x69,
-            io: device.io.SMBus,
-          },
-        })
-      }
-    },
-  },
+// Camera SCCB reuses the initialized internal bus on port 1.
+device.i2c.internal.port = 1
+device.rtc.clock.port = 1
+
+// Keep Chan's polling configuration; the SDK supplies buses, IMU, RTC and backlight.
+device.sensor.Touch = class {
+  constructor(options) {
+    trace('[m5stackchan-cores3] Touch provider init hz=400000 polling\n')
+    const result = new Touch({
+      ...options,
+      sensor: { ...device.i2c.internal, io: device.io.SMBus, hz: 400_000 },
+    })
+    result.configure({ threshold: 20, active: false, timeout: 10 })
+    // biome-ignore lint/correctness/noConstructorReturn: Moddable providers return peripheral instances.
+    return result
+  }
+}
+
+device.sensor.TouchPanel = class {
+  constructor(options) {
+    trace(
+      `[m5stackchan-cores3] TouchPanel provider init channels=${options?.channels ?? 3} sensitivityLevel=${options?.sensitivityLevel ?? 3}\n`,
+    )
+    // biome-ignore lint/correctness/noConstructorReturn: Moddable providers return peripheral instances.
+    return new TouchPanel({
+      ...options,
+      sensor: { ...device.i2c.internal, io: device.io.SMBus },
+    })
+  }
 }
 
 export default device

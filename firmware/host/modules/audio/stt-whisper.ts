@@ -1,4 +1,5 @@
 import type HTTPClient from 'embedded:network/http/client'
+import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
 import type { Maybe } from 'stackchan-util'
 import { URL } from 'url'
@@ -7,11 +8,7 @@ import UUID from 'uuid'
 declare const device: {
   network: {
     https: {
-      client: typeof HTTPClient.constructor & {
-        io: typeof HTTPClient
-        socket: unknown
-        dns: unknown
-      }
+      client: HTTPClientProvider
     }
   }
 }

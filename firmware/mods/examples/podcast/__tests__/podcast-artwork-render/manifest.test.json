@@ -1,0 +1,14 @@
+{
+  "include": [
+    "../podcast-artwork/manifest.test.json",
+    "../podcast-ui/manifest.test.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "art-render-tests": "./artwork-render.test",
+    "runtime-bitmap-port": "../../../../../host/modules/ui/views/camera-preview/runtime-bitmap-port"
+  },
+  "config": {
+    "format": "RGB565BE"
+  }
+}

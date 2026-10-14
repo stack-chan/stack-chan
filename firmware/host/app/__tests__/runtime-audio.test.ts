@@ -255,3 +255,47 @@ test('StackchanRuntimeAudio close stops WebRadio', async () => {
   runtime.close()
   assert.equal(stopped, true)
 })
+
+test('Media and WebRadio share the owner and reject starts during speech, including stop callbacks', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const modes: string[] = []
+  let stopped = 0
+  let completeSpeech: (() => void) | undefined
+  let reentrant: Promise<void> | undefined
+  const runtime = new StackchanRuntimeAudio({
+    tts: {
+      stream: (_text, _volume, callback) => {
+        completeSpeech = () => callback?.()
+      },
+    },
+    media: {
+      state: 'idle',
+      progress: { position: 0, estimated: false, seekable: false },
+      pause: () => {},
+      resume: async () => {},
+      seek: async () => {},
+      start: async (options) => {
+        modes.push(options.mode)
+      },
+      stop: () => {
+        stopped++
+        reentrant = runtime.media?.start({ url: 'https://example.test/', mode: 'finite' })
+        reentrant?.catch(() => {})
+      },
+      setVolume: () => {},
+    },
+  })
+  await runtime.webRadio?.start({ url: 'https://example.test/' })
+  await runtime.media?.start({ url: 'https://example.test/', mode: 'finite' })
+  assert.deepEqual(modes, ['live', 'finite'])
+  const speech = runtime.say('hello')
+  await assert.rejects(reentrant, /audio busy/)
+  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/' }), /audio busy/)
+  await assert.rejects(runtime.media?.start({ url: 'https://example.test/', mode: 'finite' }), /audio busy/)
+  await assert.rejects(runtime.media?.resume(), /audio busy/)
+  await assert.rejects(runtime.media?.seek(10), /audio busy/)
+  completeSpeech?.()
+  await speech
+  assert.equal(stopped, 1)
+})

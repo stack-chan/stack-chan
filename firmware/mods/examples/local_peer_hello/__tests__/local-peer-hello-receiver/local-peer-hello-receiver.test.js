@@ -81,10 +81,11 @@ async function runTest() {
   equal(closeCount, 1, 'stopped selection should close the receiver session')
   equal(balloons[4], 'P2P: 停止', 'stopped selection should report the stopped state')
 
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runTest().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`local-peer-hello receiver test failed: ${String(error)}\n`)
   throw error
 })

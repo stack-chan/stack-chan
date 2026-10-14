@@ -235,4 +235,4 @@ equal(definitions[0].id, 'sample.stackchan-catch', 'CATCH should have a stable i
   equal(state.tickInterval, 600, 'retry should reset the speed')
 }
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

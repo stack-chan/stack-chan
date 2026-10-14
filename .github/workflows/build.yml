@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - feat/moddable-v10-foundation
       - main
     paths:
       - "firmware/**"
@@ -17,6 +18,7 @@ on:
   pull_request:
     branches:
       - develop
+      - feat/moddable-v10-foundation
       - main
     paths:
       - "firmware/**"
@@ -118,9 +120,9 @@ jobs:
           path: |
             ./firmware/dist/tmp/lin
             ./firmware/dist/bin/lin
-          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v1-shard-${{ matrix.shard }}-${{ github.sha }}
+          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v2-shard-${{ matrix.shard }}-${{ github.sha }}
           restore-keys: |
-            ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v1-shard-${{ matrix.shard }}-
+            ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v2-shard-${{ matrix.shard }}-
       - name: Run manifest preflight
         if: matrix.shard == 0
         working-directory: ./firmware
@@ -130,7 +132,16 @@ jobs:
         env:
           STACKCHAN_MODULE_TEST_SHARD_INDEX: ${{ matrix.shard }}
           STACKCHAN_MODULE_TEST_SHARD_TOTAL: 2
+          STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
+
+      - name: Upload simulator test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moddable-simulator-logs-${{ matrix.shard }}
+          path: firmware/dist/test-logs
+          if-no-files-found: warn
 
   test-smoke:
     needs: changes
@@ -195,7 +206,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "9.0.0"
+          target-branch: "10.0.1"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware

@@ -6,6 +6,7 @@ import { test } from 'node:test'
 import {
   firmwareDescriptorVersion,
   prepareCoreS3VersionSdkconfig,
+  prepareVersionSdkconfig,
   readModdableVersion,
   renderCoreS3VersionSdkconfig,
   STACKCHAN_HOST_API_VERSION,
@@ -74,3 +75,39 @@ test('rejects missing and unsafe Moddable versions', () => {
 function count(source, value) {
   return source.split(value).length - 1
 }
+
+// The SDK merges its base config before feature manifests and the application overlay.
+test('base SDK settings are not replayed after feature manifests', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-base-config-'))
+  try {
+    const sourceDirectory = path.join(fixture, 'build/devices/esp32/xsProj-esp32')
+    mkdirSync(sourceDirectory, { recursive: true })
+    mkdirSync(path.join(fixture, 'tools'))
+    writeFileSync(path.join(fixture, 'tools/VERSION'), '9.5.0')
+    writeFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'CONFIG_BT_ENABLED=n\nCONFIG_BT_NIMBLE_ENABLED=n\n')
+    const partitionSourcePath = path.join(sourceDirectory, 'partitions.csv')
+    writeFileSync(partitionSourcePath, 'factory,app,factory,0x10000,0x300000\n')
+    const result = prepareVersionSdkconfig({
+      platformName: 'm5stack',
+      moddableDirectory: fixture,
+      outputDirectory: path.join(fixture, 'output'),
+      sourceDirectory,
+      partitionSourcePath,
+    })
+    const featureConfig = new Map([
+      ['CONFIG_BT_ENABLED', 'y'],
+      ['CONFIG_BT_NIMBLE_ENABLED', 'y'],
+    ])
+    for (const line of readFileSync(result.filePath, 'utf8').split('\n')) {
+      if (line.startsWith('CONFIG_')) {
+        const index = line.indexOf('=')
+        featureConfig.set(line.slice(0, index), line.slice(index + 1))
+      }
+    }
+    assert.equal(featureConfig.get('CONFIG_BT_ENABLED'), 'y')
+    assert.equal(featureConfig.get('CONFIG_BT_NIMBLE_ENABLED'), 'y')
+    assert.equal(featureConfig.get('CONFIG_APP_PROJECT_VER'), '"9.5.0+stackchan.1"')
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})

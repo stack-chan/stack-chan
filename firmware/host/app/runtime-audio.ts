@@ -1,5 +1,5 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
-import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
+import type { MediaCapability, MediaStartOptions, TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
 import type Microphone from 'microphone'
 import type Speaker from 'speaker'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
@@ -9,6 +9,7 @@ export type RuntimeAudioConstructorParam = {
   microphone?: Microphone
   speaker?: Speaker
   webRadio?: WebRadioCapability
+  media?: MediaCapability
 }
 
 type RuntimeAudioOptions = {
@@ -21,6 +22,7 @@ export class StackchanRuntimeAudio {
   #speaker: Speaker | undefined
   #tts: TTS
   #webRadio: WebRadioCapability | undefined
+  #media: MediaCapability | undefined
   #activeOperations = 0
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
@@ -28,6 +30,7 @@ export class StackchanRuntimeAudio {
     this.#microphone = params.microphone
     this.#speaker = params.speaker
     this.#webRadio = params.webRadio
+    this.#media = params.media
     this.useTTS(params.tts)
   }
 
@@ -39,7 +42,65 @@ export class StackchanRuntimeAudio {
     return this.#tts
   }
 
+  get media(): MediaCapability | undefined {
+    const media = this.#media
+    if (!media) return undefined
+    const runtime = this
+    return {
+      get state() {
+        return media.state
+      },
+      get progress() {
+        return media.progress
+      },
+      pause() {
+        media.pause()
+      },
+      resume() {
+        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        return media.resume()
+      },
+      seek(seconds: number) {
+        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        return media.seek(seconds)
+      },
+      start(options: MediaStartOptions) {
+        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        return media.start(options)
+      },
+      stop() {
+        media.stop()
+      },
+      setVolume(volume: number) {
+        media.setVolume(volume)
+      },
+    }
+  }
+
   get webRadio(): WebRadioCapability | undefined {
+    const media = this.media
+    if (media)
+      return {
+        get state() {
+          return media.state === 'ended' || media.state === 'paused' ? 'idle' : media.state
+        },
+        async start(options: WebRadioStartOptions) {
+          if ((options.sampleRate ?? 44100) !== 44100)
+            throw new Error('WebRadio supports only 44100 Hz sampleRate options')
+          return media.start({
+            ...options,
+            mode: 'live',
+            onStateChanged: (state, reason) =>
+              options.onStateChanged?.(state === 'ended' || state === 'paused' ? 'idle' : state, reason),
+          })
+        },
+        stop() {
+          media.stop()
+        },
+        setVolume(volume: number) {
+          media.setVolume(volume)
+        },
+      }
     if (!this.#webRadio) return undefined
     const runtime = this
     return {
@@ -76,9 +137,10 @@ export class StackchanRuntimeAudio {
   }
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
-    this.#webRadio?.stop()
     this.#activeOperations += 1
     try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
       await waitForCompletion((callback) => this.#tts.stream(text, volume, callback))
       return {
         success: true,
@@ -96,9 +158,10 @@ export class StackchanRuntimeAudio {
   }
 
   async sing(koe: string, volume?: number): Promise<Maybe<string>> {
-    this.#webRadio?.stop()
     this.#activeOperations += 1
     try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
       const tts = this.#tts
       if (!tts.streamKoe) throw new Error('The active TTS does not support singing.')
       await waitForCompletion((callback) => tts.streamKoe(koe, volume, callback))
@@ -128,9 +191,10 @@ export class StackchanRuntimeAudio {
     if (volume !== undefined && (volume < 0 || volume > 1)) {
       throw new Error('Volume must be between 0 and 1')
     }
-    this.#webRadio?.stop()
     this.#activeOperations += 1
     try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
       await this.#speaker?.tone(hz, duration, volume)
     } finally {
       this.#activeOperations -= 1
@@ -139,9 +203,10 @@ export class StackchanRuntimeAudio {
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
     if (!this.#speaker) return false
-    this.#webRadio?.stop()
     this.#activeOperations += 1
     try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
       return await this.#speaker.play(buffer)
     } finally {
       this.#activeOperations -= 1
@@ -150,6 +215,7 @@ export class StackchanRuntimeAudio {
 
   close(): void {
     try {
+      this.#media?.stop()
       this.#webRadio?.stop()
     } finally {
       try {

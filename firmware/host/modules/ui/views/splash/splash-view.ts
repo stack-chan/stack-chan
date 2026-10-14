@@ -21,6 +21,86 @@ export type WiFiRecoveryChoiceOptions = {
   onOffline?: () => void
 }
 
+export type StartupPhase = 'initialization' | 'launch' | 'network' | 'context' | 'behavior'
+
+export function startupErrorClass(error: unknown): string {
+  try {
+    if (error instanceof TypeError) return 'TypeError'
+    if (error instanceof RangeError) return 'RangeError'
+    if (error instanceof ReferenceError) return 'ReferenceError'
+    if (error instanceof SyntaxError) return 'SyntaxError'
+    if (error instanceof URIError) return 'URIError'
+    if (error instanceof EvalError) return 'EvalError'
+  } catch {
+    // A thrown Proxy can reject prototype inspection. Keep diagnostics safe.
+  }
+  return 'Error'
+}
+
+export function showStartupError(options: {
+  phase: StartupPhase
+  error: unknown
+  onRestart: () => void
+}): PiuApplication {
+  const environment = globalThis as typeof globalThis & { application?: PiuApplication }
+  const application = environment.application ?? showStartupSplash()
+  const styles = uiStyles()
+  // Clear detached splash references so late Wi-Fi callbacks cannot replace
+  // this failure with a status message or recovery choice.
+  currentMessageLabel = null
+  currentActionArea = null
+  let restarting = false
+  const root = new Container(null, {
+    name: 'startup:error',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    skin: styles.screen,
+    contents: [
+      new Column(null, {
+        top: 44,
+        left: 12,
+        right: 12,
+        contents: [
+          new Label(null, { left: 0, right: 0, height: 28, string: localize('splash.failed'), style: styles.title }),
+          new Label(null, {
+            left: 0,
+            right: 0,
+            height: 28,
+            string: localize(`splash.phase.${options.phase}`),
+            style: styles.body,
+          }),
+          new Label(null, {
+            left: 0,
+            right: 0,
+            height: 28,
+            string: startupErrorClass(options.error),
+            style: styles.bodyMuted,
+          }),
+        ],
+      }),
+      new ActionButton(
+        {
+          name: 'startup:restart',
+          icon: 'retry',
+          label: localize('mods.restart'),
+          onTap: () => {
+            if (restarting || environment.application !== application || root.container !== application) return
+            restarting = true
+            options.onRestart()
+          },
+        },
+        { left: 104, width: 112, bottom: 12 },
+      ),
+    ],
+  })
+  application.empty()
+  application.behavior = new Behavior()
+  application.add(root)
+  return application
+}
+
 let currentMessageLabel: PiuLabel | null = null
 let currentActionArea: PiuContainer | null = null
 

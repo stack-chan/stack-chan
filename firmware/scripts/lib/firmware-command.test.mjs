@@ -108,6 +108,7 @@ test('firmware wrapper cleans manifest switches before every CoreS3 command and 
   }
 })
 
+/** Create an isolated firmware tree and fake toolchain for command-wrapper tests. */
 function createFirmwareWrapperFixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-wrapper-'))
   const fixtureFirmware = path.join(root, 'firmware')
@@ -136,6 +137,11 @@ function createFirmwareWrapperFixture() {
   cpSync(
     path.resolve(firmwareDirectory, '../web/editor/mod-builder.mjs'),
     path.join(fixtureWebEditor, 'mod-builder.mjs'),
+  )
+
+  cpSync(
+    path.resolve(firmwareDirectory, '../web/editor/xs-compatibility.mjs'),
+    path.join(fixtureWebEditor, 'xs-compatibility.mjs'),
   )
 
   const fakeModdable = path.join(root, 'moddable')

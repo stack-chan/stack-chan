@@ -1,0 +1,18 @@
+{
+  "include": [
+    "../../../../modules/ui/manifest.json",
+    "../../../../modules/camera/manifest.json",
+    "../../../../modules/testing/manifest.json"
+  ],
+  "resources": {
+    "*": ["../../../strings/*"]
+  },
+  "modules": {
+    "~": "$(MODULES)/base/timer/timer",
+    "app-behavior": "../face-init/app-behavior-stub",
+    "app-default-behavior/on-context-created": "../../on-context-created",
+    "imu": "../face-init/imu-stub",
+    "timer": "./timer-override",
+    "main": "./emotion-restore.test"
+  }
+}

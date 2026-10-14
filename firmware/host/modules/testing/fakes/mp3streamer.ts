@@ -4,6 +4,13 @@ export type FakeMP3StreamerOptions = {
   host: string
   port: number
   path: string
+  mode?: 'live' | 'finite'
+  seek?: { offset: number; seconds: number; target: number }
+  source?: { url: string; totalBytes?: number; validator?: string }
+  onSource?: (source: { url: string; totalBytes?: number; validator?: string }, reset: boolean) => void
+  onMetadata?: (metadata: { duration?: number; estimated: boolean }) => void
+  onCheckpoint?: (point: { offset: number; seconds: number }) => void
+  onOutputStart?: (seconds: number) => void
   reconnect?: boolean
   audio: { out: unknown; stream: number; sampleRate?: number }
   onReady?: (ready: boolean) => void

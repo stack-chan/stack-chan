@@ -13,7 +13,7 @@ import {
   xsArchiveVersion,
 } from './mod-builder.mjs'
 import createTools from './vendor/tools.js'
-import { profileFor } from './capabilities.mjs'
+import { inspectDeploymentCompatibility, profileFor } from './capabilities.mjs'
 import { applyFaceAssetToSource, createFaceAsset } from './face-assets.mjs'
 
 test('detectToolsVersionMismatch parses the TOOL warning', () => {
@@ -68,6 +68,16 @@ test('buildModArchive compiles a mod to a valid XS archive via wasm mcrun', asyn
   assert.ok(isXsArchive(archive), 'archive must start with XS_A atom')
   const version = xsArchiveVersion(archive)
   assert.deepEqual(version, profileFor('m5stackchan-cores3').xsArchiveVersion)
+  assert.equal(inspectDeploymentCompatibility('simulator', {
+    xsVersion: version, requireArchive: true,
+  }).compatible, true)
+  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1']) {
+    const result = inspectDeploymentCompatibility('m5stackchan-cores3', {
+      chip: 'ESP32-S3', xsVersion: version, firmwareVersion,
+      requireFirmware: true, requireArchive: true,
+    })
+    assert.equal(result.compatible, firmwareVersion.startsWith('10.0.'))
+  }
   const text = logs.join('\n')
   assert.match(text, /mcrun/, 'log should include the mcrun invocation')
   assert.match(text, /xsa/, 'log should include the xsa archive step')

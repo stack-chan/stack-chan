@@ -134,6 +134,35 @@ export type AudioCapability = {
   playAudio(buffer: BorrowedAudioBuffer): Promise<boolean>
   /** Continuous MP3 streaming, available only on supported targets. */
   webRadio?: WebRadioCapability
+  /** Live or finite MP3 playback on supported targets. */
+  media?: MediaCapability
+}
+
+export type MediaState = WebRadioState | 'ended' | 'paused'
+
+export type MediaProgress = { position: number; duration?: number; estimated: boolean; seekable: boolean }
+
+export type MediaStartOptions = {
+  url: string
+  mode: 'live' | 'finite'
+  volume?: number
+  /** Optional RSS duration hint in seconds. */
+  duration?: number
+  onProgress?: (progress: MediaProgress) => void
+  /** Applies only to live playback. Finite playback never restarts automatically. */
+  reconnect?: boolean
+  onStateChanged?: (state: MediaState, reason?: string) => void
+}
+
+export type MediaCapability = {
+  readonly state: MediaState
+  start(options: MediaStartOptions): Promise<void>
+  readonly progress: MediaProgress
+  pause(): void
+  resume(): Promise<void>
+  seek(seconds: number): Promise<void>
+  stop(): void
+  setVolume(volume: number): void
 }
 
 export type WebRadioState = 'idle' | 'connecting' | 'buffering' | 'playing' | 'stalled' | 'retrying' | 'error'

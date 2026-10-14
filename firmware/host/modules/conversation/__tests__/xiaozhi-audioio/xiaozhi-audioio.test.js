@@ -87,7 +87,7 @@ async function run() {
   const legacy = new AudioIO({})
   equal(AudioIn.instances.length, 1, 'halfDuplex remains the default')
   legacy.close()
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
   Timer.set(() => {}, 1000)
 }
 run().catch((error) => {

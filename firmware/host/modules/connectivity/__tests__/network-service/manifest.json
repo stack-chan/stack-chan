@@ -6,7 +6,9 @@
   "modules": {
     "network-service": "../../network-service",
     "network-state": "../../network-state",
-    "ecma-wifi": "./fake-ecma-wifi"
+    "ecma-wifi": "./fake-ecma-wifi",
+    "network-power": "../../network-power",
+    "wifi-power-policy": "../../wifi-power-policy"
   },
   "typescript": {
     "tsconfig": {

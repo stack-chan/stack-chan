@@ -1,6 +1,6 @@
 import WiFi from 'ecma-wifi'
 import config from 'mc/config'
-import Modules from 'modules'
+import { initializeWiFiPowerPolicy, reapplyWiFiPowerPolicy } from 'network-power'
 import {
   NetworkConnectionState,
   NetworkConnectionStateMachine,
@@ -55,8 +55,13 @@ export class NetworkService {
         this.#handleWiFiChanged(property)
       },
     })
-    // Disable modem sleep after the driver initializes, before connecting.
-    if (Modules.has('wifi-power-save')) (Modules.importNow('wifi-power-save') as () => void)()
+    // Initialize the shared policy after the driver, preserving active leases.
+    try {
+      initializeWiFiPowerPolicy()
+    } catch (error) {
+      this.#wifi.close()
+      throw error
+    }
   }
 
   get state(): NetworkState {
@@ -115,7 +120,12 @@ export class NetworkService {
     this.#clearConnectionTimeout()
     this.#transition({ type: 'connect-requested' })
     this.#startConnectionTimeout()
-    this.#wifi.connect(createWiFiConnectOptions(this.#ssid, this.#password))
+    try {
+      reapplyWiFiPowerPolicy()
+      this.#wifi.connect(createWiFiConnectOptions(this.#ssid, this.#password))
+    } catch (error) {
+      this.#fail(String(error))
+    }
   }
 
   scanAndConnect(onConnected: () => void = this.onConnected, onError: (message?: string) => void = this.onError) {

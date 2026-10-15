@@ -295,6 +295,12 @@
       ],
       "embedded:network/http/*": [
         "./node_modules/@moddable/typings/embedded_network/http/*.d.ts"
+      ],
+      "network-power": [
+        "./host/modules/connectivity/network-power.ts"
+      ],
+      "wifi-power-policy": [
+        "./host/modules/connectivity/wifi-power-policy.ts"
       ]
     },
     "types": [

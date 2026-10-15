@@ -1,3 +1,8 @@
-export default function disableWiFiPowerSave() {
-  native('xs_stackchan_disable_wifi_power_save').call(this)
+export default {
+  setMode(mode) {
+    native('xs_stackchan_set_wifi_power_save').call(this, mode)
+  },
+  getMode() {
+    return native('xs_stackchan_get_wifi_power_save').call(this)
+  },
 }

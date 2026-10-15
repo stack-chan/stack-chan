@@ -11,6 +11,9 @@ import NTP, { resetNTP } from './fakes/ntp.js'
 /** Map Moddable bare imports to local Node test doubles. */
 function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+  for (const name of ['network-power', 'wifi-power-policy']) {
+    writeAliasPackage(modulesRoot, name, resolve(modulesRoot, `connectivity/${name}.js`))
+  }
   writeAliasPackage(modulesRoot, 'modules', resolve(modulesRoot, 'testing/fakes/modules.js'), {
     hasDefaultExport: true,
   })
@@ -56,23 +59,6 @@ async function setup(configValues: Record<string, unknown> = {}) {
   }
   return { NetworkService: networkService.NetworkService, traces, timer: timer.default, time: time.default }
 }
-
-test('NetworkService applies optional board power policy after initialization and before connecting', async () => {
-  const { NetworkService } = await setup()
-  let calls = 0
-  resetModules({
-    'wifi-power-save': () => {
-      calls += 1
-      assert.equal(getFakeWiFiInstances().length, 1)
-      assert.equal(getFakeWiFiInstances()[0].connectOptions, undefined)
-    },
-  })
-  const service = new NetworkService({ ssid: 'stackchan-ap', password: 'secret' })
-  assert.equal(calls, 1)
-  service.connect()
-  assert.equal(calls, 1)
-  service.close()
-})
 
 test('NetworkService connects through ECMA-419 Wi-Fi and resolves after IP address', async () => {
   const { NetworkService } = await setup()

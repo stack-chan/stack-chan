@@ -1,5 +1,5 @@
 ---
-"stack-chan": patch
+"stack-chan": minor
 ---
 
-Disable Wi-Fi modem sleep on M5StackChan CoreS3 to reduce receive delays during streamed audio playback. Wi-Fi stays awake while connected, which can increase battery use.
+Add main-thread low-latency Wi-Fi leases on M5StackChan CoreS3. Wi-Fi uses modem sleep when no lease is held and stays awake while a MOD owns a latency-sensitive connection. Other targets keep their existing Wi-Fi behavior.

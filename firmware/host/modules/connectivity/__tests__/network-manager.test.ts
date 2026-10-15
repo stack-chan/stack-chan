@@ -8,6 +8,9 @@ import { getFakeWiFiInstances, resetFakeWiFi } from './fakes/ecma-wifi.js'
 
 function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+  for (const name of ['network-power', 'wifi-power-policy']) {
+    writeAliasPackage(modulesRoot, name, resolve(modulesRoot, `connectivity/${name}.js`))
+  }
   writeAliasPackage(modulesRoot, 'modules', resolve(modulesRoot, 'testing/fakes/modules.js'), {
     hasDefaultExport: true,
   })

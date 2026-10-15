@@ -1,0 +1,13 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../network-service/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./wifi-power.test",
+    "ecma-wifi": "./fake-wifi",
+    "wifi-power-save": "./fake-power",
+    "~": "../network-service/fake-ecma-wifi"
+  }
+}

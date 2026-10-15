@@ -1,0 +1,10 @@
+{
+  "include": ["../startup-error/manifest.test.json"],
+  "modules": {
+    "main": "../startup-error/startup-error.test"
+  },
+  "config": {
+    "startupErrorPhase": "behavior",
+    "startupErrorCleanupFailure": true
+  }
+}

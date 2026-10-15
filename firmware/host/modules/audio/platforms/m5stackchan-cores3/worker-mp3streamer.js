@@ -1,3 +1,4 @@
+import MediaHttpStream from 'media-http'
 import Timer from 'timer'
 import { SharedByteRing } from 'web-radio-byte-ring'
 import Worker from 'worker'
@@ -13,7 +14,6 @@ export default class {
   #worker
   #callbacks = {}
   #closed = false
-  #http
   #request
   #networkOptions
   #networkGeneration = 0
@@ -23,14 +23,22 @@ export default class {
   #input = SharedByteRing.allocate(COMPRESSED_RING_BYTES)
   #output = SharedByteRing.allocate(PCM_RING_BYTES)
   #receivedBytes = 0
-  #connectionReceivedBytes = 0
+  #finite = false
+  #networkPumpTimer
+  #seek
+  #source
 
   constructor(options) {
     if (options.onPlayed) this.#callbacks.onPlayed = options.onPlayed
     if (options.onReady) this.#callbacks.onReady = options.onReady
     if (options.onError) this.#callbacks.onError = options.onError
     if (options.onDone) this.#callbacks.onDone = options.onDone
-    this.#reconnect = options.reconnect ?? true
+    for (const name of ['onMetadata', 'onCheckpoint', 'onOutputStart', 'onSource'])
+      this.#callbacks[name] = options[name]
+    this.#seek = options.seek ?? { offset: 0, seconds: 0, target: 0 }
+    this.#source = options.source
+    this.#finite = options.mode === 'finite'
+    this.#reconnect = !this.#finite && (options.reconnect ?? true)
 
     this.#audio = options.audio.out
     this.#audio.attachSharedOutput(this.#output, this.#completion, () => {
@@ -58,6 +66,8 @@ export default class {
     this.#worker.onmessage = (message) => this.#onMessage(message)
     this.#worker.postMessage({
       id: 'start',
+      mode: options.mode,
+      seekSeconds: this.#seek.target,
       queueLength: WORKER_AUDIO_QUEUE_LENGTH,
       sampleRate: options.audio.sampleRate ?? 44100,
       outputSampleRate: this.#audio.sampleRate,
@@ -66,7 +76,7 @@ export default class {
       output: this.#output.buffers,
     })
     this.#networkOptions = {
-      http: options.http,
+      protocol: options.protocol ?? (options.port === 443 ? 'https' : 'http'),
       host: options.host,
       port: options.port,
       path: options.path,
@@ -96,48 +106,41 @@ export default class {
     if (!options) return
     this.#networkReconnectTimer = undefined
     const generation = ++this.#networkGeneration
-    const httpOptions = { ...options.http, host: options.host }
-    if (options.port) httpOptions.port = options.port
-    let http
-    let request
     try {
-      http = new options.http.io(httpOptions)
-      this.#http = http
-      this.#connectionReceivedBytes = 0
-      request = http.request({
-        ...options.request,
-        path: options.path,
-        onHeaders: (status, headers) => {
-          if (!this.#isCurrentNetwork(generation, http, request)) return
-          trace(
-            `[web-radio-network] http status=${status} length=${headers.get('content-length') ?? 'none'} encoding=${headers.get('transfer-encoding') ?? 'none'} connection=${headers.get('connection') ?? 'none'}\n`,
-          )
-          if (Math.idiv(status, 100) === 2) {
-            this.#networkBackoffIndex = 0
-            return
-          }
-          this.#handleNetworkFailure(`http status ${status}`)
+      const port = options.port ? `:${options.port}` : ''
+      this.#request = new MediaHttpStream({
+        // Resolve redirects again: signed CDN URLs may expire while playback is paused.
+        url: `${options.protocol}://${options.host}${port}${options.path}`,
+        rangeStart: this.#seek.offset,
+        ifRange: this.#source?.validator,
+        onHeaders: (_headers, url, info) => {
+          this.#networkBackoffIndex = 0
+          if (info.start && this.#source?.totalBytes !== undefined && info.totalBytes !== this.#source.totalBytes)
+            throw new Error('Media changed while seeking')
+          const source = { url, totalBytes: info.totalBytes, validator: info.validator }
+          this.#callbacks.onSource?.(source, this.#seek.offset > 0 && info.start === 0)
+          if (this.#finite)
+            this.#worker.postMessage({
+              id: 'source',
+              offset: info.start,
+              seconds: info.start ? this.#seek.seconds : 0,
+              totalBytes: info.totalBytes,
+            })
         },
-        onReadable: (count) => {
-          if (!this.#isCurrentNetwork(generation, http, request)) return
-          request.readable = count
-          this.#drainNetwork()
-        },
+        onReadable: () => this.#drainNetwork(),
         onDone: (error) => {
-          if (!this.#isCurrentNetwork(generation, http, request)) return
-          trace(
-            `[web-radio-network] http done error=${error ? String(error) : 'none'} connectionReceived=${this.#connectionReceivedBytes} totalReceived=${this.#receivedBytes} buffered=${this.#input.readableBytes}\n`,
-          )
-          this.#handleNetworkFailure(error ? String(error) : 'connection closed')
+          if (this.#closed || generation !== this.#networkGeneration) return
+          if (!error && this.#finite) {
+            this.#closeNetwork()
+            this.#worker.postMessage({ id: 'end' })
+          } else this.#handleNetworkFailure(error ? String(error) : 'connection closed')
         },
       })
-      this.#request = request
+      // Metadata consumption may produce no PCM. Pump backpressure independently
+      // of output notifications so a tag larger than the input ring cannot deadlock.
+      this.#networkPumpTimer = Timer.repeat(() => this.#drainNetwork(), 25)
     } catch (error) {
       if (generation !== this.#networkGeneration || this.#closed) return
-      try {
-        http?.close()
-      } catch {}
-      this.#http = this.#request = undefined
       this.#handleNetworkFailure(String(error))
     }
   }
@@ -146,19 +149,17 @@ export default class {
     const request = this.#request
     const input = this.#input
     if (!request || !input) return
-    while (request.readable && input.writableBytes) {
-      const target = input.writableView(request.readable)
-      if (!target.byteLength) break
-      request.read(target)
-      request.readable -= target.byteLength
-      input.advanceWrite(target.byteLength)
-      this.#receivedBytes += target.byteLength
-      this.#connectionReceivedBytes += target.byteLength
+    try {
+      while (request.readable && input.writableBytes) {
+        const target = input.writableView(request.readable)
+        if (!target.byteLength) break
+        request.read(target)
+        input.advanceWrite(target.byteLength)
+        this.#receivedBytes += target.byteLength
+      }
+    } catch (error) {
+      this.#handleNetworkFailure(String(error))
     }
-  }
-
-  #isCurrentNetwork(generation, http, request) {
-    return !this.#closed && generation === this.#networkGeneration && http === this.#http && request === this.#request
   }
 
   #handleNetworkFailure(reason) {
@@ -185,8 +186,10 @@ export default class {
     this.#networkGeneration += 1
     if (clearReconnect && this.#networkReconnectTimer !== undefined) Timer.clear(this.#networkReconnectTimer)
     if (clearReconnect) this.#networkReconnectTimer = undefined
-    const http = this.#http
-    this.#request = this.#http = undefined
+    if (this.#networkPumpTimer !== undefined) Timer.clear(this.#networkPumpTimer)
+    this.#networkPumpTimer = undefined
+    const http = this.#request
+    this.#request = undefined
     try {
       http?.close()
     } catch {}
@@ -199,6 +202,15 @@ export default class {
     }
     if (this.#closed) return
     switch (message.id) {
+      case 'metadata':
+        this.#callbacks.onMetadata?.(message.value)
+        break
+      case 'checkpoint':
+        this.#callbacks.onCheckpoint?.(message.value)
+        break
+      case 'position':
+        this.#callbacks.onOutputStart?.(message.seconds)
+        break
       case 'output':
         this.#audio.pumpSharedOutput()
         this.#drainNetwork()

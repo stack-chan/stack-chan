@@ -4,6 +4,7 @@ import test from 'node:test'
 
 import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
 import { profileFor } from '../editor/capabilities.mjs'
+import { isXsVersionCompatible } from '../editor/xs-compatibility.mjs'
 import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
 import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
@@ -48,10 +49,10 @@ test('テキストMODの成果物は既存の実行互換性を維持する', as
     assert.equal(definition.artifacts.length, 1, `${definition.id}: installable text MOD should include one artifact`)
     const archive = readFileSync(definition.artifacts[0].url)
     assert.equal(isXsArchive(archive), true, `${definition.id}: artifact should be an XS archive`)
-    assert.deepEqual(
-      xsArchiveVersion(archive),
-      profileFor('m5stackchan-cores3').xsArchiveVersion,
-      `${definition.id}: artifact should match the host XS`
+    assert.equal(
+      isXsVersionCompatible(xsArchiveVersion(archive), profileFor('m5stackchan-cores3').xsArchiveVersionRange),
+      true,
+      `${definition.id}: artifact should be accepted by the host XS`
     )
     assert.equal(
       archive.includes(Buffer.from('/tmp/')),

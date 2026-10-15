@@ -1,0 +1,15 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "uartserver": "../fakes/uartserver",
+    "preference": "./preference-stub",
+    "main": "./preference-write-window-xs.test"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "strictNullChecks": false
+      }
+    }
+  }
+}

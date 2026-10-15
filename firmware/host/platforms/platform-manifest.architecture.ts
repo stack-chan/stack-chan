@@ -144,18 +144,16 @@ describe('Stack-chan platform manifest', () => {
     )
   })
 
-  test('camera-sharing subplatform providers pin the internal I2C bus to port 1', () => {
-    // The camera SCCB reuses the internal I2C bus (defines.camera sda/scl=-1,
-    // i2c_port=1). esp32-camera only finds the already-initialized bus handle
-    // when the provider pins the internal bus to port 1 — otherwise
-    // SCCB_Use_Port(1) fails and camera init fails.
+  test('subplatform providers reuse the manifest-selected SDK board', () => {
+    // The actual camera bus/RTC/sensor port relation is exercised by
+    // test:providers. Keep this test about the independently maintained
+    // base manifest and provider alias rather than source formatting.
     for (const subplatform of listSubplatforms()) {
-      if (subplatform.manifest.defines?.camera?.i2c_port !== 1) continue
-      const providerSource = readFileSync(join('host/platforms', subplatform.name, 'host', 'provider.js'), 'utf8')
-      assert.match(
-        providerSource,
-        /internal:\s*\{[^}]*port:\s*1\b/s,
-        `${subplatform.name} internal I2C should use port 1 so the camera SCCB can share the bus`,
+      const base = baseTargetOf(subplatform)
+      assert.equal(
+        subplatform.manifest.modules?.['sdk-board-provider'],
+        `$(BUILD)/devices/esp32/targets/${base}/host/provider`,
+        `${subplatform.name} provider should reuse its base board`,
       )
     }
   })

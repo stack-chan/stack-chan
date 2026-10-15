@@ -6,6 +6,10 @@ const Time = {
   get ticks(): number {
     return ticks
   },
+  delta(start: number, end = ticks): number {
+    // Model ESP32's signed result from unsigned 32-bit tick subtraction.
+    return ((end >>> 0) - (start >>> 0)) | 0
+  },
   set(value: number): void {
     ticks = value
   },

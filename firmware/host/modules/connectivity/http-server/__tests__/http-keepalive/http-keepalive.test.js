@@ -252,9 +252,9 @@ try {
   await rejectOversizedBody()
   equal(routedLimitedRequests, 1, 'oversized requests never reach the handler')
   await exchange(18084, [{ path: '/echo', body: 'ok', status: 200 }])
-  trace('ok\n')
 } finally {
   limited.close()
   app.close()
   mcp.close()
 }
+trace('@@STACKCHAN_TEST:PASS@@\n')

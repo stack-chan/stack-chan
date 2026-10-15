@@ -2,7 +2,7 @@ import Humidity from 'embedded:sensor/Humidity-Temperature/SHT3x'
 import Timer from 'timer'
 
 Timer.delay(200)
-const sensor = new Humidity({ sensor: device.I2C.default })
+const sensor = new Humidity({ sensor: device.i2c.default })
 
 const param = {
   right: 20,

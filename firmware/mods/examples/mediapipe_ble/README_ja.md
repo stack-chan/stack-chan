@@ -2,7 +2,7 @@
 
 WebのMediaPipeデモからBLE Local Peerで送られる顔向き、表情、左右の目と口の開き、手の位置、指の本数を受信します。
 
-- 顔向きは鏡像になるようyawを反転し、pitchはM5StackChanドライバーの上向き90°まで`setPose`へ反映します。
+- 顔向きは鏡像になるようyawを反転して`setPose`へ反映します。受信したpitchの要求は、M5StackChan専用ドライバーの標準設定で[メーカー推奨の5〜85°](https://docs.m5stack.com/en/StackChan#note)（`rotation.p`は−85〜−5°）に制限されます。
 - 笑顔と真顔は`HAPPY`と`NEUTRAL`へ反映します。
 - 左右のまばたきと口の開きを、それぞれ顔表示へ反映します。
 - 手は顔の中心と大きさを基準に配置し、手首から指先への向きに合わせて8方向のスプライトを切り替えます。

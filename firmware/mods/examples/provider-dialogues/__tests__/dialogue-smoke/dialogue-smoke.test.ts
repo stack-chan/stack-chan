@@ -16,4 +16,4 @@ const gemini = new GeminiDialogue({ apiKey: token })
 gemini.clear()
 trace('smoke: dialogue-gemini\n')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

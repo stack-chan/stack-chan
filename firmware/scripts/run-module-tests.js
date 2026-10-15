@@ -7,20 +7,20 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { parseModuleTestShard, selectModuleTestShard } from './lib/module-test-sharding.mjs'
-import { startXsbugServer } from './lib/xsbug-log-server.js'
+import { moduleTestResult, startXsdbSession, stopProcessGroup } from './lib/xsdb-session.mjs'
 
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
 // Piu/GTK tests can spend more than 15 seconds starting mcsim while another
 // manifest is compiling on a shared CI runner. Successful tests still return
-// as soon as they trace `ok`; this only gives a cold simulator more headroom.
+// as soon as they trace the PASS marker; this only gives a cold simulator more headroom.
 const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '30000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '360000', 10)
 const FILTER = process.env.STACKCHAN_MODULE_TEST_FILTER
 // Incremental builds are safe: mcconfig regenerates the makefile on every run and
 // the generated mc.xs.c rule depends on every manifest in the include chain, so
-// stale outputs cannot survive a manifest or module edit. CLEAN exists as an
-// escape hatch for a corrupted build tree.
+// app linking follows manifest edits. Changing a module's source mapping may
+// require CLEAN because make compares source timestamps, not resolved mappings.
 const CLEAN = process.env.STACKCHAN_MODULE_TEST_CLEAN === '1'
 const JOBS = (() => {
   const parsed = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_JOBS ?? '', 10)
@@ -47,11 +47,26 @@ if (!MODDABLE) {
 ensureBuildOutputDirectory()
 const outputArgs = moddableOutputArguments()
 const firmwareRoot = process.cwd()
-const workRoot = mkdtempSync(join(tmpdir(), 'stackchan-module-tests-'))
+const logRoot = resolve(process.env.STACKCHAN_MODULE_TEST_LOG_DIR ?? tmpdir())
+mkdirSync(logRoot, { recursive: true })
+const workRoot = mkdtempSync(join(logRoot, 'stackchan-module-tests-'))
+console.log(`Moddable runtime: simulator; hardware: NOT RUN; logs: ${workRoot}`)
 // xsbug emits `# Exception` for caught Promise rejections too. Fatal aborts are
-// explicit; a stopped runtime without either a fatal marker or `ok` times out.
+// explicit; a stopped runtime without either a fatal marker or test completion times out.
+const children = new Set()
+const debuggers = new Set()
+for (const [signal, status] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+]) {
+  process.once(signal, async () => {
+    await Promise.all([...children].map(stopProcessGroup))
+    await Promise.all([...debuggers].map((session) => session.close()))
+    process.exit(status)
+  })
+}
+
 const fatalFailurePattern = /XS abort|stack overflow|module not found|Cannot find module|unhandled exception/i
-const okPattern = /<log>ok(?:&#10;|\n)<\/log>/
 
 function relativePath(path) {
   return relative(firmwareRoot, path)
@@ -124,8 +139,14 @@ function platformBuildSegment(platform) {
 
 function removeBuildOutput(platform, name) {
   const segment = platformBuildSegment(platform)
-  rmSync(join(buildOutputDirectory, 'tmp', segment, 'debug', name), { recursive: true, force: true })
-  rmSync(join(buildOutputDirectory, 'bin', segment, 'debug', name), { recursive: true, force: true })
+  rmSync(join(buildOutputDirectory, 'tmp', segment, 'debug', name), {
+    recursive: true,
+    force: true,
+  })
+  rmSync(join(buildOutputDirectory, 'bin', segment, 'debug', name), {
+    recursive: true,
+    force: true,
+  })
 }
 
 function readBinDir(platform, name) {
@@ -155,7 +176,9 @@ function assertUniqueNames(manifestPaths) {
 
 function runProcess(command, args, { timeout }) {
   return new Promise((resolveRun) => {
-    const child = spawn(command, args, { cwd: firmwareRoot })
+    const child = spawn(command, args, { cwd: firmwareRoot, detached: true })
+    children.add(child)
+    child.once('close', () => children.delete(child))
     let stdout = ''
     let stderr = ''
     let timedOut = false
@@ -169,7 +192,7 @@ function runProcess(command, args, { timeout }) {
     })
     const timer = setTimeout(() => {
       timedOut = true
-      child.kill('SIGTERM')
+      void stopProcessGroup(child)
     }, timeout)
     child.on('error', (error) => {
       clearTimeout(timer)
@@ -200,28 +223,19 @@ async function buildManifest({ manifestPath, platform, port, name, output }) {
 
   if (result.error) {
     output.push(result.error.stack ?? result.error.message)
-    return false
-  }
-  if (result.timedOut) {
+  } else if (result.timedOut) {
     output.push(`${label} timed out after ${BUILD_TIMEOUT_MS}ms`)
     if (result.stdout.length > 0) output.push(result.stdout)
     if (result.stderr.length > 0) output.push(result.stderr)
-    return false
-  }
-  if (result.status !== 0) {
+  } else if (result.status !== 0) {
     output.push(...formatProcessFailure(label, result))
-    return false
+  } else {
+    return true
   }
-  return true
-}
-
-function killProcessGroup(child) {
-  if (!child.pid || child.killed) return
-  try {
-    process.kill(-child.pid, 'SIGTERM')
-  } catch {
-    child.kill('SIGTERM')
-  }
+  // tsc may emit JavaScript after a type error; discard it before any retry,
+  // including a worker build after the shared-library warmup.
+  removeBuildOutput(platform, name)
+  return false
 }
 
 async function runSimulator({ binDir, port, logServer, display, configHome }) {
@@ -254,12 +268,20 @@ async function runSimulator({ binDir, port, logServer, display, configHome }) {
       },
     })
 
-    const finish = (result) => {
+    children.add(child)
+    child.once('close', () => children.delete(child))
+    const finish = async (result) => {
       if (settled) return
       settled = true
       clearTimeout(timeout)
       clearInterval(poll)
-      killProcessGroup(child)
+      await stopProcessGroup(child)
+      // Output can arrive while the owned process group is shutting down.
+      if (result.status === 'ok') {
+        if (logServer.getError()) result = { status: 'debugger-error', message: logServer.getError() }
+        else if (fatalFailurePattern.test(logServer.getLog())) result = { status: 'failure-marker' }
+        else if (moduleTestResult(logServer.getLog()) === 'fail') result = { status: 'test-failed' }
+      }
       resolveRun({ ...result, stdout, stderr, log: logServer.getLog() })
     }
 
@@ -278,9 +300,13 @@ async function runSimulator({ binDir, port, logServer, display, configHome }) {
 
     const poll = setInterval(() => {
       const log = logServer.getLog()
-      if (fatalFailurePattern.test(log)) {
+      if (logServer.getError()) {
+        finish({ status: 'debugger-error', message: logServer.getError() })
+      } else if (fatalFailurePattern.test(log)) {
         finish({ status: 'failure-marker' })
-      } else if (okPattern.test(log)) {
+      } else if (moduleTestResult(log) === 'fail') {
+        finish({ status: 'test-failed' })
+      } else if (moduleTestResult(log) === 'pass') {
         finish({ status: 'ok' })
       }
     }, 100)
@@ -300,7 +326,15 @@ function formatRuntimeFailure(manifestPath, result, logPath) {
   if (result.stdout) lines.push(result.stdout)
   if (result.stderr) lines.push(result.stderr)
   lines.push(`xsbug log: ${logPath}`)
-  lines.push(result.log.split('\n').slice(-40).join('\n'))
+  // Periodic instrument samples otherwise hide the exception or last test
+  // checkpoint when a simulator stalls until the runtime timeout.
+  lines.push(
+    result.log
+      .split('\n')
+      .filter((line) => line.trim() && !line.includes('<samples>'))
+      .slice(-40)
+      .join('\n'),
+  )
   return lines
 }
 
@@ -329,12 +363,13 @@ async function runOne(manifestPath, index) {
   const name = basename(dirname(manifestPath))
   const platform = selectPlatform(manifestPath)
   const logPath = join(workRoot, `${name}.xsbug.log`)
-  const logServer = startXsbugServer(logPath, XSBUG_HOST)
-  const port = await logServer.ready
+  const logServer = await startXsdbSession(logPath, join(workRoot, `xsdb-${name}`), MODDABLE)
+  debuggers.add(logServer)
   const label = `${relativePath(manifestPath)} [${platform}]`
   const output = []
 
   try {
+    const port = await logServer.ready
     if (!(await buildManifest({ manifestPath, platform, port, name, output }))) {
       return { label, ok: false, reason: 'build failed', output }
     }
@@ -342,7 +377,13 @@ async function runOne(manifestPath, index) {
     const binDir = readBinDir(platform, name)
     const configHome = join(workRoot, `config-${name}`)
     mkdirSync(configHome, { recursive: true })
-    const result = await runSimulator({ binDir, port, logServer, display: DISPLAY_BASE + index, configHome })
+    const result = await runSimulator({
+      binDir,
+      port,
+      logServer,
+      display: DISPLAY_BASE + index,
+      configHome,
+    })
     if (result.status === 'ok') {
       return { label, ok: true, output }
     }
@@ -350,13 +391,15 @@ async function runOne(manifestPath, index) {
     return { label, ok: false, reason: result.status, output }
   } finally {
     await logServer.close()
+    debuggers.delete(logServer)
   }
 }
 
-const allManifestPaths = await collectManifestPaths(process.argv.slice(2))
+const args = process.argv.slice(2)
+const allManifestPaths = await collectManifestPaths(args)
 if (allManifestPaths.length === 0) {
-  console.log('No runnable Moddable test manifests found.')
-  process.exit(0)
+  console.error('No runnable Moddable test manifests found; no tests ran.')
+  process.exit(1)
 }
 
 assertUniqueNames(allManifestPaths)
@@ -421,6 +464,7 @@ async function worker() {
     const duration = formatDuration(performance.now() - startedAt)
     if (result.ok) {
       console.log(`- ${result.label} ... ok (${duration})`)
+      if (result.output.length > 0) console.log(result.output.join('\n'))
     } else {
       failures += 1
       console.log(`- ${result.label} ... failed (${duration})`)

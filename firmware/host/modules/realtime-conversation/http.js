@@ -13,7 +13,7 @@ export default createHttpProxy({
       heap: { initial: 8192, incremental: 1024 },
       chunk: { initial: 256 * 1024, incremental: 16384 },
       stack: 1024,
-      nativeStack: 16384,
+      nativeStack: 6144,
       priority: 3,
     }),
   normalize: (url, options) =>

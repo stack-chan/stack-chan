@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { normalizeRequest } from '../http-options.js'
-import { requestHttps } from '../http-core.js'
+import { requestHttps, guardSocketCallbacks } from '../http-core.js'
 import { createHttpProxy } from '../http-proxy.js'
 const encode = (text) => new TextEncoder().encode(text).buffer
 const decode = (buffer) => new TextDecoder().decode(buffer)
@@ -202,4 +202,33 @@ test('IPC and request capacity failures reject without creating an unbounded que
   const g = proxyFixture()
   await assert.rejects(g.fetch('http://insecure/a', { method: 'POST' }), URIError)
   assert.equal(g.workers, 0)
+})
+
+test('TLS callback exceptions become socket errors without escaping the I/O task', () => {
+  class Socket {
+    constructor(options) {
+      this.options = options
+    }
+  }
+  const errors = [],
+    failure = new Error('certificate authentication failed')
+  const Checked = guardSocketCallbacks(Socket)
+  const socket = new Checked({
+    format: 'buffer',
+    onReadable(count) {
+      assert.equal(this, socket)
+      return count
+    },
+    onWritable() {
+      throw failure
+    },
+    onError(error) {
+      assert.equal(this, socket)
+      errors.push(error)
+    },
+  })
+  assert.equal(socket.options.format, 'buffer')
+  assert.equal(socket.options.onReadable.call(socket, 42), 42)
+  assert.doesNotThrow(() => socket.options.onWritable.call(socket, 1))
+  assert.deepEqual(errors, [failure])
 })

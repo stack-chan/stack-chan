@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import Timer from 'timer'
 import tlsCache from 'ssl/cache'
-import { requestHttps } from 'realtimeConversation/http-core'
+import { requestHttps, guardSocketCallbacks } from 'realtimeConversation/http-core'
 
+const CheckedTCP = guardSocketCallbacks(device.network.https.client.socket.TCP.io)
 const platform = {
   createClient: ({ certificate, ...options }) =>
     new device.network.https.client.io({
@@ -11,6 +12,7 @@ const platform = {
       ...options,
       socket: {
         ...device.network.https.client.socket,
+        TCP: { ...device.network.https.client.socket.TCP, io: CheckedTCP },
         tls: { ...device.network.https.client.socket.tls, ...(certificate ? { ca: certificate } : {}) },
       },
     }),

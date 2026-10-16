@@ -201,7 +201,7 @@ test('IPC and request capacity failures reject without creating an unbounded que
   assert.ok(f.timers.at(-1).cancelled)
   const g = proxyFixture()
   await assert.rejects(g.fetch('http://insecure/a', { method: 'POST' }), URIError)
-  assert.equal(g.workers, 0)
+  assert.equal(g.sent.length, 0)
 })
 
 test('TLS callback exceptions become socket errors without escaping the I/O task', () => {

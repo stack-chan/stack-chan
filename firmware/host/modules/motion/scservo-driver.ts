@@ -28,11 +28,11 @@ export class SCServoDriver {
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
     this._pan.setTorque(torque, (panError) => {
-      if (panError != null) {
+      if (panError != null && torque) {
         callback?.(panError)
         return
       }
-      this._tilt.setTorque(torque, callback)
+      this._tilt.setTorque(torque, (tiltError) => callback?.(panError ?? tiltError))
     })
   }
 

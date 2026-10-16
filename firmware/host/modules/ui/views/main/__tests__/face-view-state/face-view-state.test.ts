@@ -8,6 +8,7 @@ import {
   Application,
   Container,
   Content,
+  Label,
   type Container as PiuContainer,
   type Content as PiuContent,
   type Port as PiuPort,
@@ -289,7 +290,10 @@ controller.addDrawerButton({
 const initialDrawerBehavior = initialDrawer.behavior as {
   onDrawerChoiceSelected?: (container: PiuContainer, selection: { key: string; value: string }) => void
 }
-initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, { key: 'choiceTest', value: 'second' })
+initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, {
+  key: 'choiceTest',
+  value: 'second',
+})
 equal(selectedChoice, 'second', 'drawer choice selection should bubble to its bound application callback')
 controller.unbindDrawerAction('choiceTest')
 controller.removeDrawerButton('choiceTest')
@@ -302,7 +306,11 @@ assert(
   }),
   'drawer callback should accept a punctuated runtime key',
 )
-controller.addDrawerButton({ key: punctuatedActionKey, label: 'Codex', kind: 'toggle' })
+controller.addDrawerButton({
+  key: punctuatedActionKey,
+  label: 'Codex',
+  kind: 'toggle',
+})
 const punctuatedButton = findNamedNode(initialDrawer as unknown as PiuContent, punctuatedActionKey)
 assert(punctuatedButton, 'drawer should render a button with a punctuated runtime key')
 const punctuatedButtonBehavior = punctuatedButton.behavior as {
@@ -329,7 +337,11 @@ equal(
   initialDrawer,
   'consecutive addDrawerButton calls should not rebuild the drawer',
 )
-controller.addDrawerButton({ key: 'dynamicA', label: 'Dynamic A+', kind: 'toggle' })
+controller.addDrawerButton({
+  key: 'dynamicA',
+  label: 'Dynamic A+',
+  kind: 'toggle',
+})
 equal(
   findDrawer(application as unknown as PiuContainer),
   initialDrawer,
@@ -428,7 +440,9 @@ controller.removeEffectByKey('recorder')
 controller.removeEffectByKey('speech')
 controller.setDrawerButtonState('speech', false)
 
-const defaultReference = new SpeechBalloon({ text: 'default reference' }) as BalloonContent
+const defaultReference = new SpeechBalloon({
+  text: 'default reference',
+}) as BalloonContent
 defaultReference.behavior?.onDisplaying?.(defaultReference)
 defaultReference.behavior?.onFaceState?.(defaultReference, createFaceState())
 const defaultSkin = defaultReference.first?.skin
@@ -495,12 +509,33 @@ assert(
   (positionedBalloon.coordinates?.height ?? 0) > (initialBalloonHeight ?? 0),
   'showBalloon should recalculate a reused balloon height',
 )
+runtimeUI.showBalloonLines(['first', 'second'])
+const labelBalloon = appData.EFFECTS?.last as BalloonContent
+const firstLabel = labelBalloon.first?.next
+const secondLabel = firstLabel?.next
+assert(firstLabel instanceof Label && secondLabel instanceof Label, 'fixed rows should use two Labels')
+assert(!secondLabel?.next, 'fixed rows should not leave a Text child')
+const labelHeight = (labelBalloon as PositionedBalloon).coordinates?.height
+runtimeUI.showBalloonLines(['second', 'third'])
+equal(appData.EFFECTS?.last, labelBalloon, 'line scrolling should reuse the balloon')
+equal(labelBalloon.first?.next, firstLabel, 'line scrolling should reuse each Label')
+equal(firstLabel?.string, 'second', 'old second row becomes first')
+equal(secondLabel?.string, 'third', 'new content appears on second row')
+equal((labelBalloon as PositionedBalloon).coordinates?.height, labelHeight, 'line scrolling should keep height fixed')
 runtimeUI.showBalloon('top balloon', { top: 8 })
 assert(appData.EFFECTS?.last !== runtimeBalloon, 'showBalloon should replace a balloon when layout options change')
 runtimeUI.hideBalloon()
 
-const oldDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }
-const newDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }
+const oldDrawerCalls: DrawerControllerCalls = {
+  buttons: [],
+  states: [],
+  removed: [],
+}
+const newDrawerCalls: DrawerControllerCalls = {
+  buttons: [],
+  states: [],
+  removed: [],
+}
 const oldDrawerUI = createDrawerTestUI(oldDrawerCalls)
 const newDrawerUI = createDrawerTestUI(newDrawerCalls)
 const drawerRuntime = new StackchanRuntimeUI(oldDrawerUI, {

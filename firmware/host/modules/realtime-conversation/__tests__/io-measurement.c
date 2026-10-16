@@ -2,6 +2,7 @@
 #include "xsHost.h"
 #include "xsmc.h"
 #include "esp_timer.h"
+#include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "modSPI.h"
@@ -77,6 +78,9 @@ void xs_io_stats(xsMachine *the) {
   memcpy(updateGaps,maxUpdateGap,sizeof(updateGaps));
   portEXIT_CRITICAL(&lock);
   xsmcVars(2); xsmcSetNewObject(xsResult);
+  xsmcSetInteger(xsVar(0),uxTaskGetStackHighWaterMark(NULL)); xsmcSet(xsResult,xsID("nativeStackFree"),xsVar(0));
+  xsmcSetInteger(xsVar(0),heap_caps_get_free_size(MALLOC_CAP_INTERNAL)); xsmcSet(xsResult,xsID("freeInternalHeap"),xsVar(0));
+  xsmcSetInteger(xsVar(0),heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)); xsmcSet(xsResult,xsID("largestInternalBlock"),xsVar(0));
   xsmcSetInteger(xsVar(0),machine->currentHeapCount); xsmcSet(xsResult,xsID("heapUsed"),xsVar(0));
   xsmcSetInteger(xsVar(0),machine->maximumHeapCount); xsmcSet(xsResult,xsID("heapSize"),xsVar(0));
   xsmcSetInteger(xsVar(0),machine->currentChunksSize); xsmcSet(xsResult,xsID("chunkUsed"),xsVar(0));

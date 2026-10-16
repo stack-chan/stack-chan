@@ -55,6 +55,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         home: page('./index.html'),
+        guide: page('./guide/index.html'),
         flash: page('./flash/index.html'),
         preference: page('./preference/index.html'),
         gallery: page('./mod-gallery/index.html'),

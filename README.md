@@ -62,6 +62,9 @@ Use the [Stack-chan browser tools](https://stack-chan.github.io/stack-chan/web/)
 | [Shape face editor](https://stack-chan.github.io/stack-chan/web/face-editor/) | Arrange eyes and a mouth to create a custom Face |
 | [Simulator](https://stack-chan.github.io/stack-chan/web/simulator/) | Run MODs with the WebAssembly firmware and a 3D model |
 | [MediaPipe BLE tracking](https://stack-chan.github.io/stack-chan/web/mediapipe/) | Send tracked face and hand movement over BLE |
+| [Usage & AI integration](https://stack-chan.github.io/stack-chan/web/guide/) | Read task guides and example requests for WebMCP agents |
+
+WebMCP-capable browsers let agents edit blocks, faces, and robot preferences. See [WebMCP](./web/WEBMCP.md) for the tool contract and developer testing instructions.
 
 [![Block editor](./docs/images/web-tools/block-editor-en.png)](https://stack-chan.github.io/stack-chan/web/editor/)
 

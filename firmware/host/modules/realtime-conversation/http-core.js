@@ -14,15 +14,19 @@ export function requestHttps(request, platform) {
       if (finished) return
       finished = true
       if (timer !== undefined) platform.cancel(timer)
-      try {
-        client?.close()
-      } catch {}
+      const connection = client
       client = undefined
       body = undefined
-      if (error) {
-        buffer = undefined
-        reject(error)
-      } else resolve({ status, body: buffer ?? new ArrayBuffer() })
+      // Leave the SDK callback before closing its current TLS/socket state.
+      platform.schedule(() => {
+        try {
+          connection?.close()
+        } catch {}
+        if (error) {
+          buffer = undefined
+          reject(error)
+        } else resolve({ status, body: buffer ?? new ArrayBuffer() })
+      }, 0)
     }
     try {
       const headers = new Map(request.headers)

@@ -51,7 +51,11 @@ function fixture() {
         },
       }
     },
-    schedule(fn) {
+    schedule(fn, ms) {
+      if (ms === 0) {
+        queueMicrotask(fn)
+        return -1
+      }
       expired = fn
       return 0
     },

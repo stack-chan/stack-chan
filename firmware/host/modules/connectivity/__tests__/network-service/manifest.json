@@ -1,9 +1,14 @@
 {
-  "include": ["$(MODDABLE)/examples/io/udp/ntp/manifest_ntp.json"],
+  "include": [
+    "$(MODDABLE)/examples/io/udp/ntp/manifest_ntp.json",
+    "$(MODULES)/base/modules/manifest.json"
+  ],
   "modules": {
     "network-service": "../../network-service",
     "network-state": "../../network-state",
-    "ecma-wifi": "./fake-ecma-wifi"
+    "ecma-wifi": "./fake-ecma-wifi",
+    "network-power": "../../network-power",
+    "wifi-power-policy": "../../wifi-power-policy"
   },
   "typescript": {
     "tsconfig": {

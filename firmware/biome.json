@@ -12,8 +12,7 @@
       "scripts/**",
       "!host/modules/camera/wasm/runtime-bitmap-port.js",
       "!host/modules/audio/wasm/audio-bridge.js",
-      "!host/modules/camera/wasm/camera-bridge.js",
-      "!host/modules/realtime-conversation/__tests__/task-trace/trace.js"
+      "!host/modules/camera/wasm/camera-bridge.js"
     ],
     "ignoreUnknown": false
   },

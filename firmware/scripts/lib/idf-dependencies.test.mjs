@@ -98,7 +98,7 @@ function count(source, value) {
 }
 
 test('discovers local WebRTC components without editing their sources and isolates measurement builds', async () => {
-  const { mkdirSync, writeFileSync, realpathSync, existsSync } = await import('node:fs')
+  const { mkdirSync, writeFileSync, realpathSync } = await import('node:fs')
   const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-realtime-deps-'))
   const solutionDirectory = path.join(outputDirectory, 'solution')
   const names = ['esp_webrtc', 'esp_peer', 'media_lib_utils', 'webrtc_utils', 'av_render']
@@ -116,7 +116,7 @@ test('discovers local WebRTC components without editing their sources and isolat
     realtime: true,
   }
   try {
-    const manifestPath = prepareCoreS3IdfDependencies({ ...options, performanceProbe: true })
+    const manifestPath = prepareCoreS3IdfDependencies(options)
     const components = path.resolve(path.dirname(manifestPath), '../components')
     for (const name of names) {
       assert.equal(
@@ -126,17 +126,10 @@ test('discovers local WebRTC components without editing their sources and isolat
       assert.equal(readFileSync(path.join(components, name, 'CMakeLists.txt'), 'utf8'), 'idf_component_register()\n')
     }
     const first = readFileSync(manifestPath, 'utf8')
-    assert.ok(existsSync(path.join(components, 'realtime_measurement/CMakeLists.txt')))
     prepareCoreS3IdfDependencies(options)
-    assert.ok(!existsSync(path.join(components, 'realtime_measurement')))
     assert.equal(readFileSync(manifestPath, 'utf8'), first)
     assert.equal(count(first, 'espressif/esp_capture:'), 1)
     assert.equal(count(first, 'espressif/esp_sysview:'), 0)
-    assert.throws(() => prepareCoreS3IdfDependencies({ ...options, systemTrace: true }), /requires.*performance probe/)
-    prepareCoreS3IdfDependencies({ ...options, performanceProbe: true, systemTrace: true })
-    assert.equal(count(readFileSync(manifestPath, 'utf8'), 'espressif/esp_sysview:'), 1)
-    prepareCoreS3IdfDependencies(options)
-    assert.equal(readFileSync(manifestPath, 'utf8'), first)
   } finally {
     rmSync(outputDirectory, { recursive: true, force: true })
   }

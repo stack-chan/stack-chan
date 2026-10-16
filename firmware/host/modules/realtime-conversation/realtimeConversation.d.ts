@@ -46,7 +46,6 @@ declare module 'realtimeConversation' {
   }
   export interface ConversationOptions {
     apiKey?: string
-    broker?: { url: string; deviceToken: string; certificate?: ArrayBuffer }
     signaling?: {
       createSession(input: {
         sdp: string

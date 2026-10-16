@@ -1,15 +1,9 @@
 {
-  "include": [
-    "$(MODDABLE)/examples/io/tcp/httpsclient/manifest_httpsclient.json",
-    "./portable/manifest.json"
-  ],
+  "include": ["./portable/manifest.json"],
   "modules": {
     "realtimeConversation": "./realtimeConversation",
     "realtimeConversation/core": "./core",
-    "realtimeConversation/tools": "./tools",
-    "realtimeConversation/broker": "./broker",
-    "realtimeConversation/http": "./http",
-    "realtimeConversation/httpCore": "./httpCore"
+    "realtimeConversation/tools": "./tools"
   },
   "platforms": {
     "...": {

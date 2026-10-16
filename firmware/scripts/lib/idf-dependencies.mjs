@@ -9,7 +9,6 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const dependenciesByPlatform = {
   m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
@@ -31,8 +30,6 @@ export function prepareCoreS3IdfDependencies({
   mode,
   realtime = false,
   solutionDirectory,
-  performanceProbe = false,
-  systemTrace = false,
 }) {
   if (!outputDirectory) throw new Error('Build output directory is required')
   const dependencies = dependenciesByPlatform[platformName]
@@ -67,25 +64,6 @@ export function prepareCoreS3IdfDependencies({
     manifest += `  ${name}: ${version}\n`
   }
 
-  if (systemTrace) {
-    if (!realtime || !performanceProbe)
-      throw new Error('System tracing requires the RealtimeConversation performance probe')
-    const traceManifest = JSON.parse(
-      readFileSync(
-        new URL('../../host/modules/realtime-conversation/__tests__/task-trace/manifest.json', import.meta.url),
-      ),
-    )
-    const version = traceManifest.platforms['esp32/m5stackchan_cores3'].dependency.find(
-      (d) => d.name === 'esp_sysview',
-    ).version
-    const requirement = `  espressif/esp_sysview: '${version}'\n`
-    if (/^ {2}espressif\/esp_sysview:.*$/m.test(manifest))
-      manifest = manifest.replace(/^ {2}espressif\/esp_sysview:.*\n/m, requirement)
-    else manifest += requirement
-  } else {
-    manifest = manifest.replace(/^ {2}espressif\/esp_sysview:.*\n/m, '')
-  }
-
   if (realtime) {
     if (platformName !== 'm5stackchan_cores3' || !solutionDirectory)
       throw new Error('RealtimeConversation requires CoreS3 and ESP_WEBRTC_SOLUTION')
@@ -103,21 +81,6 @@ export function prepareCoreS3IdfDependencies({
     )
     for (const { name, version } of conversation.platforms['esp32/m5stackchan_cores3'].dependency) {
       if (name && !manifest.includes(`  espressif/${name}:`)) manifest += `  espressif/${name}: '${version}'\n`
-    }
-    const probeLink = path.join(componentDirectory, 'realtime_measurement')
-    if (performanceProbe) {
-      linkComponent(
-        fileURLToPath(
-          new URL('../../host/modules/realtime-conversation/__tests__/measurement-component', import.meta.url),
-        ),
-        probeLink,
-      )
-    } else {
-      const existing = lstatSync(probeLink, { throwIfNoEntry: false })
-      if (existing) {
-        if (!existing.isSymbolicLink()) throw new Error('Refusing to replace non-generated measurement component')
-        unlinkSync(probeLink)
-      }
     }
   }
 

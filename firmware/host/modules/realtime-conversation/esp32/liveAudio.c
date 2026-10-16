@@ -9,9 +9,6 @@
 #include "liveAudio.h"
 #include "driver/i2s_std.h"
 #include "esp_heap_caps.h"
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-#include "esp_aec.h"
-#endif
 #include "esp_ae_rate_cvt.h"
 #include "audio_render.h"
 #include "freertos/FreeRTOS.h"
@@ -59,10 +56,13 @@ static void audioStreamDelete(StreamBufferHandle_t handle) {
   }
 }
 
-static void originalLiveAudioClose(LiveAudio *a);
-static void originalLiveAudioStop(LiveAudio *a);
+static portMUX_TYPE audioLock = portMUX_INITIALIZER_UNLOCKED;
+static LiveAudio *activeAudio;
+static atomic_bool quiesceAudio;
+extern esp_err_t stackchanMediaAdapter(void);
+extern int stackchanInstallOpusPolicy(void);
 
-/* The codec is configured by the Tab5 provider. This module owns BOTH I2S
+/* The board codec is configured before capture. This module owns BOTH I2S
  * directions for the entire session; do not open device.audio at the same time.
  * Three 10 ms DMA buffers separate a submitted sample from the capture clock.
  * AEC receives the software-volume-adjusted samples, including silence. */
@@ -79,9 +79,6 @@ struct LiveAudio {
 	i2s_chan_handle_t tx, rx;
 	StreamBufferHandle_t input, output;
 
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-	aec_handle_t *aec;
-#endif
 	esp_ae_rate_cvt_handle_t resampler;
 	atomic_bool stopping, done, reading, muted;
 	atomic_uint volume, captured, rendered, underruns, overruns, sourceSamples;
@@ -131,9 +128,7 @@ static esp_capture_err_t sourceRead(esp_capture_audio_src_if_t *s, esp_capture_s
 		offset += xStreamBufferReceive(a->input, frame->data + offset, frame->size - offset, pdMS_TO_TICKS(50));
 	if (offset != frame->size) return ESP_CAPTURE_ERR_NOT_SUPPORTED;
 	if (atomic_load(&a->muted)
-#ifdef CONFIG_IDF_TARGET_ESP32S3
 		|| atomic_load(&a->outputIdleMs) < 500
-#endif
 	) memset(frame->data, 0, frame->size);
 	else liveAudioTransformCapture((int16_t *)frame->data, frame->size / 2);
 	atomic_fetch_add(&a->sourceSamples, frame->size / 2);
@@ -228,13 +223,9 @@ static void audioTask(void *ctx)
 			mic[accumulated] = converted[i * 2];
 			ref[accumulated++] = converted[i * 2 + 1];
 			if (accumulated != a->chunk) continue;
-#ifdef CONFIG_IDF_TARGET_ESP32S3
 			memcpy(clean, mic, a->chunk * 2);
 			// Gate capture locally before any JavaScript or server mute ACK can run.
 			if (idle < 500) memset(clean, 0, a->chunk * 2);
-#else
-			aec_process(a->aec, mic, ref, clean);
-#endif
 			unsigned m = 0, r = 0, c = 0;
 			for (int j = 0; j < a->chunk; j++) { m += abs(mic[j]); r += abs(ref[j]); c += abs(clean[j]); }
 			atomic_store(&a->micLevel, m / a->chunk);
@@ -254,8 +245,13 @@ static void audioTask(void *ctx)
 	vTaskDelete(NULL);
 }
 
-static int originalLiveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *provider)
+int liveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *provider)
 {
+  atomic_store(&quiesceAudio, false);
+  int err = stackchanMediaAdapter();
+  if (!err) err = stackchanInstallOpusPolicy();
+  if (err) return err;
+  stackchanAudioReset();
 	LiveAudio *a = calloc(1, sizeof(*a));
 	if (!a) return ESP_ERR_NO_MEM;
 	*out = a;
@@ -267,28 +263,18 @@ static int originalLiveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *p
 	a->input = audioStreamCreate(CAPTURE_BYTES, 1);
 	a->output = audioStreamCreate(PLAYBACK_BYTES, 1);
 	a->stage = "aec_create";
-#ifdef CONFIG_IDF_TARGET_ESP32S3
 	if (!a->input || !a->output) return ESP_ERR_NO_MEM;
 	a->chunk = 160;
-#else
-	a->aec = aec_create(16000, 4, 1, AEC_MODE_FD_LOW_COST);
-	if (!a->input || !a->output || !a->aec) return ESP_ERR_NO_MEM;
-	a->chunk = aec_get_chunksize(a->aec);
-#endif
 	atomic_store(&a->outputIdleMs, 1000);
 	a->buffers = heap_caps_aligned_calloc(16, BLOCK * (8 + DMA_BLOCKS) + a->chunk * 3, sizeof(int16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 	if (!a->buffers) return ESP_ERR_NO_MEM;
 	esp_ae_rate_cvt_cfg_t rate = {.src_rate = 48000, .dest_rate = 16000, .channel = 2,
 		.bits_per_sample = 16, .complexity = 2, .perf_type = ESP_AE_RATE_CVT_PERF_TYPE_SPEED};
 	a->stage = "resampler_open";
-	int err = esp_ae_rate_cvt_open(&rate, &a->resampler);
+	err = esp_ae_rate_cvt_open(&rate, &a->resampler);
 	if (err) return err;
 	i2s_chan_config_t channel = I2S_CHANNEL_DEFAULT_CONFIG(
-#ifdef CONFIG_IDF_TARGET_ESP32S3
 		I2S_NUM_1,
-#else
-		I2S_NUM_0,
-#endif
 		I2S_ROLE_MASTER);
 	channel.dma_desc_num = DMA_BLOCKS;
 	channel.dma_frame_num = BLOCK;
@@ -299,11 +285,7 @@ static int originalLiveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *p
 	i2s_std_config_t config = {
 		.clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(48000),
 		.slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
-		#ifdef CONFIG_IDF_TARGET_ESP32S3
 		.gpio_cfg = {.mclk = 0, .bclk = 34, .ws = 33, .dout = 13, .din = 14}
-#else
-		.gpio_cfg = {.mclk = 30, .bclk = 27, .ws = 29, .dout = 26, .din = 28}
-#endif
 	};
 	a->stage = "i2s_init_tx";
 	if ((err = i2s_channel_init_std_mode(a->tx, &config))) return err;
@@ -340,18 +322,26 @@ static int originalLiveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *p
 	if (err && err != ESP_MEDIA_ERR_WRONG_STATE) return err;
 	provider->capture = a->capture;
 	provider->player = a->player;
+  portENTER_CRITICAL(&audioLock);
+  activeAudio = a;
+  portEXIT_CRITICAL(&audioLock);
 	return 0;
 }
-static void originalLiveAudioStop(LiveAudio *a)
+void liveAudioStop(LiveAudio *a)
 {
 	if (!a) return;
-	atomic_store(&a->stopping, true);
+  bool first = !atomic_exchange(&a->stopping, true);
 	atomic_store(&a->reading, false);
+  // A renderer without a decoded frame has no render task to flush.
+  if (first && a->player && atomic_load(&a->rendered)) av_render_flush(a->player);
 }
-static void originalLiveAudioClose(LiveAudio *a)
+void liveAudioClose(LiveAudio *a)
 {
 	if (!a) return;
-	originalLiveAudioStop(a);
+  portENTER_CRITICAL(&audioLock);
+  if (activeAudio == a) activeAudio = NULL;
+  portEXIT_CRITICAL(&audioLock);
+	liveAudioStop(a);
 	if (a->capture) esp_capture_close(a->capture);
 	if (a->player) av_render_close(a->player);
 	if (a->render) audio_render_free_handle(a->render);
@@ -360,16 +350,20 @@ static void originalLiveAudioClose(LiveAudio *a)
 	if (a->txEnabled) i2s_channel_disable(a->tx);
 	if (a->rx) i2s_del_channel(a->rx);
 	if (a->tx) i2s_del_channel(a->tx);
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-	if (a->aec) aec_destroy(a->aec);
-#endif
 	if (a->resampler) esp_ae_rate_cvt_close(a->resampler);
 	if (a->input) audioStreamDelete(a->input);
 	if (a->output) audioStreamDelete(a->output);
 	free(a->buffers);
 	free(a);
 }
-static void originalLiveAudioMute(LiveAudio *a, bool mute) { if (a) atomic_store(&a->muted, mute); }
+void liveAudioMute(LiveAudio *a, bool mute) {
+  if (a) atomic_store(&a->muted, mute);
+  if (atomic_exchange(&quiesceAudio, false)) liveAudioStop(a);
+}
+void xs_live_audio_quiesce(xsMachine *the) {
+  // The peer task owns the audio pointer and applies this on its next update.
+  atomic_store(&quiesceAudio, true);
+}
 void liveAudioVolume(LiveAudio *a, unsigned volume) { if (a) atomic_store(&a->volume, volume); }
 int liveAudioError(LiveAudio *a) { return a ? atomic_load(&a->error) : 0; }
 const char *liveAudioStage(LiveAudio *a) { return a ? a->stage : "audio_allocate"; }
@@ -381,50 +375,6 @@ void liveAudioStats(LiveAudio *a, LiveAudioStats *s)
 	s->audibleMs = atomic_load(&a->audibleMs);
 }
 
-static portMUX_TYPE audioLock = portMUX_INITIALIZER_UNLOCKED;
-static LiveAudio *activeAudio;
-static atomic_bool quiesceAudio;
-void liveAudioStop(LiveAudio *audio);
-extern esp_err_t stackchanMediaAdapter(void);
-extern int stackchanInstallOpusPolicy(void);
-int liveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *provider) {
-  atomic_store(&quiesceAudio, false);
-  // Transport.start installs the default adapter; apply the board policy after it.
-  int adapterError = stackchanMediaAdapter();
-  if (adapterError) return adapterError;
-  int opusError = stackchanInstallOpusPolicy();
-  if (opusError) return opusError;
-  stackchanAudioReset();
-  int err = originalLiveAudioOpen(out, provider);
-  if (!err) { portENTER_CRITICAL(&audioLock); activeAudio = *out; portEXIT_CRITICAL(&audioLock); }
-  return err;
-}
-void liveAudioStop(LiveAudio *audio) {
-  if (!audio) return;
-  int first = !atomic_load(&audio->stopping);
-  originalLiveAudioStop(audio);
-  // Stop was explicitly requested. Flush the renderer's queued tail through
-  // its public API before disconnecting WebRTC, instead of repeatedly decoding
-  // into a cancelled sink and flooding the log from high-priority audio tasks.
-  // Before the first decoded frame, AV Render has no render thread to wait on.
-  // Flushing then calls xEventGroupWaitBits with a zero bit mask and asserts.
-  if (first && audio->player && atomic_load(&audio->rendered)) av_render_flush(audio->player);
-}
-void xs_live_audio_quiesce(xsMachine *the) {
-  // The peer task owns the pointer and performs the stop on its next control
-  // update. A JS callback never races the native audio object's destruction.
-  atomic_store(&quiesceAudio, true);
-}
-void liveAudioMute(LiveAudio *audio, bool mute) {
-  originalLiveAudioMute(audio, mute);
-  if (atomic_exchange(&quiesceAudio, false)) liveAudioStop(audio);
-}
-void liveAudioClose(LiveAudio *audio) {
-  portENTER_CRITICAL(&audioLock);
-  if (activeAudio == audio) activeAudio = NULL;
-  portEXIT_CRITICAL(&audioLock);
-  originalLiveAudioClose(audio);
-}
 void xs_io_audio_levels(xsMachine *the) {
   unsigned level = 0, idle = 10000;
   portENTER_CRITICAL(&audioLock);

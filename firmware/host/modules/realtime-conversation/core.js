@@ -1,20 +1,9 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 
-import Broker from 'realtimeConversation/broker'
 import ToolRunner from 'realtimeConversation/tools'
 
 const ENDPOINT = 'https://api.openai.com/v1/live/sessions'
-const DEFAULT_DELEGATION = {
-  type: 'responses',
-  responses: {
-    model: 'gpt-5.6-terra',
-    instructions:
-      '日本語の音声会話を支援してください。現在の情報が必要ならWeb検索し、根拠のある簡潔な結果を返してください。',
-    tools: [{ type: 'web_search' }],
-    tool_choice: 'auto',
-  },
-}
 
 export class ConversationError extends Error {
   constructor(message, code, stage, status) {
@@ -61,39 +50,33 @@ export default class Conversation {
   #result
   #stats
   #tools
-  #broker
+  #signaling
   #toolTimeout
 
   constructor(options, platform) {
-    if (
-      !options ||
-      (!options.broker && !options.signaling && (typeof options.apiKey !== 'string' || !options.apiKey.trim()))
-    )
-      throw new TypeError('apiKey or broker is required')
-    if ([options.broker, options.signaling, options.apiKey].filter((v) => v !== undefined).length !== 1)
-      throw new TypeError('Choose apiKey, broker, or signaling')
+    if (!options || (!options.signaling && (typeof options.apiKey !== 'string' || !options.apiKey.trim())))
+      throw new TypeError('apiKey or signaling is required')
+    if ([options.signaling, options.apiKey].filter((v) => v !== undefined).length !== 1)
+      throw new TypeError('Choose apiKey or signaling')
     if (options.signaling) {
       const adapter = options.signaling
       if (typeof adapter.createSession !== 'function' || typeof adapter.hangup !== 'function')
         throw new TypeError('Invalid signaling adapter')
-      this.#broker = {
+      this.#signaling = {
         create: (sdp, canStart, starting) => adapter.createSession({ sdp, canStart, starting }),
         accept: (result) => adapter.acceptSession?.(result),
         hangup: (sessionId) => adapter.hangup({ sessionId }),
       }
     }
-    if (options.broker) this.#broker = new Broker(options.broker, platform)
     for (const name of ['onStateChanged', 'onTranscript', 'onEvent', 'onError', 'onToolResult'])
       if (options[name] !== undefined && typeof options[name] !== 'function')
         throw new TypeError(`${name} must be a function`)
     this.#key = options.apiKey
     this.#options = {
       model: options.model ?? 'gpt-live-1',
-      instructions:
-        options.instructions ??
-        '日本語で自然に簡潔に会話してください。調べ物や推論が必要な依頼はバックエンドに委譲してください。相手の発話を聞き、割り込みや言い直しに対応してください。',
+      instructions: options.instructions ?? '',
       voice: options.voice ?? 'marin',
-      delegation: JSON.parse(JSON.stringify(options.delegation ?? DEFAULT_DELEGATION)),
+      delegation: options.delegation === undefined ? undefined : JSON.parse(JSON.stringify(options.delegation)),
       onStateChanged: options.onStateChanged,
       onTranscript: options.onTranscript,
       onEvent: options.onEvent,
@@ -106,7 +89,7 @@ export default class Conversation {
     this.#toolTimeout = options.toolTimeout
     if (options.tools !== undefined && !Array.isArray(options.tools)) throw new TypeError('Invalid tools')
     if (options.tools?.length) {
-      if (this.#options.delegation.type !== 'responses') throw new TypeError('Tools require Responses delegation')
+      if (this.#options.delegation?.type !== 'responses') throw new TypeError('Tools require Responses delegation')
       this.#tools = new ToolRunner(options.tools, {
         platform,
         timeout: options.toolTimeout,
@@ -125,10 +108,10 @@ export default class Conversation {
     }
   }
 
-  // Broker configuration may arrive while the local SDP is being prepared.
+  // Signaling configuration may arrive while the local SDP is being prepared.
   setTools(tools) {
-    if (!this.#broker || this.#signaled || !['idle', 'connecting'].includes(this.#state))
-      throw new Error('Configure broker tools before session creation')
+    if (!this.#signaling || this.#signaled || !['idle', 'connecting'].includes(this.#state))
+      throw new Error('Configure signaling tools before session creation')
     const runner = new ToolRunner(tools, {
       platform: this.#platform,
       timeout: this.#toolTimeout,
@@ -242,8 +225,8 @@ export default class Conversation {
     try {
       const options = this.#options
       let response
-      if (this.#broker) {
-        response = await this.#broker.create(
+      if (this.#signaling) {
+        response = await this.#signaling.create(
           sdp,
           () => this.#state === 'connecting' && !this.#finishing && !this.#result,
           () => {
@@ -287,7 +270,7 @@ export default class Conversation {
       if (typeof result.session?.id !== 'string' || !result.session.id)
         throw new ConversationError('Missing session ID', 'invalid_session', 'signaling')
       this.#sessionId = result.session.id
-      this.#broker?.accept(result)
+      this.#signaling?.accept(result)
       if (this.#finishing || this.#result) {
         await this.#hangup(result.session.id, key)
         return
@@ -429,8 +412,8 @@ export default class Conversation {
   }
   async #hangup(id, key) {
     try {
-      if (this.#broker) {
-        await this.#broker.hangup(id)
+      if (this.#signaling) {
+        await this.#signaling.hangup(id)
         return
       }
       const response = await this.#platform.fetch(`${ENDPOINT}/${encodeURIComponent(id)}/hangup`, {
@@ -458,7 +441,7 @@ export default class Conversation {
     this.#connection?.reject(new ConversationError('Session ended before startup', 'closed', 'connect'))
     const transport = this.#transport
     this.#transport = undefined
-    if ((!result.finalized || this.#broker) && this.#sessionId) void this.#hangup(this.#sessionId, this.#key)
+    if ((!result.finalized || this.#signaling) && this.#sessionId) void this.#hangup(this.#sessionId, this.#key)
     try {
       await transport?.close()
       this.#stats = transport?.stats

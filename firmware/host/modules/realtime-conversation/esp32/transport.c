@@ -118,12 +118,8 @@ static void scheduler(const char *name, media_lib_thread_cfg_t *cfg)
 	if (!strcmp(name, "pc_task")) { cfg->stack_size = 25 * 1024; cfg->priority = 18; cfg->core_id = 1; }
 	else if (!strcmp(name, "Adec")) { cfg->stack_size = 40 * 1024; cfg->priority = 15; cfg->core_id = 0; }
 	else if (!strcmp(name, "pc_send")) {
-#ifdef CONFIG_IDF_TARGET_ESP32S3
 		/* Keep capture/RTP ahead of peer receive work on the S3. */
 		cfg->priority = 19;
-#else
-		cfg->priority = 15;
-#endif
 		cfg->core_id = 1;
 	}
 	else if (!strcmp(name, "ARender")) cfg->priority = 20;
@@ -132,24 +128,18 @@ static void scheduler(const char *name, media_lib_thread_cfg_t *cfg)
 static void captureScheduler(const char *name, esp_capture_thread_schedule_cfg_t *cfg)
 {
 	cfg->stack_in_ext = true;
-#ifdef CONFIG_IDF_TARGET_ESP32S3
 	/* esp_capture defaults AUD_SRC to priority 5, which competes with XS/TLS
 	 * while the decoder is active. Match Espressif's capture sample priority. */
 	if (!strcmp(name, "AUD_SRC")) { cfg->priority = 15; cfg->core_id = 0; }
-#endif
 	if (!strcmp(name, "aenc_0")) {
 		/* Opus/SILK exceeds esp_capture's 4 KB default on ESP32-P4.
 		 * Match the Opus scheduler in esp_capture's audio example. */
 		cfg->stack_size = 40 * 1024;
-#ifdef CONFIG_IDF_TARGET_ESP32S3
 		cfg->priority = 19;
 		/* Keep Opus's hot stack in SRAM instead of competing with the
 		 * decoder/UI for the S3's external-memory cache. */
 		cfg->stack_size = 28 * 1024;
 		cfg->stack_in_ext = false;
-#else
-		cfg->priority = 10;
-#endif
 		cfg->core_id = 1;
 	}
 }
@@ -256,7 +246,7 @@ void xs_live_transport_destructor(void *data)
 }
 void xs_live_transport_constructor(xsMachine *the)
 {
-	if (gOwner) xsUnknownError("Tab5 audio is already in use");
+	if (gOwner) xsUnknownError("CoreS3 audio is already in use");
 	LiveTransport *t = calloc(1, sizeof(*t));
 	if (!t) xsUnknownError("No memory for WebRTC");
 	t->lock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
@@ -399,25 +389,5 @@ void xs_live_transport_stats(xsMachine *the)
 #undef STAT
 }
 
-void xs_live_transport_diagnostics(xsMachine *the)
-{
-#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
-	/* Optional, infrequent probe. Never sample tasks in the audio callbacks. */
-	TaskStatus_t tasks[48];
-	configRUN_TIME_COUNTER_TYPE total;
-	UBaseType_t count = uxTaskGetSystemState(tasks, 48, &total);
-	xsmcVars(3);
-	xsmcSetNewObject(xsResult);
-	xsmcSetNumber(xsVar(0), total); xsmcSet(xsResult, xsID("totalUs"), xsVar(0));
-	xsmcSetNewArray(xsVar(1), 0);
-	for (UBaseType_t i = 0; i < count; i++) {
-		xsmcSetNewObject(xsVar(2));
-		xsmcSetString(xsVar(0), (xsStringValue)tasks[i].pcTaskName); xsmcSet(xsVar(2), xsID("name"), xsVar(0));
-		xsmcSetNumber(xsVar(0), tasks[i].ulRunTimeCounter); xsmcSet(xsVar(2), xsID("runUs"), xsVar(0));
-		xsmcSetInteger(xsVar(0), tasks[i].uxCurrentPriority); xsmcSet(xsVar(2), xsID("priority"), xsVar(0));
-		xsmcSetInteger(xsVar(0), tasks[i].usStackHighWaterMark); xsmcSet(xsVar(2), xsID("stackFree"), xsVar(0));
-		xsmcSetIndex(xsVar(1), i, xsVar(2));
-	}
-	xsmcSet(xsResult, xsID("tasks"), xsVar(1));
-#endif
-}
+// Optional task diagnostics are supplied by the measurement build.
+__attribute__((weak)) void xs_live_transport_diagnostics(xsMachine *the) {}

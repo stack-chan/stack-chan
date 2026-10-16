@@ -1,40 +1,24 @@
-// A bounded HTTP dispatcher with a reusable asynchronous backend.
-// A timeout or backend error retires the request and its open connection.
-export function createBackgroundFetch({ createWorker, schedule, cancel }) {
+// A bounded queue over one native HTTPS request. Deadlines include queue time.
+export function createBackgroundFetch({ createRequest, normalize, decode, schedule, cancel }) {
   const queue = []
-  let worker,
-    active,
-    pumping = false,
-    sequence = 0
-  function prepare() {
-    if (worker) return
-    const created = createWorker()
-    worker = created
-    created.onmessage = (response) => {
-      if (worker !== created || !active || response.id !== active.id) return
-      if (response.error) {
-        const error = new Error(response.error.message)
-        // XS freezes built-in prototypes during preload. Shadow Error.name
-        // explicitly; assignment to the inherited read-only property throws.
-        Object.defineProperty(error, 'name', { value: response.error.name, configurable: true })
-        finish(active, error, undefined, true)
-      } else finish(active, undefined, response)
-    }
+  const errors = ['', 'request timed out', 'response exceeds limit', 'allocation failed', 'connection failed']
+  let request, active, idleTimer
+  function closeRequest() {
+    cancel(idleTimer)
+    idleTimer = undefined
+    request?.close()
+    request = undefined
   }
-  function finish(job, error, response, retire = false) {
+  function finish(job, error, response) {
     if (job.finished) return
     job.finished = true
     cancel(job.timer)
+    cancel(job.poll)
     if (active === job) {
       active = undefined
-      pumping = true
-      const oldWorker = retire ? worker : undefined
-      if (retire) worker = undefined
-      schedule(() => {
-        oldWorker?.terminate()
-        pumping = false
-        pump()
-      }, 1)
+      if (error) closeRequest()
+      else if (job.options.keepAlive === true) idleTimer = schedule(closeRequest, 3000)
+      schedule(pump, 1)
     } else {
       const index = queue.indexOf(job)
       if (index >= 0) queue.splice(index, 1)
@@ -45,32 +29,40 @@ export function createBackgroundFetch({ createWorker, schedule, cancel }) {
         status: response.status,
         ok: response.status >= 200 && response.status < 300,
         connectionReused: response.connectionReused === true,
-        text: async () => response.body,
+        text: async () => decode(response.body),
       })
   }
-  function pump() {
-    if (active || pumping || !queue.length) return
-    const job = queue.shift()
-    active = job
+  function poll(job) {
+    if (active !== job || job.finished) return
     try {
-      prepare()
-      worker.postMessage({ id: job.id, url: job.url, options: job.options })
+      request ??= createRequest()
+      if (!job.started) job.started = request.start(...job.args)
+      const response = job.started && request.read()
+      if (response) {
+        if (response.errorCode)
+          throw new Error(
+            `Live HTTPS ${errors[response.errorCode] ?? errors[4]} (native ${response.errorCode}, transport ${response.transportError}, HTTP ${response.status})`,
+          )
+        finish(job, undefined, response)
+      } else job.poll = schedule(() => poll(job), 25)
     } catch (error) {
-      finish(job, error, undefined, true)
+      finish(job, error)
     }
   }
-  const fetch = (url, options) =>
+  function pump() {
+    if (active || !queue.length) return
+    cancel(idleTimer)
+    idleTimer = undefined
+    active = queue.shift()
+    poll(active)
+  }
+  return (url, options) =>
     new Promise((resolve, reject) => {
-      if (queue.length + (active ? 1 : 0) >= 8) {
-        reject(new Error('Live HTTPS request capacity'))
-        return
-      }
-      const timeoutMs = Math.max(1000, Math.min(45000, options?.timeoutMs ?? 45000))
-      const job = { id: ++sequence, url, options, resolve, reject }
-      job.timer = schedule(() => finish(job, new Error('Live HTTPS request timed out'), undefined, true), timeoutMs)
+      if (queue.length + (active ? 1 : 0) >= 8) throw new Error('Live HTTPS request capacity')
+      const args = normalize(url, options)
+      const job = { args, options, resolve, reject }
+      job.timer = schedule(() => finish(job, new Error('Live HTTPS request timed out')), args[4])
       queue.push(job)
       pump()
     })
-  fetch.prepare = prepare
-  return fetch
 }

@@ -13,20 +13,16 @@
     "C_FLAGS": "-I$(SUBPLATFORMDIRECTORY) -I$(MODDABLE)/modules/piu/MC -I$(SUBPLATFORMDIRECTORY)/../../modules/realtime-conversation/esp32 -I$(IDF_PATH)/components/esp_http_client/include -I$(IDF_PATH)/components/mbedtls/esp_crt_bundle/include -I$(IDF_PATH)/components/esp-tls"
   },
   "modules": {
-    "~": ["../../modules/realtime-conversation/http.js"],
     "*": [
       "./io-performance.c",
       "./media-scheduler.c",
       "./opus-policy.c",
-      "./native-http.c",
-      "./crc32.c"
+      "./native-http.c"
     ],
     "io-performance": "./io-performance",
-    "crc32": "./crc32",
     "setup/realtime-performance": "./setup-realtime",
     "screen-scheduler": "./screen-scheduler",
     "realtimeConversation/http": "./background-http",
-    "realtimeNativeHttp": "./native-http.js",
     "realtimeHttpOptions": "./http-request-options",
     "realtimeHttpDispatcher": "./http-dispatcher"
   },

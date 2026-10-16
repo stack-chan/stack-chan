@@ -90,8 +90,6 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
       mode: buildMode,
       realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
       solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
-      performanceProbe: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE === '1',
-      systemTrace: process.env.STACKCHAN_REALTIME_SYSTEM_TRACE === '1',
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
@@ -152,8 +150,6 @@ if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
       mode: buildMode,
       realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
       solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
-      performanceProbe: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE === '1',
-      systemTrace: process.env.STACKCHAN_REALTIME_SYSTEM_TRACE === '1',
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared after target clean: ${error.message}`)

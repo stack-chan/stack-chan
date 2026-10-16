@@ -134,8 +134,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
 
   const application = new Application(options, {
     commandListLength: 4096,
-    // This Application is reused by the main face and multiline balloons.
-    displayListLength: 8192,
+    displayListLength: 4096,
     touchCount: 1,
     skin: styles.screen,
     contents: [

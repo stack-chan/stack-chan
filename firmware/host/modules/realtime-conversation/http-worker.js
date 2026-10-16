@@ -13,19 +13,28 @@ const platform = {
 }
 let tail = Promise.resolve(), queued = 0
 function reply(message) {
-  try { self.postMessage(message) }
-  catch { Timer.set(() => reply(message), 25) }
+  return new Promise(resolve => {
+    const send = () => {
+      try { self.postMessage(message); resolve() }
+      catch { Timer.set(send, 25) }
+    }
+    send()
+  })
 }
 self.onmessage = ({id, deadline, request}) => {
-  if (queued >= 8) { reply({id, error: 'HTTPS request capacity'}); return }
+  if (queued >= 8) {
+    // The caller's deadline also bounds an undeliverable capacity rejection.
+    try { self.postMessage({id, error: 'HTTPS request capacity'}) } catch {}
+    return
+  }
   queued++
   tail = tail.then(async () => {
     try {
       request.timeoutMs = deadline - Date.now()
       if (request.timeoutMs <= 0) throw new Error('HTTPS request timed out')
       const result = await requestHttps(request, platform)
-      reply({id, ...result})
-    } catch (error) { reply({id, error: String(error)}) }
+      await reply({id, ...result})
+    } catch (error) { await reply({id, error: String(error)}) }
     finally { queued-- }
   })
 }

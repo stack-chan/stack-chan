@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { guardSocketCallbacks, requestHttps } from '../http-core.js'
 import { normalizeRequest } from '../http-options.js'
-import { requestHttps, guardSocketCallbacks } from '../http-core.js'
 import { createHttpProxy } from '../http-proxy.js'
+
 const encode = (text) => new TextEncoder().encode(text).buffer
 const decode = (buffer) => new TextDecoder().decode(buffer)
 const normalize = (url, options) => normalizeRequest(url, options, encode, (pem) => encode(pem))

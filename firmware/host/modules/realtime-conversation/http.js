@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
-import Worker from 'worker'
-import Timer from 'timer'
-import Base64 from 'base64'
-import { createHttpProxy } from 'realtimeConversation/http-proxy'
+
 import { normalizeRequest } from 'realtimeConversation/http-options'
+import { createHttpProxy } from 'realtimeConversation/http-proxy'
+import Base64 from 'base64'
+import Timer from 'timer'
+import Worker from 'worker'
 
 export default createHttpProxy({
   createWorker: () =>

@@ -16,7 +16,8 @@ export function normalizeRequest(url, options, encode, decodeCertificate) {
   const encodedHeaders = encode(JSON.stringify(headers))
   if (typeof options.certificate === 'string' && options.certificate.length > 16384)
     throw new RangeError('Live HTTPS certificate exceeds limit')
-  const certificate = typeof options.certificate === 'string' ? decodeCertificate(options.certificate) : options.certificate
+  const certificate =
+    typeof options.certificate === 'string' ? decodeCertificate(options.certificate) : options.certificate
   if (
     url.length > 4096 ||
     body.byteLength > 131072 ||
@@ -26,6 +27,13 @@ export function normalizeRequest(url, options, encode, decodeCertificate) {
     throw new RangeError('Live HTTPS request exceeds limit')
   const requested = Number(options.timeoutMs ?? 45000)
   if (!Number.isFinite(requested)) throw new RangeError('Invalid Live HTTPS deadline')
-  return { host: endpoint[1], port: +(endpoint[2] ?? 443), path: endpoint[3],
-    headers, body, certificate, timeoutMs: Math.max(1000, Math.min(45000, requested)) }
+  return {
+    host: endpoint[1],
+    port: +(endpoint[2] ?? 443),
+    path: endpoint[3],
+    headers,
+    body,
+    certificate,
+    timeoutMs: Math.max(1000, Math.min(45000, requested)),
+  }
 }

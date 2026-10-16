@@ -1,5 +1,8 @@
 {
-  "include": ["./portable/manifest.json", "$(MODDABLE)/modules/data/base64/manifest.json"],
+  "include": [
+    "./portable/manifest.json",
+    "$(MODDABLE)/modules/data/base64/manifest.json"
+  ],
   "modules": {
     "realtimeConversation": "./realtimeConversation",
     "realtimeConversation/core": "./core",

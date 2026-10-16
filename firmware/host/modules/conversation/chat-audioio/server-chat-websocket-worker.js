@@ -12,6 +12,18 @@ import TextEncoder from 'text/encoder'
 const text = Object.freeze({ binary: false })
 const MAX_QUEUED_BYTES = 64 * 1024
 
+class CancelablePCMParser extends JSONBase64Parser {
+  wait(head, size, space) {
+    let tail = Atomics.load(this.barrier, 0)
+    while (((tail - (head + 1)) & (size - 1)) < space) {
+      if (tail < 0) throw new Error('audio output closed')
+      Atomics.wait(this.barrier, 0, tail)
+      tail = Atomics.load(this.barrier, 0)
+    }
+    if (tail < 0) throw new Error('audio output closed')
+  }
+}
+
 export default class ServerChatWebSocketWorker extends ChatWorker {
   #buffers = []
   #queuedBytes = 0
@@ -49,7 +61,7 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
 
   connect(message) {
     super.connect(message)
-    this.parser = new JSONBase64Parser(this, this.outputBuffer, 2, this.outputMinimum)
+    this.parser = new CancelablePCMParser(this, this.outputBuffer, 2, this.outputMinimum)
     this.parser.barrier = message.barrier
     const network = this.secure ? device.network.wss : device.network.ws
     const WebSocketClient = network.io ?? device.network.ws.io

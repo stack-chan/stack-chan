@@ -1,9 +1,17 @@
 {
-  "include": ["./portable/manifest.json"],
+  "include": [
+    "./portable/manifest.json",
+    "$(MODDABLE)/modules/data/base64/manifest.json"
+  ],
   "modules": {
     "realtimeConversation": "./realtimeConversation",
     "realtimeConversation/core": "./core",
-    "realtimeConversation/tools": "./tools"
+    "realtimeConversation/tools": "./tools",
+    "realtimeConversation/http": "./http",
+    "realtimeConversation/http-proxy": "./http-proxy",
+    "realtimeConversation/http-options": "./http-options",
+    "realtimeConversation/http-core": "./http-core",
+    "realtimeConversation/http-worker": "./http-worker"
   },
   "platforms": {
     "...": {

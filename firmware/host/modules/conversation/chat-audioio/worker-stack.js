@@ -62,7 +62,9 @@ const withStackWorker = (Base) =>
           incremental: 256,
         },
         stack: 1024,
-        nativeStack: 40 * 1024,
+        // Receive-only workers need less contiguous internal RAM because they
+        // do not run the Opus encoder. Keep the bidirectional stack budget.
+        nativeStack: (this.turnControl === 'downlink' ? 24 : 40) * 1024,
         priority: 4,
       })
       // Shared PCM ring (~1.92 s of 16 kHz mono). Main writes via native

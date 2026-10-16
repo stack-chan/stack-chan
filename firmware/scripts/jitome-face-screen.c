@@ -14,7 +14,7 @@ static void changed(txScreen *screen) {
   uint32_t hash = 2166136261u;
   for (int i = 0; i < screen->width * screen->height * 4; i++) hash = (hash ^ screen->buffer[i]) * 16777619u;
   printf("FRAME %08x\n", hash);
-  if (frames < 64) {
+  if (frames < 128) {
     char path[4096];
     snprintf(path, sizeof(path), "%s/frame-%03d.rgba", output, frames);
     FILE *file = fopen(path, "wb");
@@ -42,7 +42,9 @@ static gboolean tick(gpointer data) {
 }
 static gboolean finish(gpointer loop) { g_main_loop_quit(loop); return G_SOURCE_REMOVE; }
 int main(int argc, char **argv) {
-  if (argc != 3 && argc != 4) return 2;
+  if (argc < 3 || argc > 5) return 2;
+  int rotation = argc == 5 ? atoi(argv[4]) : 0;
+  if (rotation != 0 && rotation != 90 && rotation != 180 && rotation != 270) return 2;
   output = argv[2];
   void *library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
   if (!library) { fprintf(stderr, "%s\n", dlerror()); return 2; }
@@ -50,14 +52,15 @@ int main(int argc, char **argv) {
   if (!launch) return 2;
   txScreen *screen = calloc(1, sizeof(txScreen) + 320 * 240 * 4);
   if (!screen) return 2;
-  screen->width = 320; screen->height = 240;
+  screen->width = (rotation == 90 || rotation == 270) ? 240 : 320;
+  screen->height = (rotation == 90 || rotation == 270) ? 320 : 240;
   screen->abort = abortScreen; screen->bufferChanged = changed;
   screen->formatChanged = noop; screen->start = start; screen->stop = stop; screen->post = post;
   mxCreateMutex(&screen->workersMutex);
   launch(screen);
   GMainLoop *loop = g_main_loop_new(NULL, FALSE);
   guint timer = g_timeout_add(1, tick, screen);
-  g_timeout_add_seconds(argc == 4 ? atoi(argv[3]) : 4, finish, loop);
+  g_timeout_add_seconds(argc >= 4 ? atoi(argv[3]) : 4, finish, loop);
   g_main_loop_run(loop);
   g_source_remove(timer);
   if (screen->quit) screen->quit(screen);

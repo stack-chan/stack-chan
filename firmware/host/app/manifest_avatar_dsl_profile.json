@@ -1,0 +1,10 @@
+{
+  "include": ["./manifest_avatar_dsl_comparison.json"],
+  "modules": {
+    "avatar-dsl/display-probe": "../../mods/examples/avatar-dsl/tests/avatar-dsl-comparison/display-probe",
+    "avatar-dsl/profiled-screen": "../../mods/examples/avatar-dsl/tests/avatar-dsl-comparison/screen-probe"
+  },
+  "config": {
+    "screen": "avatar-dsl/profiled-screen"
+  }
+}

@@ -1,0 +1,44 @@
+# Gallery source synchronization
+
+Firmware examples are the source of truth for the files declared in
+`sample-sources.json`. From the repository root, run:
+
+```sh
+npm --prefix web run sync:gallery
+npm --prefix web run check:gallery
+```
+
+The first command copies changed or missing files byte-for-byte. The second
+reports stale copies without writing and exits unsuccessfully when synchronization
+is needed. Both commands resolve paths relative to the script, independently of
+the working directory. The existing web test suite also checks the copies, so CI
+detects forgotten synchronization without silently fixing the working tree.
+
+Update the firmware example, run synchronization, and include the changed gallery
+copies in the same pull request. Add new shared sources, images, README files or
+third-party license files to the corresponding mapping. Review removed files
+explicitly: the command only owns mapped files and never deletes other content.
+
+All mapped sources and existing destinations are read before any files are
+updated. A missing source or a destination read error therefore leaves the
+gallery unchanged. Writes are not transactional: a write-time error, such as a
+full disk, can still leave a partially updated gallery. Fix the error and rerun
+synchronization in that case.
+
+The output root, mapped destination files, and their directories beneath the
+output root must not be symbolic links, even to another gallery file. Both check
+and sync modes reject these links before reading destinations or writing files;
+unmapped content is left alone. Run the command in a trusted workspace without
+concurrent filesystem changes. These preflight checks do not provide isolation
+against another process replacing paths while synchronization is running.
+
+This is an incremental step toward issue #689. Generated copies remain tracked
+and keep their existing package-relative URLs. Gallery definitions, gallery-only
+instructions and prebuilt XSA archives remain separately maintained. Synchronizing
+JavaScript or TypeScript does **not** rebuild an XSA or establish that it matches
+the new source; follow the existing firmware build and device validation workflow
+when updating executable artifacts. A build-only gallery and XSA generation policy
+are separate follow-up decisions.
+
+Release impact: none. This changes contributor tooling and drift checks, without
+changing the distributed sample bytes or runtime behavior.

@@ -81,3 +81,21 @@ export function requestHttps(request, platform) {
     }
   })
 }
+
+// TLS authentication failures must reach HTTP onError, not escape an I/O callback.
+export function guardSocketCallbacks(Socket) {
+  return class extends Socket {
+    constructor(options) {
+      const guarded = { ...options }
+      for (const name of ['onReadable', 'onWritable'])
+        guarded[name] = function (...args) {
+          try {
+            return options[name]?.apply(this, args)
+          } catch (error) {
+            options.onError?.call(this, error)
+          }
+        }
+      super(guarded)
+    }
+  }
+}

@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
-import Timer from 'timer'
+
+import { guardSocketCallbacks, requestHttps } from 'realtimeConversation/http-core'
 import tlsCache from 'ssl/cache'
-import { requestHttps, guardSocketCallbacks } from 'realtimeConversation/http-core'
+import Timer from 'timer'
 
 const CheckedTCP = guardSocketCallbacks(device.network.https.client.socket.TCP.io)
 const platform = {

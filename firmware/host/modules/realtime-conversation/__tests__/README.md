@@ -9,6 +9,10 @@ It measures completed display frames, I2S progress, and optional task diagnostic
 The normal runtime retains its clock, audio levels and task-priority controls.
 Audio underrun counters remain part of the normal transport statistics.
 
+Memory samples include `freeInternalHeap`, `largestInternalBlock`, and
+`nativeStackFree`. The last field is the calling task's stack high-water mark;
+a sample from main does not measure the HTTPS Worker's stack.
+
 SystemView capture additionally requires `task-trace/manifest.json` and
 `STACKCHAN_REALTIME_SYSTEM_TRACE=1`. Captures are bounded and rejected when
 writes were dropped. The codec and display wrappers call the original SDK

@@ -7,6 +7,7 @@ export function requestHttps(request, platform) {
       timer,
       buffer,
       offset = 0,
+      received = 0,
       status,
       finished = false
     let body = request.body
@@ -25,7 +26,7 @@ export function requestHttps(request, platform) {
         if (error) {
           buffer = undefined
           reject(error)
-        } else resolve({ status, body: buffer ?? new ArrayBuffer() })
+        } else resolve({ status, body: buffer ? buffer.buffer.slice(0, received) : new ArrayBuffer() })
       }, 0)
     }
     try {
@@ -65,9 +66,16 @@ export function requestHttps(request, platform) {
         onReadable(count) {
           if (finished || !count) return
           try {
-            if ((buffer?.byteLength ?? 0) + count > 131072) throw new Error()
-            const chunk = this.read(count)
-            buffer = buffer ? buffer.concat(chunk) : chunk
+            const end = received + count
+            if (end > 131072) throw new Error()
+            if (!buffer || end > buffer.length) {
+              const next = new Uint8Array(Math.min(131072, Math.max(end, (buffer?.length ?? 512) * 2)))
+              if (buffer) next.set(buffer.subarray(0, received))
+              buffer = next
+            }
+            const read = this.read(buffer.subarray(received, end))
+            if (read !== count) throw new Error()
+            received = end
           } catch {
             finish(new Error('HTTPS response exceeds limit or read failed'))
           }

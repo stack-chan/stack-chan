@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { guardSocketCallbacks, requestHttps } from 'realtimeConversation/http-core'
+import { createHttpQueue } from 'realtimeConversation/http-queue'
 import tlsCache from 'ssl/cache'
+import Time from 'time'
 import Timer from 'timer'
 
 const CheckedTCP = guardSocketCallbacks(device.network.https.client.socket.TCP.io)
@@ -20,43 +22,17 @@ const platform = {
   schedule: (fn, ms) => Timer.set(fn, ms),
   cancel: (timer) => Timer.clear(timer),
 }
-let tail = Promise.resolve(),
-  queued = 0
-function reply(message) {
-  return new Promise((resolve) => {
-    const send = () => {
-      try {
-        self.postMessage(message)
-        resolve()
-      } catch {
-        Timer.set(send, 25)
-      }
-    }
-    send()
-  })
-}
-self.onmessage = ({ id, deadline, request }) => {
-  if (queued >= 8) {
-    // The caller's deadline also bounds an undeliverable capacity rejection.
+self.onmessage = createHttpQueue({
+  post: (message) => self.postMessage(message),
+  schedule: platform.schedule,
+  elapsed: (started) => Time.delta(started),
+  async execute(request) {
+    // The SDK session cache keys only by host, without the trust anchor.
+    if (request.certificate) tlsCache.deleteSessionID()
     try {
-      self.postMessage({ id, error: 'HTTPS request capacity' })
-    } catch {}
-    return
-  }
-  queued++
-  tail = tail.then(async () => {
-    try {
-      request.timeoutMs = deadline - Date.now()
-      if (request.timeoutMs <= 0) throw new Error('HTTPS request timed out')
-      // The SDK session cache keys only by host, without the trust anchor.
-      if (request.certificate) tlsCache.deleteSessionID()
-      const result = await requestHttps(request, platform)
-      await reply({ id, ...result })
-    } catch (error) {
-      await reply({ id, error: String(error) })
+      return await requestHttps(request, platform)
     } finally {
       if (request.certificate) tlsCache.deleteSessionID()
-      queued--
     }
-  })
-}
+  },
+})

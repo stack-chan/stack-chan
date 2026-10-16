@@ -27,5 +27,6 @@
         "cache_size": 512
       }
     }
-  }
+  },
+  "include": ["$(MODDABLE)/modules/base/microseconds/manifest.json"]
 }

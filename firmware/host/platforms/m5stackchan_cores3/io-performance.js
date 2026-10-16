@@ -1,6 +1,8 @@
+import Time from 'time'
+
 export default Object.freeze({
   now() {
-    return native('xs_io_now')()
+    return Time.microseconds / 1000
   },
   reset() {
     native('xs_io_reset')()

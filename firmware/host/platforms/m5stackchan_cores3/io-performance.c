@@ -1,13 +1,11 @@
 // CoreS3 runtime controls. Measurement hooks are no-ops in normal builds.
 #include "xsHost.h"
 #include "xsmc.h"
-#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "io-performance.h"
 #include <string.h>
 
-void xs_io_now(xsMachine *the) { xsmcSetNumber(xsResult, esp_timer_get_time() / 1000.0); }
 void xs_io_main_priority(xsMachine *the) {
   int priority = xsmcToInteger(xsArg(0));
   if (priority != 4 && priority != 6) xsRangeError("supported main priorities: 4, 6");

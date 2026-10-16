@@ -4,8 +4,12 @@
 import { normalizeRequest } from 'realtimeConversation/http-options'
 import { createHttpProxy } from 'realtimeConversation/http-proxy'
 import Base64 from 'base64'
+import TextDecoder from 'text/decoder'
+import Time from 'time'
 import Timer from 'timer'
 import Worker from 'worker'
+
+const decoder = new TextDecoder()
 
 export default createHttpProxy({
   createWorker: () =>
@@ -28,8 +32,8 @@ export default createHttpProxy({
         return Base64.decode(match[1].replace(/\s/g, ''))
       },
     ),
-  decode: (body) => String.fromArrayBuffer(body),
+  decode: (body) => decoder.decode(body),
   schedule: (fn, ms) => Timer.set(fn, ms),
   cancel: (timer) => Timer.clear(timer),
-  now: Date.now,
+  now: () => Time.ticks,
 })

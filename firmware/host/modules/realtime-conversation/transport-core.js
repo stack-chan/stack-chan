@@ -15,14 +15,23 @@ export function createTransport({ Timer, Base, native: binding, ArrayBuffer: Buf
       super()
       this.#callback = callback
       binding('xs_live_transport_constructor').call(this)
-      // Schedule from completion: replaying expired polls can monopolize XS when
-      // the native media tasks temporarily consume a full core.
-      this.#timer = Timer.repeat((timer) => {
-        this.#poll()
-        // Preserve the SDK's exception path; scheduling inside finally can
-        // replace a callback error and repeatedly unwind it in XS.
-        if (!this.#released) Timer.schedule(timer, 20, 20)
-      }, 20)
+      try {
+        // Schedule from completion: replaying expired polls can monopolize XS when
+        // the native media tasks temporarily consume a full core.
+        this.#timer = Timer.repeat((timer) => {
+          this.#poll()
+          // Preserve the SDK's exception path; scheduling inside finally can
+          // replace a callback error and repeatedly unwind it in XS.
+          if (!this.#released) Timer.schedule(timer, 20, 20)
+        }, 20)
+      } catch (error) {
+        // No native task has started yet; release ownership without waiting for GC.
+        binding('xs_live_transport_close').call(this)
+        binding('xs_live_transport_release').call(this)
+        this.#released = true
+        this.#callback = undefined
+        throw error
+      }
     }
     start(options) {
       binding('xs_live_transport_start').call(this, options?.captureOnly === true)

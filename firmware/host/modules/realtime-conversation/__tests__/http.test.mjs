@@ -36,8 +36,8 @@ function fixture() {
     cancels = 0
   const context = {
     write() {},
-    read(n) {
-      return new ArrayBuffer(n)
+    read(view) {
+      return view.byteLength
     },
   }
   const platform = {
@@ -181,7 +181,7 @@ test('the HTTP Worker is reused and independent responses retain their request i
 test('caller deadlines include Worker delivery/queue time; late replies cannot settle another request', async () => {
   const f = proxyFixture(),
     a = f.post({ timeoutMs: 1000 })
-  assert.equal(f.sent[0].deadline, 1010)
+  assert.equal(f.sent[0].started, 10)
   f.timers[0].callback()
   await assert.rejects(a, /timed out/)
   const b = f.post()
@@ -232,4 +232,30 @@ test('TLS callback exceptions become socket errors without escaping the I/O task
   assert.equal(socket.options.onReadable.call(socket, 42), 42)
   assert.doesNotThrow(() => socket.options.onWritable.call(socket, 1))
   assert.deepEqual(errors, [failure])
+})
+
+test('fragmented responses preserve every byte up to the response limit', async () => {
+  const f = fixture()
+  let offset = 0
+  f.context.read = (view) => {
+    for (let i = 0; i < view.length; i++) view[i] = (offset + i) % 251
+    offset += view.length
+    return view.length
+  }
+  f.cb.onHeaders(200, new Map())
+  for (let i = 0; i < 128; i++) f.cb.onReadable.call(f.context, 1024)
+  f.cb.onDone()
+  const bytes = new Uint8Array((await f.promise).body)
+  assert.equal(bytes.length, 131072)
+  assert.ok(bytes.every((value, i) => value === i % 251))
+  assert.equal(f.closes, 1)
+})
+
+test('streamed overflow rejects after earlier fragments were accepted', async () => {
+  const f = fixture()
+  f.cb.onHeaders(200, new Map())
+  f.cb.onReadable.call(f.context, 131072)
+  f.cb.onReadable.call(f.context, 1)
+  await assert.rejects(f.promise, /limit/)
+  assert.equal(f.closes, 1)
 })

@@ -10,21 +10,17 @@
     }
   },
   "build": {
-    "C_FLAGS": "-I$(SUBPLATFORMDIRECTORY) -I$(MODDABLE)/modules/piu/MC -I$(SUBPLATFORMDIRECTORY)/../../modules/realtime-conversation/esp32 -I$(IDF_PATH)/components/esp_http_client/include -I$(IDF_PATH)/components/mbedtls/esp_crt_bundle/include -I$(IDF_PATH)/components/esp-tls"
+    "C_FLAGS": "-I$(SUBPLATFORMDIRECTORY) -I$(MODDABLE)/modules/piu/MC -I$(SUBPLATFORMDIRECTORY)/../../modules/realtime-conversation/esp32"
   },
   "modules": {
     "*": [
       "./io-performance.c",
       "./media-scheduler.c",
-      "./opus-policy.c",
-      "./native-http.c"
+      "./opus-policy.c"
     ],
     "io-performance": "./io-performance",
     "setup/realtime-performance": "./setup-realtime",
-    "screen-scheduler": "./screen-scheduler",
-    "realtimeConversation/http": "./background-http",
-    "realtimeHttpOptions": "./http-request-options",
-    "realtimeHttpDispatcher": "./http-dispatcher"
+    "screen-scheduler": "./screen-scheduler"
   },
   "defines": {
     "xs": {

@@ -24,7 +24,7 @@ export function createHttpProxy({ createWorker, normalize, decode, schedule, can
       if (pending.size >= 8) throw new Error('HTTPS request capacity')
       const request = normalize(url, options),
         id = ++sequence
-      const deadline = now() + request.timeoutMs
+      const started = now()
       const job = { resolve, reject }
       job.timer = schedule(() => {
         pending.delete(id)
@@ -32,7 +32,7 @@ export function createHttpProxy({ createWorker, normalize, decode, schedule, can
       }, request.timeoutMs)
       pending.set(id, job)
       try {
-        worker.postMessage({ id, deadline, request })
+        worker.postMessage({ id, started, request })
       } catch (error) {
         pending.delete(id)
         cancel(job.timer)

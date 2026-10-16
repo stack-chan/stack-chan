@@ -109,3 +109,34 @@ test('limits outgoing event bytes independently from the event count', async () 
   transport.send('x'.repeat(65536))
   assert.throws(() => transport.send('x'), /limit exceeded/)
 })
+
+test('timer initialization failure releases native ownership before another constructor', () => {
+  let owner,
+    fail = true
+  const calls = []
+  const Transport = createTransport({
+    Base: class {},
+    Timer: {
+      repeat() {
+        if (fail) throw new Error('no timer')
+        return {}
+      },
+    },
+    native: (name) =>
+      function () {
+        calls.push(name)
+        if (name === 'xs_live_transport_constructor') {
+          assert.equal(owner, undefined)
+          owner = this
+        }
+        if (name === 'xs_live_transport_release') {
+          assert.equal(owner, this)
+          owner = undefined
+        }
+      },
+  })
+  assert.throws(() => new Transport(() => {}), /no timer/)
+  assert.deepEqual(calls, ['xs_live_transport_constructor', 'xs_live_transport_close', 'xs_live_transport_release'])
+  fail = false
+  assert.doesNotThrow(() => new Transport(() => {}))
+})

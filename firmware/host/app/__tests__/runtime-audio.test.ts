@@ -371,3 +371,21 @@ test('shared saved volume controls TTS, finite/live starts and the current strea
   }, /Volume/)
   assert.equal(runtime.volume, 0.25)
 })
+
+test('shared volume supports a speaker without mutable volume, as used by WASM', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let received: number | undefined
+  const speaker = Object.freeze({
+    tone: async (_hz: number, _duration: number, volume?: number) => {
+      received = volume
+    },
+    play: async () => true,
+  })
+  const runtime = new StackchanRuntimeAudio({ tts: fakeTTS(), speaker })
+
+  runtime.volume = 0.25
+  assert.equal(runtime.volume, 0.25)
+  await runtime.tone(440, 20)
+  assert.equal(received, 0.25)
+})

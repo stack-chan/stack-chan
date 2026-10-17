@@ -50,7 +50,8 @@ export class StackchanRuntimeAudio {
     if (volume === this.#volume) return
     this.#onVolumeChanged?.(volume)
     this.#volume = volume
-    if (this.#speaker) this.#speaker.volume = volume
+    // WASM speakers accept tone volume per call but have no mutable volume property.
+    if (this.#speaker && 'volume' in this.#speaker) this.#speaker.volume = volume
     this.#media?.setVolume(volume * MAX_MEDIA_VOLUME)
     if (!this.#media) this.#webRadio?.setVolume(volume * MAX_MEDIA_VOLUME)
   }

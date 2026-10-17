@@ -2,6 +2,8 @@ import Timer from 'timer'
 
 const TEST_URI = 'https://stack-chan.com/'
 const DRAWER_KEYS = ['rfidPolling', 'rfidRead', 'rfidWrite']
+// SDK 10.0.1 wrapNdef() exposes URIs on well-known U records, not the wrapper.
+const getURI = (ndef) => ndef?.records?.find((record) => record.tnf === 1 && record.type === 'U')?.uri
 let cleanup
 
 export function onContextCreated(robot) {
@@ -34,7 +36,7 @@ export function onContextCreated(robot) {
   }
   const showNDEF = (ndef) => {
     trace(`[rfid] NDEF ${JSON.stringify(ndef ?? null)}\n`)
-    report(ndef?.uri ?? ndef?.text ?? (ndef ? 'NDEF: see log' : 'NDEF: empty or unavailable'))
+    report(getURI(ndef) ?? ndef?.text ?? (ndef ? 'NDEF: see log' : 'NDEF: empty or unavailable'))
   }
   const poll = () => {
     try {
@@ -113,7 +115,7 @@ export function onContextCreated(robot) {
         reader.writeNDEF({ uri: TEST_URI })
         // Read back independently, rather than relying on the write return value.
         const ndef = reader.readNDEF()
-        if (ndef?.uri !== TEST_URI) throw new Error('URI read-back mismatch')
+        if (getURI(ndef) !== TEST_URI) throw new Error('URI read-back mismatch')
         showNDEF(ndef)
         report('NDEF: write/read-back OK')
       }),

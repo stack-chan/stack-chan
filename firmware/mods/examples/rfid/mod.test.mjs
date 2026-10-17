@@ -37,7 +37,9 @@ async function harness({ supported = true, failConfigure = false } = {}) {
     writeNDEF(options) {
       this.writes.push(options)
       if (this.writeError) throw this.writeError
-      return { uri: options.uri }
+      assert.equal(Array.isArray(options), false, 'SDK writeNDEF takes an options object')
+      assert.equal(typeof options.uri, 'string')
+      return uriNDEF(options.uri)
     }
     close() {
       this.closeCalls++
@@ -96,6 +98,9 @@ async function harness({ supported = true, failConfigure = false } = {}) {
 }
 
 const type2 = { present: true, uidHex: '04aabbccddeeff', sak: 0, type: 'MIFARE Ultralight' }
+const TEST_URI = 'https://stack-chan.com/'
+// SDK 10.0.1 wrapNdef() returns { records, text }; URI belongs to a U record.
+const uriNDEF = (uri) => ({ records: [{ tnf: 1, type: 'U', uri }], text: uri })
 
 test('RFID remains uninstantiated until selected; unsupported hosts get no controls', async () => {
   const h = await harness()
@@ -145,20 +150,73 @@ test('NDEF write is explicit and checked by a separate read; poll never writes',
   h.select('250')
   const reader = h.readers[0]
   reader.samples.push(type2)
-  reader.ndef = { uri: 'https://stack-chan.com/' }
+  reader.ndef = uriNDEF(TEST_URI)
   h.tick()
   assert.equal(reader.writes.length, 0)
   assert.equal(reader.reads, 0)
   h.read()
   assert.equal(reader.reads, 1)
+  assert.equal(h.messages.at(-1), TEST_URI)
   h.write()
   assert.equal(reader.writes.length, 1)
-  assert.equal(reader.writes[0].uri, reader.ndef.uri)
+  assert.equal(reader.writes[0].uri, TEST_URI)
   assert.equal(reader.reads, 2)
   assert.match(h.messages.at(-1), /write\/read-back OK/)
-  reader.ndef = { uri: 'https://wrong.example/' }
+})
+
+test('read-back finds a URI record after a text record instead of using summary text', async () => {
+  const h = await harness()
+  h.select('250')
+  const reader = h.readers[0]
+  reader.samples.push(type2)
+  reader.ndef = uriNDEF(TEST_URI)
+  reader.ndef.records.unshift({ tnf: 1, type: 'T', language: 'en', text: 'A tag' })
+  reader.ndef.text = 'A tag'
+  h.read()
+  assert.equal(h.messages.at(-1), TEST_URI)
+  h.write()
+  assert.match(h.messages.at(-1), /write\/read-back OK/)
+})
+
+test('URI mismatch is rejected even when writeNDEF returns the expected URI', async () => {
+  const h = await harness()
+  h.select('250')
+  const reader = h.readers[0]
+  reader.samples.push(type2)
+  reader.ndef = uriNDEF('https://wrong.example/')
+  h.write()
+  assert.equal(reader.writes.length, 1)
+  assert.equal(reader.reads, 1)
+  assert.match(h.messages.at(-1), /read-back mismatch/)
+  assert.equal(h.messages.includes('NDEF: write/read-back OK'), false)
+})
+
+test('text containing the expected URI cannot substitute for a URI record', async () => {
+  const h = await harness()
+  h.select('250')
+  const reader = h.readers[0]
+  reader.samples.push(type2)
+  reader.ndef = { records: [{ tnf: 1, type: 'T', language: 'en', text: TEST_URI }], text: TEST_URI }
   h.write()
   assert.match(h.messages.at(-1), /read-back mismatch/)
+})
+
+test('failed or unavailable read-back never reports a successful write', async () => {
+  const h = await harness()
+  h.select('250')
+  const reader = h.readers[0]
+  reader.samples.push(type2)
+  reader.readError = new Error('read failed')
+  h.write()
+  assert.equal(reader.writes.length, 1)
+  assert.equal(reader.reads, 1)
+  assert.match(h.messages.at(-1), /NDEF failed: Error: read failed/)
+  reader.readError = undefined
+  h.write()
+  assert.equal(reader.writes.length, 2)
+  assert.equal(reader.reads, 2)
+  assert.match(h.messages.at(-1), /read-back mismatch/)
+  assert.equal(h.messages.includes('NDEF: write/read-back OK'), false)
 })
 
 test('refresh rejects a removed card or Classic before NDEF IO', async () => {

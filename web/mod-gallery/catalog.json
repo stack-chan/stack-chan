@@ -11,6 +11,7 @@
     "samples/codex-voice/stackchan-mod.json",
     "samples/mcp/stackchan-mod.json",
     "samples/stackchan-minigames/stackchan-mod.json",
-    "samples/ui-playground/stackchan-mod.json"
+    "samples/ui-playground/stackchan-mod.json",
+    "samples/media-player/stackchan-mod.json"
   ]
 }

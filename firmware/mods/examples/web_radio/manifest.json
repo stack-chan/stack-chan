@@ -5,7 +5,8 @@
     "../../../host/app/manifest_typings.json"
   ],
   "modules": {
-    "*": ["./mod", "./types"]
+    "*": ["./mod", "./types"],
+    "web-radio-config": "./config"
   },
   "typescript": {
     "tsconfig": {

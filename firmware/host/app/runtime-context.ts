@@ -439,6 +439,12 @@ export class StackchanRuntimeContext implements StackchanContext {
   private createAudioCapability(): AudioCapability {
     const context = this
     return {
+      get volume() {
+        return context.#audioRuntime.volume
+      },
+      set volume(volume: number) {
+        context.#audioRuntime.volume = volume
+      },
       get tts() {
         return context.tts
       },

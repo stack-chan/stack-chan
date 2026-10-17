@@ -112,6 +112,8 @@ export type MotionCapability = {
 }
 
 export type AudioCapability = {
+  /** Shared saved TTS volume, 0..1 linear gain. Media scales it to its output limit. */
+  volume?: number
   tts: TTS
   microphone?: {
     record(durationMilliSec?: number): Promise<OwnedAudioBuffer>

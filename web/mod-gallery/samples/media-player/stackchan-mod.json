@@ -1,0 +1,25 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "tech.stackchan.samples.media-player",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "メディアプレイヤー",
+  "description": "PodcastとMP3 WebRadioを2つのmini-appで再生。画面を閉じても継続し、他方の再生開始で切り替えます。DrawerにTTS共通の4段階音量を搭載。共有音量対応のCoreS3ホストが必要です。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0 AND OFL-1.1",
+  "source": {
+    "path": "mod/media_player/manifest.json",
+    "entrypoint": "mod/media_player/mod.js"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": ["face", "ui.drawer", "connectivity.network"],
+  "artifacts": [
+    {
+      "format": "xsa",
+      "path": "media-player.xsa",
+      "target": "m5stackchan-cores3"
+    }
+  ]
+}

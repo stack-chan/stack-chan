@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { guardSocketCallbacks, requestHttps } from '../http-core.js'
+import { createClosingClient, guardSocketCallbacks, requestHttps } from '../http-core.js'
 import { normalizeRequest } from '../http-options.js'
 import { createHttpProxy } from '../http-proxy.js'
 
@@ -106,6 +106,63 @@ test('partial writes preserve the body and HTTP error statuses never trigger ret
   f.cb.onDone()
   assert.equal(f.closes, 1)
   assert.equal(f.cancels, 1)
+})
+test('zero writable capacity never terminates a content-length request body', async () => {
+  const f = fixture(),
+    pieces = []
+  f.context.write = (view) => {
+    assert.ok(view, 'fixed-length requests never use the chunked body terminator')
+    pieces.push(...new Uint8Array(view.buffer, view.byteOffset, view.byteLength))
+  }
+  f.cb.onWritable.call(f.context, 0)
+  f.cb.onWritable.call(f.context, 1)
+  f.cb.onWritable.call(f.context, 0)
+  f.cb.onWritable.call(f.context, 2)
+  f.cb.onWritable.call(f.context, 0)
+  f.cb.onHeaders(201, new Map())
+  f.cb.onDone()
+  assert.equal((await f.promise).status, 201)
+  assert.equal(String.fromCharCode(...pieces), 'abc')
+})
+
+test('closing a client suppresses late DNS results without affecting the next client', () => {
+  const lookups = [],
+    sockets = [],
+    errors = []
+  let closes = 0
+  class DNS {
+    resolve(request) {
+      lookups.push(request)
+    }
+  }
+  class Client {
+    constructor(options) {
+      new options.dns.io(options.dns).resolve({
+        host: options.host,
+        onResolved: (host, address) => sockets.push({ host, address }),
+        onError: options.onError,
+      })
+    }
+    request(options) {
+      return options
+    }
+    close() {
+      closes++
+    }
+  }
+  const options = { host: 'service.test', dns: { io: DNS }, onError: (error) => errors.push(error) }
+  const first = createClosingClient(Client, options)
+  assert.equal(first.request('request'), 'request')
+  first.close()
+  const second = createClosingClient(Client, options)
+  lookups[0].onResolved('service.test', '192.0.2.1')
+  lookups[0].onError(new Error('late DNS'))
+  assert.deepEqual(sockets, [])
+  assert.deepEqual(errors, [])
+  lookups[1].onResolved('service.test', '192.0.2.2')
+  assert.deepEqual(sockets, [{ host: 'service.test', address: '192.0.2.2' }])
+  second.close()
+  assert.equal(closes, 2)
 })
 test('every failure closes the SDK socket and settles the bounded request once', async () => {
   for (const fail of [

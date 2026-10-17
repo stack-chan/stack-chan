@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 
-import { guardSocketCallbacks, requestHttps } from 'realtimeConversation/http-core'
+import { createClosingClient, guardSocketCallbacks, requestHttps } from 'realtimeConversation/http-core'
 import { createHttpQueue } from 'realtimeConversation/http-queue'
 import tlsCache from 'ssl/cache'
 import Time from 'time'
@@ -10,7 +10,7 @@ import Timer from 'timer'
 const CheckedTCP = guardSocketCallbacks(device.network.https.client.socket.TCP.io)
 const platform = {
   createClient: ({ certificate, ...options }) =>
-    new device.network.https.client.io({
+    createClosingClient(device.network.https.client.io, {
       ...device.network.https.client,
       ...options,
       socket: {

@@ -52,13 +52,13 @@ export function requestHttps(request, platform) {
           if (Number(responseHeaders.get('content-length')) > 131072) finish(new Error('HTTPS response exceeds limit'))
         },
         onWritable(count) {
-          if (finished) return
+          if (finished || !count) return
           try {
             count = Math.min(count, body.byteLength - offset)
             if (count) {
               this.write(new DataView(body, offset, count))
               offset += count
-            } else this.write()
+            }
           } catch {
             finish(new Error('HTTPS write failed'))
           }
@@ -88,6 +88,30 @@ export function requestHttps(request, platform) {
       finish(error)
     }
   })
+}
+
+// HTTPClient.close() does not cancel an outstanding SDK DNS lookup. Ignore its
+// late callbacks so closing a timed-out request cannot create a new socket.
+export function createClosingClient(Client, options) {
+  let closed = false
+  class DNS extends options.dns.io {
+    resolve(request) {
+      const guarded = { ...request }
+      for (const name of ['onResolved', 'onError'])
+        guarded[name] = function (...args) {
+          if (!closed) request[name]?.apply(this, args)
+        }
+      return super.resolve(guarded)
+    }
+  }
+  const client = new Client({ ...options, dns: { ...options.dns, io: DNS } })
+  return {
+    request: (request) => client.request(request),
+    close() {
+      closed = true
+      client.close()
+    },
+  }
 }
 
 // TLS authentication failures must reach HTTP onError, not escape an I/O callback.

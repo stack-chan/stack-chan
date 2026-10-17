@@ -1,6 +1,7 @@
 import type { BorrowedAudioBuffer } from 'audio-buffer'
 
 export default class Speaker {
+  volume?: number
   constructor(_options?: unknown) {
     void _options
   }

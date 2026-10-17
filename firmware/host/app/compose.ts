@@ -12,6 +12,7 @@ import type {
   TTS,
 } from 'capabilities'
 import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
+import { DOMAIN } from 'consts'
 import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
@@ -26,6 +27,7 @@ import { NoneDriver } from 'none-driver'
 import { DealWithItFace } from 'parts/image/deal-with-it-face'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
+import Preference from 'preference'
 import PY32Led from 'py32-led'
 import { RS30XDriver } from 'rs30x-driver'
 import { StackchanRuntimeContext } from 'runtime-context'
@@ -41,6 +43,7 @@ import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as StackchanVoiceTTS } from 'tts-stackchan-voice'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
+import { canonicalizeVolume } from 'volume-model'
 
 type DeviceButton = {
   read: () => number
@@ -269,6 +272,8 @@ export function createStackchanContext(
     closeHandlers: options.closeHandlers,
     speaker,
     media,
+    volume: canonicalizeVolume(ttsPrefs.volume),
+    onVolumeChanged: (volume: number) => Preference.set(DOMAIN.tts, 'volume', String(volume)),
     microphone,
     camera,
     led,

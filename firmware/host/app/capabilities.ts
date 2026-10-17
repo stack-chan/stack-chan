@@ -117,6 +117,8 @@ export type MotionCapability = {
 }
 
 export type AudioCapability = {
+  /** Shared saved TTS volume, 0..1 linear gain. Media scales it to its output limit. */
+  volume?: number
   /** Reserve native audio; release only after the external I2S owner has closed. */
   acquireExclusive(): () => void
   tts: TTS

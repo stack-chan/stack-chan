@@ -1,0 +1,20 @@
+{
+  "include": ["../podcast/manifest.common.json"],
+  "modules": {
+    "*": ["./mod"],
+    "media-volume": "./volume",
+    "media-look-around": "./look-around",
+    "web-radio-config": "../web_radio/config"
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../host/modules/ui/assets/fonts/StackchanCJK-Regular",
+        "name": "PodcastCJK",
+        "size": 12,
+        "monochrome": true,
+        "characterFiles": "../podcast/assets/PodcastCJK-chars.txt"
+      }
+    ]
+  }
+}

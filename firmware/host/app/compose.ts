@@ -23,6 +23,7 @@ import Microphone from 'microphone'
 import Modules from 'modules'
 import type { MotionDriver } from 'motion-controller'
 import { NoneDriver } from 'none-driver'
+import { DealWithItFace } from 'parts/image/deal-with-it-face'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
 import PY32Led from 'py32-led'
@@ -146,6 +147,7 @@ export function createStackchanContext(
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
     ['jitome', (param) => createStackchanUI(createJitomeFace().content, asUIOptions(param))],
+    ['deal-with-it', (param) => createStackchanUI(new DealWithItFace(), asUIOptions(param))],
     ['simple', (param) => createStackchanUI(new SimpleFace(), asUIOptions(param))],
     [
       'image',

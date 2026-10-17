@@ -4,6 +4,7 @@ import type { StackchanContext } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
+import { DealWithItFace } from 'parts/image/deal-with-it-face'
 import {
   Application,
   Container,
@@ -596,4 +597,22 @@ controller.setFace(jitome)
 equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Repeated swap origin x')
 equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Repeated swap origin y')
 controller.setFaceMotionEnabled(false)
+const shades = new DealWithItFace({})
+for (let i = 0; i < 2; i++) {
+  controller.setFace(shades)
+  const visualLeft = nodeCoordinate(faceRegion, 'left') + nodeCoordinate(shades, 'left')
+  const visualTop = nodeCoordinate(faceRegion, 'top') + nodeCoordinate(shades, 'top')
+  equal(visualLeft, 34, 'extended shades should keep their centered origin on every swap')
+  equal(nodeCoordinate(faceRegion, 'width'), 264, 'clip should contain both temple tips and breathing margin')
+  const mouth = shades.first?.next
+  assert(mouth, 'shades should retain the simple face mouth')
+  equal(visualLeft + (mouth.coordinates.left ?? 0) + mouth.width / 2, 160, 'mouth screen center x')
+  equal(visualTop + (mouth.coordinates.top ?? 0) + mouth.height / 2, 148, 'mouth screen center y')
+  controller.setFace(nextFace)
+  equal(
+    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(nextFace, 'left'),
+    initialVisualLeft,
+    'standard face origin after shades',
+  )
+}
 trace('@@STACKCHAN_TEST:PASS@@\n')

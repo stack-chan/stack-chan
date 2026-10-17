@@ -52,6 +52,7 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
+    "*": ["./assets/images/faces/deal-with-it/deal-with-it-eyes"],
     "*-alpha-monochrome": [
       "./components/hands/assets/hands-outer-mask",
       "./components/hands/assets/hands-inner-mask"

@@ -8,6 +8,7 @@
     "openaiLive": {
       "apiKey": "",
       "model": "gpt-live-1",
+      "backendModel": "gpt-6-luna",
       "voice": "marin",
       "instructions": "日本語で短く自然に会話してください。",
       "volume": 0.1

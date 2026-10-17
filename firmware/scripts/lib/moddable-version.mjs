@@ -95,9 +95,15 @@ export function prepareVersionSdkconfig({
     path.resolve(sourceDirectory) === path.resolve(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
   let source = isBaseConfig ? '' : readFileSync(sourcePath, 'utf8')
   // The SDK merges this application overlay after manifest esp32Config.
-  // Do not let the standalone-MP3 profile turn WebRTC's Opus codecs off again.
+  // Preserve WebRTC's manifest settings instead of replaying the standalone
+  // profile's codec, memory-speed and allocation defaults over them.
   if (realtime)
-    source = source.replace(/^CONFIG_AUDIO_(ENCODER|DECODER)_OPUS_SUPPORT=.*$/gm, 'CONFIG_AUDIO_$1_OPUS_SUPPORT=y')
+    source = source
+      .replace(/^CONFIG_AUDIO_(ENCODER|DECODER)_OPUS_SUPPORT=.*$/gm, 'CONFIG_AUDIO_$1_OPUS_SUPPORT=y')
+      .replace(
+        /^CONFIG_(?:SPIRAM_MALLOC_ALWAYSINTERNAL|SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=.*\n?/gm,
+        '',
+      )
   const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')

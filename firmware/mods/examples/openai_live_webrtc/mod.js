@@ -29,8 +29,14 @@ export function onContextCreated(robot) {
     amp: globalThis.amp,
     settings: (Modules.has('mod/config') ? Modules.importNow('mod/config').openaiLive : undefined) ?? {},
     onState(state) {
+      const active = ['connecting', 'connected', 'closing'].includes(state)
       try {
-        drawer.setDrawerButtonState(SESSION, ['connecting', 'connected', 'closing'].includes(state))
+        robot.ui.setFaceMotionEnabled?.(!active)
+      } catch {
+        // Optional face controls must not prevent session cleanup.
+      }
+      try {
+        drawer.setDrawerButtonState(SESSION, active)
         drawer.setDrawerButtonState(MUTE, false)
         robot.ui.showBalloon(messages[state])
       } catch {

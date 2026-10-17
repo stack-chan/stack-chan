@@ -80,7 +80,8 @@ test('the CoreS3 realtime overlay enables Opus while preserving the standalone p
     const sourceDirectory = path.join(fixture, 'profile')
     mkdirSync(sourceDirectory)
     const source =
-      'CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=n\nCONFIG_AUDIO_DECODER_OPUS_SUPPORT=n\nCONFIG_AUDIO_DECODER_MP3_SUPPORT=y\n'
+      'CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=n\nCONFIG_AUDIO_DECODER_OPUS_SUPPORT=n\nCONFIG_AUDIO_DECODER_MP3_SUPPORT=y\n' +
+      'CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384\nCONFIG_SPIRAM_SPEED_40M=y\nCONFIG_ESPTOOLPY_FLASHMODE_DIO=y\n'
     writeFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), source)
     const partitionSourcePath = path.join(sourceDirectory, 'partitions.csv')
     writeFileSync(partitionSourcePath, 'factory,app,factory,0x10000,0x300000\n')
@@ -100,8 +101,16 @@ test('the CoreS3 realtime overlay enables Opus while preserving the standalone p
     assert.equal(values.get('CONFIG_AUDIO_ENCODER_OPUS_SUPPORT'), 'y')
     assert.equal(values.get('CONFIG_AUDIO_DECODER_OPUS_SUPPORT'), 'y')
     assert.equal(values.get('CONFIG_AUDIO_DECODER_MP3_SUPPORT'), 'y')
+    // Application overlays are merged last: leave these values to the Live manifest.
+    for (const key of [
+      'CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL',
+      'CONFIG_SPIRAM_SPEED_40M',
+      'CONFIG_ESPTOOLPY_FLASHMODE_DIO',
+    ])
+      assert.equal(values.has(key), false)
     const normal = prepareCoreS3VersionSdkconfig(options)
     assert.match(readFileSync(normal.filePath, 'utf8'), /CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=n/)
+    assert.match(readFileSync(normal.filePath, 'utf8'), /CONFIG_SPIRAM_SPEED_40M=y/)
     assert.equal(readFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'utf8'), source)
   } finally {
     rmSync(fixture, { recursive: true, force: true })

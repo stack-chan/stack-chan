@@ -34,6 +34,10 @@ export class LiveSession {
         model: this.settings.model,
         voice: this.settings.voice,
         instructions: this.settings.instructions,
+        delegation: {
+          type: 'responses',
+          responses: { model: this.settings.backendModel ?? 'gpt-6-luna' },
+        },
         onError: () => {
           if (this.active !== entry) return
           entry.failure = 'error'

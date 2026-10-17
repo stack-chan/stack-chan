@@ -91,9 +91,14 @@ test('empty key and unavailable network never acquire audio or create a session'
 })
 test('start, acknowledged mute and close reuse Conversation and release only after native close', async () => {
   const f = fixture()
+  f.session.settings.backendModel = 'test-backend-model'
   assert.equal(await f.session.start(), true)
   assert.equal(f.instances[0].volume, 0.1)
   assert.equal(f.instances[0].options.model, 'gpt-live-1')
+  assert.deepEqual(f.instances[0].options.delegation, {
+    type: 'responses',
+    responses: { model: f.session.settings.backendModel },
+  })
   assert.equal(await f.session.setMuted(true), true)
   const closing = f.closePending()
   const stop = f.session.stop()

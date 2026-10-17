@@ -1,5 +1,6 @@
 import Modules from 'modules'
 import { LiveSession } from 'openai-live-session'
+import Timer from 'timer'
 
 const SESSION = 'openai-live:session'
 const MUTE = 'openai-live:mute'
@@ -19,8 +20,20 @@ export function onContextCreated(robot) {
   }
   const Conversation = Modules.importNow('realtimeConversation')
   const power = Modules.importNow('network-power')
+  const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
   const drawer = robot.ui.drawer
   let changingMute = false
+  let mouthTimer,
+    lastMouth = 0
+  function updateMouth(value) {
+    if (value === lastMouth) return
+    lastMouth = value
+    try {
+      robot.setMouthOpen?.(value, true)
+    } catch {
+      // A rendering failure must not prevent session cleanup.
+    }
+  }
   const session = new LiveSession({
     Conversation,
     audio: robot.audio,
@@ -30,6 +43,16 @@ export function onContextCreated(robot) {
     settings: (Modules.has('mod/config') ? Modules.importNow('mod/config').openaiLive : undefined) ?? {},
     onState(state) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
+      if (state === 'connected' && mouthTimer === undefined && levels && robot.setMouthOpen) {
+        mouthTimer = Timer.repeat(() => {
+          const level = levels.levels().referenceLevel ?? 0
+          updateMouth(Math.min(10, Math.round(level / 200)) / 10)
+        }, 100)
+      } else if (state !== 'connected') {
+        if (mouthTimer !== undefined) Timer.clear(mouthTimer)
+        mouthTimer = undefined
+        updateMouth(0)
+      }
       try {
         robot.ui.setFaceMotionEnabled?.(!active)
       } catch {

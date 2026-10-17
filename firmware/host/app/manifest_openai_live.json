@@ -1,0 +1,14 @@
+{
+  "include": [
+    "./manifest_m5stackchan_cores3.json",
+    "../modules/realtime-conversation/manifest.json"
+  ],
+  "esp32Config": {
+    "CONFIG_MBEDTLS_SSL_PROTO_DTLS": "y",
+    "CONFIG_MBEDTLS_SSL_DTLS_SRTP": "y",
+    "CONFIG_MBEDTLS_X509_CREATE_C": "y",
+    "CONFIG_AUDIO_ENCODER_OPUS_SUPPORT": "y",
+    "CONFIG_AUDIO_DECODER_OPUS_SUPPORT": "y",
+    "CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM": "y"
+  }
+}

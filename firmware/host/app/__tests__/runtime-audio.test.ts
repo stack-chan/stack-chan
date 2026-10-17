@@ -24,6 +24,114 @@ function fakeTTS() {
   }
 }
 
+test('exclusive native audio blocks host playback/recording until its idempotent release', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let stops = 0,
+    played = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    speaker: {
+      tone: async () => {
+        played++
+      },
+      play: async () => {
+        played++
+        return true
+      },
+    },
+    webRadio: {
+      state: 'playing',
+      start: async () => {
+        played++
+      },
+      stop: () => {
+        stops++
+      },
+      setVolume() {},
+    },
+  })
+  const release = runtime.acquireExclusive()
+  assert.equal(stops, 1)
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  assert.equal((await runtime.say('hello')).success, false)
+  assert.equal((await runtime.sing('a')).success, false)
+  await assert.rejects(runtime.record(), /audio busy/)
+  await assert.rejects(runtime.tone(440, 20), /audio busy/)
+  assert.equal(await runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer), false)
+  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/' }), /audio busy/)
+  assert.equal(played, 0)
+  release()
+  const second = runtime.acquireExclusive()
+  release()
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  second()
+  await runtime.tone(440, 20)
+  assert.equal(played, 1)
+})
+
+test('native ownership never interrupts active TTS or a pending recording', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let finishSpeech: (() => void) | undefined,
+    finishRecord: ((buffer: import('../../modules/audio/audio-buffer.js').OwnedAudioBuffer) => void) | undefined
+  const microphone = {
+    recording: false,
+    start() {},
+    stop() {},
+    record: () =>
+      new Promise<import('../../modules/audio/audio-buffer.js').OwnedAudioBuffer>((resolve) => {
+        finishRecord = resolve
+      }),
+  }
+  const runtime = new StackchanRuntimeAudio({
+    tts: {
+      stream: (_text, _volume, done) => {
+        finishSpeech = () => done?.()
+      },
+    },
+    microphone,
+  })
+  const speech = runtime.say('hello')
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  finishSpeech?.()
+  await speech
+  const recording = runtime.record()
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  finishRecord?.(new ArrayBuffer(0) as import('../../modules/audio/audio-buffer.js').OwnedAudioBuffer)
+  await recording
+  runtime.acquireExclusive()()
+})
+
+test('native ownership is visible during media stop callbacks and rolls back a failed stop', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let fail = true
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    media: {
+      state: 'playing',
+      progress: { position: 0, estimated: false, seekable: false },
+      start: async () => {},
+      resume: async () => {},
+      seek: async () => {},
+      pause() {},
+      setVolume() {},
+      stop() {
+        assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+        if (fail) throw new Error('stop failed')
+      },
+    },
+  })
+  assert.throws(() => runtime.acquireExclusive(), /stop failed/)
+  fail = false
+  const release = runtime.acquireExclusive()
+  await assert.rejects(runtime.media?.start({ url: 'https://example.test/', mode: 'finite' }), /audio busy/)
+  await assert.rejects(runtime.media?.resume(), /audio busy/)
+  await assert.rejects(runtime.media?.seek(1), /audio busy/)
+  release()
+})
+
 test('StackchanRuntimeAudio forwards singing koe to providers that support it', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule

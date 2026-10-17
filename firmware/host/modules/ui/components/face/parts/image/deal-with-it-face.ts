@@ -1,7 +1,5 @@
 import { type FaceBaseParams, SimpleFace } from 'behaviors/face'
 
-const glassesSkin = new Skin({ texture: { path: 'deal-with-it-eyes.png' }, width: 252, height: 52 })
-
 export class DealWithItFace extends SimpleFace {
   constructor(params: FaceBaseParams = {}) {
     // Expand symmetrically so the full texture fits the existing FaceView clip.
@@ -12,6 +10,8 @@ export class DealWithItFace extends SimpleFace {
     for (let i = 0; i < 2; i++) {
       if (this.first) this.remove(this.first)
     }
+    // Texture-backed skins must be created at runtime, after WASM preloading.
+    const glassesSkin = new Skin({ texture: { path: 'deal-with-it-eyes.png' }, width: 252, height: 52 })
     const glasses = new Content(null, { left: 0, top: 7, width: 252, height: 52, skin: glassesSkin })
     if (this.first) {
       const mouth = this.first

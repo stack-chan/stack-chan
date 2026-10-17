@@ -12,6 +12,10 @@ import path from 'node:path'
 
 const dependenciesByPlatform = {
   m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
+  stackchan_rt: [
+    ['espressif/esp32-camera', '^2.0.10'],
+    ['espressif/esp_jpeg', '^1.3.1'],
+  ],
   m5stackchan_cores3: [
     ['espressif/esp_audio_codec', '~2.5.0'],
     ['espressif/esp32-camera', '^2.0.10'],
@@ -84,9 +88,9 @@ export function prepareCoreS3IdfDependencies({
     }
   }
 
-  // Moddable 8.3.1 joins multiple `idf.py add-dependency` commands with `&` on
-  // POSIX, so clean builds can race while updating this file. Seed both entries
-  // before mcconfig runs and its generated checks become no-ops.
+  // Moddable 10.0.1 joins `idf.py add-dependency` commands with `&` on
+  // POSIX. RT needs both entries seeded before make, including after a target
+  // clean, to avoid concurrent manifest writes and reconfigure reading too early.
   if (manifest !== originalManifest) writeFileSync(manifestPath, manifest)
   console.log(`[stack-chan] prepared IDF dependencies: ${manifestPath}`)
   return manifestPath

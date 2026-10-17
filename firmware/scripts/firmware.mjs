@@ -81,7 +81,12 @@ if (
   )
 }
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
+if (
+  !dryRun &&
+  ['m5stackchan_cores3', 'stackchan_rt'].includes(deviceName) &&
+  command !== 'mod' &&
+  command !== 'mod:build'
+) {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -95,6 +100,9 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
     process.exit(1)
   }
+}
+
+if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({ realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1' })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
@@ -141,7 +149,7 @@ if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].i
 const buildVariantChanged =
   !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
 
-if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
+if (buildVariantChanged && ['m5stackchan_cores3', 'stackchan_rt'].includes(deviceName)) {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,

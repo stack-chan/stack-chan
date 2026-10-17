@@ -602,8 +602,8 @@ for (let i = 0; i < 2; i++) {
   controller.setFace(shades)
   const visualLeft = nodeCoordinate(faceRegion, 'left') + nodeCoordinate(shades, 'left')
   const visualTop = nodeCoordinate(faceRegion, 'top') + nodeCoordinate(shades, 'top')
-  equal(visualLeft, 53, 'extended shades should keep their centered origin on every swap')
-  equal(nodeCoordinate(faceRegion, 'width'), 226, 'clip should contain both temple tips and breathing margin')
+  equal(visualLeft, 34, 'extended shades should keep their centered origin on every swap')
+  equal(nodeCoordinate(faceRegion, 'width'), 264, 'clip should contain both temple tips and breathing margin')
   const mouth = shades.first?.next
   assert(mouth, 'shades should retain the simple face mouth')
   equal(visualLeft + (mouth.coordinates.left ?? 0) + mouth.width / 2, 160, 'mouth screen center x')

@@ -48,30 +48,30 @@ for (let i = 0; i < 8; i++) {
 }
 const pixel = (frame, x, y) => load(frame).subarray((y * 320 + x) * 4, (y * 320 + x) * 4 + 3)
 const white = (value) => value.every((channel) => channel >= 248)
-assert.ok(pixel(1, 53, 114).equals(pixel(1, 0, 0)), 'outside the outlined glasses must remain transparent')
-assert.ok(white(pixel(1, 53, 75)), 'outer contour must be white')
-assert.ok(pixel(1, 57, 79).equals(pixel(1, 0, 0)), 'frame must remain black')
-assert.ok(white(pixel(1, 93, 85)), 'reflection must remain white')
-for (let x = 55; x < 265; x++) {
-  assert.ok(pixel(1, x, 78).equals(pixel(1, 0, 0)), 'extended top bar must remain flat and black')
+assert.ok(pixel(1, 34, 118).equals(pixel(1, 0, 0)), 'outside the outlined glasses must remain transparent')
+assert.ok(white(pixel(1, 34, 67)), 'outer contour must be white')
+assert.ok(pixel(1, 38, 71).equals(pixel(1, 0, 0)), 'frame must remain black')
+assert.ok(white(pixel(1, 70, 79)), 'reflection must remain white')
+for (let x = 36; x < 284; x++) {
+  assert.ok(pixel(1, x, 70).equals(pixel(1, 0, 0)), 'top bar must remain flat and black')
 }
-assert.ok(white(pixel(1, 53, 78)) && white(pixel(1, 266, 78)), 'both temple tips must keep their white contour')
+assert.ok(white(pixel(1, 34, 70)) && white(pixel(1, 285, 70)), 'both temple tips must keep their white contour')
 assert.ok(
-  pixel(1, 52, 78).equals(pixel(1, 0, 0)) && pixel(1, 267, 78).equals(pixel(1, 0, 0)),
+  pixel(1, 33, 70).equals(pixel(1, 0, 0)) && pixel(1, 286, 70).equals(pixel(1, 0, 0)),
   'glasses must stay centered at screen x=160',
 )
-// Both lenses have 6x6-cell WHITE / BLACK / WHITE diagonals, not merged highlights.
+// Both lenses have 8x8-cell WHITE / BLACK / WHITE diagonals, not merged highlights.
 for (const lensOffset of [0, 16]) {
   for (let y = 1; y <= 4; y++) {
-    for (let dy = 0; dy < 6; dy++) {
-      for (let dx = 0; dx < 6; dx++) {
-        const x = 67 + (lensOffset + 3 + y) * 6 + dx
-        const screenY = 77 + y * 6 + dy
-        assert.ok(pixel(1, x - 6, screenY).equals(pixel(1, 0, 0)), 'first stripe must start at its cell boundary')
+    for (let dy = 0; dy < 8; dy++) {
+      for (let dx = 0; dx < 8; dx++) {
+        const x = 36 + (lensOffset + 3 + y) * 8 + dx
+        const screenY = 69 + y * 8 + dy
+        assert.ok(pixel(1, x - 8, screenY).equals(pixel(1, 0, 0)), 'first stripe must start at its cell boundary')
         assert.ok(white(pixel(1, x, screenY)), 'first diagonal must be one white cell wide')
-        assert.ok(pixel(1, x + 6, screenY).equals(pixel(1, 0, 0)), 'one black cell must separate the white diagonals')
-        assert.ok(white(pixel(1, x + 12, screenY)), 'second diagonal must be one white cell wide')
-        assert.ok(pixel(1, x + 18, screenY).equals(pixel(1, 0, 0)), 'second stripe must end at its cell boundary')
+        assert.ok(pixel(1, x + 8, screenY).equals(pixel(1, 0, 0)), 'one black cell must separate the white diagonals')
+        assert.ok(white(pixel(1, x + 16, screenY)), 'second diagonal must be one white cell wide')
+        assert.ok(pixel(1, x + 24, screenY).equals(pixel(1, 0, 0)), 'second stripe must end at its cell boundary')
       }
     }
   }
@@ -98,10 +98,10 @@ const still = load(9)
 const breathing = load(11)
 // Compare the complete face, including its transparent border, after a 6px move.
 for (let y = 54; y < 186; y++) {
-  const row = (y * 320 + 47) * 4
-  const moved = ((y + 6) * 320 + 47) * 4
+  const row = (y * 320 + 28) * 4
+  const moved = ((y + 6) * 320 + 28) * 4
   assert.ok(
-    still.subarray(row, row + 226 * 4).equals(breathing.subarray(moved, moved + 226 * 4)),
+    still.subarray(row, row + 264 * 4).equals(breathing.subarray(moved, moved + 264 * 4)),
     `breath clipped row ${y}`,
   )
 }

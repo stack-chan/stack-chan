@@ -3,6 +3,7 @@
   "modules": {
     "*": ["./mod"],
     "media-volume": "./volume",
+    "media-look-around": "./look-around",
     "web-radio-config": "../web_radio/config"
   },
   "resources": {

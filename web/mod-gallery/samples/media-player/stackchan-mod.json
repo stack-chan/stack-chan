@@ -6,7 +6,7 @@
   "version": "1.0.0",
   "type": "text",
   "name": "メディアプレイヤー",
-  "description": "PodcastとMP3 WebRadioを2つのmini-appで再生。画面を閉じても継続し、他方の再生開始で切り替えます。DrawerにTTS共通の4段階音量を搭載。共有音量対応のCoreS3ホストが必要です。",
+  "description": "PodcastとMP3 WebRadioを2つのmini-appで再生。画面を閉じても継続し、他方の再生開始で切り替えます。DrawerにTTS共通の4段階音量と、起動時OFFの「見回す」トグルを搭載。共有音量対応のCoreS3ホストが必要です。",
   "author": "Stack-chan Community",
   "license": "Apache-2.0 AND OFL-1.1",
   "source": {
@@ -14,7 +14,7 @@
     "entrypoint": "mod/media_player/mod.js"
   },
   "targets": ["m5stackchan-cores3"],
-  "capabilities": ["face", "ui.drawer", "connectivity.network"],
+  "capabilities": ["face", "ui.drawer", "connectivity.network", "motion"],
   "artifacts": [
     {
       "format": "xsa",

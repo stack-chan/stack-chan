@@ -108,8 +108,29 @@ test('firmware wrapper cleans manifest switches before every CoreS3 command and 
   }
 })
 
+test('RT release restores both camera dependencies after clean and manifest switches', () => {
+  const fixture = createFirmwareWrapperFixture('stackchan_rt', 'release')
+  try {
+    runFixture(fixture, 'build', fixture.normalManifest)
+    let invocations = readInvocations(fixture.commandLog)
+    assert.equal(invocations.length, 2)
+    assert.equal(invocations[0][invocations[0].indexOf('-t') + 1], 'clean')
+
+    runFixture(fixture, 'build', fixture.normalManifest)
+    invocations = readInvocations(fixture.commandLog)
+    assert.equal(invocations.length, 3, 'same variant must not clean')
+
+    runFixture(fixture, 'build', fixture.diagnosticManifest)
+    invocations = readInvocations(fixture.commandLog)
+    assert.equal(invocations.length, 5)
+    assert.equal(invocations[3][invocations[3].indexOf('-t') + 1], 'clean')
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 /** Create an isolated firmware tree and fake toolchain for command-wrapper tests. */
-function createFirmwareWrapperFixture() {
+function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 'instrument') {
   const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-wrapper-'))
   const fixtureFirmware = path.join(root, 'firmware')
   const fixtureWebEditor = path.join(root, 'web', 'editor')
@@ -158,6 +179,7 @@ function createFirmwareWrapperFixture() {
   )
   mkdirSync(partitionDirectory, { recursive: true })
   writeFileSync(path.join(partitionDirectory, 'partitions.csv'), '# test partition table\n')
+  writeFileSync(path.join(partitionDirectory, 'sdkconfig.defaults'), '')
 
   const appDirectory = path.join(fixtureFirmware, 'host', 'app')
   mkdirSync(appDirectory, { recursive: true })
@@ -184,8 +206,8 @@ const idfManifest = path.join(
   outputDirectory,
   'tmp',
   'esp32',
-  'm5stackchan_cores3',
-  'instrument',
+  ${JSON.stringify(deviceName)},
+  ${JSON.stringify(mode)},
   'stack-chan-host',
   'xsProj-esp32s3',
   'main',
@@ -196,9 +218,14 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
   rmSync(idfManifest, { force: true })
 } else if (
   !existsSync(idfManifest) ||
-  !readFileSync(idfManifest, 'utf8').includes('espressif/esp_audio_codec:')
+  !${JSON.stringify(deviceName === 'stackchan_rt' ? ['esp32-camera', 'esp_jpeg'] : ['esp_audio_codec'])}.every(
+    (name) => readFileSync(idfManifest, 'utf8').includes('espressif/' + name + ':'),
+  )
 ) {
   process.exit(12)
+} else if (${JSON.stringify(deviceName)} === 'stackchan_rt') {
+  // Stop at the compiler boundary; no release binaries are produced by this mock.
+  process.exit(17)
 }
 `,
   )
@@ -212,6 +239,8 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
     commandLog,
     normalManifest,
     diagnosticManifest,
+    deviceName,
+    mode,
   }
 }
 
@@ -221,8 +250,8 @@ function runFixture(fixture, command, manifestPath) {
     [
       'scripts/firmware.mjs',
       command,
-      'm5stackchan_cores3',
-      '--mode=instrument',
+      fixture.deviceName,
+      `--mode=${fixture.mode}`,
       '--manifest',
       path.relative(fixture.firmware, manifestPath),
     ],
@@ -240,7 +269,8 @@ function runFixture(fixture, command, manifestPath) {
       },
     },
   )
-  assert.equal(result.status, 0, `${command}: ${result.stderr}`)
+  assert.ifError(result.error)
+  assert.equal(result.status, fixture.deviceName === 'stackchan_rt' ? 17 : 0, `${command}: ${result.stderr}`)
   return result
 }
 

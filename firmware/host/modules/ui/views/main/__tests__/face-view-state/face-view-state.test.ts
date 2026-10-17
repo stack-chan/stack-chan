@@ -4,10 +4,12 @@ import type { StackchanContext } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
+import { DealWithItFace } from 'parts/image/deal-with-it-face'
 import {
   Application,
   Container,
   Content,
+  Label,
   type Container as PiuContainer,
   type Content as PiuContent,
   type Port as PiuPort,
@@ -289,7 +291,10 @@ controller.addDrawerButton({
 const initialDrawerBehavior = initialDrawer.behavior as {
   onDrawerChoiceSelected?: (container: PiuContainer, selection: { key: string; value: string }) => void
 }
-initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, { key: 'choiceTest', value: 'second' })
+initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, {
+  key: 'choiceTest',
+  value: 'second',
+})
 equal(selectedChoice, 'second', 'drawer choice selection should bubble to its bound application callback')
 controller.unbindDrawerAction('choiceTest')
 controller.removeDrawerButton('choiceTest')
@@ -302,7 +307,11 @@ assert(
   }),
   'drawer callback should accept a punctuated runtime key',
 )
-controller.addDrawerButton({ key: punctuatedActionKey, label: 'Codex', kind: 'toggle' })
+controller.addDrawerButton({
+  key: punctuatedActionKey,
+  label: 'Codex',
+  kind: 'toggle',
+})
 const punctuatedButton = findNamedNode(initialDrawer as unknown as PiuContent, punctuatedActionKey)
 assert(punctuatedButton, 'drawer should render a button with a punctuated runtime key')
 const punctuatedButtonBehavior = punctuatedButton.behavior as {
@@ -329,7 +338,11 @@ equal(
   initialDrawer,
   'consecutive addDrawerButton calls should not rebuild the drawer',
 )
-controller.addDrawerButton({ key: 'dynamicA', label: 'Dynamic A+', kind: 'toggle' })
+controller.addDrawerButton({
+  key: 'dynamicA',
+  label: 'Dynamic A+',
+  kind: 'toggle',
+})
 equal(
   findDrawer(application as unknown as PiuContainer),
   initialDrawer,
@@ -428,7 +441,9 @@ controller.removeEffectByKey('recorder')
 controller.removeEffectByKey('speech')
 controller.setDrawerButtonState('speech', false)
 
-const defaultReference = new SpeechBalloon({ text: 'default reference' }) as BalloonContent
+const defaultReference = new SpeechBalloon({
+  text: 'default reference',
+}) as BalloonContent
 defaultReference.behavior?.onDisplaying?.(defaultReference)
 defaultReference.behavior?.onFaceState?.(defaultReference, createFaceState())
 const defaultSkin = defaultReference.first?.skin
@@ -495,12 +510,33 @@ assert(
   (positionedBalloon.coordinates?.height ?? 0) > (initialBalloonHeight ?? 0),
   'showBalloon should recalculate a reused balloon height',
 )
+runtimeUI.showBalloonLines(['first', 'second'])
+const labelBalloon = appData.EFFECTS?.last as BalloonContent
+const firstLabel = labelBalloon.first?.next
+const secondLabel = firstLabel?.next
+assert(firstLabel instanceof Label && secondLabel instanceof Label, 'fixed rows should use two Labels')
+assert(!secondLabel?.next, 'fixed rows should not leave a Text child')
+const labelHeight = (labelBalloon as PositionedBalloon).coordinates?.height
+runtimeUI.showBalloonLines(['second', 'third'])
+equal(appData.EFFECTS?.last, labelBalloon, 'line scrolling should reuse the balloon')
+equal(labelBalloon.first?.next, firstLabel, 'line scrolling should reuse each Label')
+equal(firstLabel?.string, 'second', 'old second row becomes first')
+equal(secondLabel?.string, 'third', 'new content appears on second row')
+equal((labelBalloon as PositionedBalloon).coordinates?.height, labelHeight, 'line scrolling should keep height fixed')
 runtimeUI.showBalloon('top balloon', { top: 8 })
 assert(appData.EFFECTS?.last !== runtimeBalloon, 'showBalloon should replace a balloon when layout options change')
 runtimeUI.hideBalloon()
 
-const oldDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }
-const newDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }
+const oldDrawerCalls: DrawerControllerCalls = {
+  buttons: [],
+  states: [],
+  removed: [],
+}
+const newDrawerCalls: DrawerControllerCalls = {
+  buttons: [],
+  states: [],
+  removed: [],
+}
 const oldDrawerUI = createDrawerTestUI(oldDrawerCalls)
 const newDrawerUI = createDrawerTestUI(newDrawerCalls)
 const drawerRuntime = new StackchanRuntimeUI(oldDrawerUI, {
@@ -596,4 +632,22 @@ controller.setFace(jitome)
 equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Repeated swap origin x')
 equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Repeated swap origin y')
 controller.setFaceMotionEnabled(false)
+const shades = new DealWithItFace({})
+for (let i = 0; i < 2; i++) {
+  controller.setFace(shades)
+  const visualLeft = nodeCoordinate(faceRegion, 'left') + nodeCoordinate(shades, 'left')
+  const visualTop = nodeCoordinate(faceRegion, 'top') + nodeCoordinate(shades, 'top')
+  equal(visualLeft, 34, 'extended shades should keep their centered origin on every swap')
+  equal(nodeCoordinate(faceRegion, 'width'), 264, 'clip should contain both temple tips and breathing margin')
+  const mouth = shades.first?.next
+  assert(mouth, 'shades should retain the simple face mouth')
+  equal(visualLeft + (mouth.coordinates.left ?? 0) + mouth.width / 2, 160, 'mouth screen center x')
+  equal(visualTop + (mouth.coordinates.top ?? 0) + mouth.height / 2, 148, 'mouth screen center y')
+  controller.setFace(nextFace)
+  equal(
+    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(nextFace, 'left'),
+    initialVisualLeft,
+    'standard face origin after shades',
+  )
+}
 trace('@@STACKCHAN_TEST:PASS@@\n')

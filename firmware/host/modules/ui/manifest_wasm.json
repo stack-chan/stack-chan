@@ -89,7 +89,7 @@
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
     ],
-    "*-color": []
+    "*": ["./assets/images/faces/deal-with-it/deal-with-it-eyes"]
   },
   "preload": [
     "piu/Application",

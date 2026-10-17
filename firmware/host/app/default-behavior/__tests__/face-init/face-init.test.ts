@@ -143,7 +143,9 @@ equal(
   isJitomeFaceSupported() ? 'jitome' : 'simple',
   'face selection should expose the configured mode',
 )
-const expectedFaceModes = isJitomeFaceSupported() ? ['simple', 'dog', 'image', 'jitome'] : ['simple', 'dog', 'image']
+const expectedFaceModes = isJitomeFaceSupported()
+  ? ['simple', 'dog', 'image', 'jitome', 'deal-with-it']
+  : ['simple', 'dog', 'image', 'deal-with-it']
 equal(buttons[0]?.options?.length, expectedFaceModes.length, 'face selection should expose supported modes')
 equal(
   buttons[0]?.options?.map((option) => option.value).join(','),
@@ -185,6 +187,9 @@ equal(drawerStates.length, 0, 'hand choices should not masquerade as binary togg
 buttons.find((button) => button.key === 'toggleFace')?.callback?.(robot, 'dog')
 equal(faces.length, 1, 'face choice should replace the rendered face')
 equal(events[events.length - 1]?.[1], 'dog', 'face choice should distribute the selected face mode')
+buttons[0]?.callback?.(robot, 'deal-with-it')
+equal(faces.length, 2, 'sunglasses choice should replace the rendered face')
+equal(events[events.length - 1]?.[1], 'deal-with-it', 'sunglasses choice should distribute its mode')
 buttons.find((button) => button.key === 'cycleEmotion')?.callback?.(robot, String(Emotion.ANGRY))
 equal(emotions[emotions.length - 1], Emotion.ANGRY, 'emotion choice should update the face context')
 buttons.find((button) => button.key === 'toggleColor')?.callback?.(robot, 'dark')

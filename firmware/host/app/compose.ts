@@ -24,6 +24,7 @@ import Microphone from 'microphone'
 import Modules from 'modules'
 import type { MotionDriver } from 'motion-controller'
 import { NoneDriver } from 'none-driver'
+import { DealWithItFace } from 'parts/image/deal-with-it-face'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
 import Preference from 'preference'
@@ -77,7 +78,8 @@ export type HostDeviceEnvironment = GlobalEnvironment['device']
 
 type MediaPlayerConstructor = new () => MediaCapability
 
-const DEFAULT_UI_DISPLAY_LIST_LENGTH = 4096
+// Leave room for a multiline balloon and the face in the same dirty region.
+const DEFAULT_UI_DISPLAY_LIST_LENGTH = 8192
 
 function asUIOptions(param: unknown): UIOptions {
   return (param ?? {}) as UIOptions
@@ -94,6 +96,7 @@ function loadBatteryLevelReader(): BatteryLevelReader | undefined {
 }
 
 function createStackchanUI(face: PiuContainer, options: UIOptions = {}): RobotUI {
+  // All startup paths share a configurable default. Capacity is exercised by Piu tests.
   return createAppControllerApplication(
     {
       face,
@@ -149,6 +152,7 @@ export function createStackchanContext(
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
     ['jitome', (param) => createStackchanUI(createJitomeFace().content, asUIOptions(param))],
+    ['deal-with-it', (param) => createStackchanUI(new DealWithItFace(), asUIOptions(param))],
     ['simple', (param) => createStackchanUI(new SimpleFace(), asUIOptions(param))],
     [
       'image',

@@ -25,6 +25,114 @@ function fakeTTS() {
   }
 }
 
+test('exclusive native audio blocks host playback/recording until its idempotent release', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let stops = 0,
+    played = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    speaker: {
+      tone: async () => {
+        played++
+      },
+      play: async () => {
+        played++
+        return true
+      },
+    },
+    webRadio: {
+      state: 'playing',
+      start: async () => {
+        played++
+      },
+      stop: () => {
+        stops++
+      },
+      setVolume() {},
+    },
+  })
+  const release = runtime.acquireExclusive()
+  assert.equal(stops, 1)
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  assert.equal((await runtime.say('hello')).success, false)
+  assert.equal((await runtime.sing('a')).success, false)
+  await assert.rejects(runtime.record(), /audio busy/)
+  await assert.rejects(runtime.tone(440, 20), /audio busy/)
+  assert.equal(await runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer), false)
+  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/' }), /audio busy/)
+  assert.equal(played, 0)
+  release()
+  const second = runtime.acquireExclusive()
+  release()
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  second()
+  await runtime.tone(440, 20)
+  assert.equal(played, 1)
+})
+
+test('native ownership never interrupts active TTS or a pending recording', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let finishSpeech: (() => void) | undefined,
+    finishRecord: ((buffer: import('../../modules/audio/audio-buffer.js').OwnedAudioBuffer) => void) | undefined
+  const microphone = {
+    recording: false,
+    start() {},
+    stop() {},
+    record: () =>
+      new Promise<import('../../modules/audio/audio-buffer.js').OwnedAudioBuffer>((resolve) => {
+        finishRecord = resolve
+      }),
+  }
+  const runtime = new StackchanRuntimeAudio({
+    tts: {
+      stream: (_text, _volume, done) => {
+        finishSpeech = () => done?.()
+      },
+    },
+    microphone,
+  })
+  const speech = runtime.say('hello')
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  finishSpeech?.()
+  await speech
+  const recording = runtime.record()
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  finishRecord?.(new ArrayBuffer(0) as import('../../modules/audio/audio-buffer.js').OwnedAudioBuffer)
+  await recording
+  runtime.acquireExclusive()()
+})
+
+test('native ownership is visible during media stop callbacks and rolls back a failed stop', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let fail = true
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    media: {
+      state: 'playing',
+      progress: { position: 0, estimated: false, seekable: false },
+      start: async () => {},
+      resume: async () => {},
+      seek: async () => {},
+      pause() {},
+      setVolume() {},
+      stop() {
+        assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+        if (fail) throw new Error('stop failed')
+      },
+    },
+  })
+  assert.throws(() => runtime.acquireExclusive(), /stop failed/)
+  fail = false
+  const release = runtime.acquireExclusive()
+  await assert.rejects(runtime.media?.start({ url: 'https://example.test/', mode: 'finite' }), /audio busy/)
+  await assert.rejects(runtime.media?.resume(), /audio busy/)
+  await assert.rejects(runtime.media?.seek(1), /audio busy/)
+  release()
+})
+
 test('StackchanRuntimeAudio forwards singing koe to providers that support it', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
@@ -388,4 +496,54 @@ test('shared volume supports a speaker without mutable volume, as used by WASM',
   assert.equal(runtime.volume, 0.25)
   await runtime.tone(440, 20)
   assert.equal(received, 0.25)
+})
+
+test('exclusive media ownership preserves shared volume without starting audio until release', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const starts: (number | undefined)[] = [],
+    gains: number[] = [],
+    spoken: (number | undefined)[] = []
+  const runtime = new StackchanRuntimeAudio({
+    volume: 0.35,
+    tts: {
+      stream(_text, volume, done) {
+        spoken.push(volume)
+        done?.()
+      },
+    },
+    media: {
+      state: 'idle',
+      progress: { position: 0, estimated: false, seekable: false },
+      pause() {},
+      resume: async () => {},
+      seek: async () => {},
+      stop() {},
+      start: async (options) => {
+        starts.push(options.volume)
+      },
+      setVolume(volume) {
+        gains.push(volume)
+      },
+    },
+  })
+  await runtime.media?.start({ url: 'http://example.test/episode', mode: 'finite' })
+  assert.deepEqual(starts, [0.35 * 0.2])
+  const release = runtime.acquireExclusive()
+  runtime.volume = 0.25
+  await assert.rejects(runtime.media?.start({ url: 'http://example.test/episode', mode: 'finite' }), /audio busy/)
+  await assert.rejects(runtime.webRadio?.start({ url: 'http://example.test/live' }), /audio busy/)
+  await assert.rejects(runtime.media?.resume(), /audio busy/)
+  await assert.rejects(runtime.media?.seek(10), /audio busy/)
+  assert.equal((await runtime.say('reserved')).success, false)
+  assert.deepEqual(spoken, [])
+  assert.deepEqual(gains, [0.25 * 0.2])
+  assert.equal(starts.length, 1, 'changing volume cannot claim exclusive audio')
+  release()
+  release()
+  await runtime.media?.start({ url: 'http://example.test/episode', mode: 'finite' })
+  await runtime.webRadio?.start({ url: 'http://example.test/live' })
+  await runtime.say('released')
+  assert.deepEqual(starts, [0.35 * 0.2, 0.25 * 0.2, 0.25 * 0.2])
+  assert.deepEqual(spoken, [0.25])
 })

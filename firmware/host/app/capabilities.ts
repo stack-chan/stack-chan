@@ -45,7 +45,12 @@ export type RobotLed = {
 }
 
 export type { I18nCapability } from 'localization'
-export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
+export type {
+  MiniAppContext,
+  MiniAppDefinition,
+  MiniAppInstance,
+  MiniAppRegistryCapability,
+} from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
@@ -100,7 +105,7 @@ export type FaceCapability = {
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void
   setEmotion(emotion: Emotion): void
   setEyeOpen(key: FaceEyeKey, value: number): void
-  setMouthOpen(value: number): void
+  setMouthOpen(value: number, immediate?: boolean): void
 }
 
 export type MotionCapability = {
@@ -114,6 +119,8 @@ export type MotionCapability = {
 export type AudioCapability = {
   /** Shared saved TTS volume, 0..1 linear gain. Media scales it to its output limit. */
   volume?: number
+  /** Reserve native audio; release only after the external I2S owner has closed. */
+  acquireExclusive(): () => void
   tts: TTS
   microphone?: {
     record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
@@ -284,6 +291,8 @@ export type RuntimeUICapability = RobotUI & {
   controller: RobotUI
   drawer: DrawerCapability
   showBalloon(text: string, option?: ShowBalloonOptions): void
+  /** Display pre-wrapped rows with fixed-height Labels; rows are reused. */
+  showBalloonLines?(lines: readonly string[], option?: ShowBalloonOptions): void
   hideBalloon(): void
 }
 
@@ -314,7 +323,7 @@ export type StackchanCapabilityNamespaces = {
 
 export type StackchanLegacyFlatCapability = FaceCapability &
   MotionCapability &
-  AudioCapability &
+  Omit<AudioCapability, 'acquireExclusive'> &
   InputCapability &
   LightingCapability &
   CameraCapability &

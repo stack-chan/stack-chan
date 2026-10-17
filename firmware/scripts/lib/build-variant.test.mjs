@@ -25,3 +25,12 @@ test('build variant marker distinguishes manifests sharing one target directory'
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('SDK and measurement changes invalidate a shared host archive', () => {
+  const manifest = '/project/manifest.json'
+  const normal = { sdk: '/sdk/upstream', measured: '0' }
+  assert.equal(resolveBuildVariant(manifest, normal), resolveBuildVariant(manifest, { ...normal }))
+  assert.notEqual(resolveBuildVariant(manifest, normal), resolveBuildVariant(manifest, { ...normal, sdk: '/sdk/fork' }))
+  assert.notEqual(resolveBuildVariant(manifest, normal), resolveBuildVariant(manifest, { ...normal, measured: '1' }))
+  assert.ok(!resolveBuildVariant(manifest, { manifest: 'private-network-secret' }).includes('private-network-secret'))
+})

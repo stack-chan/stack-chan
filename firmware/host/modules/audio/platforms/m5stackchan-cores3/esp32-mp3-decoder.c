@@ -1,6 +1,7 @@
 #include "xsHost.h"
 #include "xsmc.h"
 #include "mc.xs.h"
+#include "mc.defines.h"
 
 #include "esp_heap_caps.h"
 #include "esp_mp3_dec.h"
@@ -10,6 +11,9 @@
 #define MP3_PCM_SCRATCH_BYTES (MP3_MAX_SAMPLES_PER_FRAME * MP3_MAX_CHANNELS * sizeof(int16_t))
 #define MP3_RESERVOIR_BYTES 8192
 
+// WebRTC links the standard media_lib_sal allocator. Keep standalone MP3's
+// placement policy only when that implementation is absent.
+#if !MODDEF_STACKCHAN_REALTIME
 static void *codec_heap_allocate(size_t count, size_t size, uint8_t clear)
 {
 	const size_t bytes = count * size;
@@ -69,6 +73,7 @@ void media_lib_free(void *pointer)
 {
 	heap_caps_free(pointer);
 }
+#endif
 
 typedef struct {
 	void *handle;

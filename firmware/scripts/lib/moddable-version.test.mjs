@@ -72,6 +72,51 @@ test('rejects missing and unsafe Moddable versions', () => {
   assert.throws(() => renderCoreS3VersionSdkconfig('', 'v'.repeat(24)), /firmware descriptor version/)
 })
 
+test('the CoreS3 realtime overlay enables Opus while preserving the standalone profile and SDK sources', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-opus-config-'))
+  try {
+    mkdirSync(path.join(fixture, 'tools'))
+    writeFileSync(path.join(fixture, 'tools/VERSION'), '10.0.1')
+    const sourceDirectory = path.join(fixture, 'profile')
+    mkdirSync(sourceDirectory)
+    const source =
+      'CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=n\nCONFIG_AUDIO_DECODER_OPUS_SUPPORT=n\nCONFIG_AUDIO_DECODER_MP3_SUPPORT=y\n' +
+      'CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384\nCONFIG_SPIRAM_SPEED_40M=y\nCONFIG_ESPTOOLPY_FLASHMODE_DIO=y\n'
+    writeFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), source)
+    const partitionSourcePath = path.join(sourceDirectory, 'partitions.csv')
+    writeFileSync(partitionSourcePath, 'factory,app,factory,0x10000,0x300000\n')
+    const options = {
+      moddableDirectory: fixture,
+      outputDirectory: path.join(fixture, 'out'),
+      sourceDirectory,
+      partitionSourcePath,
+    }
+    const live = prepareCoreS3VersionSdkconfig({ ...options, realtime: true })
+    const values = new Map(
+      readFileSync(live.filePath, 'utf8')
+        .split('\n')
+        .filter((line) => line.startsWith('CONFIG_'))
+        .map((line) => line.split('=')),
+    )
+    assert.equal(values.get('CONFIG_AUDIO_ENCODER_OPUS_SUPPORT'), 'y')
+    assert.equal(values.get('CONFIG_AUDIO_DECODER_OPUS_SUPPORT'), 'y')
+    assert.equal(values.get('CONFIG_AUDIO_DECODER_MP3_SUPPORT'), 'y')
+    // Application overlays are merged last: leave these values to the Live manifest.
+    for (const key of [
+      'CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL',
+      'CONFIG_SPIRAM_SPEED_40M',
+      'CONFIG_ESPTOOLPY_FLASHMODE_DIO',
+    ])
+      assert.equal(values.has(key), false)
+    const normal = prepareCoreS3VersionSdkconfig(options)
+    assert.match(readFileSync(normal.filePath, 'utf8'), /CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=n/)
+    assert.match(readFileSync(normal.filePath, 'utf8'), /CONFIG_SPIRAM_SPEED_40M=y/)
+    assert.equal(readFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'utf8'), source)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
 function count(source, value) {
   return source.split(value).length - 1
 }

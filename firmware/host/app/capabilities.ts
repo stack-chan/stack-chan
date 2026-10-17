@@ -112,6 +112,8 @@ export type MotionCapability = {
 }
 
 export type AudioCapability = {
+  /** Reserve native audio; release only after the external I2S owner has closed. */
+  acquireExclusive(): () => void
   tts: TTS
   microphone?: {
     record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
@@ -312,7 +314,7 @@ export type StackchanCapabilityNamespaces = {
 
 export type StackchanLegacyFlatCapability = FaceCapability &
   MotionCapability &
-  AudioCapability &
+  Omit<AudioCapability, 'acquireExclusive'> &
   InputCapability &
   LightingCapability &
   CameraCapability &

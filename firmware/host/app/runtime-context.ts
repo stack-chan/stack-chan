@@ -439,11 +439,12 @@ export class StackchanRuntimeContext implements StackchanContext {
   private createAudioCapability(): AudioCapability {
     const context = this
     return {
+      acquireExclusive: () => this.#audioRuntime.acquireExclusive(),
       get tts() {
         return context.tts
       },
       get microphone() {
-        return context.microphone
+        return context.microphone ? { record: (duration?: number) => context.record(duration) } : undefined
       },
       useTTS(tts) {
         context.useTTS(tts)

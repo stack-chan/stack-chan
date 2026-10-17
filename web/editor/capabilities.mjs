@@ -1,4 +1,8 @@
-import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE, xsArchiveVersionRangeForFirmware } from './xs-compatibility.mjs'
+import {
+  isXsVersionCompatible,
+  XS_ARCHIVE_VERSION_RANGE,
+  xsArchiveVersionRangeForFirmware,
+} from './xs-compatibility.mjs'
 import { t } from '../i18n.mjs'
 
 export const CAPABILITIES = Object.freeze({
@@ -6,6 +10,7 @@ export const CAPABILITIES = Object.freeze({
   SPEECH: 'audio.speech',
   SINGING: 'audio.singing',
   TONE: 'audio.tone',
+  VOLUME: 'audio.volume',
   MOTION: 'motion',
   LIGHTING: 'lighting',
   BUTTONS: 'input.buttons',
@@ -19,6 +24,7 @@ export const CAPABILITIES = Object.freeze({
 })
 
 export const CAPABILITY_HOST_API_VERSIONS = Object.freeze({
+  [CAPABILITIES.VOLUME]: 2,
   [CAPABILITIES.APPROVAL]: 1,
   [CAPABILITIES.USB_AUDIO]: 1,
   [CAPABILITIES.REMOTE_CONVERSATION]: 1,

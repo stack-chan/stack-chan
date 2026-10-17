@@ -14,7 +14,7 @@
     "entrypoint": "mod/media_player/mod.js"
   },
   "targets": ["m5stackchan-cores3"],
-  "capabilities": ["face", "ui.drawer", "connectivity.network", "motion"],
+  "capabilities": ["face", "ui.drawer", "connectivity.network", "motion", "audio.volume"],
   "artifacts": [
     {
       "format": "xsa",

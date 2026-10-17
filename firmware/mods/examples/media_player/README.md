@@ -16,7 +16,7 @@ npm run mod:build -- mods/examples/media_player/manifest.json --mode=release
 node mods/examples/media_player/sync-gallery.mjs
 ```
 
-共有音量に対応したホストが必要です。古いホストでは更新を案内します。MOD単体でホストやWi-Fi、認証情報を設定することはありません。
+共有音量の`audio.volume`に対応したホストAPI 2以上（ファームウェア版の末尾が`+stackchan.2`以上）が必要です。GalleryはAPI 0・1のホストへの書き込みを事前に拒否し、更新を案内します。CLIなどで古いホストへ直接書き込んだ場合も、起動時に更新案内を表示します。MOD単体でホストやWi-Fi、認証情報を設定することはありません。
 
 中国語用ビットマップフォントはNoto Sans CJK SC 2.004由来で、SIL Open Font License 1.1です。Galleryでは `LICENSE.font.txt` を同梱します。ソースと変換方法はリポジトリの `firmware/host/modules/ui/assets/fonts/StackchanCJK-Regular.README.md` に記載しています。
 

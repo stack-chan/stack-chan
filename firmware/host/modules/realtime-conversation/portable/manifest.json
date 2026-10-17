@@ -1,0 +1,5 @@
+{
+  "modules": {
+    "realtimeConversation/transport-core": "../transport-core"
+  }
+}

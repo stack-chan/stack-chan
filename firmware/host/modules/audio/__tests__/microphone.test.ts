@@ -83,3 +83,44 @@ test('Microphone.record clears recording state when AudioIn start throws', async
 
   assert.equal(microphone.recording, false)
 })
+
+test('WASM microphone exposes busy state and releases it after success or failure', async () => {
+  installBareSpecifierPackages()
+  const { default: Microphone } = await import('../wasm/microphone.js')
+  const env = globalThis as typeof globalThis & {
+    __stackchanWasmAudioBridge?: import('../wasm/audio-bridge-contract.js').WasmAudioInputBridge
+  }
+  const previous = env.__stackchanWasmAudioBridge
+  try {
+    for (const outcome of ['complete', 'failed', 'start failed']) {
+      let status = 0
+      let poll: (() => void) | undefined
+      env.__stackchanWasmAudioBridge = {
+        close() {},
+        recordBuffer: () => oneByte(42),
+        recordStatus: () => status,
+        setTimer: (callback) => {
+          poll = callback
+        },
+        startRecord() {
+          if (outcome === 'start failed') throw new Error(outcome)
+        },
+      }
+      const microphone = new Microphone()
+      assert.equal(microphone.recording, false)
+      const pending = microphone.record(1)
+      if (outcome !== 'start failed') {
+        assert.equal(microphone.recording, true)
+        await assert.rejects(microphone.record(1), /already recording/)
+        status = outcome === 'complete' ? 1 : -1
+        assert.ok(poll)
+        poll()
+      }
+      if (outcome === 'complete') assert.equal((await pending).byteLength, 1)
+      else await assert.rejects(pending, /failed/)
+      assert.equal(microphone.recording, false)
+    }
+  } finally {
+    env.__stackchanWasmAudioBridge = previous
+  }
+})

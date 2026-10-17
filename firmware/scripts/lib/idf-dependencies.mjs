@@ -1,8 +1,21 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 
 const dependenciesByPlatform = {
   m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
+  stackchan_rt: [
+    ['espressif/esp32-camera', '^2.0.10'],
+    ['espressif/esp_jpeg', '^1.3.1'],
+  ],
   m5stackchan_cores3: [
     ['espressif/esp_audio_codec', '~2.5.0'],
     ['espressif/esp32-camera', '^2.0.10'],
@@ -14,7 +27,14 @@ const dependenciesByPlatform = {
  * @param {{outputDirectory: string, platformName: string, applicationName: string, mode: string}} options - Build output configuration.
  * @returns {string} Path to the prepared IDF component manifest.
  */
-export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, applicationName, mode }) {
+export function prepareCoreS3IdfDependencies({
+  outputDirectory,
+  platformName,
+  applicationName,
+  mode,
+  realtime = false,
+  solutionDirectory,
+}) {
   if (!outputDirectory) throw new Error('Build output directory is required')
   const dependencies = dependenciesByPlatform[platformName]
   if (!dependencies) throw new Error(`Unsupported CoreS3 platform: ${platformName}`)
@@ -48,10 +68,40 @@ export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, ap
     manifest += `  ${name}: ${version}\n`
   }
 
-  // Moddable 8.3.1 joins multiple `idf.py add-dependency` commands with `&` on
-  // POSIX, so clean builds can race while updating this file. Seed both entries
-  // before mcconfig runs and its generated checks become no-ops.
+  if (realtime) {
+    if (platformName !== 'm5stackchan_cores3' || !solutionDirectory)
+      throw new Error('RealtimeConversation requires CoreS3 and ESP_WEBRTC_SOLUTION')
+    const components = ['esp_webrtc', 'esp_peer', 'media_lib_utils', 'webrtc_utils', 'av_render']
+    const componentDirectory = path.join(mainDirectory, '..', 'components')
+    mkdirSync(componentDirectory, { recursive: true })
+    for (const name of components) {
+      const source = path.resolve(solutionDirectory, 'components', name)
+      if (!existsSync(path.join(source, 'CMakeLists.txt'))) throw new Error(`Missing WebRTC component: ${name}`)
+      linkComponent(source, path.join(componentDirectory, name))
+    }
+    // Use ESP-IDF's project component discovery; never patch the SDK CMake project.
+    const conversation = JSON.parse(
+      readFileSync(new URL('../../host/modules/realtime-conversation/manifest.json', import.meta.url)),
+    )
+    for (const { name, version } of conversation.platforms['esp32/m5stackchan_cores3'].dependency) {
+      if (name && !manifest.includes(`  espressif/${name}:`)) manifest += `  espressif/${name}: '${version}'\n`
+    }
+  }
+
+  // Moddable 10.0.1 joins `idf.py add-dependency` commands with `&` on
+  // POSIX. RT needs both entries seeded before make, including after a target
+  // clean, to avoid concurrent manifest writes and reconfigure reading too early.
   if (manifest !== originalManifest) writeFileSync(manifestPath, manifest)
   console.log(`[stack-chan] prepared IDF dependencies: ${manifestPath}`)
   return manifestPath
+}
+
+function linkComponent(source, destination) {
+  const current = lstatSync(destination, { throwIfNoEntry: false })
+  if (current) {
+    if (!current.isSymbolicLink()) throw new Error(`Refusing to replace component directory: ${destination}`)
+    if (existsSync(destination) && realpathSync(destination) === realpathSync(source)) return
+    unlinkSync(destination)
+  }
+  symlinkSync(source, destination, 'dir')
 }

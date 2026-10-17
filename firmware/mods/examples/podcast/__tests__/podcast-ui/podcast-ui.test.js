@@ -1,7 +1,7 @@
 import Bitmap from 'commodetto/Bitmap'
 import { Application } from 'piu/MC'
 import { i18n, setLocale } from 'podcast-test-i18n'
-import { createPodcastView } from 'podcast-view'
+import { createPodcastView, createRadioView } from 'podcast-view'
 import { assert, equal } from 'testing/assert'
 
 let listener,
@@ -192,5 +192,76 @@ for (const [locale, field, failure, retry, paused] of [
   view.dispose()
   app.empty()
 }
+// Radio uses the same selection controls, with manual start and no finite seek UI.
+let radioPlays = 0,
+  radioStops = 0
+Object.assign(model.snapshot, {
+  stations: Array.from({ length: 8 }, (_, index) => ({ title: `Station ${index}` })),
+  stationIndex: 0,
+  radioState: 'idle',
+  source: undefined,
+})
+model.selectStation = (index) => {
+  model.snapshot.stationIndex = index
+  model.snapshot.radioState = 'idle'
+  listener?.(model.snapshot)
+}
+model.playRadio = () => {
+  radioPlays++
+  model.snapshot.source = 'radio'
+  model.snapshot.radioState = 'connecting'
+  listener?.(model.snapshot)
+}
+model.stopRadio = () => {
+  radioStops++
+  model.snapshot.radioState = 'idle'
+  listener?.(model.snapshot)
+}
+for (const [locale, stationLabel] of [
+  ['ja', '放送局'],
+  ['en', 'Station'],
+  ['zh-CN', '电台'],
+]) {
+  setLocale(locale)
+  view = createRadioView(model, dimensions, i18n)
+  app.add(view.content)
+  assert(named('station').first.string.includes(stationLabel))
+  assert(!find('seek') && !find('episode'), 'live playback has no episode or seek controls')
+  assert(named('play').active)
+  assert(!named('stop').active)
+  for (let node = view.content.first; node; node = node.next) {
+    assert(
+      node.y >= view.content.y && node.y + node.height <= view.content.y + dimensions.height,
+      'radio stays in viewport',
+    )
+  }
+  tap('station')
+  tap('next')
+  tap('item:3')
+  equal(model.snapshot.stationIndex, 3)
+  assert(named('station').first.string.includes('Station 3'))
+  assert(named('play').active, 'selection does not start playback')
+  tap('play')
+  assert(!named('play').active && named('stop').active, 'connecting can be stopped')
+  view.dispose()
+  app.empty()
+  const before = radioStops
+  view = createRadioView(model, dimensions, i18n)
+  app.add(view.content)
+  equal(radioStops, before, 'closing and reopening do not stop radio')
+  assert(named('stop').active)
+  model.snapshot.radioState = 'retrying'
+  listener(model.snapshot)
+  assert(named('stop').active, 'reconnect wait can be stopped')
+  screen.context.onIdle()
+  tap('stop')
+  assert(named('play').active)
+  view.dispose()
+  view.dispose()
+  assert(!listener)
+  app.empty()
+}
+equal(radioPlays, 3)
+equal(radioStops, 3)
 setLocale('ja')
 trace('@@STACKCHAN_TEST:PASS@@\n')

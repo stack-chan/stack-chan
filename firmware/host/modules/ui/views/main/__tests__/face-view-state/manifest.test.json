@@ -17,6 +17,7 @@
       }
     ]
   },
+  "creation": { "stack": 1024 },
   "modules": {
     "capabilities": "../../../../../../app/capabilities",
     "local-peer-types": "../../../../../connectivity/local-peer-types",

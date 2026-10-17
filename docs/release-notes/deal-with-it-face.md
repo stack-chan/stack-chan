@@ -2,4 +2,4 @@
 
 Release impact: minor
 
-本体の顔メニューに「Deal with it」を追加しました。自作の透過ピクセルサングラス1枚で両目を置き換え、既存の明るい画像アバター背景と口パクを組み合わせます。`ui.type: "deal-with-it"` またはMODの `DealWithItFace` からも使えます。
+本体の顔メニューに「Deal with it」を追加しました。simple faceの両目だけを、白い外周輪郭付きの透過ピクセルサングラス1枚で置き換えます。口パク・背景・呼吸はsimple faceと同じです。`ui.type: "deal-with-it"` またはMODの `DealWithItFace` からも使えます。

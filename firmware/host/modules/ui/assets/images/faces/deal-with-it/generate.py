@@ -1,20 +1,31 @@
-"""Self-drawn meme-inspired pixel art. Requires Pillow: python generate.py."""
+"""Original pixel design from the requested features; requires Pillow."""
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageFilter
 
-# Logical 48x12 grid: stepped black frame and two parallel white reflections.
-image = Image.new("RGBA", (48, 12), (0, 0, 0, 0))
-spans = [(0, 48), (0, 48), (2, 22, 26, 46), (2, 22, 26, 46),
-         (3, 22, 26, 45), (4, 21, 27, 44), (4, 21, 27, 44),
-         (5, 20, 28, 43), (5, 20, 28, 43), (6, 19, 29, 42),
-         (7, 18, 30, 41), (8, 17, 31, 40)]
-for y, row in enumerate(spans):
-    for start, end in zip(row[::2], row[1::2]):
+# Independent 30x6 design. One logical pixel is a 6x6 screen rectangle.
+# This generator takes no reference image input, sampled pixels or traced rows.
+width, height, scale, border = 30, 6, 6, 2
+image = Image.new("RGBA", (width, height))
+for x in range(width):
+    image.putpixel((x, 0), (0, 0, 0, 255))
+# Shallow, stepped lenses joined only by the flat upper bar.
+for y in range(1, height):
+    inset = y - 1
+    for start, end in ((inset, 14 - max(0, y - 2)),
+                       (16 + max(0, y - 2), width - inset)):
         for x in range(start, end):
             image.putpixel((x, y), (0, 0, 0, 255))
-for offset in (0, 24):
-    for y in range(3, 7):
-        for x in (y + 4, y + 5, y + 8, y + 9):
-            image.putpixel((x + offset, y), (255, 255, 255, 255))
-image.resize((144, 36), Image.Resampling.NEAREST).save(
-    Path(__file__).with_name("deal-with-it-eyes.png"))
+# Each lens: parallel WHITE / BLACK / WHITE diagonals, each one cell wide.
+for lens_offset in (0, 15):
+    for y in range(1, 5):
+        for stripe in (0, 2):
+            image.putpixel((lens_offset + 3 + y + stripe, y), (255, 255, 255, 255))
+image = image.resize((width * scale, height * scale), Image.Resampling.NEAREST)
+padded = Image.new("RGBA", (image.width + 2 * border, image.height + 2 * border))
+padded.paste(image, (border, border))
+# The outer contour is separate from the internal reflection cells.
+outline = padded.getchannel("A").filter(ImageFilter.MaxFilter(2 * border + 1))
+result = Image.new("RGBA", padded.size, "white")
+result.putalpha(outline)
+result.alpha_composite(padded)
+result.save(Path(__file__).with_name("deal-with-it-eyes.png"))

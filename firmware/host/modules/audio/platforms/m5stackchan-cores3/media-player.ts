@@ -3,6 +3,7 @@ import MP3Streamer from 'buffered-mp3streamer'
 import type { MediaCapability, MediaProgress, MediaStartOptions, MediaState } from 'capabilities'
 import Timer from 'timer'
 import { URL } from 'url'
+import { MAX_MEDIA_VOLUME } from 'volume-model'
 import WebRadioAudioOut from 'web-radio-audio-out'
 
 type NetworkTransport = HTTPClientProvider
@@ -17,15 +18,14 @@ declare const device: {
 
 const BACKOFF_SECONDS = [1, 2, 4, 8, 16, 30] as const
 const STALL_TIMEOUT_MS = 10_000
-const MAX_WEB_RADIO_VOLUME = 0.2
 const DECODED_PCM_SAMPLE_RATE = 44100
 const OUTPUT_PCM_SAMPLE_RATE = 24000
 
 function checkedVolume(volume: number): number {
   if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw new Error('Volume must be between 0 and 1')
-  if (volume > MAX_WEB_RADIO_VOLUME) {
-    trace(`[web-radio] volume ${volume} limited to ${MAX_WEB_RADIO_VOLUME}\n`)
-    return MAX_WEB_RADIO_VOLUME
+  if (volume > MAX_MEDIA_VOLUME) {
+    trace(`[web-radio] volume ${volume} limited to ${MAX_MEDIA_VOLUME}\n`)
+    return MAX_MEDIA_VOLUME
   }
   return volume
 }
@@ -38,7 +38,7 @@ export default class MediaPlayer implements MediaCapability {
   #stallTimer: ReturnType<typeof Timer.set> | undefined
   #backoffIndex = 0
   #generation = 0
-  #volume = MAX_WEB_RADIO_VOLUME
+  #volume = MAX_MEDIA_VOLUME
   #stopped = true
   #hasPlayed = false
   #position = 0
@@ -108,7 +108,7 @@ export default class MediaPlayer implements MediaCapability {
     this.#options = { ...options, reconnect: options.mode === 'live' && (options.reconnect ?? true) }
     this.#duration = options.duration
     this.#estimated = !!options.duration
-    this.#volume = checkedVolume(options.volume ?? MAX_WEB_RADIO_VOLUME)
+    this.#volume = checkedVolume(options.volume ?? MAX_MEDIA_VOLUME)
     this.#stopped = false
     this.#setState('connecting')
     if (this.#generation !== generation + 1 || this.#stopped) return

@@ -55,6 +55,8 @@ API 1では、標準CoreS3 hostへ`audio.usb`、`conversation.remote`、`ui.appr
 
 これらを要求するMODはAPI 0のhostへ書き込めず、利用者へhost firmwareの更新を案内します。
 
+API 2では、標準CoreS3 hostへ共有音量の`audio.volume`を追加します。これを要求するメディアプレイヤーMODはAPI 0・1のhostへ書き込めません。従来のcapabilityを要求するMODは引き続き利用できます。
+
 ## 実行入口
 
 任意の`entrypoints`は、XS archiveが公開する実行入口を列挙します。

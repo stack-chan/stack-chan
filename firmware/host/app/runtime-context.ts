@@ -443,6 +443,12 @@ export class StackchanRuntimeContext implements StackchanContext {
   private createAudioCapability(): AudioCapability {
     const context = this
     return {
+      get volume() {
+        return context.#audioRuntime.volume
+      },
+      set volume(volume: number) {
+        context.#audioRuntime.volume = volume
+      },
       acquireExclusive: () => this.#audioRuntime.acquireExclusive(),
       get tts() {
         return context.tts

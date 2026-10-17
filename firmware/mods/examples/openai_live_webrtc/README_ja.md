@@ -41,7 +41,7 @@ npm run mod:build -- --mode=release mods/examples/openai_live_webrtc/manifest.js
 
 キー入力後の自分用MODは最後の引数を`manifest.local.json`に置き換えてビルドします。出力先は通常どおり`firmware/dist/`です。`mod:build`は書込みをしません。キーを入れる前の空設定でビルドを確認することを勧めます。
 
-## 端末への導入（ユーザーが後で実施）
+## 端末への導入
 
 ホスト書込みとMOD書込みはCPUビルドとは別です。必要な端末を接続し、ホストを入れ替えてよいことを確認してから実行してください。
 
@@ -77,6 +77,6 @@ CPUテストでは空キー、Wi-Fi待機中のキャンセル、開始終了の
 
 統合ホストで30秒間の実API試験を行い、録音済みの質問音声に対する「123×456＝56088」の回答、ミュート／解除、正常終了、音声利用権の解放を確認しました。呼吸などは停止し、音声に応じた口の更新は33回、終了後は顔アニメーションが再開しました。サーボ電源はOFFです。
 
-最終試験の再生アンダーランは7回、無音継続は最大150msでした。100ms周期のメインタイマーの実行間隔は最大797msで、描画遅延そのものは未計測です。接続・会話成立の確認と、音切れ・UI遅延の評価は分けています。実マイクでの聴感評価と長時間運転は別途確認が必要です。
+最終試験の再生アンダーランは7回、無音継続は最大150msでした。100ms周期のメインタイマーの実行間隔は最大797msで、描画遅延そのものは未計測です。接続・会話成立の確認と、音切れ・UI遅延の評価は分けています。統合構成は利用者による動作確認済みです。長時間運転と遅延の定量評価は引き続き確認が必要です。
 
 一次資料: [OpenAI GPT-Live WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc?voice-api=live)、[GPT-Live終了処理](https://developers.openai.com/api/docs/guides/live-conversations)、[ホストConversation](../../../host/modules/realtime-conversation/README.md)。

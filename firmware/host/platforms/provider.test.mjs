@@ -8,7 +8,7 @@ const sdk = process.env.MODDABLE
 if (!sdk) throw new Error('Set MODDABLE to the SDK used for the provider build')
 
 async function loadDevice(board) {
-  const context = vm.createContext({ trace() {}, power: { brightness: 100 } })
+  const context = vm.createContext({ trace() {}, power: { brightness: 100 }, constructed: [] })
   const modules = new Map()
   const folder = path.resolve('host/platforms', board)
   const manifest = JSON.parse(await readFile(path.join(folder, 'manifest.json'), 'utf8'))
@@ -27,6 +27,7 @@ async function loadDevice(board) {
       static Input = 0
       constructor(options) {
         this.options = options
+        context.constructed.push(specifier)
       }
       configure(options) {
         this.configuration = options
@@ -112,6 +113,7 @@ for (const board of ['m5stackchan_cores3', 'stackchan_rt', 'takao_core2_sg90']) 
       assert.equal(imu.options.sensor.address, 0x69)
     }
     if (board === 'm5stackchan_cores3') {
+      assert.equal(context.constructed.includes('embedded:sensor/RFID/ST25R3916'), false)
       assert.equal(touch.options.sensor.hz, 400_000)
       assert.equal(touch.configuration.active, false)
       assert.equal(touch.configuration.timeout, 10)
@@ -119,6 +121,19 @@ for (const board of ['m5stackchan_cores3', 'stackchan_rt', 'takao_core2_sg90']) 
       assert.equal(panel.options.sensor.port, context.cameraPort)
       assert.equal(panel.options.sensor.io, device.io.SMBus)
       assert.equal(panel.options.channels, 3)
+      const target = {}
+      const rfid = new device.sensor.RFID({ target, sensor: { address: 0x01, port: 0 } })
+      assert.equal(rfid.options.target, target)
+      assert.equal(rfid.options.sensor.io, device.io.SMBus)
+      assert.equal(rfid.options.sensor.data, device.i2c.internal.data)
+      assert.equal(rfid.options.sensor.clock, device.i2c.internal.clock)
+      assert.equal(rfid.options.sensor.port, imu.options.sensor.port)
+      assert.equal(rfid.options.sensor.port, panel.options.sensor.port)
+      assert.equal(rfid.options.sensor.address, 0x50)
+      assert.equal(rfid.options.sensor.hz, 400_000)
+      assert.equal(new device.sensor.RFID().options.sensor.port, context.cameraPort)
+    } else {
+      assert.equal(device.sensor.RFID, undefined, 'built-in RFID is exclusive to M5StackChan')
     }
     contextBacklight(device, context.power)
   })

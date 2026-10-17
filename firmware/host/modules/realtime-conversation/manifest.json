@@ -84,5 +84,8 @@
   },
   "resources": {
     "ca*": ["$(MODDABLE)/modules/crypt/data/ca*"]
+  },
+  "defines": {
+    "stackchan": { "realtime": 1 }
   }
 }

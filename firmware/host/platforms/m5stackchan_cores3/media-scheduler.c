@@ -4,6 +4,9 @@
 #include "freertos/task.h"
 #include "freertos/idf_additions.h"
 #include "esp_heap_caps.h"
+#include "xsmc.h"
+#include "xsHost.h"
+#include "media_lib_adapter.h"
 #include <string.h>
 
 static BaseType_t stackchanMediaCreate(TaskFunction_t body, const char *name,
@@ -27,3 +30,9 @@ static BaseType_t stackchanMediaCreate(TaskFunction_t body, const char *name,
 #undef xTaskCreatePinnedToCoreWithCaps
 
 #undef media_lib_add_default_os_adapter
+
+// The full media library also serves MP3 playback before the first conversation.
+void xs_realtime_media_setup(xsMachine *the) {
+  if (media_lib_add_default_adapter() != ESP_OK)
+    xsUnknownError("Realtime media initialization failed");
+}

@@ -81,6 +81,7 @@ export function prepareVersionSdkconfig({
   outputDirectory = buildOutputDirectory,
   sourceDirectory,
   partitionSourcePath,
+  realtime = false,
 }) {
   if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
@@ -92,7 +93,11 @@ export function prepareVersionSdkconfig({
   // Replaying them as an application overlay would disable features such as BLE.
   const isBaseConfig =
     path.resolve(sourceDirectory) === path.resolve(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
-  const source = isBaseConfig ? '' : readFileSync(sourcePath, 'utf8')
+  let source = isBaseConfig ? '' : readFileSync(sourcePath, 'utf8')
+  // The SDK merges this application overlay after manifest esp32Config.
+  // Do not let the standalone-MP3 profile turn WebRTC's Opus codecs off again.
+  if (realtime)
+    source = source.replace(/^CONFIG_AUDIO_(ENCODER|DECODER)_OPUS_SUPPORT=.*$/gm, 'CONFIG_AUDIO_$1_OPUS_SUPPORT=y')
   const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')
@@ -118,6 +123,7 @@ export function prepareCoreS3VersionSdkconfig({
   moddableDirectory = process.env.MODDABLE,
   outputDirectory = buildOutputDirectory,
   sourceDirectory = coreS3SdkconfigSourceDirectory,
+  realtime = false,
   partitionSourcePath = path.join(
     moddableDirectory ?? '',
     'build',
@@ -135,6 +141,7 @@ export function prepareCoreS3VersionSdkconfig({
     outputDirectory,
     sourceDirectory,
     partitionSourcePath,
+    realtime,
   })
 }
 

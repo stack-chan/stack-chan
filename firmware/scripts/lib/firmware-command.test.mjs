@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -125,8 +135,8 @@ process.exit(Number(process.env.STACKCHAN_TEST_MCPACK_STATUS))
       )
       assert.equal(result.status, status, result.stderr)
       const invocation = readInvocations(fixture.commandLog).at(-1)
-      assert.equal(invocation.board, board)
-      assert.equal(invocation.cwd, packageDirectory)
+      assert.equal(invocation.board, realpathSync(board))
+      assert.equal(invocation.cwd, realpathSync(packageDirectory))
       assert.equal(existsSync(path.dirname(invocation.alias)), false, 'temporary platform alias must be removed')
       if (status === 0) assert.match(result.stdout, /actual-output\/actual-output\.xsa/)
     }

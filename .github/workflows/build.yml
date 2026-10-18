@@ -135,12 +135,19 @@ jobs:
           STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
 
+      - name: Build package MOD regression fixtures
+        if: matrix.shard == 0
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:package-mod
+
       - name: Upload simulator test logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: moddable-simulator-logs-${{ matrix.shard }}
-          path: firmware/dist/test-logs
+          path: |
+            firmware/dist/test-logs
+            firmware/dist/package-mod-regression/**/build.log
           if-no-files-found: warn
 
   test-smoke:
@@ -206,7 +213,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "10.0.1"
+          target-branch: "10.0.2"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware

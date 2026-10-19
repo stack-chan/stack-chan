@@ -6,7 +6,7 @@ PodcastのRSS、アート、一時停止・再開、シークは既存実装を�
 
 ## 設定とビルド
 
-リポジトリ内の `firmware/mods/examples/podcast/config.ts` で番組を、`firmware/mods/examples/web_radio/config.ts` で局を設定します。Galleryの `mod/` はこれらの公開ソースのコピーです。ビルドにはリポジトリのホスト用フォント・型定義とModdable SDK 10.0.1が必要です。
+リポジトリ内の `firmware/mods/examples/podcast/config.ts` で番組を、`firmware/mods/examples/web_radio/config.ts` で局を設定します。Galleryの `mod/` はこれらの公開ソースのコピーです。ビルドにはリポジトリのホスト用フォント・型定義とModdable SDK 10.0.2が必要です。
 
 `firmware/` でビルドします。次のコマンドは実機へ書き込みません。
 

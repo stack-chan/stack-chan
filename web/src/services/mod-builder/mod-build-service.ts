@@ -10,13 +10,21 @@ export type ModBuildResult = {
   elapsedMs: number
 }
 
-async function buildArchiveInWorker(request: ModBuildWorkerRequest, onLog: (message: string) => void) {
+async function buildArchiveInWorker(
+  request: ModBuildWorkerRequest,
+  onLog: (message: string) => void,
+  signal?: AbortSignal
+) {
+  signal?.throwIfAborted()
   const worker = new Worker(new URL('./mod-build.worker.ts', import.meta.url), {
     type: 'module',
     name: 'stackchan-mod-builder',
   })
+  let abort: (() => void) | undefined
   try {
     return await new Promise<Uint8Array>((resolve, reject) => {
+      abort = () => reject(new DOMException('Build cancelled', 'AbortError'))
+      signal?.addEventListener('abort', abort, { once: true })
       worker.addEventListener('message', (event: MessageEvent<ModBuildWorkerResponse>) => {
         if (event.data.type === 'log') {
           onLog(event.data.message)
@@ -38,6 +46,7 @@ async function buildArchiveInWorker(request: ModBuildWorkerRequest, onLog: (mess
       )
     })
   } finally {
+    if (abort) signal?.removeEventListener('abort', abort)
     worker.terminate()
   }
 }
@@ -46,10 +55,12 @@ export async function buildVisualProjectMod({
   project,
   source,
   onLog,
+  signal,
 }: {
   project: VisualProject
   source: string
   onLog: (message: string) => void
+  signal?: AbortSignal
 }): Promise<ModBuildResult> {
   const startedAt = performance.now()
   const embeddedAssets = project.settings.embedAssets ? project.assets : []
@@ -68,7 +79,8 @@ export async function buildVisualProjectMod({
       manifest: manifestForProjectAssets(embeddedAssets),
       files,
     },
-    onLog
+    onLog,
+    signal
   )
   if (!isXsArchive(archive)) {
     throw new Error('生成されたファイルがXSアーカイブではありません')

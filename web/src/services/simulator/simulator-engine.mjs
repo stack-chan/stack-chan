@@ -387,6 +387,11 @@ class WasmView {
     this.bufferChangeCount = 0
     this.readiness = new FirmwareReadiness({
       onReady: (installation) => this.#reportReady(installation),
+      onFailure: () => {
+        const error = new Error('ファームウェアの起動に失敗しました')
+        this.onStatus({ status: 'error', code: 'firmware-startup-failed' })
+        this.onError(error)
+      },
       onTimeout: () => {
         const error = new Error('ファームウェアの起動準備がタイムアウトしました')
         this.onStatus({ status: 'error', code: 'firmware-ready-timeout' })

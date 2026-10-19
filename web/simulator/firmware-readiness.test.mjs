@@ -8,9 +8,11 @@ function createHarness() {
   const ready = []
   let nextId = 0
   let timeouts = 0
+  let failures = 0
   const readiness = new FirmwareReadiness({
     onReady: (installation) => ready.push(installation),
     onTimeout: () => timeouts++,
+    onFailure: () => failures++,
     setTimer: (callback, delay) => {
       const id = ++nextId
       scheduled.set(id, { callback, delay })
@@ -23,6 +25,7 @@ function createHarness() {
     ready,
     scheduled,
     get timeouts() { return timeouts },
+    get failures() { return failures },
     expire() {
       for (const [id, timer] of [...scheduled]) {
         scheduled.delete(id)
@@ -49,6 +52,34 @@ test('settings and splash do not time out before application boot', () => {
   assert.deepEqual(harness.ready, [installation])
   assert.equal(harness.scheduled.size, 0)
 })
+
+for (const phase of ['initialization', 'launch', 'context']) {
+  test(`startup failure during ${phase} settles once and permits a new boot`, () => {
+    const harness = createHarness()
+    harness.readiness.start({ status: 'prepared' })
+    if (phase === 'context') harness.readiness.onTrace('[main] onLaunch shouldCreateContext=true')
+    const queuedTimer = [...harness.scheduled.values()][0]
+
+    harness.readiness.onTrace(`[main] startup failed phase=${phase} error=TypeError`)
+    harness.readiness.onTrace(`[main] startup failed phase=${phase} error=TypeError`)
+    queuedTimer?.callback()
+    harness.expire()
+    harness.readiness.onTrace('[main] app behaviors ready')
+    harness.readiness.onTrace('[main] onLaunch shouldCreateContext=true')
+    assert.equal(harness.failures, 1)
+    assert.equal(harness.timeouts, 0)
+    assert.deepEqual(harness.ready, [])
+    assert.equal(harness.scheduled.size, 0)
+
+    const nextInstallation = { status: 'empty' }
+    harness.readiness.start(nextInstallation)
+    harness.readiness.onTrace('[main] onLaunch shouldCreateContext=true')
+    harness.readiness.onTrace('[main] app behaviors ready')
+    assert.deepEqual(harness.ready, [nextInstallation])
+    assert.equal(harness.scheduled.size, 0)
+    assert.equal(harness.failures, 1)
+  })
+}
 
 test('a stalled boot still times out once and ignores late ready traces', () => {
   const harness = createHarness()

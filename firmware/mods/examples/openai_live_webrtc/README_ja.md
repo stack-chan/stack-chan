@@ -19,10 +19,10 @@ cp mods/examples/openai_live_webrtc/manifest.local.example.json \
 
 ## CPUビルド
 
-無改修Moddable SDK **10.0.1**、対応するESP-IDF **6.1**、`esp-webrtc-solution`基準コミット **c8650846b512e6e1375e5f78c1c41619b8d645eb**を使用します。既存SDKのチェックアウトや版を変更せず、それぞれのパスを設定してください。Wi-Fiの登録は通常のホスト設定を使います。
+無改修Moddable SDK **10.0.2**、対応するESP-IDF **6.1**、`esp-webrtc-solution`基準コミット **c8650846b512e6e1375e5f78c1c41619b8d645eb**を使用します。既存SDKのチェックアウトや版を変更せず、それぞれのパスを設定してください。Wi-Fiの登録は通常のホスト設定を使います。
 
 ```sh
-export MODDABLE=/path/to/moddable-10.0.1
+export MODDABLE=/path/to/moddable-10.0.2
 export PATH="$MODDABLE/build/bin/lin/release:$PATH"
 export IDF_PATH=/path/to/esp-idf-6.1
 . "$IDF_PATH/export.sh"

@@ -1,6 +1,7 @@
 {
   "include": [
-    "$(MODDABLE)/examples/io/udp/ntp/manifest_ntp.json",
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODULES)/io/ntp/client/manifest.json",
     "$(MODULES)/base/modules/manifest.json"
   ],
   "modules": {

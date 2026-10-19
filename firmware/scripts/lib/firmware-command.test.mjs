@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -82,6 +92,59 @@ test('MOD build command produces a release archive without planning a device wri
   assert.doesNotMatch(output, /esptool will discover/)
 })
 
+test('package MODs preserve case-sensitive board paths and clean aliases on success and failure', {
+  skip: process.platform === 'win32',
+}, () => {
+  const fixture = createFirmwareWrapperFixture()
+  try {
+    const board = path.join(fixture.firmware, 'host/platforms/m5stackchan_cores3')
+    const packageDirectory = path.join(fixture.root, 'ExternalPackage')
+    mkdirSync(board, { recursive: true })
+    mkdirSync(packageDirectory)
+    writeFileSync(path.join(board, 'manifest.json'), '{}\n')
+    writeFileSync(path.join(packageDirectory, 'package.json'), JSON.stringify({ name: '@stackchan/actual-output' }))
+    const mcpack = path.join(fixture.fakeBin, 'mcpack')
+    writeFileSync(
+      mcpack,
+      `#!/usr/bin/env node
+const { appendFileSync, realpathSync } = require('node:fs')
+const args = process.argv.slice(2)
+const platform = args[args.indexOf('-p') + 1].toLowerCase()
+const alias = platform.slice('esp32:'.length)
+appendFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify({ alias, board: realpathSync(alias), cwd: process.cwd() }) + '\\n')
+process.exit(Number(process.env.STACKCHAN_TEST_MCPACK_STATUS))
+`,
+    )
+    chmodSync(mcpack, 0o755)
+    for (const status of [0, 23]) {
+      const result = spawnSync(
+        process.execPath,
+        ['scripts/firmware.mjs', 'mod:build', packageDirectory, '--mode=release'],
+        {
+          cwd: fixture.firmware,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            MODDABLE: fixture.fakeModdable,
+            PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+            STACKCHAN_DRY_RUN: '',
+            STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
+            STACKCHAN_TEST_MCPACK_STATUS: String(status),
+          },
+        },
+      )
+      assert.equal(result.status, status, result.stderr)
+      const invocation = readInvocations(fixture.commandLog).at(-1)
+      assert.equal(invocation.board, realpathSync(board))
+      assert.equal(invocation.cwd, realpathSync(packageDirectory))
+      assert.equal(existsSync(path.dirname(invocation.alias)), false, 'temporary platform alias must be removed')
+      if (status === 0) assert.match(result.stdout, /actual-output\/actual-output\.xsa/)
+    }
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 test('firmware wrapper cleans manifest switches before every CoreS3 command and restores IDF dependencies', () => {
   for (const command of ['build', 'flash', 'deploy', 'debug']) {
     const fixture = createFirmwareWrapperFixture()
@@ -131,7 +194,7 @@ test('RT release restores both camera dependencies after clean and manifest swit
 
 /** Create an isolated firmware tree and fake toolchain for command-wrapper tests. */
 function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 'instrument') {
-  const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-wrapper-'))
+  const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-wrapper-Case-'))
   const fixtureFirmware = path.join(root, 'firmware')
   const fixtureWebEditor = path.join(root, 'web', 'editor')
   const sourceSdkconfig = path.join(

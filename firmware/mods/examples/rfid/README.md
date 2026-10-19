@@ -1,6 +1,6 @@
 # Built-in RFID sample (M5StackChan CoreS3)
 
-Requires a host rebuilt with Moddable SDK **10.0.1** and this platform change.
+Requires a host rebuilt with Moddable SDK **10.0.2** and this platform change.
 The host exposes the official `embedded:sensor/RFID/ST25R3916` driver as
 `device.sensor.RFID`. It does not instantiate the reader or start background
 polling. Other boards are not given a built-in RFID provider.
@@ -54,7 +54,7 @@ compare 1000 ms under load, and stop when unused. A period is a scheduling targe
 not a guaranteed detection latency. This sample does not automatically read NDEF
 on every scan, to keep normal polling lighter.
 
-In SDK 10.0.1, `sample()` returns an edge or `undefined`; it also suppresses
+The SDK's `sample()` returns an edge or `undefined`; it also suppresses
 internal exceptions. `undefined` is therefore not proof of healthy RF/I2C IO.
 The driver can re-enable its RF field after repeated misses even when configured
 OFF, so this sample never samples or performs NDEF IO while stopped and closes
@@ -63,7 +63,7 @@ is achieved by not constructing it at all.
 
 ## Verification
 
-Software checks from `firmware/` (set `MODDABLE` to SDK 10.0.1):
+Software checks from `firmware/` (set `MODDABLE` to SDK 10.0.2):
 
 ```sh
 npm run test:providers

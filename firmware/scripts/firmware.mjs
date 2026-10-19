@@ -1,7 +1,17 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
@@ -215,11 +225,26 @@ switch (command) {
     }
     const packageDirectory = findPackageDirectory(modInput)
     const projectDirectory = packageDirectory ?? path.dirname(path.resolve(modInput))
-    const projectName = path.basename(projectDirectory)
+    const projectName = packageDirectory
+      ? path.basename(JSON.parse(readFileSync(path.join(packageDirectory, 'package.json'), 'utf8')).name)
+      : path.basename(projectDirectory)
     if (packageDirectory) {
+      // mcpack lowercases the complete -p argument, including custom paths.
+      // A lowercase temporary alias preserves case-sensitive checkout paths.
+      let packagePlatformPath = path.resolve(device.platform)
+      if (process.platform !== 'win32' && packagePlatformPath !== packagePlatformPath.toLowerCase()) {
+        const aliasRoot = path.join('/tmp', `stackchan-mod-platform-${randomUUID()}`)
+        packagePlatformPath = path.join(aliasRoot, 'board')
+        if (!dryRun) {
+          mkdirSync(aliasRoot, { mode: 0o700 })
+          process.once('exit', () => rmSync(aliasRoot, { recursive: true, force: true }))
+          symlinkSync(path.resolve(device.platform), packagePlatformPath, 'dir')
+        }
+      }
+      const packagePlatform = `esp32:${packagePlatformPath}`
       run(
         'mcpack',
-        ['mcrun', ...buildModeArgs, '-m', '-p', platform, '-t', 'build', ...outputArgs, ...args.slice(1)],
+        ['mcrun', ...buildModeArgs, '-m', '-p', packagePlatform, '-t', 'build', ...outputArgs, ...args.slice(1)],
         packageDirectory,
       )
     } else {

@@ -1,8 +1,8 @@
 import Transport from 'realtimeConversation/transport'
+import OpusDecoder from 'stackchanOpusDecoder'
+import OpusEncoder from 'stackchanOpusEncoder'
+import MP3Decoder from 'esp32-mp3-decoder'
 import AudioOut from 'pins/audioout'
-import MP3Decoder from 'test-mp3-decoder'
-import OpusDecoder from 'test-opus-decoder'
-import OpusEncoder from 'test-opus-encoder'
 import { assert, equal } from 'testing/assert'
 import Time from 'time'
 import Timer from 'timer'
@@ -165,7 +165,4 @@ async function run() {
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
-run().catch((error) => {
-  trace(`${String(error)}\n`)
-  trace('@@STACKCHAN_TEST:FAIL@@\n')
-})
+export default run

@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { webRtcComponents } from './webrtc-solution.mjs'
 
 const firmwareDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const manifest = 'mods/examples/look_around/manifest.json'
@@ -213,6 +214,18 @@ function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 
     path.join(fixtureFirmware, 'host', 'modules', 'audio', 'platforms', 'm5stackchan-cores3', 'sdkconfig'),
     { recursive: true },
   )
+  const conversationDirectory = path.join(fixtureFirmware, 'host/modules/realtime-conversation/esp32')
+  mkdirSync(conversationDirectory, { recursive: true })
+  cpSync(
+    path.join(firmwareDirectory, 'host/modules/realtime-conversation/esp32/manifest.json'),
+    path.join(conversationDirectory, 'manifest.json'),
+  )
+  const solutionDirectory = path.join(root, 'webrtc-solution')
+  for (const component of webRtcComponents) {
+    const directory = path.join(solutionDirectory, 'components', component)
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(path.join(directory, 'CMakeLists.txt'), '# local test component\n')
+  }
   mkdirSync(fixtureWebEditor, { recursive: true })
   cpSync(
     path.resolve(firmwareDirectory, '../web/editor/esptool-installer.mjs'),
@@ -299,6 +312,7 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
     firmware: fixtureFirmware,
     fakeBin,
     fakeModdable,
+    solutionDirectory,
     commandLog,
     normalManifest,
     diagnosticManifest,
@@ -324,6 +338,7 @@ function runFixture(fixture, command, manifestPath) {
       env: {
         ...process.env,
         MODDABLE: fixture.fakeModdable,
+        ESP_WEBRTC_SOLUTION: fixture.solutionDirectory,
         PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
         STACKCHAN_BUILD_MODE: '',
         STACKCHAN_DRY_RUN: '',

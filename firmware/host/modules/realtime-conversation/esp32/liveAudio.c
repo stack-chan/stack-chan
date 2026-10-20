@@ -3,6 +3,7 @@
 
 #include "xsHost.h"
 #include "xsmc.h"
+#include "mc.defines.h"
 #include "esp_timer.h"
 #include "io-performance.h"
 #include "esp_webrtc.h"
@@ -16,6 +17,18 @@
 #include "freertos/stream_buffer.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Ordinary CoreS3 and M5StackChan CoreS3 share the AW88298/ES7210 duplex
+ * bus, initialized by the SDK's CoreS3 setup. Use the selected board's pins
+ * so the native transport and normal playback/recording cannot diverge. */
+_Static_assert(MODDEF_AUDIOOUT_I2S_NUM == MODDEF_AUDIOIN_I2S_NUM,
+	"WebRTC requires a shared CoreS3 I2S controller");
+_Static_assert(MODDEF_AUDIOOUT_I2S_BCK_PIN == MODDEF_AUDIOIN_I2S_BCK_PIN &&
+	MODDEF_AUDIOOUT_I2S_LR_PIN == MODDEF_AUDIOIN_I2S_LR_PIN &&
+	MODDEF_AUDIOOUT_I2S_MCK_PIN == MODDEF_AUDIOIN_I2S_MCK_PIN,
+	"WebRTC requires shared CoreS3 I2S clocks");
+_Static_assert(MODDEF_AUDIOIN_I2S_FORMAT_I2S == 1,
+	"WebRTC requires the CoreS3 ES7210 Philips I2S format");
 
 static esp_err_t measuredWrite(i2s_chan_handle_t handle, const void *data, size_t size, size_t *written, uint32_t timeout) {
   esp_err_t err = i2s_channel_write(handle, data, size, written, timeout);
@@ -274,7 +287,7 @@ int liveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *provider)
 	err = esp_ae_rate_cvt_open(&rate, &a->resampler);
 	if (err) return err;
 	i2s_chan_config_t channel = I2S_CHANNEL_DEFAULT_CONFIG(
-		I2S_NUM_1,
+		MODDEF_AUDIOOUT_I2S_NUM,
 		I2S_ROLE_MASTER);
 	channel.dma_desc_num = DMA_BLOCKS;
 	channel.dma_frame_num = BLOCK;
@@ -285,7 +298,9 @@ int liveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *provider)
 	i2s_std_config_t config = {
 		.clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(48000),
 		.slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
-		.gpio_cfg = {.mclk = 0, .bclk = 34, .ws = 33, .dout = 13, .din = 14}
+		.gpio_cfg = {.mclk = MODDEF_AUDIOOUT_I2S_MCK_PIN,
+			.bclk = MODDEF_AUDIOOUT_I2S_BCK_PIN, .ws = MODDEF_AUDIOOUT_I2S_LR_PIN,
+			.dout = MODDEF_AUDIOOUT_I2S_DATAOUT_PIN, .din = MODDEF_AUDIOIN_I2S_DATAIN}
 	};
 	a->stage = "i2s_init_tx";
 	if ((err = i2s_channel_init_std_mode(a->tx, &config))) return err;

@@ -82,6 +82,7 @@ export function prepareVersionSdkconfig({
   sourceDirectory,
   partitionSourcePath,
   realtime = false,
+  realtimePerformance = false,
 }) {
   if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
@@ -95,15 +96,15 @@ export function prepareVersionSdkconfig({
     path.resolve(sourceDirectory) === path.resolve(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
   let source = isBaseConfig ? '' : readFileSync(sourcePath, 'utf8')
   // The SDK merges this application overlay after manifest esp32Config.
-  // Preserve WebRTC's manifest settings instead of replaying the standalone
-  // profile's codec, memory-speed and allocation defaults over them.
+  // Preserve WebRTC's codec and allocation settings. Board-specific flash and
+  // PSRAM timing remains unchanged in the standard distribution.
   if (realtime)
     source = source
       .replace(/^CONFIG_AUDIO_(ENCODER|DECODER)_OPUS_SUPPORT=.*$/gm, 'CONFIG_AUDIO_$1_OPUS_SUPPORT=y')
-      .replace(
-        /^CONFIG_(?:SPIRAM_MALLOC_ALWAYSINTERNAL|SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=.*\n?/gm,
-        '',
-      )
+      .replace(/^CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=.*\n?/gm, '')
+  // Only the explicitly selected Live performance profile changes bus timing.
+  if (realtimePerformance)
+    source = source.replace(/^CONFIG_(?:SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=.*\n?/gm, '')
   const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')
@@ -130,6 +131,7 @@ export function prepareCoreS3VersionSdkconfig({
   outputDirectory = buildOutputDirectory,
   sourceDirectory = coreS3SdkconfigSourceDirectory,
   realtime = false,
+  realtimePerformance = false,
   partitionSourcePath = path.join(
     moddableDirectory ?? '',
     'build',
@@ -148,6 +150,7 @@ export function prepareCoreS3VersionSdkconfig({
     sourceDirectory,
     partitionSourcePath,
     realtime,
+    realtimePerformance,
   })
 }
 

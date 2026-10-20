@@ -1,0 +1,5 @@
+{
+  "include": [
+    "../modules/realtime-conversation/__tests__/media-before-transport/manifest.device.json"
+  ]
+}

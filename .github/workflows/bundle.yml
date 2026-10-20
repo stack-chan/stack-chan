@@ -71,6 +71,10 @@ jobs:
         uses: ./.github/actions/setup
         with:
           target-branch: "10.0.2"
+      - name: Prepare pinned WebRTC sources
+        if: matrix.target == 'm5stack_cores3' || matrix.target == 'm5stackchan_cores3'
+        working-directory: ./firmware
+        run: npm run setup:webrtc
       - name: Build release firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}

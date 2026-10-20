@@ -31,6 +31,7 @@ import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
 import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
+import { prepareWebRtcSolution, webRtcSolutionFingerprint } from './lib/webrtc-solution.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -80,6 +81,17 @@ const uploadPort =
   readOption(rawArgs, 'port') ?? process.env.STACKCHAN_PORT ?? process.env.UPLOAD_PORT ?? process.env.ESPPORT
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
+const realtime = deviceName === 'm5stackchan_cores3'
+let solutionDirectory
+if (!dryRun && realtime && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
+  try {
+    solutionDirectory = prepareWebRtcSolution()
+    subprocessEnvironment = { ...subprocessEnvironment, ESP_WEBRTC_SOLUTION: solutionDirectory }
+  } catch (error) {
+    console.error(`[stack-chan] WebRTC dependency setup failed: ${error.message}`)
+    process.exit(1)
+  }
+}
 
 if (
   deviceName === 'm5stackchan_cores3' &&
@@ -103,8 +115,8 @@ if (
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
-      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
-      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
+      realtime,
+      solutionDirectory,
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
@@ -114,7 +126,10 @@ if (
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
-    const versionSdkconfig = prepareCoreS3VersionSdkconfig({ realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1' })
+    const versionSdkconfig = prepareCoreS3VersionSdkconfig({
+      realtime,
+      realtimePerformance: path.basename(manifest) === 'manifest_openai_live.json',
+    })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
@@ -166,8 +181,8 @@ if (buildVariantChanged && ['m5stackchan_cores3', 'stackchan_rt'].includes(devic
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
-      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
-      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
+      realtime,
+      solutionDirectory,
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared after target clean: ${error.message}`)
@@ -329,10 +344,11 @@ function prepareBuildVariant() {
   const selectedVariant = resolveBuildVariant(manifest, {
     sdk: realpathSync(process.env.MODDABLE),
     idf: process.env.IDF_PATH,
-    realtime: process.env.STACKCHAN_REALTIME_WEBRTC,
+    realtime,
     measured: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE,
     systemTrace: process.env.STACKCHAN_REALTIME_SYSTEM_TRACE,
-    solution: process.env.ESP_WEBRTC_SOLUTION,
+    solution: solutionDirectory,
+    solutionRevision: solutionDirectory ? webRtcSolutionFingerprint(solutionDirectory) : undefined,
     manifest: readFileSync(selectedManifest, 'utf8'),
   })
   if (readBuildVariant(markerPath) === selectedVariant) return false

@@ -1,6 +1,6 @@
 {
   "name": "Stack-chan for M5StackChan CoreS3",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "builds": [
     {
       "chipFamily": "ESP32-S3",

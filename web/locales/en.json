@@ -607,5 +607,6 @@
   "書き込んだMODを起動したくない場合は「実機のMODを削除」を使います。": "Use “Remove MOD from device” if you no longer want the installed MOD to start.",
   "生成コードタブの": "The ",
   "は、通常のMODと同じ": " in the generated-code tab exposes the same ",
-  "を公開します。": " as a regular MOD."
+  "を公開します。": " as a regular MOD.",
+  "ファームウェアの起動に失敗しました": "Firmware startup failed"
 }

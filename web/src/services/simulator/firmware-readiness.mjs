@@ -1,7 +1,8 @@
 export class FirmwareReadiness {
-  constructor({ onReady, onTimeout, setTimer = setTimeout, clearTimer = clearTimeout }) {
+  constructor({ onReady, onTimeout, onFailure, setTimer = setTimeout, clearTimer = clearTimeout }) {
     this.onReady = onReady
     this.onTimeout = onTimeout
+    this.onFailure = onFailure
     this.setTimer = setTimer
     this.clearTimer = clearTimer
     this.pendingInstallation = null
@@ -16,7 +17,10 @@ export class FirmwareReadiness {
   onTrace(text) {
     if (!this.pendingInstallation) return
     const line = String(text)
-    if (line.includes('[main] app behaviors ready')) {
+    if (line.includes('[main] startup failed ')) {
+      this.clear()
+      this.onFailure()
+    } else if (line.includes('[main] app behaviors ready')) {
       const installation = this.pendingInstallation
       this.clear()
       this.onReady(installation)

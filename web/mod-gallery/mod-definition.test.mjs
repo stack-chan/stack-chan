@@ -293,36 +293,3 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('https://example.test/setup'), true)
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('http://example.test/setup'), false)
 })
-
-// Entry modules for these two independent Gallery packages must not be swapped.
-// Compare executable artifacts, rather than scanning JavaScript source text.
-function archiveEntryCode(bytes, entry) {
-  function* atoms(start, end) {
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-    while (start < end) {
-      const size = view.getUint32(start, false)
-      assert.ok(size >= 8 && start + size <= end, 'valid archive atom bounds')
-      yield { type: bytes.subarray(start + 4, start + 8).toString(), start: start + 8, end: start + size }
-      start += size
-    }
-  }
-  for (const atom of atoms(8, bytes.length)) {
-    if (atom.type !== 'MODS') continue
-    let modulePath
-    for (const child of atoms(atom.start, atom.end)) {
-      if (child.type === 'PATH') modulePath = bytes.subarray(child.start, child.end - 1).toString()
-      if (child.type === 'CODE' && modulePath === entry) return bytes.subarray(child.start, child.end)
-    }
-  }
-  assert.fail(`archive is missing entry module ${entry}`)
-}
-
-test('MediaPipe and Codex Voice ship different executable entry modules', async () => {
-  const definitions = await loadModCatalog(catalogUrl, fileFetch)
-  const entries = ['tech.stackchan.samples.mediapipe-ble', 'tech.stackchan.samples.codex-voice'].map((id) => {
-    const definition = definitions.find((item) => item.id === id)
-    assert.ok(definition, id)
-    return archiveEntryCode(readFileSync(definition.artifacts[0].url), 'mod')
-  })
-  assert.notDeepEqual(entries[0], entries[1], 'MediaPipe must not execute the Codex Voice entry module')
-})

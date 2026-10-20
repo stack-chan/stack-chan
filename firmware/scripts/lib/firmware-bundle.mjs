@@ -9,6 +9,7 @@ import {
 } from './build-output.mjs'
 import { prepareCoreS3IdfDependencies } from './idf-dependencies.mjs'
 import { coreS3SdkconfigSourceDirectory, prepareVersionSdkconfig } from './moddable-version.mjs'
+import { prepareWebRtcSolution } from './webrtc-solution.mjs'
 
 const appDirectory = path.join(firmwareDirectory, 'host', 'app')
 const standardManifestPath = path.join(appDirectory, 'manifest.json')
@@ -105,6 +106,8 @@ export function buildFirmwareBundleTarget(
 ) {
   if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
   const target = resolveFirmwareBundleTarget(name)
+  const realtime = ['m5stack_cores3', 'm5stackchan_cores3'].includes(target.name)
+  const solutionDirectory = realtime ? prepareWebRtcSolution({ outputDirectory }) : undefined
   const sourceDirectory = Array.isArray(target.sdkconfigSource)
     ? path.join(moddableDirectory, ...target.sdkconfigSource)
     : target.sdkconfigSource
@@ -117,6 +120,7 @@ export function buildFirmwareBundleTarget(
     outputDirectory,
     sourceDirectory,
     partitionSourcePath,
+    realtime,
   })
 
   if (target.idfDependencyPlatform) {
@@ -125,6 +129,8 @@ export function buildFirmwareBundleTarget(
       platformName: target.idfDependencyPlatform,
       applicationName: hostApplicationName,
       mode: 'release',
+      realtime,
+      solutionDirectory,
     })
   }
 
@@ -145,7 +151,11 @@ export function buildFirmwareBundleTarget(
         bundleManifestPath,
       ],
       firmwareDirectory,
-      { ...process.env, MODDABLE: moddableDirectory },
+      {
+        ...process.env,
+        MODDABLE: moddableDirectory,
+        ...(solutionDirectory && { ESP_WEBRTC_SOLUTION: solutionDirectory }),
+      },
     )
   } finally {
     rmSync(bundleManifestPath, { force: true })

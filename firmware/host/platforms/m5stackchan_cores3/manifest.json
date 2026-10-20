@@ -9,7 +9,8 @@
     "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json",
     "$(MODDABLE)/modules/drivers/sensors/rfid/st25r3916/manifest.json",
     "$(MODDABLE)/modules/files/flash/manifest.json",
-    "$(MODULES)/io/files/esp32/manifest_sdspi.json"
+    "$(MODULES)/io/files/esp32/manifest_sdspi.json",
+    "../core_s3_audioout/manifest.json"
   ],
   "modules": {
     "axp2101-power-capture": "../../modules/power/platforms/axp2101-power-capture",
@@ -17,7 +18,6 @@
     "setup/m5stackchan-power": "./setup-target",
     "stackchan-sdcard": "./sd-card",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
-    "pins/audioout": "../core_s3_audioout",
     "mod-files": "../../app/mod-files",
     "stackchan-sdroot": "./sd-root",
     "sdk-board-provider": "$(BUILD)/devices/esp32/targets/m5stack_cores3/host/provider"

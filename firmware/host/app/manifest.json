@@ -122,5 +122,13 @@
         "lib": ["es2025", "esnext.disposable"]
       }
     }
+  },
+  "platforms": {
+    "esp32/m5stack_cores3": {
+      "include": ["../modules/realtime-conversation/manifest.json"]
+    },
+    "esp32/m5stackchan_cores3": {
+      "include": ["../modules/realtime-conversation/manifest.json"]
+    }
   }
 }

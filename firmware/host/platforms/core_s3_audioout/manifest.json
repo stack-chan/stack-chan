@@ -1,0 +1,5 @@
+{
+  "modules": {
+    "pins/audioout": "../core_s3_audioout"
+  }
+}

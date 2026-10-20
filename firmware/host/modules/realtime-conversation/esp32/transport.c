@@ -41,10 +41,12 @@ typedef struct {
 	portMUX_TYPE lock;
 } LiveTransport;
 
-/* I2S and media-library schedulers are process-wide resources. The JS host
- * thread owns this lease until every native task has stopped. */
-static LiveTransport *gOwner;
+/* I2S and media-library schedulers are process-wide resources. Multiple XS
+ * Workers can construct transports concurrently; retain this lease until every
+ * native task has stopped, including constructor and startup failure paths. */
+static _Atomic(LiveTransport *) gOwner;
 static bool gAdapters;
+extern int stackchanRealtimeMediaInit(void);
 
 static void fail(LiveTransport *t, int code)
 {
@@ -233,7 +235,8 @@ static void dispose(LiveTransport *t)
 	LiveMessage msg;
 	if (t->events) { while (xQueueReceive(t->events, &msg, 0) == pdPASS) free(msg.data); vQueueDelete(t->events); }
 	if (t->commands) { while (xQueueReceive(t->commands, &msg, 0) == pdPASS) free(msg.data); vQueueDelete(t->commands); }
-	if (gOwner == t) gOwner = NULL;
+	LiveTransport *expected = t;
+	atomic_compare_exchange_strong(&gOwner, &expected, NULL);
 	free(t);
 }
 void xs_live_transport_destructor(void *data)
@@ -246,15 +249,18 @@ void xs_live_transport_destructor(void *data)
 }
 void xs_live_transport_constructor(xsMachine *the)
 {
-	if (gOwner) xsUnknownError("CoreS3 audio is already in use");
 	LiveTransport *t = calloc(1, sizeof(*t));
 	if (!t) xsUnknownError("No memory for WebRTC");
+	LiveTransport *expected = NULL;
+	if (!atomic_compare_exchange_strong(&gOwner, &expected, t)) {
+		free(t);
+		xsUnknownError("CoreS3 audio is already in use");
+	}
 	t->lock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
 	t->events = xQueueCreate(EVENT_COUNT, sizeof(LiveMessage));
 	t->commands = xQueueCreate(COMMAND_COUNT, sizeof(LiveMessage));
 	if (!t->events || !t->commands) { dispose(t); xsUnknownError("No memory for WebRTC queues"); }
 	atomic_store(&t->volume, 512);
-	gOwner = t;
 	xsmcSetHostData(xsThis, t);
 }
 void xs_live_transport_start(xsMachine *the)
@@ -262,7 +268,8 @@ void xs_live_transport_start(xsMachine *the)
 	LiveTransport *t = xsmcGetHostData(xsThis);
 	if (!t || t->started || atomic_load(&t->stopping)) xsUnknownError("Transport cannot start");
 	if (!gAdapters) {
-		media_lib_add_default_adapter();
+		if (stackchanRealtimeMediaInit() != ESP_OK)
+			xsUnknownError("Realtime media initialization failed");
 		media_lib_thread_set_schedule_cb(scheduler);
 		esp_capture_set_thread_scheduler(captureScheduler);
 		esp_audio_enc_register_default();

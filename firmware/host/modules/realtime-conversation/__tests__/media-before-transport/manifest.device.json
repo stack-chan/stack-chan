@@ -1,0 +1,21 @@
+{
+  "include": [
+    "../../../../app/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./media-before-transport.test",
+    "mp3-frames": "../../../audio/mp3-frames.js",
+    "test-mp3-decoder": "../../../audio/platforms/m5stackchan-cores3/esp32-mp3-decoder.js",
+    "test-opus-decoder": "../../../audio/platforms/m5stackchan-cores3/esp32-opus-decoder.js",
+    "test-opus-encoder": "../../../audio/platforms/m5stackchan-cores3/esp32-opus-encoder.js",
+    "*": [
+      "../../../audio/platforms/m5stackchan-cores3/esp32-mp3-decoder.c",
+      "../../../audio/platforms/m5stackchan-cores3/esp32-opus-decoder.c",
+      "../../../audio/platforms/m5stackchan-cores3/esp32-opus-encoder.c"
+    ]
+  },
+  "defines": {
+    "main": { "async": 1 }
+  }
+}

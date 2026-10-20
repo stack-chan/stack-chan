@@ -5,6 +5,7 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
+    "~": "$(MODULES)/pins/i2s/audioout.js",
     "main": "./cores3-audioout.test",
     "pins/audioout-original": "./audioout-original"
   }

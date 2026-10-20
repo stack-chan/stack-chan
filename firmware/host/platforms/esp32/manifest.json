@@ -111,9 +111,6 @@
           "hz": 400000
         }
       },
-      "modules": {
-        "pins/audioout-original": "$(MODULES)/pins/i2s/audioout"
-      },
       "include": ["../core_s3_audioout/manifest.json"]
     },
     "esp32/m5stackchan_cores3": {

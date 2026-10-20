@@ -43,6 +43,14 @@ The native duplex bus derives controller and pin definitions from the selected
 board. Normal AudioOut creation reapplies its own requested amplifier rate;
 an amp configuration failure closes that newly allocated AudioOut.
 
+SDK 10.0.2's AW88298 setter caches the requested rate before its I2C write.
+If that write fails, retrying the same rate on the same amplifier instance can
+skip the write. AudioOut cleanup proves I2S release, not physical amplifier
+recovery. The Live example attempts to restore 24000 Hz after a failed 48000 Hz
+start, but that restoration can also fail. Transient amplifier-I2C failure and
+same-rate retry recovery are **NOT RUN** on both boards; no SDK recovery change
+is included here.
+
 An active TTS, tone, short playback, or recording prevents exclusive acquisition.
 Acquisition stops Media/WebRadio before native capture starts. While leased,
 new host playback/recording is rejected. After complete native shutdown and
@@ -88,6 +96,7 @@ size/hash and partition-table comparison. Mark each result **PASS**, **FAIL**,
 | Audio exclusivity | RuntimeAudio lease and LiveSession lifecycle tests | Active recording/TTS refuses session; MP3 stops | Active recording/TTS refuses session; MP3 stops |
 | Duplex and recovery | Native compile and transport cleanup tests | Connect/mute/unmute/close; MP3/TTS/record after close | Connect/mute/unmute/close; MP3/TTS/record after close |
 | Failure cleanup | Failed setup, double-close, pending-connect cancellation tests | Bad TLS/network loss/low memory; retry; no stale I2S | Bad TLS/network loss/low memory; retry; no stale I2S |
+| Amplifier failure recovery | XS test proves allocated AudioOut closes on setter failure | **NOT RUN**: transient I2C failure and same-rate retry on the same amp instance | **NOT RUN**: transient I2C failure and same-rate retry on the same amp instance |
 | UI responsiveness | Event backlog fairness test | Touch/drawer/face during connect and duplex | Touch/drawer/face during connect and duplex |
 | Runtime memory | Generated allocation config only | Internal largest block/PSRAM/stack/underruns, repeated cycles | Internal largest block/PSRAM/stack/underruns, repeated cycles |
 | Compatibility | Non-S3 resolved modules, API2/version and unchanged partition tests | Existing API2 MOD load | Existing API2 MOD load |

@@ -1,3 +1,5 @@
+// Select this manifest before manifest_base: the SDK typings insert a pins/* key
+// reused by streamers, and first JS source wins. Register the original first.
 import AudioOutOriginal, { Mixer } from 'pins/audioout-original'
 
 export { Mixer }

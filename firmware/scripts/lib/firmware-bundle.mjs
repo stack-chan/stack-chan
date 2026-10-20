@@ -7,6 +7,7 @@ import {
   hostApplicationName,
   moddableOutputArguments,
 } from './build-output.mjs'
+import { validateCoreS3AudioBindings } from './core-s3-audio-bindings.mjs'
 import { prepareCoreS3IdfDependencies } from './idf-dependencies.mjs'
 import { coreS3SdkconfigSourceDirectory, prepareVersionSdkconfig } from './moddable-version.mjs'
 import { prepareWebRtcSolution } from './webrtc-solution.mjs'
@@ -169,6 +170,11 @@ export function buildFirmwareBundleTarget(
     'release',
     hostApplicationName,
   )
+  if (realtime)
+    validateCoreS3AudioBindings({
+      directory: path.join(outputDirectory, 'tmp/esp32', target.outputPlatform, 'release', hostApplicationName),
+      moddableDirectory,
+    })
   const stagingDirectory = path.join(outputDirectory, 'bundle-targets', target.bundleId)
   rmSync(stagingDirectory, { recursive: true, force: true })
   mkdirSync(stagingDirectory, { recursive: true })

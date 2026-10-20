@@ -99,8 +99,8 @@
     "test:ui-controls:build": "node scripts/run-mcconfig.mjs -dn -m -p lin/m5stack -t build host/modules/ui/components/foundation/__tests__/ui-controls/manifest.test.json",
     "test:rfid": "node --experimental-vm-modules --test mods/examples/rfid/mod.test.mjs",
     "setup:webrtc": "node scripts/setup-webrtc.mjs",
-    "test:media-before-transport:build:cores3": "node scripts/run-mcconfig.mjs -d -m -p esp32/m5stack_cores3 -t build \"$PWD/host/modules/realtime-conversation/__tests__/media-before-transport/manifest.device.json\"",
-    "test:media-before-transport:build:m5stackchan_cores3": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/modules/realtime-conversation/__tests__/media-before-transport/manifest.device.json\""
+    "test:media-before-transport:build:cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32/m5stack_cores3 -t build \"$PWD/host/app/manifest_media_before_transport.test.json\"",
+    "test:media-before-transport:build:m5stackchan_cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/app/manifest_media_before_transport.test.json\""
   },
   "type": "module",
   "repository": {

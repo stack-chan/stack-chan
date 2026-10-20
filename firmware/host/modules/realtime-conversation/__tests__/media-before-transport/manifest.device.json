@@ -4,6 +4,7 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
+    "~": "../../../../app/main",
     "main": "./media-before-transport.test",
     "mp3-frames": "../../../audio/mp3-frames.js",
     "test-mp3-decoder": "../../../audio/platforms/m5stackchan-cores3/esp32-mp3-decoder.js",

@@ -1,4 +1,3 @@
-
 import { Emotion } from 'face-state'
 import Timer from 'timer'
 
@@ -52,10 +51,8 @@ export function onContextCreated(robot) {
       advance()
     } else {
       robot.face.setEmotion(sequence[index].emotion)
-      index = (index + 1) % sequence.length
     }
   }
 
   advance()
 }
-

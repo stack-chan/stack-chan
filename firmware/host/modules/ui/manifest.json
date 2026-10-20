@@ -7,7 +7,9 @@
     "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
     "$(MODDABLE)/modules/piu/MC/qrcode/manifest.json",
     "$(MODULES)/commodetto/outline/manifest.json",
-    "../util/manifest.json"
+    "../util/manifest.json",
+    "./components/face/jitome/manifest.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifestRoundRect.json"
   ],
   "modules": {
     "app-controller": "./application/app-controller",
@@ -32,6 +34,7 @@
     "template": "./components/face/template",
     "motions/*": "./components/face/motions/*",
     "drawer": "./components/drawer/drawer",
+    "rolling-text-lines": "./components/bubble/rolling-text-lines",
     "effects/speech-balloon": "./components/bubble/speech-balloon",
     "effects/multirow-balloon": "./components/bubble/multirow-balloon",
     "effects/*": "./components/effects/*",
@@ -50,6 +53,7 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
+    "*": ["./assets/images/faces/deal-with-it/deal-with-it-eyes"],
     "*-alpha-monochrome": [
       "./components/hands/assets/hands-outer-mask",
       "./components/hands/assets/hands-inner-mask"

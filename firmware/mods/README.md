@@ -61,6 +61,8 @@ To add a Piu UI while retaining the face screen and host AppBar, use the experim
 | [`look_around`](./examples/look_around/) | Minimal head movement through the motion API |
 | [`localized_drawer`](./examples/localized_drawer/) | Localized UI through `context.i18n` |
 | [`mini_app_sample`](./examples/mini_app_sample/) | A mini app that retains the face screen and AppBar |
+| [`stackchan_catch`](./examples/stackchan_catch/) | A Game & Watch-style mini-app with discrete falling-item states |
+| [`stackchan_minigames`](./examples/stackchan_minigames/) | One mini-app archive that packages Stack-chan JUMP and CATCH together |
 | [`local_peer_hello`](./examples/local_peer_hello/) | Typed device-to-device messages without the internet |
 | [`web_radio`](./examples/web_radio/) | Network audio playback on M5StackChan CoreS3 |
 | [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3 servo-power and head LED checks](../docs/m5stackchan-cores3-smoke.md) |

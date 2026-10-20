@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 
-import type HTTPClient from 'embedded:network/http/client'
+import type { HTTPClientProvider } from 'embedded:network/http/client'
 import type AudioOut from 'pins/audioout'
 import { runTTSPlayback } from 'tts-playback-lifecycle'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
@@ -9,10 +9,8 @@ import WavStreamer from 'wavstreamer'
 /* global trace, SharedArrayBuffer */
 declare const device: {
   network: {
-    http: typeof HTTPClient.constructor & {
-      io: typeof HTTPClient
-      socket: unknown
-      dns: unknown
+    http: {
+      client: HTTPClientProvider
     }
   }
 }
@@ -44,12 +42,13 @@ export class TTS {
     this.sampleRate = props.sampleRate ?? 24000
     this.volume = props.volume ?? 0.5
   }
+  /** Stream remote speech and report playback completion through the optional callback. */
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
     runTTSPlayback(this, callback, (lifecycle) => {
       const audio = lifecycle.openAudio({ streams: 1, sampleRate: this.sampleRate }, volume ?? this.volume)
       lifecycle.attach(
         new WavStreamer({
-          http: device.network.http,
+          http: device.network.http.client,
           host: this.host,
           path: key,
           port: this.port,

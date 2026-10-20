@@ -138,22 +138,56 @@ try {
   )
   assert.equal(await selectedMediaPipeMod.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
 
-  await page.goto(`${baseUrl}/mod-gallery/?mod=sample.stackchan-jump`, {
+  await page.goto(`${baseUrl}/mod-gallery/?mod=sample.stackchan-minigames`, {
     waitUntil: 'networkidle',
   })
-  const selectedJumpMiniApp = page.locator(
-    '[data-mod-id="sample.stackchan-jump"][data-mod-entrypoints="miniapp"][data-selected="true"]'
+  const selectedMiniGames = page.locator(
+    '[data-mod-id="sample.stackchan-minigames"][data-mod-entrypoints="miniapp"][data-selected="true"]'
   )
-  await selectedJumpMiniApp.waitFor()
-  assert.equal(await selectedJumpMiniApp.getByText('ミニアプリ', { exact: true }).count(), 1)
-  assert.equal(await selectedJumpMiniApp.getByRole('button', { name: 'シミュレーターで試す' }).count(), 1)
-  assert.equal(await selectedJumpMiniApp.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
-  await selectedJumpMiniApp.getByRole('button', { name: 'シミュレーターで試す' }).click()
-  await page.waitForURL(/\/simulator\/\?gallery=sample\.stackchan-jump/)
+  await selectedMiniGames.waitFor()
+  assert.equal(await selectedMiniGames.getByText('ミニアプリ', { exact: true }).count(), 1)
+  assert.equal(await selectedMiniGames.getByRole('button', { name: 'シミュレーターで試す' }).count(), 1)
+  assert.equal(await selectedMiniGames.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
+  await selectedMiniGames.getByRole('button', { name: 'シミュレーターで試す' }).click()
+  await page.waitForURL(/\/simulator\/\?gallery=sample\.stackchan-minigames/)
   await page
     .getByRole('log')
-    .getByText('[MiniApp] loaded experimental archive definitions=1', { exact: false })
+    .getByText('[MiniApp] loaded experimental archive definitions=2', { exact: false })
     .waitFor({ timeout: 45_000 })
+  const miniGameScreen = page.locator('canvas[aria-hidden="true"]')
+  // The LCD canvas is hidden after Three.js maps it onto the model. Give the touch bridge stable test bounds.
+  await miniGameScreen.evaluate((canvas) => {
+    Object.assign(canvas.style, {
+      display: 'block',
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      width: '320px',
+      height: '240px',
+      opacity: '0',
+      pointerEvents: 'none',
+    })
+  })
+  const screenBox = await miniGameScreen.boundingBox()
+  assert.ok(screenBox, 'the simulator canvas should have a visible bounding box')
+  const tapMiniGameScreen = async (x, y) => {
+    const clientX = screenBox.x + (x * screenBox.width) / 320
+    const clientY = screenBox.y + (y * screenBox.height) / 240
+    await miniGameScreen.dispatchEvent('mousedown', { clientX, clientY })
+    await miniGameScreen.dispatchEvent('mouseup', { clientX, clientY })
+  }
+  await tapMiniGameScreen(160, 120)
+  await page.waitForTimeout(100)
+  await tapMiniGameScreen(254, 22)
+  await page.waitForTimeout(200)
+  await tapMiniGameScreen(160, 74)
+  await page.waitForTimeout(300)
+  const catchTitleFrame = await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png'))
+  await tapMiniGameScreen(160, 142)
+  await page.waitForTimeout(1_000)
+  const catchRunningFrame = await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png'))
+  assert.notEqual(catchRunningFrame, catchTitleFrame, 'the center tap should start Stack-chan CATCH')
+  assert.equal(await page.getByRole('log').getByText('XS abort', { exact: false }).count(), 0)
 
   await page.goto(`${baseUrl}/mod-gallery/`, { waitUntil: 'networkidle' })
   const blockProjectLink = page.getByRole('link', { name: 'ブロックで開く' }).first()
@@ -234,12 +268,30 @@ try {
       ) === 360
   )
   const speechCategory = page.getByRole('treeitem', { name: 'おしゃべり', exact: true })
+  const speechLabel = speechCategory.locator('.blocklyToolboxCategoryLabel')
+  await speechLabel.waitFor()
+  const lightLabelColor = await speechLabel.evaluate((label) => getComputedStyle(label).color)
+  assert.notEqual(
+    lightLabelColor,
+    'rgb(255, 255, 255)',
+    'the unselected category label must contrast with the light toolbox'
+  )
   const toolboxFlyout = page.locator('.blocklyToolboxFlyout')
   const toolboxFlyoutScrollbar = page.locator('.blocklyToolboxFlyout + .blocklyFlyoutScrollbar')
   await speechCategory.click()
+  assert.equal(
+    await speechLabel.evaluate((label) => getComputedStyle(label).color),
+    'rgb(255, 255, 255)',
+    'the selected category label must stay readable in light mode'
+  )
   await toolboxFlyout.waitFor({ state: 'visible' })
   await toolboxFlyoutScrollbar.waitFor({ state: 'visible' })
   await speechCategory.click()
+  assert.equal(
+    await speechLabel.evaluate((label) => getComputedStyle(label).color),
+    lightLabelColor,
+    'the light-mode label color must recover after deselection'
+  )
   await toolboxFlyout.waitFor({ state: 'hidden' })
   assert.equal(
     await toolboxFlyoutScrollbar.isVisible(),
@@ -359,6 +411,19 @@ try {
   await page.evaluate(() => localStorage.setItem('stackchan.theme', 'dark'))
   await page.reload({ waitUntil: 'networkidle' })
   assert.equal(await page.locator('html.dark').count(), 1, 'saved dark theme must apply before app interaction')
+  const darkSpeechCategory = page.getByRole('treeitem', { name: 'おしゃべり', exact: true })
+  const darkSpeechLabel = darkSpeechCategory.locator('.blocklyToolboxCategoryLabel')
+  await darkSpeechLabel.waitFor()
+  const darkLabelColor = () => darkSpeechLabel.evaluate((label) => getComputedStyle(label).color)
+  assert.equal(await darkLabelColor(), 'rgb(0, 0, 0)', 'the dark-mode category label must be readable')
+  await darkSpeechCategory.click()
+  assert.equal(
+    await darkLabelColor(),
+    'rgb(255, 255, 255)',
+    'Blockly’s selected-category text color must take precedence in dark mode'
+  )
+  await darkSpeechCategory.click()
+  assert.equal(await darkLabelColor(), 'rgb(0, 0, 0)', 'the dark-mode label color must recover after deselection')
   await page.screenshot({ path: '/tmp/stackchan-editor-dark.png', fullPage: false })
 } finally {
   await browser?.close()

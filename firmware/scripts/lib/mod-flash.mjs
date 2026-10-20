@@ -9,6 +9,7 @@ import {
   xsArchiveByteLength,
 } from '../../../web/editor/esptool-installer.mjs'
 import { xsArchiveVersion } from '../../../web/editor/mod-builder.mjs'
+import { isXsVersionCompatible, xsArchiveVersionRangeForFirmware } from '../../../web/editor/xs-compatibility.mjs'
 import { buildOutputDirectory } from './build-output.mjs'
 
 export const partitionTableOffset = 0x8000
@@ -117,6 +118,16 @@ export function installModArchive({
     }
     if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
       throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
+    }
+
+    const archiveRange = xsArchiveVersionRangeForFirmware(firmware.moddableVersion)
+    if (!archiveRange) {
+      throw new Error(
+        `Unsupported Moddable firmware version: ${firmware.moddableVersion}; supported SDKs: 9.5 and 10.0`,
+      )
+    }
+    if (!isXsVersionCompatible(archiveVersion, archiveRange)) {
+      throw new Error(`Incompatible XS archive version: ${archiveVersion.join('.')}`)
     }
 
     console.log(

@@ -1,6 +1,7 @@
 /* eslint-disable prefer-const */
 
 import type HTTPClient from 'embedded:network/http/client'
+import type { HTTPClientProvider } from 'embedded:network/http/client'
 import { File } from 'file'
 import Headers from 'headers'
 import config from 'mc/config'
@@ -14,10 +15,8 @@ const QUERY_PATH = `${config.file.root}query.json`
 /* global trace, SharedArrayBuffer */
 declare const device: {
   network: {
-    http: typeof HTTPClient.constructor & {
-      io: typeof HTTPClient
-      socket: unknown
-      dns: unknown
+    http: {
+      client: HTTPClientProvider
     }
   }
 }
@@ -54,13 +53,14 @@ export class TTS {
     this.sampleRate = props.sampleRate ?? 11025
     this.volume = props.volume ?? 0.5
   }
+  /** Request synthesis parameters and store them for the subsequent audio request. */
   async getQuery(text: string, speakerId = 1): Promise<void> {
     return new Promise((resolve, reject) => {
       File.delete(QUERY_PATH)
       const file = new File(QUERY_PATH, true)
       const sampleRate = this.sampleRate
-      const client = new device.network.http.io({
-        ...device.network.http,
+      const client = new device.network.http.client.io({
+        ...device.network.http.client,
         host: this.host,
         port: this.port,
       })
@@ -101,6 +101,7 @@ export class TTS {
       })
     })
   }
+  /** Fetch synthesis parameters and play the resulting VoiceVox audio stream. */
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
     const lifecycle = beginTTSPlayback(this, callback)
     if (!lifecycle) return
@@ -120,7 +121,7 @@ export class TTS {
           )
           lifecycle.attach(
             new WavStreamer({
-              http: device.network.http,
+              http: device.network.http.client,
               host,
               port,
               path: encodeURI(`/synthesis?speaker=${speakerId}`),

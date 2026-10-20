@@ -61,7 +61,9 @@ export default behavior
 ## 外部 archive の形式
 
 外部ミニアプリは、archive の `miniapp` module から定義の配列を default export します。
-[サンプル](../mods/examples/mini_app_sample/)は、単一の`Port`でｽﾀｯｸﾁｬﾝのジャンプゲームを描画します。
+[JUMPサンプル](../mods/examples/mini_app_sample/)は、単一の`Port`でｽﾀｯｸﾁｬﾝのジャンプゲームを描画します。
+[CATCHサンプル](../mods/examples/stackchan_catch/)は、固定ポーズを切り替えながら最大2個を連続投入する落下物ゲームを描画します。
+[ミニゲーム集サンプル](../mods/examples/stackchan_minigames/)は、JUMPとCATCHを単一の`miniapp`モジュールへ合成し、1つのarchiveから2定義を登録します。MOD Galleryではこのミニゲーム集を1パッケージとして配布します。
 
 ```ts
 import type { MiniAppDefinition } from 'capabilities'

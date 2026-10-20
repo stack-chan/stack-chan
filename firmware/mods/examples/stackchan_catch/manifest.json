@@ -1,0 +1,22 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../host/app/manifest_typings.json"
+  ],
+  "modules": {
+    "miniapp": "./miniapp"
+  },
+  "resources": {
+    "*-mask": [
+      "./assets/player-left",
+      "./assets/player-center",
+      "./assets/player-right",
+      "./assets/screw",
+      "./assets/m5stack",
+      "./assets/bubble",
+      "./assets/bomb",
+      "./assets/miss"
+    ]
+  }
+}

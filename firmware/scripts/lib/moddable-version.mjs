@@ -9,7 +9,7 @@ export const coreS3SdkconfigSourceDirectory = path.resolve(
   libraryDirectory,
   '../../host/modules/audio/platforms/m5stackchan-cores3/sdkconfig',
 )
-export const STACKCHAN_HOST_API_VERSION = 1
+export const STACKCHAN_HOST_API_VERSION = 2
 
 /**
  * Reads the Moddable SDK version that must be exposed through esp_app_desc.
@@ -81,6 +81,7 @@ export function prepareVersionSdkconfig({
   outputDirectory = buildOutputDirectory,
   sourceDirectory,
   partitionSourcePath,
+  realtime = false,
 }) {
   if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
@@ -88,7 +89,21 @@ export function prepareVersionSdkconfig({
   const moddableVersion = readModdableVersion(moddableDirectory)
   const version = firmwareDescriptorVersion(moddableVersion)
   const sourcePath = path.join(sourceDirectory, 'sdkconfig.defaults')
-  const source = readFileSync(sourcePath, 'utf8')
+  // Base SDK settings are already merged before manifest esp32Config settings.
+  // Replaying them as an application overlay would disable features such as BLE.
+  const isBaseConfig =
+    path.resolve(sourceDirectory) === path.resolve(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
+  let source = isBaseConfig ? '' : readFileSync(sourcePath, 'utf8')
+  // The SDK merges this application overlay after manifest esp32Config.
+  // Preserve WebRTC's manifest settings instead of replaying the standalone
+  // profile's codec, memory-speed and allocation defaults over them.
+  if (realtime)
+    source = source
+      .replace(/^CONFIG_AUDIO_(ENCODER|DECODER)_OPUS_SUPPORT=.*$/gm, 'CONFIG_AUDIO_$1_OPUS_SUPPORT=y')
+      .replace(
+        /^CONFIG_(?:SPIRAM_MALLOC_ALWAYSINTERNAL|SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=.*\n?/gm,
+        '',
+      )
   const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')
@@ -114,6 +129,7 @@ export function prepareCoreS3VersionSdkconfig({
   moddableDirectory = process.env.MODDABLE,
   outputDirectory = buildOutputDirectory,
   sourceDirectory = coreS3SdkconfigSourceDirectory,
+  realtime = false,
   partitionSourcePath = path.join(
     moddableDirectory ?? '',
     'build',
@@ -131,6 +147,7 @@ export function prepareCoreS3VersionSdkconfig({
     outputDirectory,
     sourceDirectory,
     partitionSourcePath,
+    realtime,
   })
 }
 

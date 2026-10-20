@@ -2,20 +2,21 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODULES)/network/net/manifest.json",
-    "$(MODULES)/network/socket/manifest.json",
-    "$(MODULES)/network/sntp/manifest.json",
-    "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
+    "$(MODULES)/io/ntp/client/manifest.json",
+    "$(MODULES)/web/websocket/manifest.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
-    "$(MODULES)/network/mdns/manifest.json",
+    "$(MODULES)/io/dnssd/manifest.json",
     "$(MODULES)/crypt/digest/manifest.json",
+    "$(MODULES)/data/text/encoder/manifest.json",
+    "$(MODULES)/data/text/decoder/manifest.json",
     "../util/manifest.json",
     "../preferences/manifest.json",
     "./http-server/manifest.json",
     "./mcp-server/manifest.json",
     "./mcp-client/manifest.json",
-    "../../app/manifest_typings.json"
+    "../../app/manifest_typings.json",
+    "$(MODULES)/base/modules/manifest.json"
   ],
   "modules": {
     "*": [
@@ -97,6 +98,11 @@
     "wasm": {
       "modules": {
         "~": "./local-peer-capability"
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "wifi-power-save": "./esp32/wifi-power-save"
       }
     }
   },

@@ -339,10 +339,11 @@ async function runTest(): Promise<void> {
   await testTransportSelection()
   await testCloseAndWildcard()
   await testCloseFromSubscriber()
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runTest().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`local-peer-service XS test failed: ${String(error)}\n`)
   throw error
 })

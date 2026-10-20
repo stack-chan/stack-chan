@@ -1,4 +1,9 @@
-export type SimulatorStatusCode = 'wasm-loading' | 'wasm-load-failed' | 'firmware-ready-timeout' | 'firmware-ready'
+export type SimulatorStatusCode =
+  | 'wasm-loading'
+  | 'wasm-load-failed'
+  | 'firmware-startup-failed'
+  | 'firmware-ready-timeout'
+  | 'firmware-ready'
 
 export type SimulatorStatus = {
   status: 'pending' | 'success' | 'error'

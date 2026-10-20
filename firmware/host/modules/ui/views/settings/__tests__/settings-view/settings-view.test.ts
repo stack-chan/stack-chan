@@ -304,4 +304,4 @@ const chineseLabel = chineseHeader.next as PiuContent & { string?: string }
 equal(chineseLabel.string, 'Wi-Fi：已连接', 'settings view should switch to Simplified Chinese immediately')
 setLocalizationLanguage('ja')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

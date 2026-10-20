@@ -61,6 +61,8 @@ WASMホストで使う場合も、`lin`などTypeScriptをサポートするタ�
 | [`look_around`](./examples/look_around/) | モーションAPIを使った最小限の首振り |
 | [`localized_drawer`](./examples/localized_drawer/) | `context.i18n`を使ったローカライズ済みUI |
 | [`mini_app_sample`](./examples/mini_app_sample/) | 顔画面とAppBarを維持するミニアプリ |
+| [`stackchan_catch`](./examples/stackchan_catch/) | 落下物を離散状態で動かすゲーム&ウォッチ風ミニアプリ |
+| [`stackchan_minigames`](./examples/stackchan_minigames/) | JUMPとCATCHを1つのarchiveへまとめるミニゲーム集 |
 | [`local_peer_hello`](./examples/local_peer_hello/) | インターネットを経由しない端末間の型付きメッセージ |
 | [`web_radio`](./examples/web_radio/) | M5StackChan CoreS3でのネットワーク音声再生 |
 | [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3のサーボ電源とヘッドLEDの確認](../docs/m5stackchan-cores3-smoke.md) |

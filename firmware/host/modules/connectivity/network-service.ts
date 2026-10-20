@@ -1,13 +1,16 @@
 import WiFi from 'ecma-wifi'
 import config from 'mc/config'
+import { initializeWiFiPowerPolicy, reapplyWiFiPowerPolicy } from 'network-power'
 import {
   NetworkConnectionState,
   NetworkConnectionStateMachine,
   type NetworkConnectionState as NetworkConnectionStateValue,
 } from 'network-state'
-import SNTP from 'sntp'
 import Time from 'time'
 import Timer from 'timer'
+
+type NtpClient = { getTime(callback: (error: unknown, time?: number) => void): void; close(): void }
+declare const device: { network: { ntp: { client: { io: new (options: object) => NtpClient } } } }
 
 const MAX_SCANS = 3
 const DEFAULT_CONNECTION_TIMEOUT_MS = 15000
@@ -34,6 +37,7 @@ export class NetworkService {
   #connectionTimeout
   #reconnectTimer
   #closed = false
+  #ntp: NtpClient | undefined
   #handleStateChanged: NetworkStateChanged = () => {}
   #handleConnected: () => void = () => {}
   #handleError: (reason?: string) => void = () => {}
@@ -51,6 +55,13 @@ export class NetworkService {
         this.#handleWiFiChanged(property)
       },
     })
+    // Initialize the shared policy after the driver, preserving active leases.
+    try {
+      initializeWiFiPowerPolicy()
+    } catch (error) {
+      this.#wifi.close()
+      throw error
+    }
   }
 
   get state(): NetworkState {
@@ -80,8 +91,10 @@ export class NetworkService {
     }
   }
 
+  /** Stop connection attempts, release NTP resources, and disconnect Wi-Fi. */
   close() {
     this.#closed = true
+    this.#closeNtp()
     this.#clearConnectionTimeout()
     this.#clearReconnectTimer()
     this.#wifi.disconnect()
@@ -101,11 +114,18 @@ export class NetworkService {
     this.#startConnectionAttempt()
   }
 
+  /** Cancel stale time synchronization and arm the timeout for a fresh Wi-Fi attempt. */
   #startConnectionAttempt() {
+    this.#closeNtp()
     this.#clearConnectionTimeout()
     this.#transition({ type: 'connect-requested' })
     this.#startConnectionTimeout()
-    this.#wifi.connect(createWiFiConnectOptions(this.#ssid, this.#password))
+    try {
+      reapplyWiFiPowerPolicy()
+      this.#wifi.connect(createWiFiConnectOptions(this.#ssid, this.#password))
+    } catch (error) {
+      this.#fail(String(error))
+    }
   }
 
   scanAndConnect(onConnected: () => void = this.onConnected, onError: (message?: string) => void = this.onError) {
@@ -139,6 +159,7 @@ export class NetworkService {
     })
   }
 
+  /** Translate Wi-Fi link changes into connection state and reconnect scheduling. */
   #handleWiFiChanged(_property: string): void {
     const connection = this.#wifi.connection
     trace(`WiFi ${connection}\n`)
@@ -154,6 +175,7 @@ export class NetworkService {
     if (connection <= 200) {
       if (this.#closed) return
       this.#clearConnectionTimeout()
+      this.#closeNtp()
       this.#transition({ type: 'disconnected' }, 'disconnected')
       if (this.#stateMachine.connectionEstablished) {
         this.#scheduleReconnect()
@@ -163,7 +185,9 @@ export class NetworkService {
     }
   }
 
+  /** Complete connection setup after optional time synchronization. */
   #handleGotIP(): void {
+    if (this.#closed || this.state === NetworkConnectionState.CONNECTED || this.#ntp) return
     this.#clearConnectionTimeout()
     this.#transition({ type: 'got-ip' })
 
@@ -176,22 +200,32 @@ export class NetworkService {
     }
     this.#transition({ type: 'time-sync-started' })
     this.#startConnectionTimeout()
-    new SNTP({ host: sntpHost }, (message, value) => {
-      if (SNTP.time === message) {
-        trace(`Got time from: ${sntpHost}\n`)
-        if (typeof value === 'number') {
-          Time.set(value)
-          this.#clearConnectionTimeout()
-          this.#transition({ type: 'time-synced' })
-          this.#handleConnected?.()
-        } else {
+    try {
+      const provider = device.network.ntp.client
+      const ntp = new provider.io({ ...provider, servers: [sntpHost] })
+      this.#ntp = ntp
+      ntp.getTime((error, value) => {
+        if (this.#closed || this.#ntp !== ntp) return
+        this.#closeNtp()
+        if (error || typeof value !== 'number' || !Number.isFinite(value)) {
           this.#fail('Failed to get time')
+          return
         }
-      } else if (SNTP.error === (message as -1 | 1 | 2)) {
-        // workaround for the type mistake
-        this.#fail('Failed to get time')
-      }
-    })
+        Time.set(value / 1000)
+        this.#clearConnectionTimeout()
+        this.#transition({ type: 'time-synced' })
+        this.#handleConnected?.()
+      })
+    } catch {
+      this.#fail('Failed to get time')
+    }
+  }
+
+  /** Invalidate the pending attempt before closing its NTP resources. */
+  #closeNtp() {
+    const ntp = this.#ntp
+    this.#ntp = undefined
+    ntp?.close()
   }
 
   #scheduleReconnect() {
@@ -223,7 +257,9 @@ export class NetworkService {
     this.#reconnectTimer = undefined
   }
 
+  /** Release attempt resources and notify the caller of a connection or time-sync failure. */
   #fail(reason: string) {
+    this.#closeNtp()
     this.#clearConnectionTimeout()
     this.#transition({ type: 'failed' }, reason)
     this.#handleError?.(reason)

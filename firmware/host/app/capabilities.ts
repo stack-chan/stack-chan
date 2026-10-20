@@ -45,7 +45,12 @@ export type RobotLed = {
 }
 
 export type { I18nCapability } from 'localization'
-export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
+export type {
+  MiniAppContext,
+  MiniAppDefinition,
+  MiniAppInstance,
+  MiniAppRegistryCapability,
+} from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
@@ -100,7 +105,7 @@ export type FaceCapability = {
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void
   setEmotion(emotion: Emotion): void
   setEyeOpen(key: FaceEyeKey, value: number): void
-  setMouthOpen(value: number): void
+  setMouthOpen(value: number, immediate?: boolean): void
 }
 
 export type MotionCapability = {
@@ -112,6 +117,10 @@ export type MotionCapability = {
 }
 
 export type AudioCapability = {
+  /** Shared saved TTS volume, 0..1 linear gain. Media scales it to its output limit. */
+  volume?: number
+  /** Reserve native audio; release only after the external I2S owner has closed. */
+  acquireExclusive(): () => void
   tts: TTS
   microphone?: {
     record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
@@ -134,6 +143,35 @@ export type AudioCapability = {
   playAudio(buffer: BorrowedAudioBuffer): Promise<boolean>
   /** Continuous MP3 streaming, available only on supported targets. */
   webRadio?: WebRadioCapability
+  /** Live or finite MP3 playback on supported targets. */
+  media?: MediaCapability
+}
+
+export type MediaState = WebRadioState | 'ended' | 'paused'
+
+export type MediaProgress = { position: number; duration?: number; estimated: boolean; seekable: boolean }
+
+export type MediaStartOptions = {
+  url: string
+  mode: 'live' | 'finite'
+  volume?: number
+  /** Optional RSS duration hint in seconds. */
+  duration?: number
+  onProgress?: (progress: MediaProgress) => void
+  /** Applies only to live playback. Finite playback never restarts automatically. */
+  reconnect?: boolean
+  onStateChanged?: (state: MediaState, reason?: string) => void
+}
+
+export type MediaCapability = {
+  readonly state: MediaState
+  start(options: MediaStartOptions): Promise<void>
+  readonly progress: MediaProgress
+  pause(): void
+  resume(): Promise<void>
+  seek(seconds: number): Promise<void>
+  stop(): void
+  setVolume(volume: number): void
 }
 
 export type WebRadioState = 'idle' | 'connecting' | 'buffering' | 'playing' | 'stalled' | 'retrying' | 'error'
@@ -253,6 +291,8 @@ export type RuntimeUICapability = RobotUI & {
   controller: RobotUI
   drawer: DrawerCapability
   showBalloon(text: string, option?: ShowBalloonOptions): void
+  /** Display pre-wrapped rows with fixed-height Labels; rows are reused. */
+  showBalloonLines?(lines: readonly string[], option?: ShowBalloonOptions): void
   hideBalloon(): void
 }
 
@@ -283,7 +323,7 @@ export type StackchanCapabilityNamespaces = {
 
 export type StackchanLegacyFlatCapability = FaceCapability &
   MotionCapability &
-  AudioCapability &
+  Omit<AudioCapability, 'acquireExclusive'> &
   InputCapability &
   LightingCapability &
   CameraCapability &

@@ -95,7 +95,8 @@ function createDefaultPose(): MotionControllerPose {
 }
 
 export class MotionController {
-  #driver: MotionDriver
+  // The constructor always initializes this through useDriver, including attachment.
+  #driver!: MotionDriver
   #gazePoint: Vector3 | null = null
   #isMoving = false
   #nextRotation: RotationType = { y: 0, p: 0, r: 0 }

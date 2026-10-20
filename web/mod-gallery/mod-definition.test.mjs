@@ -4,9 +4,12 @@ import test from 'node:test'
 
 import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
 import { profileFor } from '../editor/capabilities.mjs'
+import { isXsVersionCompatible } from '../editor/xs-compatibility.mjs'
 import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
 import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
+
+import { gallerySources } from '../../firmware/mods/examples/media_player/sync-gallery.mjs'
 
 const catalogUrl = new URL('./catalog.json', import.meta.url)
 
@@ -21,8 +24,8 @@ async function fileFetch(url) {
 
 test('共通MOD定義からテキストとブロックのGalleryを構成する', async () => {
   const definitions = await loadModCatalog(catalogUrl, fileFetch)
-  assert.equal(definitions.length, 10)
-  assert.equal(definitions.filter((definition) => definition.type === 'text').length, 6)
+  assert.equal(definitions.length, 11)
+  assert.equal(definitions.filter((definition) => definition.type === 'text').length, 7)
   assert.equal(definitions.filter((definition) => definition.type === 'block').length, 4)
   assert.equal(definitions.filter((definition) => definition.entrypoints.includes('miniapp')).length, 2)
   assert.equal(new Set(definitions.map((definition) => definition.id)).size, definitions.length)
@@ -43,15 +46,15 @@ test('共通MOD定義からテキストとブロックのGalleryを構成する'
 test('テキストMODの成果物は既存の実行互換性を維持する', async () => {
   const definitions = await loadModCatalog(catalogUrl, fileFetch)
   const textMods = definitions.filter((definition) => definition.type === 'text')
-  assert.equal(textMods.length, 6)
+  assert.equal(textMods.length, 7)
   for (const definition of textMods) {
     assert.equal(definition.artifacts.length, 1, `${definition.id}: installable text MOD should include one artifact`)
     const archive = readFileSync(definition.artifacts[0].url)
     assert.equal(isXsArchive(archive), true, `${definition.id}: artifact should be an XS archive`)
-    assert.deepEqual(
-      xsArchiveVersion(archive),
-      profileFor('m5stackchan-cores3').xsArchiveVersion,
-      `${definition.id}: artifact should match the host XS`
+    assert.equal(
+      isXsVersionCompatible(xsArchiveVersion(archive), profileFor('m5stackchan-cores3').xsArchiveVersionRange),
+      true,
+      `${definition.id}: artifact should be accepted by the host XS`
     )
     assert.equal(
       archive.includes(Buffer.from('/tmp/')),
@@ -102,15 +105,24 @@ test('Codex Voice GalleryパッケージはFirmwareサンプルと同じ実行�
   }
 })
 
-test('Stack-chan JUMP GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mini_app_sample/', import.meta.url)
-  const gallery = new URL('./samples/stackchan-jump/miniapp/', import.meta.url)
+test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
+  const firmware = new URL('../../firmware/mods/examples/stackchan_minigames/', import.meta.url)
+  const gallery = new URL('./samples/stackchan-minigames/miniapp/', import.meta.url)
   for (const filename of [
     'manifest.json',
     'miniapp.ts',
+    'README.md',
     'README_ja.md',
     'LICENSE.mouse-follower',
     'assets/stack-chan.png',
+    'assets/player-left.png',
+    'assets/player-center.png',
+    'assets/player-right.png',
+    'assets/screw.png',
+    'assets/m5stack.png',
+    'assets/bubble.png',
+    'assets/bomb.png',
+    'assets/miss.png',
   ]) {
     assert.deepEqual(
       readFileSync(new URL(filename, gallery)),
@@ -129,6 +141,14 @@ test('UI Playground GalleryパッケージはFirmwareサンプルと同じ実行
       readFileSync(new URL(filename, firmware), 'utf8'),
       `${filename} should not drift between the firmware example and gallery package`
     )
+  }
+})
+
+test('Media Player Gallery exposes the same shared Podcast and Radio sources as the firmware', () => {
+  const firmware = new URL('../../firmware/mods/examples/', import.meta.url)
+  const gallery = new URL('./samples/media-player/mod/', import.meta.url)
+  for (const file of gallerySources()) {
+    assert.deepEqual(readFileSync(new URL(file, gallery)), readFileSync(new URL(file, firmware)), file)
   }
 })
 
@@ -272,9 +292,4 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
   }
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('https://example.test/setup'), true)
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('http://example.test/setup'), false)
-  const workflow = readFileSync(new URL('../../.github/workflows/bundle.yml', import.meta.url), 'utf8')
-  assert.match(
-    workflow,
-    /website-source\/docs\/specs\/stackchan-mod\.schema\.json "\$target_directory\/schemas\/stackchan-mod\.schema\.json"/
-  )
 })

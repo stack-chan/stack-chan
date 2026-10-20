@@ -34,6 +34,7 @@ class WorkerAudioSink {
   #sourceBatch = new ArrayBuffer(FRAMES_PER_OUTPUT_BATCH * MAX_SAMPLES_PER_FRAME * 2)
   #outputBatch = new ArrayBuffer(FRAMES_PER_OUTPUT_BATCH * MAX_SAMPLES_PER_FRAME * 2)
   #producedBytes = 0
+  #tailFlushed = false
 
   constructor(queueLength, completion, output, sourceSampleRate, targetSampleRate) {
     this.#queueLength = queueLength
@@ -46,6 +47,8 @@ class WorkerAudioSink {
   enqueue(_stream, kind, value, _repeat, offset, count) {
     if (kind === WorkerAudioSink.Flush) return this
     if (kind === WorkerAudioSink.RawSamples) {
+      if (!this.#producedBytes && !this.#waiting.length) this.#sourceSampleRate = value.sampleRate
+      if (value.sampleRate !== this.#sourceSampleRate) throw new Error('PCM sample rate changed')
       this.#pending = {
         buffer: value,
         offset: offset ?? 0,
@@ -80,6 +83,38 @@ class WorkerAudioSink {
       this.callbacks[0]?.(this.#completed.shift())
     }
     this.#flushWaiting(false)
+  }
+
+  finish() {
+    if (this.#tailFlushed) return true
+    if (this.#output.writableBytes < 4) return false
+    if (this.#resamplerState[2]) {
+      const last = new Int16Array([this.#resamplerState[1]])
+      const count = resamplePCM16Mono(
+        last.buffer,
+        0,
+        1,
+        this.#outputBatch,
+        this.#sourceSampleRate,
+        this.#targetSampleRate,
+        this.#resamplerState,
+      )
+      const bytes = new Uint8Array(this.#outputBatch, 0, count * 2)
+      for (let position = 0; position < bytes.length; ) {
+        const view = this.#output.writableView(bytes.length - position)
+        view.set(bytes.subarray(position, position + view.length))
+        position += view.length
+        this.#output.advanceWrite(view.length)
+      }
+      this.#producedBytes = (this.#producedBytes + bytes.length) >>> 0
+      self.postMessage({ id: 'output' })
+    }
+    this.#tailFlushed = true
+    return true
+  }
+
+  get drained() {
+    return this.#tailFlushed && completedThrough(Atomics.load(this.#completion, 0) >>> 0, this.#producedBytes)
   }
 
   flushPending() {
@@ -135,12 +170,18 @@ class WorkerAudioSink {
 let audio
 let completionTimer
 let streamer
+let decodedDone = false
+let doneSent = false
 
 function pump() {
   try {
     audio?.drainCompleted()
     streamer?.pump()
     audio?.flushPending()
+    if (decodedDone && !doneSent && audio.finish() && audio.drained) {
+      doneSent = true
+      self.postMessage({ id: 'done' })
+    }
   } catch (error) {
     if (completionTimer !== undefined) Timer.clear(completionTimer)
     completionTimer = undefined
@@ -161,15 +202,26 @@ self.onmessage = (message) => {
       completionTimer = Timer.repeat(pump, 25)
       streamer = new MP3Streamer({
         input: message.input,
+        mode: message.mode,
+        seekSeconds: message.seekSeconds,
+        onMetadata: (value) => self.postMessage({ id: 'metadata', value }),
+        onCheckpoint: (value) => self.postMessage({ id: 'checkpoint', value }),
+        onOutputStart: (seconds) => self.postMessage({ id: 'position', seconds }),
         audio: { out: audio, stream: 0, sampleRate: message.sampleRate },
         onReady: (value) => self.postMessage({ id: 'ready', value }),
         onError: (reason) => self.postMessage({ id: 'error', reason: String(reason) }),
-        onDone: () => self.postMessage({ id: 'done' }),
+        onDone: () => {
+          decodedDone = true
+        },
       })
       break
     }
+    case 'source':
+      streamer?.source(message)
+      break
     case 'end':
       streamer?.end(message.reason)
+      pump()
       break
     case 'close':
       try {

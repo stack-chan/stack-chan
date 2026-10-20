@@ -47,3 +47,4 @@ GitHub Pages keeps stable and development artifacts in separate directories on t
 A push to `main` updates only the canonical site, and a push to `develop` updates only the development site.
 Each directory contains the Web application, firmware bundle, schema, and schematics built from its source branch.
 A `release/*` branch does not deploy directly to GitHub Pages and is checked through its per-pull-request Cloudflare preview.
+The preview uses the Web application, firmware bundle, and schematics generated from the pull-request candidate together with that candidate's schema; it does not reuse generated artifacts from the `gh-pages` baseline.

@@ -33,10 +33,11 @@ async function runTest() {
   }
   equal(await remoteEcho.execute({ value: 'ok' }), 'remoteEcho:ok', 'MCP tool result should normalize')
 
-  trace('ok\n')
+  trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 
 runTest().catch((error) => {
+  trace('@@STACKCHAN_TEST:FAIL@@\n')
   trace(`${error}\n`)
   throw error
 })

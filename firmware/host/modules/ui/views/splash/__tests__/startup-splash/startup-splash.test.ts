@@ -76,4 +76,4 @@ modsButton.behavior.onTouchBegan(modsButton, 0, 0, 0)
 modsButton.behavior.onTouchEnded(modsButton)
 equal(modsCount, 1, 'startup view should expose the MOD manager as a touch action')
 
-trace('ok\n')
+trace('@@STACKCHAN_TEST:PASS@@\n')

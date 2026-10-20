@@ -3,6 +3,7 @@ export const CAPABILITIES: Readonly<{
   SPEECH: 'audio.speech'
   SINGING: 'audio.singing'
   TONE: 'audio.tone'
+  VOLUME: 'audio.volume'
   MOTION: 'motion'
   LIGHTING: 'lighting'
   BUTTONS: 'input.buttons'
@@ -23,6 +24,7 @@ export type DeviceProfile = {
   status: 'supported' | 'experimental'
   deviceInstall: boolean
   xsArchiveVersion: readonly number[] | null
+  xsArchiveVersionRange: readonly [number, number, number, number] | null
   firmwareVersionPrefixes: readonly string[]
   chipPatterns: readonly string[]
   entrypoints: readonly ('mod' | 'miniapp')[]

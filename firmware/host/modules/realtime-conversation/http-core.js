@@ -1,0 +1,133 @@
+// Copyright (c) 2026 Shinya Ishikawa
+// SPDX-License-Identifier: Apache-2.0
+// Standard ECMA-419 HTTP callbacks, bounded response and deterministic close.
+export function requestHttps(request, platform) {
+  return new Promise((resolve, reject) => {
+    let client,
+      timer,
+      buffer,
+      offset = 0,
+      received = 0,
+      status,
+      finished = false
+    let body = request.body
+    function finish(error) {
+      if (finished) return
+      finished = true
+      if (timer !== undefined) platform.cancel(timer)
+      const connection = client
+      client = undefined
+      body = undefined
+      // Leave the SDK callback before closing its current TLS/socket state.
+      platform.schedule(() => {
+        try {
+          connection?.close()
+        } catch {}
+        if (error) {
+          buffer = undefined
+          reject(error)
+        } else resolve({ status, body: buffer ? buffer.buffer.slice(0, received) : new ArrayBuffer() })
+      }, 0)
+    }
+    try {
+      const headers = new Map(request.headers)
+      headers.set('content-length', String(body.byteLength))
+      headers.set('connection', 'close')
+      timer = platform.schedule(() => finish(new Error('HTTPS request timed out')), request.timeoutMs)
+      client = platform.createClient({
+        host: request.host,
+        port: request.port,
+        certificate: request.certificate,
+        onError() {
+          finish(new Error('HTTPS connection failed'))
+        },
+      })
+      client.request({
+        method: 'POST',
+        path: request.path,
+        headers,
+        onHeaders(code, responseHeaders) {
+          if (finished) return
+          status = code
+          if (Number(responseHeaders.get('content-length')) > 131072) finish(new Error('HTTPS response exceeds limit'))
+        },
+        onWritable(count) {
+          if (finished || !count) return
+          try {
+            count = Math.min(count, body.byteLength - offset)
+            if (count) {
+              this.write(new DataView(body, offset, count))
+              offset += count
+            }
+          } catch {
+            finish(new Error('HTTPS write failed'))
+          }
+        },
+        onReadable(count) {
+          if (finished || !count) return
+          try {
+            const end = received + count
+            if (end > 131072) throw new Error()
+            if (!buffer || end > buffer.length) {
+              const next = new Uint8Array(Math.min(131072, Math.max(end, (buffer?.length ?? 512) * 2)))
+              if (buffer) next.set(buffer.subarray(0, received))
+              buffer = next
+            }
+            const read = this.read(buffer.subarray(received, end))
+            if (read !== count) throw new Error()
+            received = end
+          } catch {
+            finish(new Error('HTTPS response exceeds limit or read failed'))
+          }
+        },
+        onDone(error) {
+          finish(error || !Number.isInteger(status) ? new Error('HTTPS request failed') : undefined)
+        },
+      })
+    } catch (error) {
+      finish(error)
+    }
+  })
+}
+
+// HTTPClient.close() does not cancel an outstanding SDK DNS lookup. Ignore its
+// late callbacks so closing a timed-out request cannot create a new socket.
+export function createClosingClient(Client, options) {
+  let closed = false
+  class DNS extends options.dns.io {
+    resolve(request) {
+      const guarded = { ...request }
+      for (const name of ['onResolved', 'onError'])
+        guarded[name] = function (...args) {
+          if (!closed) request[name]?.apply(this, args)
+        }
+      return super.resolve(guarded)
+    }
+  }
+  const client = new Client({ ...options, dns: { ...options.dns, io: DNS } })
+  return {
+    request: (request) => client.request(request),
+    close() {
+      closed = true
+      client.close()
+    },
+  }
+}
+
+// TLS authentication failures must reach HTTP onError, not escape an I/O callback.
+export function guardSocketCallbacks(Socket) {
+  return class extends Socket {
+    constructor(options) {
+      const guarded = { ...options }
+      for (const name of ['onReadable', 'onWritable'])
+        guarded[name] = function (...args) {
+          try {
+            return options[name]?.apply(this, args)
+          } catch (error) {
+            options.onError?.call(this, error)
+          }
+        }
+      super(guarded)
+    }
+  }
+}

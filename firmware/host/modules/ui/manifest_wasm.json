@@ -7,7 +7,9 @@
     "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
     "$(MODDABLE)/modules/piu/MC/qrcode/manifest.json",
     "$(MODULES)/commodetto/outline/manifest.json",
-    "../util/manifest.json"
+    "../util/manifest.json",
+    "./components/face/jitome/manifest.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifestRoundRect.json"
   ],
   "modules": {
     "app-controller": "./application/app-controller",
@@ -87,7 +89,7 @@
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
     ],
-    "*-color": []
+    "*": ["./assets/images/faces/deal-with-it/deal-with-it-eyes"]
   },
   "preload": [
     "piu/Application",

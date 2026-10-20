@@ -1,3 +1,8 @@
+import {
+  isXsVersionCompatible,
+  XS_ARCHIVE_VERSION_RANGE,
+  xsArchiveVersionRangeForFirmware,
+} from './xs-compatibility.mjs'
 import { t } from '../i18n.mjs'
 
 export const CAPABILITIES = Object.freeze({
@@ -5,6 +10,7 @@ export const CAPABILITIES = Object.freeze({
   SPEECH: 'audio.speech',
   SINGING: 'audio.singing',
   TONE: 'audio.tone',
+  VOLUME: 'audio.volume',
   MOTION: 'motion',
   LIGHTING: 'lighting',
   BUTTONS: 'input.buttons',
@@ -18,6 +24,7 @@ export const CAPABILITIES = Object.freeze({
 })
 
 export const CAPABILITY_HOST_API_VERSIONS = Object.freeze({
+  [CAPABILITIES.VOLUME]: 2,
   [CAPABILITIES.APPROVAL]: 1,
   [CAPABILITIES.USB_AUDIO]: 1,
   [CAPABILITIES.REMOTE_CONVERSATION]: 1,
@@ -28,8 +35,9 @@ export const DEVICE_PROFILES = Object.freeze({
     label: 'M5Stack-chan CoreS3',
     status: 'supported',
     deviceInstall: true,
-    xsArchiveVersion: [17, 8, 0],
-    firmwareVersionPrefixes: ['8.3.', '9.0.'],
+    xsArchiveVersion: [17, 9, 2],
+    xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
+    firmwareVersionPrefixes: ['9.5.', '10.0.'],
     chipPatterns: ['ESP32-S3'],
     entrypoints: ['mod', 'miniapp'],
     capabilities: Object.values(CAPABILITIES),
@@ -38,8 +46,9 @@ export const DEVICE_PROFILES = Object.freeze({
     label: 'Webシミュレーター',
     status: 'supported',
     deviceInstall: false,
-    xsArchiveVersion: [17, 8, 0],
-    firmwareVersionPrefixes: ['8.3.', '9.0.'],
+    xsArchiveVersion: [17, 9, 2],
+    xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
+    firmwareVersionPrefixes: ['10.0.'],
     chipPatterns: [],
     entrypoints: ['mod', 'miniapp'],
     capabilities: [
@@ -57,6 +66,7 @@ export const DEVICE_PROFILES = Object.freeze({
     status: 'experimental',
     deviceInstall: false,
     xsArchiveVersion: null,
+    xsArchiveVersionRange: null,
     firmwareVersionPrefixes: [],
     chipPatterns: [],
     entrypoints: ['mod'],
@@ -120,6 +130,7 @@ export function toolboxForTarget(toolbox, target) {
   return clone
 }
 
+/** Collect deployment blockers from the target, firmware, archive, and requested capabilities. */
 export function inspectDeploymentCompatibility(
   target,
   {
@@ -181,21 +192,20 @@ export function inspectDeploymentCompatibility(
     }
   }
   if (profile.xsArchiveVersion) {
+    const archiveRange =
+      (profile.deviceInstall && xsArchiveVersionRangeForFirmware(firmwareVersion)) || profile.xsArchiveVersionRange
     if (requireArchive && xsVersion === undefined) {
       diagnostics.push({
         code: 'VP_XS_VERSION_MISSING',
         message: t('MODのXSバージョンを確認できません'),
       })
-    } else if (
-      xsVersion !== undefined &&
-      (!Array.isArray(xsVersion) || profile.xsArchiveVersion.join('.') !== xsVersion.join('.'))
-    ) {
+    } else if (xsVersion !== undefined && !isXsVersionCompatible(xsVersion, archiveRange)) {
       const detectedXsVersion = Array.isArray(xsVersion) ? xsVersion.join('.') : t('不明')
       diagnostics.push({
         code: 'VP_XS_VERSION_MISMATCH',
         message: t('{profile}のXS {expected}に対して、MODはXS {actual}です', {
           profile: t(profile.label),
-          expected: profile.xsArchiveVersion.join('.'),
+          expected: `${archiveRange.slice(0, 2).join('.')}–${archiveRange.slice(2).join('.')}`,
           actual: detectedXsVersion,
         }),
       })
@@ -210,11 +220,14 @@ export function inspectDeploymentCompatibility(
     } else if (!profile.firmwareVersionPrefixes.some((prefix) => String(firmwareVersion).startsWith(prefix))) {
       diagnostics.push({
         code: 'VP_FIRMWARE_VERSION_MISMATCH',
-        message: t('ファームウェア {firmwareVersion} は、{profile}の対応範囲（{prefixes}系）に含まれません', {
-          firmwareVersion,
-          profile: t(profile.label),
-          prefixes: profile.firmwareVersionPrefixes.join(', '),
-        }),
+        message: t(
+          'ファームウェア {firmwareVersion} は、{profile}の対応範囲（{prefixes}系）に含まれません。ホストファームウェアを更新してください',
+          {
+            firmwareVersion,
+            profile: t(profile.label),
+            prefixes: profile.firmwareVersionPrefixes.join(', '),
+          }
+        ),
       })
     }
   }

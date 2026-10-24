@@ -103,7 +103,8 @@ jobs:
   test-moddable:
     needs: changes
     if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -153,7 +154,8 @@ jobs:
   test-smoke:
     needs: changes
     if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
     env:
       STACKCHAN_LIN_SMOKE_CLEAN: "0"
     steps:
@@ -206,7 +208,8 @@ jobs:
           done
 
   web-visual:
-    runs-on: ubuntu-latest
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:

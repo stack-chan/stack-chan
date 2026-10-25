@@ -1,6 +1,6 @@
 import { type FirmwareBoard } from '@/features/firmware-install/boards'
 import { AppError } from '@/lib/errors/app-error'
-import { createEsptoolAdapter, type EsptoolAdapter } from '@/services/esptool/esptool-adapter'
+import { createEsptoolAdapter, type EsptoolAdapter, type FlashWriteOptions } from '@/services/esptool/esptool-adapter'
 
 type ManifestPart = { path: string; offset: number }
 type ManifestBuild = { chipFamily: string; parts: ManifestPart[] }
@@ -12,12 +12,15 @@ export type FirmwareDeviceInfo = {
   chipFamily: string
   firmwareName: string
   firmwareVersion: string
+  eraseAll: boolean
   partCount: number
 }
 
 export type FirmwareInstallResult = FirmwareDeviceInfo & {
   bytesWritten: number
 }
+
+export type FirmwareInstallOptions = FlashWriteOptions
 
 export type FirmwareInstallCallbacks = {
   onLog: (message: string) => void
@@ -51,7 +54,10 @@ const validateManifest = (value: unknown): FirmwareManifest => {
     if (
       typeof build?.chipFamily !== 'string' ||
       !Array.isArray(build.parts) ||
-      build.parts.some((part) => typeof part?.path !== 'string' || !Number.isSafeInteger(part.offset))
+      build.parts.length === 0 ||
+      build.parts.some(
+        (part) => typeof part?.path !== 'string' || !Number.isSafeInteger(part.offset) || part.offset < 0
+      )
     ) {
       throw new AppError('manifest-invalid', 'manifestの書き込み対象が不正です')
     }
@@ -80,6 +86,7 @@ export async function installFirmware(
   port: SerialPortLike,
   board: FirmwareBoard,
   callbacks: FirmwareInstallCallbacks,
+  { eraseAll = false }: FirmwareInstallOptions = {},
   adapterFactory = createEsptoolAdapter
 ): Promise<FirmwareInstallResult | null> {
   const { onConfirm, onLog, onProgress, onStage } = callbacks
@@ -108,6 +115,7 @@ export async function installFirmware(
       firmwareName: manifest.name,
       firmwareVersion: manifest.version,
       partCount: build.parts.length,
+      eraseAll,
     }
     if (!(await onConfirm(device))) {
       onLog('利用者がファームウェア書き込みをキャンセルしました')
@@ -122,6 +130,9 @@ export async function installFirmware(
     onStage('installing')
     onLog('ファームウェアイメージを取得しています…')
     const files = await Promise.all(build.parts.map((part) => loadPart(part, board.manifestUrl)))
+    if (files.some((file) => file.bytes.length === 0)) {
+      throw new AppError('firmware-empty', 'ファームウェアイメージが空のため、書き込みを中止しました。')
+    }
     const fileSizes = files.map((file) => file.bytes.length)
     const totalBytes = fileSizes.reduce((total, size) => total + size, 0)
     const completedBefore = fileSizes.map((_, index) =>
@@ -129,11 +140,15 @@ export async function installFirmware(
     )
     onLog(`${files.length}個の領域、合計${totalBytes.toLocaleString()}バイトを書き込みます`)
 
-    await adapter.write(files, (fileIndex, written, fileTotal) => {
-      const base = completedBefore[fileIndex] ?? 0
-      const boundedWritten = Math.min(written, fileTotal)
-      onProgress(totalBytes > 0 ? Math.min(1, (base + boundedWritten) / totalBytes) : 0)
-    })
+    await adapter.write(
+      files,
+      (fileIndex, written, fileTotal) => {
+        const base = completedBefore[fileIndex] ?? 0
+        const boundedWritten = Math.min(written, fileTotal)
+        onProgress(totalBytes > 0 ? Math.min(1, (base + boundedWritten) / totalBytes) : 0)
+      },
+      { eraseAll }
+    )
     onProgress(1)
     onLog('書き込みが終了しました。デバイスを再起動します')
     await adapter.resetToRunApp()

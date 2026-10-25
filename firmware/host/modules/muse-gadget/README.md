@@ -112,6 +112,15 @@ state and scratch) and **10,840 bytes** for `MuseRecord`. These are compiler/bui
 measurements, not observed runtime allocations or free heap. The core was
 compiled with the effective final `-std=c++17`, `-fno-exceptions`, `-fno-rtti`.
 
+Switching back through `npm run build -- --mode=release` also built successfully:
+the standard image is 6,684,864 bytes, so the experimental variant adds 40,112
+bytes. This compares the complete variants, including their different dock
+selection, rather than measuring the SDK alone. Static `.dram0.data + .dram0.bss`
+is 66,844 bytes in both builds. The standard ELF has no Muse symbols; its IDF
+component list excludes both `stackchan_muse_noise` and `esp_websocket_client`.
+Equal static RAM does **not** imply equal runtime RAM: the connection allocates
+its native records, scratch, queue and TLS state on the heap.
+
 Source/configuration estimates add 12 KiB of JS byte accumulators, a 6 KiB
 WebSocket task stack, and up to 32 KiB of queued payload copies per connection.
 TLS, socket, FreeRTOS, JSON/XS objects and allocator overhead are additional and

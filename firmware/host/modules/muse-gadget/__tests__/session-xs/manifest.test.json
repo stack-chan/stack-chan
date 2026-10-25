@@ -1,0 +1,4 @@
+{
+  "include": ["../../session/manifest.json", "../../../testing/manifest.json"],
+  "modules": { "main": "./main.test" }
+}

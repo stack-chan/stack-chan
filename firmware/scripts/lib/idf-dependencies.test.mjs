@@ -1,9 +1,40 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { prepareCoreS3IdfDependencies } from './idf-dependencies.mjs'
+
+test('Muse components are opt-in, survive preparation after clean, and do not leak to a standard target', () => {
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-muse-idf-'))
+  const options = {
+    outputDirectory,
+    platformName: 'm5stackchan_cores3',
+    applicationName: 'stack-chan-host',
+    mode: 'release',
+  }
+  try {
+    const manifest = prepareCoreS3IdfDependencies(options)
+    const component = path.join(path.dirname(manifest), '../components/stackchan_muse_noise')
+    assert.equal(existsSync(component), false)
+    assert.equal(readFileSync(manifest, 'utf8').includes('esp_websocket_client'), false)
+    prepareCoreS3IdfDependencies({ ...options, muse: true })
+    assert.equal(
+      realpathSync(component),
+      realpathSync(new URL('../../host/modules/muse-gadget/native/noise_component', import.meta.url)),
+    )
+    const configured = readFileSync(manifest, 'utf8')
+    prepareCoreS3IdfDependencies({ ...options, muse: true })
+    assert.equal(readFileSync(manifest, 'utf8'), configured)
+    rmSync(path.dirname(manifest), { recursive: true })
+    prepareCoreS3IdfDependencies({ ...options, muse: true })
+    assert.equal(readFileSync(manifest, 'utf8'), configured)
+    const standard = prepareCoreS3IdfDependencies({ ...options, mode: 'debug' })
+    assert.equal(readFileSync(standard, 'utf8').includes('esp_websocket_client'), false)
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})
 
 test('prepares both managed components without duplicating them', () => {
   const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))

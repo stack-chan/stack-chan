@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const dependenciesByPlatform = {
   m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
@@ -34,6 +35,7 @@ export function prepareCoreS3IdfDependencies({
   mode,
   realtime = false,
   solutionDirectory,
+  muse = false,
 }) {
   if (!outputDirectory) throw new Error('Build output directory is required')
   const dependencies = dependenciesByPlatform[platformName]
@@ -66,6 +68,18 @@ export function prepareCoreS3IdfDependencies({
     if (manifest.includes(`  ${name}:`)) continue
     if (!manifest.endsWith('\n')) manifest += '\n'
     manifest += `  ${name}: ${version}\n`
+  }
+
+  if (muse) {
+    if (platformName !== 'm5stackchan_cores3') throw new Error('Muse requires M5StackChan CoreS3')
+    const componentDirectory = path.join(mainDirectory, '..', 'components')
+    mkdirSync(componentDirectory, { recursive: true })
+    linkComponent(
+      fileURLToPath(new URL('../../host/modules/muse-gadget/native/noise_component', import.meta.url)),
+      path.join(componentDirectory, 'stackchan_muse_noise'),
+    )
+    if (!manifest.includes('  espressif/esp_websocket_client:'))
+      manifest += '  espressif/esp_websocket_client: "==1.8.0"\n'
   }
 
   if (realtime) {

@@ -1,0 +1,28 @@
+{
+  "include": ["./session/manifest.json"],
+  "modules": {
+    "~": ["../../app/docks/android-usb-audio/dock"],
+    "muse-client": "./client",
+    "muse-dock-runtime": "./runtime",
+    "stackchan-dock": "./dock",
+    "muse-native": "./native/muse-native",
+    "*": [
+      "./native/noise_api.h",
+      "$(IDF_PATH)/components/tcp_transport/include/esp_transport_ws.h",
+      "$(IDF_PATH)/components/mbedtls/esp_crt_bundle/include/esp_crt_bundle.h"
+    ]
+  },
+  "platforms": {
+    "esp32": {
+      "dependency": [
+        { "name": "esp_websocket_client", "version": "==1.8.0" },
+        { "name": "stackchan_muse_noise", "idf": "stackchan_muse_noise" },
+        { "name": "mbedtls", "idf": "mbedtls" }
+      ]
+    }
+  },
+  "esp32Config": {
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE": "y",
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL": "y"
+  }
+}

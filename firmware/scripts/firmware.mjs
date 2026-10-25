@@ -103,6 +103,7 @@ if (
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
+      muse: path.resolve(manifest) === path.resolve('host/app/manifest_muse.json'),
       realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
       solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
     })
@@ -166,6 +167,7 @@ if (buildVariantChanged && ['m5stackchan_cores3', 'stackchan_rt'].includes(devic
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
+      muse: path.resolve(manifest) === path.resolve('host/app/manifest_muse.json'),
       realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
       solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
     })

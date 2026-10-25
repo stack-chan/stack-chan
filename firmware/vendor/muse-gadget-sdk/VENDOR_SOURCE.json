@@ -1,0 +1,29 @@
+{
+  "upstream": "https://github.com/facebookincubator/muse-gadget-sdk",
+  "revision": "c9354b7a765cfb7dd3c4f1945a9ca838d871630c",
+  "files": {
+    "LICENSE": "0353a8ae950232a70f0379a4b8a10b661b2f3e3a598e9411332fc0d4f98947fa",
+    "noise_core/CMakeLists.txt": "146824dc5f990adc560af69e7abd35e582fc79b8ecadfc3cc19d0c952f7caf64",
+    "noise_core/include/xplat/noise/core/BufferWriter.h": "972feaf8559f9326786916376e82110aa2ca55bfa487c420b8da3a63e0907930",
+    "noise_core/include/xplat/noise/core/ClientSession.h": "2ae7ee4c2bcce91570099e9487e3d6bd19be352c1ef858149b244ba0cf4db633",
+    "noise_core/include/xplat/noise/core/CryptoBackend.h": "c28b06fa0815087a6427f20a51d5ad148d08756f7c793ad663a9d2e313d2f171",
+    "noise_core/include/xplat/noise/core/InitiatorHandshake.h": "74f2928e6142a9ede3759cb9137b0692cfe6d672dd2a767eebd424807075895c",
+    "noise_core/include/xplat/noise/core/MbedtlsCryptoBackend.h": "0b196889acc2f71f19f48953f2ee3dad850e090f86bf3439f8c5683a2d6bb94a",
+    "noise_core/include/xplat/noise/core/PsaCryptoBackend.h": "4bc2d47c4ea2198fc38eabb912d962f0776fe7351de81716e3c6dfc612b8a65c",
+    "noise_core/include/xplat/noise/core/Secret.h": "b056e9ce05525c62db03d3d01c79d6548521a4e797e9fc8f9e036af668609022",
+    "noise_core/include/xplat/noise/core/ServiceCodec.h": "835063608b2224ff44fc89c3746bf9e4d1112c3548865478ffb617455f3e8cd4",
+    "noise_core/include/xplat/noise/core/Span.h": "f5f6d856319a4ce62f2df4d648ff07215add04ea9c303e9b972cd13b27a814dc",
+    "noise_core/include/xplat/noise/core/Status.h": "a7395c45e10fe4cf0dfa04b53ae5802ab9a20dff9ada235d2a342405f46cbacb",
+    "noise_core/include/xplat/noise/core/StringView.h": "4670068ad88f4907f4f920613cb9f4fa22412305ebff2d72229cb3d997921bcd",
+    "noise_core/include/xplat/noise/core/Transport.h": "b87336afce047afbb9382231589ed8f30c6ba9bdff27ed7923e10fae0a3eeb9d",
+    "noise_core/include/xplat/noise/core/TransportFrameCodec.h": "f781865686e673ee32aa1b871652401ee83ca29182d8a5705faf128a299b3fa2",
+    "noise_core/src/ClientSession.cpp": "d2d7d6fe28b1c28138aec40aae0d0be41363c4e1c650af0c1a85e7d7f7c8eafd",
+    "noise_core/src/InitiatorHandshake.cpp": "2b4bf08d0e6f165f36511c6672e267bca522c79c5ab52ac0ff99350fb1885ee7",
+    "noise_core/src/MbedtlsCryptoBackend.cpp": "141325e55a4b5bbe04c72275a1777ac6fd08c0ed06bc95a95e427fd389f47ac5",
+    "noise_core/src/PsaCryptoBackend.cpp": "ff131937a9fa50501edf949cc03a328cdc5f91c7f00b38f90b758ed4f4d763c3",
+    "noise_core/src/ServiceCodec.cpp": "de7e6db82085e1c3da8112400759b984b1c9407abb4f8c8431ac4c638822cb7d",
+    "noise_core/src/Status.cpp": "f41b83599b6da82b12ee84ad74e1a7c7516251aed4ba198b4f1045e32b266988",
+    "noise_core/src/Transport.cpp": "83a16b0ea55e21ed14d6a33e150f4717bbdb7f1a4fda48a43a0a375de414197c",
+    "noise_core/src/TransportFrameCodec.cpp": "336a34d0d32c8e7503b40a5460ac4b7d473071e8e654e4307c92f44a4066d837"
+  }
+}

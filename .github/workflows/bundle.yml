@@ -40,7 +40,8 @@ concurrency:
 jobs:
   firmware:
     name: Release build (${{ matrix.target }})
-    runs-on: ubuntu-latest
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -84,7 +85,8 @@ jobs:
 
   web:
     name: Bundle web artifacts
-    runs-on: ubuntu-latest
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:

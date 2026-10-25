@@ -100,10 +100,31 @@ try {
   assert.equal(await page.locator('esp-web-install-button').count(), 0)
   assert.equal(await page.getByRole('button', { name: 'USBに接続して書き込む' }).count(), 1)
   assert.equal(
-    await page.getByRole('note').getByText('インストール済みのMOD', { exact: false }).count(),
-    1,
-    'the React flash tool must explain that installing erases device settings and MODs'
+    await page.getByRole('note').getByText('通常はフラッシュ全体を消去せず', { exact: false }).isVisible(),
+    true,
+    'the flash tool must explain that a normal installation does not erase the entire flash'
   )
+  assert.match(
+    await page.getByRole('note').innerText(),
+    /保存領域が上書きされず.*互換性がある場合に保持されます/,
+    'retention of settings and MODs must be conditional on storage and firmware compatibility'
+  )
+  const eraseAll = page.getByRole('checkbox', { name: 'フラッシュ全体を消去してから書き込む' })
+  assert.equal(await eraseAll.isChecked(), false, 'full-flash erase must be opt-in')
+  assert.equal(
+    await page
+      .getByText(
+        'フラッシュ全体を消去すると、本体に保存した設定とインストール済みのMODを含むすべてのデータが失われます。この操作は取り消せません。',
+        { exact: true }
+      )
+      .isVisible(),
+    true,
+    'the full-erase option must warn that settings and MODs are irreversibly deleted'
+  )
+  await eraseAll.check()
+  assert.equal(await eraseAll.isChecked(), true, 'full-flash erase can be selected')
+  await eraseAll.uncheck()
+  assert.equal(await eraseAll.isChecked(), false, 'full-flash erase can be deselected')
 
   await page.goto(`${baseUrl}/preference/`, { waitUntil: 'networkidle' })
   assert.equal(

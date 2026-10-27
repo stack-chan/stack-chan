@@ -47,6 +47,7 @@ typedef struct {
 static _Atomic(LiveTransport *) gOwner;
 static bool gAdapters;
 extern int stackchanRealtimeMediaInit(void);
+extern int stackchanRealtimeCodecInit(void);
 
 static void fail(LiveTransport *t, int code)
 {
@@ -272,8 +273,8 @@ void xs_live_transport_start(xsMachine *the)
 			xsUnknownError("Realtime media initialization failed");
 		media_lib_thread_set_schedule_cb(scheduler);
 		esp_capture_set_thread_scheduler(captureScheduler);
-		esp_audio_enc_register_default();
-		esp_audio_dec_register_default();
+		if (stackchanRealtimeCodecInit() != ESP_AUDIO_ERR_OK)
+			xsUnknownError("Realtime codec registration failed");
 		gAdapters = true;
 	}
 	t->captureOnly = xsmcArgc && xsmcToBoolean(xsArg(0));

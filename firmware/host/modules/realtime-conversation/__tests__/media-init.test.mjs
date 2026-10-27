@@ -32,7 +32,18 @@ test('native media adapters initialize on first use, once across callers, and re
     )
     assert.ifError(compiled.error)
     assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr)
-    for (const scenario of ['sequential', 'retry', 'concurrent', 'concurrent-retry']) {
+    for (const scenario of [
+      'sequential',
+      'retry',
+      'concurrent',
+      'concurrent-retry',
+      'codec-sequential',
+      'codec-encoder-retry',
+      'codec-decoder-retry',
+      'concurrent-codec',
+      'concurrent-codec-encoder-retry',
+      'concurrent-codec-decoder-retry',
+    ]) {
       const result = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 5000 })
       assert.ifError(result.error)
       assert.equal(result.status, 0, `${scenario}: ${result.stdout}${result.stderr}`)

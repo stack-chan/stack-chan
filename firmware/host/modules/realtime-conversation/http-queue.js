@@ -1,9 +1,22 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 
-export function createHttpQueue({ execute, post, schedule, elapsed }) {
+export function createHttpQueue({ execute, post, schedule, elapsed, onIdle }) {
   let tail = Promise.resolve(),
-    queued = 0
+    queued = 0,
+    lastReceived
+  function notifyIdle(id) {
+    if (!onIdle || queued || id !== lastReceived) return
+    try {
+      onIdle(id)
+    } catch {
+      // IPC pressure must not strand an otherwise idle Worker indefinitely.
+      // A new request invalidates this notification and its retry.
+      try {
+        schedule(() => notifyIdle(id), 25)
+      } catch {}
+    }
+  }
   function reply(message, remaining) {
     return new Promise((resolve) => {
       const send = () => {
@@ -24,6 +37,7 @@ export function createHttpQueue({ execute, post, schedule, elapsed }) {
     })
   }
   return ({ id, started, request }) => {
+    lastReceived = id
     if (queued >= 8) {
       try {
         post({ id, error: 'HTTPS request capacity' })
@@ -45,6 +59,7 @@ export function createHttpQueue({ execute, post, schedule, elapsed }) {
         await reply(message, remaining)
       } finally {
         queued--
+        if (!queued) notifyIdle(lastReceived)
       }
     })
     return tail

@@ -60,3 +60,79 @@ test('expired queued jobs never start and timer allocation failures do not poiso
     [974, 990],
   )
 })
+
+test('idle is acknowledged only after execution cleanup and the complete delivered batch', async () => {
+  const completed = [],
+    replies = [],
+    idle = []
+  let finish
+  const queue = createHttpQueue({
+    execute(request) {
+      return new Promise((resolve) => {
+        finish = () => {
+          completed.push(request.path)
+          resolve({ status: 200 })
+        }
+      })
+    },
+    post: (message) => replies.push(message),
+    onIdle(id) {
+      assert.equal(completed.length, 2)
+      assert.equal(replies.length, 2)
+      idle.push(id)
+    },
+    schedule: () => assert.fail('no retry needed'),
+    elapsed: () => 0,
+  })
+  const first = queue({ id: 1, started: 0, request: { path: '/first', timeoutMs: 1000 } })
+  await new Promise(setImmediate)
+  const second = queue({ id: 2, started: 0, request: { path: '/second', timeoutMs: 1000 } })
+  assert.deepEqual(idle, [])
+  finish()
+  await first
+  assert.deepEqual(idle, [])
+  await new Promise(setImmediate)
+  finish()
+  await second
+  assert.deepEqual(idle, [2])
+})
+
+test('idle IPC retries are invalidated by newer work and include capacity rejected deliveries', async () => {
+  const timers = [],
+    idle = [],
+    replies = []
+  let blocked = true,
+    finish
+  const queue = createHttpQueue({
+    execute: () => new Promise((resolve) => (finish = () => resolve({ status: 200 }))),
+    post: (message) => replies.push(message),
+    onIdle(id) {
+      if (blocked) throw new Error('IPC full')
+      idle.push(id)
+    },
+    schedule: (callback) => timers.push(callback),
+    elapsed: () => 0,
+  })
+  const first = queue({ id: 1, started: 0, request: { timeoutMs: 1000 } })
+  await new Promise(setImmediate)
+  finish()
+  await first
+  assert.equal(timers.length, 1)
+  const second = queue({ id: 2, started: 0, request: { timeoutMs: 1000 } })
+  blocked = false
+  timers.shift()()
+  assert.deepEqual(idle, [], 'stale idle retry cannot acknowledge the second request')
+  await new Promise(setImmediate)
+  const requests = [second]
+  for (let id = 3; id <= 9; id++) requests.push(queue({ id, started: 0, request: { timeoutMs: 1000 } }))
+  queue({ id: 10, started: 0, request: { timeoutMs: 1000 } })
+  assert.equal(replies.at(-1).id, 10)
+  assert.match(replies.at(-1).error, /capacity/)
+  for (const request of requests) {
+    finish()
+    await request
+    await new Promise(setImmediate)
+  }
+  assert.deepEqual(idle, [10], 'all received IDs are acknowledged, including a rejected request')
+  assert.equal(timers.length, 0)
+})

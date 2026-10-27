@@ -78,9 +78,10 @@ test('the actual HTTP Worker drops a request that expires while waiting behind a
       'expired HTTPS work never starts',
     )
     assert.deepEqual(
-      state.replies.map((reply) => reply.id),
+      state.replies.filter((reply) => reply.id !== undefined).map((reply) => reply.id),
       [1],
     )
+    assert.deepEqual(state.replies.at(-1), { idle: 2 }, 'expired work also reaches a releasable idle state')
     assert.equal(state.executed[0].timeoutMs, 1000, 'the first request retains its available deadline')
   } finally {
     for (const [name, descriptor] of previous) {

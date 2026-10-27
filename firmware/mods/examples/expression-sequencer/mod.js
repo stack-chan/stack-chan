@@ -45,12 +45,12 @@ export function onContextCreated(robot) {
     if (!event.pressed) return
 
     clearTimer()
-    index = (index + 1) % sequence.length
 
     if (running) {
       advance()
     } else {
       robot.face.setEmotion(sequence[index].emotion)
+      index = (index + 1) % sequence.length
     }
   }
 

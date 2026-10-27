@@ -1,0 +1,16 @@
+{
+  "platforms": {
+    "...": {
+      "error": "Heap diagnostics require CoreS3 or M5StackChan CoreS3"
+    },
+    "esp32/m5stack_cores3": {},
+    "esp32/m5stackchan_cores3": {}
+  },
+  "modules": {
+    "~": "../../app/default-behavior/behavior",
+    "memory-diagnostics/heap": "./memory-heap",
+    "memory-diagnostics/recorder": "./recorder",
+    "memory-diagnostics/runtime": "./runtime",
+    "app-default-behavior": "./behavior"
+  }
+}

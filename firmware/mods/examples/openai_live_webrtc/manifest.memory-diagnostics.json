@@ -1,0 +1,9 @@
+{
+  "include": ["./manifest.common.json"],
+  "modules": {
+    "mod": "./mod-memory-diagnostics",
+    "openai-live-mod/base": "./mod",
+    "openai-live-session/base": "./session",
+    "openai-live-session": "./session-memory-diagnostics"
+  }
+}

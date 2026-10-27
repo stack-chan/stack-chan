@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHttpProxy } from '../http-proxy.js'
+import { createHttpQueue } from '../http-queue.js'
 
 function fixture() {
   const workers = [],
@@ -143,6 +144,83 @@ test('a new request invalidates an older idle acknowledgement even after caller 
   assert.equal(f.workers[0].terminated, 1)
 })
 
+test('an idle acknowledgement received before the final caller deadline is retained until that deadline', async () => {
+  const f = fixture()
+  const request = f.fetch('https://service.test/expired')
+  const rejection = assert.rejects(request, /timed out/)
+  f.idle()
+  assert.equal(f.workers[0].terminated, 0)
+  const timer = [...f.timers][0]
+  f.timers.delete(timer)
+  timer()
+  await rejection
+  assert.equal(f.workers[0].terminated, 1)
+  const next = f.fetch('https://service.test/next')
+  assert.equal(f.workers.length, 2)
+  f.respond(0, 'next', 1)
+  await next
+  f.idle(1)
+  assert.equal(f.workers[1].terminated, 1)
+})
+
+test('new posted work invalidates a remembered idle acknowledgement before later caller timeouts', async () => {
+  const f = fixture()
+  const first = f.fetch('https://service.test/first')
+  const firstRejection = assert.rejects(first, /timed out/)
+  f.idle()
+  const second = f.fetch('https://service.test/second')
+  const secondRejection = assert.rejects(second, /timed out/)
+  for (const timer of [...f.timers]) {
+    f.timers.delete(timer)
+    timer()
+  }
+  await Promise.all([firstRejection, secondRejection])
+  assert.equal(f.workers[0].terminated, 0, 'new HTTPS work is not covered by the remembered acknowledgement')
+  f.idle(0, f.workers[0].sent[0].id)
+  assert.equal(f.workers[0].terminated, 0, 'a stale acknowledgement cannot restore invalidated idle state')
+  f.idle()
+  assert.equal(f.workers[0].terminated, 1)
+})
+
+test('queue expiry without a reply releases the idle Worker after the later caller timer runs', async () => {
+  const timers = new Set()
+  let deliver,
+    terminated = 0
+  const worker = {}
+  const queue = createHttpQueue({
+    execute: () => assert.fail('expired work cannot start TLS'),
+    post: () => assert.fail('expired work has no response to deliver'),
+    onIdle: (id) => worker.onmessage({ idle: id }),
+    schedule: () => assert.fail('idle acknowledgement does not need a retry'),
+    elapsed: () => 1001,
+  })
+  worker.postMessage = (message) => {
+    deliver = () => queue(message)
+  }
+  const fetch = createHttpProxy({
+    createWorker: () => worker,
+    releaseWorker: () => terminated++,
+    normalize: () => ({ timeoutMs: 1000 }),
+    decode: (body) => body,
+    now: () => 0,
+    schedule: (callback) => {
+      timers.add(callback)
+      return callback
+    },
+    cancel: (timer) => timers.delete(timer),
+  })
+  const request = fetch('https://service.test/expired')
+  const rejection = assert.rejects(request, /timed out/)
+  await deliver()
+  assert.equal(terminated, 0, 'the caller still owns an unsettled request')
+  const timer = [...timers][0]
+  timers.delete(timer)
+  timer()
+  await rejection
+  assert.equal(terminated, 1, 'the earlier idle acknowledgement survives until caller cleanup')
+  assert.equal(timers.size, 0)
+})
+
 test('shared concurrent requests survive idle messages until the complete posted batch finishes', async () => {
   const f = fixture()
   const first = f.fetch('https://service.test/first')
@@ -153,6 +231,7 @@ test('shared concurrent requests survive idle messages until the complete posted
   assert.equal(f.workers[0].terminated, 0)
   f.respond(1)
   await second
+  assert.equal(f.workers[0].terminated, 1, 'the remembered acknowledgement is reconsidered after the response')
   f.idle()
   f.idle()
   assert.equal(f.workers[0].terminated, 1, 'duplicate old messages cannot terminate twice')

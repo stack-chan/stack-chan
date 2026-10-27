@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // The HTTP VM is owned by its caller VM; audio, UI and TLS never share a queue.
 export function createHttpProxy({ createWorker, releaseWorker, normalize, decode, schedule, cancel, now }) {
-  let worker, lastPosted
+  let worker, lastPosted, lastIdle
   let sequence = 0
   const pending = new Map()
   function release(created) {
     worker = undefined
     lastPosted = undefined
+    lastIdle = undefined
     releaseWorker(created)
+  }
+  function releaseIdle(created) {
+    if (releaseWorker && worker === created && !pending.size && lastIdle !== undefined && lastIdle === lastPosted)
+      release(created)
   }
   function getWorker() {
     if (worker) return worker
@@ -18,8 +23,11 @@ export function createHttpProxy({ createWorker, releaseWorker, normalize, decode
       // Caller deadlines do not prove that TLS/socket cleanup has completed.
       // Only the Worker's idle acknowledgement may release an active VM. An
       // older acknowledgement cannot retire a Worker with newly posted work.
+      // A queue-expired request may have no reply: retain its acknowledgement
+      // until the caller's later deadline removes the final pending request.
       if (message.idle !== undefined) {
-        if (releaseWorker && !pending.size && message.idle === lastPosted) release(created)
+        if (message.idle === lastPosted) lastIdle = message.idle
+        releaseIdle(created)
         return
       }
       const job = pending.get(message.id)
@@ -33,6 +41,7 @@ export function createHttpProxy({ createWorker, releaseWorker, normalize, decode
           ok: message.status >= 200 && message.status < 300,
           text: async () => decode(message.body),
         })
+      releaseIdle(created)
     }
     worker = created
     return worker
@@ -50,16 +59,19 @@ export function createHttpProxy({ createWorker, releaseWorker, normalize, decode
         job.timer = schedule(() => {
           pending.delete(id)
           reject(new Error('HTTPS request timed out'))
+          releaseIdle(activeWorker)
         }, request.timeoutMs)
         pending.set(id, job)
         activeWorker.postMessage({ id, started, request })
         lastPosted = id
+        lastIdle = undefined
       } catch (error) {
         pending.delete(id)
         if (job.timer !== undefined) cancel(job.timer)
         // No message was accepted by a newly allocated Worker. A reused Worker
         // may still be processing requests whose caller deadline has elapsed.
         if (releaseWorker && lastPosted === undefined) release(activeWorker)
+        else releaseIdle(activeWorker)
         reject(error)
       }
     })

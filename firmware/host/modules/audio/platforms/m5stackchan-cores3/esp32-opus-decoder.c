@@ -8,12 +8,16 @@
 #include "xsHost.h"
 #include "xsmc.h"
 #include "mc.xs.h"
+#include "mc.defines.h"
 
 #include "esp_heap_caps.h"
 #include "esp_opus_dec.h"
 #include "esp_timer.h"
 
 #define OPUS_MAX_PACKET_BYTES 1275
+#if MODDEF_STACKCHAN_REALTIME
+extern int stackchanRealtimeMediaInit(void);
+#endif
 typedef struct {
 	void *handle;
 	uint32_t outputBytes;
@@ -62,6 +66,10 @@ void xs_esp32_opus_constructor(xsMachine *the)
 		xsRangeError("invalid Opus sample rate");
 	if (duration == ESP_OPUS_DEC_FRAME_DURATION_INVALID)
 		xsRangeError("invalid Opus frame duration");
+#if MODDEF_STACKCHAN_REALTIME
+	if (stackchanRealtimeMediaInit() != ESP_OK)
+		xsUnknownError("Realtime media initialization failed");
+#endif
 	decoder = c_calloc(1, sizeof(xsESP32OpusRecord));
 	if (!decoder)
 		xsUnknownError("no memory for Opus decoder");

@@ -1,7 +1,8 @@
 {
   "include": [
     "./manifest_m5stackchan_cores3.json",
-    "../modules/realtime-conversation/manifest.json"
+    "../modules/realtime-conversation/manifest.json",
+    "../platforms/m5stackchan_cores3/manifest.realtime-performance.json"
   ],
   "esp32Config": {
     "CONFIG_MBEDTLS_SSL_PROTO_DTLS": "y",

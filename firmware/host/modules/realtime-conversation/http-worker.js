@@ -25,7 +25,7 @@ const platform = {
 self.onmessage = createHttpQueue({
   post: (message) => self.postMessage(message),
   schedule: platform.schedule,
-  elapsed: (started) => Time.delta(started),
+  elapsed: (started) => Time.delta(started, Time.ticks),
   async execute(request) {
     // The SDK session cache keys only by host, without the trust anchor.
     if (request.certificate) tlsCache.deleteSessionID()

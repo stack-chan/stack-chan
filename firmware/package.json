@@ -100,7 +100,9 @@
     "test:rfid": "node --experimental-vm-modules --test mods/examples/rfid/mod.test.mjs",
     "setup:webrtc": "node scripts/setup-webrtc.mjs",
     "test:media-before-transport:build:cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32/m5stack_cores3 -t build \"$PWD/host/app/manifest_media_before_transport.test.json\"",
-    "test:media-before-transport:build:m5stackchan_cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/app/manifest_media_before_transport.test.json\""
+    "test:media-before-transport:build:m5stackchan_cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/app/manifest_media_before_transport.test.json\"",
+    "build:memory:cores3": "node scripts/run-mcconfig.mjs -m -p esp32/m5stack_cores3 -t build host/app/manifest_memory_diagnostics.json",
+    "build:memory:m5stackchan_cores3": "node scripts/firmware.mjs build m5stackchan_cores3 --mode=release --manifest host/app/manifest_m5stackchan_cores3_memory_diagnostics.json"
   },
   "type": "module",
   "repository": {

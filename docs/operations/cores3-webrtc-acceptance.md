@@ -76,6 +76,11 @@ internal free block and PSRAM at idle, negotiation, duplex, close and repeated
 reconnect. Include TLS errors, native task stack high-water marks and I2S
 allocation failures in the evidence; do not infer these from successful links.
 
+The optional [on-demand heap diagnostic manifests](cores3-memory-diagnostics.md)
+provide internal/PSRAM snapshots and consistent lifecycle JSONL without enabling
+the #744 performance probe. Device memory evidence remains **NOT RUN** until
+measured on each board.
+
 Transport polling processes at most 16 events per callback and schedules from
 completion, allowing touch/UI callbacks to run during a native event backlog.
 HTTP work uses its own Worker. Automated fairness checks cover bounded polling;

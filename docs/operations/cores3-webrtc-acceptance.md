@@ -76,6 +76,11 @@ internal free block and PSRAM at idle, negotiation, duplex, close and repeated
 reconnect. Include TLS errors, native task stack high-water marks and I2S
 allocation failures in the evidence; do not infer these from successful links.
 
+The opt-in [memory diagnostics](cores3-memory-diagnostics.md) provide heap
+snapshots and matching lifecycle logs without the rendering/audio/task tracing
+from PR #744. They do not run in standard builds and do not establish hardware
+acceptance or replace stack high-water/underrun measurements.
+
 Transport polling processes at most 16 events per callback and schedules from
 completion, allowing touch/UI callbacks to run during a native event backlog.
 HTTP work uses its own Worker. Automated fairness checks cover bounded polling;

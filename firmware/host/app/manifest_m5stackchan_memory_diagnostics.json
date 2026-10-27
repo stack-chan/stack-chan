@@ -1,0 +1,6 @@
+{
+  "include": [
+    "./manifest_m5stackchan_cores3.json",
+    "../modules/memory-diagnostics/manifest.json"
+  ]
+}

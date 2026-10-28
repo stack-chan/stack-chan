@@ -136,3 +136,103 @@ test('idle IPC retries are invalidated by newer work and include capacity reject
   assert.deepEqual(idle, [10], 'all received IDs are acknowledged, including a rejected request')
   assert.equal(timers.length, 0)
 })
+
+test('idle delivery follows the expired job reaction and acknowledges a drained batch once', async () => {
+  const order = [],
+    idle = []
+  const queue = createHttpQueue({
+    execute: () => assert.fail('expired jobs cannot execute'),
+    post: () => assert.fail('expired jobs have no response'),
+    onIdle(id) {
+      order.push('idle')
+      idle.push(id)
+    },
+    schedule: () => assert.fail('no IPC retry expected'),
+    elapsed: () => 2,
+  })
+  const jobs = [1, 2, 3].map((id) => queue({ id, started: 0, request: { timeoutMs: 1 } }))
+  Promise.resolve().then(() => order.push('other reaction'))
+  await Promise.all(jobs)
+  assert.deepEqual(order, ['other reaction', 'idle'])
+  assert.deepEqual(idle, [3], 'only the job that drains the batch can acknowledge it')
+})
+
+test('an idle retry Timer returns before the acknowledgement reaction executes', async () => {
+  const timers = [],
+    order = []
+  let attempts = 0
+  const queue = createHttpQueue({
+    execute: async () => ({ status: 200 }),
+    post() {},
+    onIdle() {
+      order.push(`attempt ${++attempts}`)
+      if (attempts === 1) throw new Error('IPC full')
+    },
+    schedule: (callback) => timers.push(callback),
+    elapsed: () => 0,
+  })
+  await queue({ id: 1, started: 0, request: { timeoutMs: 1000 } })
+  assert.equal(timers.length, 1)
+  timers.shift()()
+  order.push('timer returned')
+  assert.equal(attempts, 1, 'a Timer callback only registers the notification reaction')
+  await new Promise(setImmediate)
+  assert.deepEqual(order, ['attempt 1', 'timer returned', 'attempt 2'])
+})
+
+test('idle IPC and retry Timer allocation failures never poison later queue work', async () => {
+  const executed = [],
+    replied = [],
+    idle = []
+  let blocked = true
+  const queue = createHttpQueue({
+    execute: async (request) => {
+      executed.push(request.path)
+      return { status: 200 }
+    },
+    post: (message) => replied.push(message.id),
+    onIdle(id) {
+      if (blocked) throw new Error('IPC full')
+      idle.push(id)
+    },
+    schedule: () => {
+      throw new Error('timer allocation failed')
+    },
+    elapsed: () => 0,
+  })
+  await queue({ id: 1, started: 0, request: { path: '/first', timeoutMs: 1000 } })
+  blocked = false
+  await queue({ id: 2, started: 0, request: { path: '/second', timeoutMs: 1000 } })
+  assert.deepEqual(executed, ['/first', '/second'])
+  assert.deepEqual(replied, [1, 2])
+  assert.deepEqual(idle, [2])
+})
+
+test('converging idle retry reactions acknowledge a successfully delivered id once', async () => {
+  const timers = [],
+    idle = []
+  let blocked = true
+  const queue = createHttpQueue({
+    execute: async () => ({ status: 200 }),
+    post() {},
+    onIdle(id) {
+      if (blocked) throw new Error('IPC full')
+      idle.push(id)
+    },
+    schedule: (callback) => timers.push(callback),
+    elapsed: () => 0,
+  })
+  await queue({ id: 1, started: 0, request: { timeoutMs: 1000 } })
+  const retry = timers.shift()
+  blocked = false
+  // Exercise merged notification continuations without relying on platform
+  // timer timing. Once delivered, neither another reaction nor a stale retry
+  // may enqueue a second native message for a Worker about to be terminated.
+  retry()
+  retry()
+  await new Promise(setImmediate)
+  retry()
+  await new Promise(setImmediate)
+  assert.deepEqual(idle, [1])
+  assert.equal(timers.length, 0)
+})

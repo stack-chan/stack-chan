@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright-core'
 import { resolveChromium, startPreview } from '../test-preview-server.mjs'
+import { compile } from '../../firmware/tools/avatar-dsl/compiler/compile.js'
+import { createEditorModel } from './editor-model.mjs'
+import { createRuntime } from './runtime/index.js'
+
+const runtime = await createRuntime({ wasmBytes: await readFile(new URL('./runtime/avds.wasm', import.meta.url)) })
+const rejectionDiagnostic = (action) => {
+  try {
+    action()
+  } catch (error) {
+    return error.message
+  }
+  assert.fail('The negative fixture unexpectedly succeeded')
+}
 
 // Official Chrome flags entry maps enable-webmcp-testing to blink::features::kWebMCP:
 // https://github.com/chromium/chromium/blob/main/chrome/browser/about_flags.cc
@@ -21,6 +34,7 @@ const evidence = {
   ],
   checks: [],
   failures: [],
+  expectedReportedRejections: [],
 }
 let browser
 try {
@@ -46,7 +60,26 @@ try {
   })
   const page = await context.newPage()
   const errors = []
-  page.on('pageerror', (error) => errors.push(error.message))
+  let expectedPageError
+  page.on('pageerror', (error) => {
+    if (error.message === expectedPageError) evidence.expectedReportedRejections.push(error.message)
+    else errors.push(error.message)
+  })
+  // Some Chromium versions report a rejected tool callback as a page error,
+  // in addition to rejecting executeTool. Permit only the diagnostic from the
+  // same model/compiler/runtime behavior, while that negative call is active.
+  const expectToolRejection = async (action, diagnostic, observed = () => {}) => {
+    expectedPageError = diagnostic
+    try {
+      await assert.rejects(action, (error) => {
+        observed(error)
+        return true
+      })
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    } finally {
+      expectedPageError = undefined
+    }
+  }
   await page.goto(`${baseUrl}/avatar-dsl/`)
   await page.waitForFunction(() => !document.getElementById('transfer').disabled, undefined, { timeout: 30000 })
   evidence.api = await page.evaluate(() => ({
@@ -127,12 +160,18 @@ try {
     await page.waitForFunction(() => !document.getElementById('transfer').disabled)
     assert.equal(await page.locator('#source').inputValue(), sample.source)
     const replaced = await call('read')
-    await assert.rejects(call('replace', { source: sample.source, expectedRevision: snapshot.revision }), (error) => {
-      // Native Chromium surfaces tool exceptions as UnknownError rather than
-      // forwarding the application's exact error message. Check state too.
-      evidence.staleRevisionBrowserError = error.message
-      return true
-    })
+    const reference = createEditorModel(snapshot.source)
+    reference.replace(sample.source)
+    const staleDiagnostic = rejectionDiagnostic(() => reference.replace(sample.source, snapshot.revision))
+    await expectToolRejection(
+      () => call('replace', { source: sample.source, expectedRevision: snapshot.revision }),
+      staleDiagnostic,
+      (error) => {
+        // Native Chromium surfaces tool exceptions as UnknownError rather than
+        // forwarding the application's exact error message. Check state too.
+        evidence.staleRevisionBrowserError = error.message
+      }
+    )
     assert.deepEqual(await call('read'), replaced)
     await call('undo')
     assert.equal(await page.locator('#source').inputValue(), snapshot.source)
@@ -162,7 +201,8 @@ try {
       const invalidRevision = (await call('read')).revision
       await call('replace', { source, expectedRevision: invalidRevision })
       const invalid = await call('read')
-      await assert.rejects(call('request_transfer', { expectedRevision: invalid.revision }))
+      const diagnostic = rejectionDiagnostic(() => runtime.run(compile(source)))
+      await expectToolRejection(() => call('request_transfer', { expectedRevision: invalid.revision }), diagnostic)
       assert.equal(await page.locator('#confirmation').evaluate((dialog) => dialog.open), false)
       assert.deepEqual(await page.evaluate(() => window.__nativeWebMCPUSBMock), {
         chooserCalls: 0,
@@ -175,7 +215,7 @@ try {
       'syntax, incorrect user-function arity, void helper and void builtin values block agent transfer before confirmation or USB; undo recovers'
     )
     assert.deepEqual(errors, [])
-    evidence.checks.push('no uncaught browser errors')
+    evidence.checks.push('no unexpected uncaught browser errors')
   }
   evidence.usb = await page.evaluate(() => window.__nativeWebMCPUSBMock)
   evidence.chatGPTAppTested = false

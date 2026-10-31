@@ -14,6 +14,8 @@ GitHub 上に顔 DSL エディタの既存 PR/公開ブランチはなかった�
 
 2026-10-31 に公式 WebMCP Draft（2026-10-27 版）を再確認し、登録側は引き続き `document.modelContext.registerTool(tool, {signal})`。実験 Chromium の caller 引数差は既存ハーネス内に限定し、製品には互換ラッパーを加えない。
 
+公開 PR は #764。初回 CI（41176790530）はインストール、監査、受入ゲート、Web/React/native/WASM、通常ブラウザを通過し、WebMCP のページエラー検査だけ失敗した。CI の Chromium 151 は意図的な tool 拒否も pageerror として報告するが、ローカル Chromium 153 は報告しない。ハーネスは、その負の呼出し中に限り、同じ model/compiler/runtime の診断と一致する報告を記録するよう修正した。executeTool の拒否・editor 状態不変・USB 0回の検証は残し、他のページエラーは従来通り失敗させる。修正後は Chromium 151.0.7922.34 と153.0.8010.12 の双方で成功した。製品コードのエラー処理は変更していない。
+
 以下の2026-10-14の結果は履歴。今回の再実行結果と未検証事項を PR 本文に記載する。実機の MOD 導入・blink/breath 表示、ChatGPT アプリ内ブラウザ、Android は引き続き未検証であり、別担当が使用中の機体へは接続しない。
 
 ## 作業境界

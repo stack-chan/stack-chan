@@ -59,6 +59,12 @@ const tools: Tool[] = [
     description: '目と口を配置してFace実装を作る',
     icon: Smile,
   },
+  {
+    href: 'avatar-dsl/',
+    label: '顔 DSL エディタ',
+    description: 'C / WASM でプレビューして MOD を転送する',
+    icon: Smile,
+  },
 ]
 
 function HomePage() {

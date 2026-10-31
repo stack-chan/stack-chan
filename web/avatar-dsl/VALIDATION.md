@@ -1,5 +1,21 @@
 # 統合来歴と検証結果（2026-10-14）
 
+## レビュー公開準備（2026-10-31）
+
+GitHub 上に顔 DSL エディタの既存 PR/公開ブランチはなかった。#725 は `feat/avatar-dsl-face-mod` / `5038a62a454ca137b9e65b9a8e24293763c3a084` のまま未マージ。現在の develop は `fc58d32a8e134aa7d9a615f40628260ecfd87997`。旧合同履歴をそのまま develop 向けにすると別件の BLE/Wi-Fi/シミュレーター変更を含み、firmware/package.json に競合がある。
+
+旧 HEAD `18ab688a1d976f200a8e2fb22542190ec6f63077` はローカルの `archive/webtools-face-dsl-before-ready-20261031` に保存した。`git rebase --onto 5038a62 457096bb feature/webtools-face-dsl` でエディタ2コミットを依存 head の上へ載せ替えた。重複した compiler cherry-pick は既に依存 head に含まれるため Git が除外した。#725、develop、他タスクのブランチは変更しない。新 PR の base は #725 のブランチとし、エディタ差分だけをレビュー対象にする。依存取り込み後は develop へ向け直す前に統合検証が必要。
+
+現在の develop と同じ Vite 8.2.4 / Vitest 4.1.12 に限定して依存を更新した。更新前の依存監査は high 1 / moderate 2、更新後は0件。製品の version は依存 PR の値を維持する。
+
+再構成後のローカル検証はすべて成功した。`npm ci`、`npm audit`（0件）、compiler 受入ゲート、`AVDS_NATIVE_PARITY=1 npm test`（Web 230 passed / historical capture の任意試験1 skipped、React 18 files / 51 tests）、本番ビルド、隔離 Chromium 153 の通常 UI と native WebMCP を実行した。native/WASM は382 frames / 114266112 bytes、commands/clip/steps/pixels が一致した。firmware の compiler/VM 14 tests と native C 870 cases / C++ oracle 192 / 500 corruptions も成功した。Mono eye の DSL は旧 HEAD と同一で、名称変更・依存整理では描画を変更していない。Piu の82画像比較は下記の過去結果であり、今回再実行したとの扱いにはしない。
+
+`.github/workflows/avatar-dsl-editor.yml` は base 名に依存しないエディタ専用 CI。Node 24、記録済み SDK revision の C raster、コンパイラ受入ゲート、既存 Web/React 試験、native/WASM parity、本番ビルドと隔離 Chromium での振る舞いを検証する。serial API は試験開始前にモックへ置き換え、実機・OS の Web Serial は使わない。この workflow には deploy、device discovery、USB 書込みはない。従来 Build/Bundle は base branch filter によりこの stacked PR では起動しない。Bundle 起点の Cloudflare preview も起動しない。
+
+2026-10-31 に公式 WebMCP Draft（2026-10-27 版）を再確認し、登録側は引き続き `document.modelContext.registerTool(tool, {signal})`。実験 Chromium の caller 引数差は既存ハーネス内に限定し、製品には互換ラッパーを加えない。
+
+以下の2026-10-14の結果は履歴。今回の再実行結果と未検証事項を PR 本文に記載する。実機の MOD 導入・blink/breath 表示、ChatGPT アプリ内ブラウザ、Android は引き続き未検証であり、別担当が使用中の機体へは接続しない。
+
 ## 作業境界
 
 - branch: `feature/webtools-face-dsl`

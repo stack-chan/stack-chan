@@ -2,6 +2,8 @@
 
 Web tools のホーム・ナビゲーションから `/avatar-dsl/` を開く。既存の Shape 顔エディタも利用できる。DSL を編集・読み込み、C/WASM で検証・プレビューし、DSL または AVBC を保存できる。
 
+レビュー用ブランチは未マージの [native Avatar DSL #725](https://github.com/stack-chan/stack-chan/pull/725) の `5038a62` をベースにした stacked PR。develop に直接組み込む前に依存 PR の取り込みと統合検証が必要。エディタ専用 CI は通常操作と native/WASM の描画、WebMCP、モック転送を検証し、deploy や実機接続は行わない。
+
 共有 compiler 修正 `5038a62a454ca137b9e65b9a8e24293763c3a084` を取り込み、引数数の不正と user-function の void 値利用をコンパイル段階で拒否する。受入ゲートとエディタの拒否経路は [VALIDATION.md](VALIDATION.md) を参照。
 
 ## 小さい統合設計

@@ -13,7 +13,7 @@
     "check:avatar-dsl:compiler": "node avatar-dsl/compiler-acceptance-check.mjs",
     "build:avatar-dsl": "node avatar-dsl/build-wasm.mjs",
     "test:avatar-dsl": "node --test avatar-dsl/*.test.mjs avatar-dsl/runtime/*.test.mjs",
-    "test:avatar-dsl:browser": "npm run build && node avatar-dsl/browser-check.mjs && node avatar-dsl/webmcp-browser-check.mjs",
+    "test:avatar-dsl:browser": "npm run build && node avatar-dsl/browser-check.mjs && node avatar-dsl/webmcp-browser-check.mjs && node avatar-dsl/lifecycle-browser-check.mjs",
     "test:react": "vitest run",
     "test:i18n-visual": "npm run build && node i18n-visual-test.mjs",
     "check:editor-artifacts": "node check-editor-artifacts.mjs",

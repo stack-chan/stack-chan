@@ -259,7 +259,21 @@ export function mountEditor(root) {
     unbind()
     cancelTransfer()
   }
-  listen(window, 'pagehide', dispose, { once: true })
+  listen(window, 'pagehide', (event) => {
+    if (!event.persisted) {
+      dispose()
+      return
+    }
+    // A cached Document keeps this React mount, its draft/history and WebMCP
+    // registrations. Cancel transient work without aborting its listeners.
+    clearTimeout(debounce)
+    invalidate()
+  })
+  listen(window, 'pageshow', (event) => {
+    // Recompile the retained draft/context, without replacing an oversized
+    // textarea draft with the model's last accepted source.
+    if (event.persisted && draftValid) report(validate)
+  })
   changed()
   return dispose
 }

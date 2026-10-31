@@ -70,6 +70,20 @@ native WebMCP の実ブラウザでも syntax、引数不足、引数過剰、vo
 
 接続断後の再開時は既存試験ログの完了結果と作業ツリーを確認した。開いているブラウザの DSL やページを操作・上書きせず、ローカル preview サーバーだけを再起動した。
 
+## bfcache review regression (2026-10-31)
+
+Review [r4430845203](https://github.com/stack-chan/stack-chan/pull/764#discussion_r4430845203) was reproduced on pre-fix HEAD `34ad873b` in full Chromium 153. A real history Back restored the same Document with trusted `pageshow.persisted=true`, but WebMCP tools dropped from six to zero and editing no longer advanced the revision.
+
+Persisted `pagehide` now cancels debounce, active preview workers, MOD preparation and pending confirmation while retaining the mounted editor, draft/history and WebMCP registrations. Persisted `pageshow` recompiles the accepted source/context; an oversized textarea draft remains visible and blocked. Non-persisted departure and React unmount still dispose the editor.
+
+`npm run test:avatar-dsl:browser` now includes `lifecycle-browser-check.mjs`. Full Chromium 151 and 153 passed, each with WebMCP enabled and disabled:
+
+- **Actual bfcache:** three repeated Back cycles plus one oversized-draft return per mode (eight restores per browser), requiring the original Document ID and trusted persisted pagehide/pageshow. Source, revision, undo, preset, slider and canvas survive; UI/agent edits, downloads and confirmation preparation work after return. Pending confirmation and acknowledgement are cleared, with zero serial chooser/enumeration calls.
+- **Synthetic lifecycle events:** separately verify debounce cancellation, active worker termination, persisted resume and non-persisted disposal/unregistration. Synthetic events are not counted as bfcache restores.
+- **Actual non-cached departure:** a separate full Chromium with Playwright's default bfcache-disabled switch records trusted `pagehide.persisted=false`, no active workers, closed confirmation, cleared acknowledgement and removed input listeners. Native tool removal is observed in the synthetic disposal case because an asynchronous `getTools()` result cannot be reliably read after a Document is destroyed.
+
+The regression test removes Playwright's default `--disable-back-forward-cache` only for its cache scenarios and uses full Chromium, not headless shell. It fails if a real cache restore does not occur and records browser non-restoration reasons when available. Evidence is written to ignored `avatar-dsl/artifacts/lifecycle.json` and uploaded by the existing CI artifact step. No physical device is accessed. The production build, Web suite (230 passed, one optional skipped), React suite (51 passed), native/WASM parity and existing Chromium 151 UI/native-WebMCP checks also passed after the change.
+
 ## 残る実機・アプリ操作
 
 実機の native host 搭載確認、Web Serial の実ポート選択と書込み承認、MOD 導入後の実画面・blink・breath の確認は未実施。COM12 の別担当の検証済み状態を保持した。ChatGPT アプリ内ブラウザ、実 Android も未検証。

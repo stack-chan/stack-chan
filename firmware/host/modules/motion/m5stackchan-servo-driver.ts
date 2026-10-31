@@ -79,11 +79,11 @@ export class M5StackChanServoDriver {
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
     this.#pan.setTorque(torque, (panError) => {
-      if (panError != null) {
+      if (panError != null && torque) {
         callback?.(panError)
         return
       }
-      this.#tilt.setTorque(torque, callback)
+      this.#tilt.setTorque(torque, (tiltError) => callback?.(panError ?? tiltError))
     })
   }
 

@@ -9,6 +9,7 @@ import type { MotionType } from 'imu'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
 import { localize } from 'localization'
 import config from 'mc/config'
+import { DealWithItFace } from 'parts/image/deal-with-it-face'
 import type { Content as PiuContent } from 'piu/MC'
 import { randomBetween, wait } from 'stackchan-util'
 import Timer from 'timer'
@@ -163,10 +164,10 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     }
   }
 
-  type FaceMode = 'simple' | 'dog' | 'image' | 'jitome'
+  type FaceMode = 'simple' | 'dog' | 'image' | 'jitome' | 'deal-with-it'
   const faceModes: FaceMode[] = isJitomeFaceSupported()
-    ? ['simple', 'dog', 'image', 'jitome']
-    : ['simple', 'dog', 'image']
+    ? ['simple', 'dog', 'image', 'jitome', 'deal-with-it']
+    : ['simple', 'dog', 'image', 'deal-with-it']
   const configuredFace = options.config.ui.type
   let faceMode: FaceMode = faceModes.includes(configuredFace as FaceMode) ? (configuredFace as FaceMode) : 'simple'
   let handAnimation: HandAnimationName = 'none'
@@ -179,6 +180,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   const syncHandAnimation = () => robot.ui.setHandAnimation(handAnimation)
   const closeDrawer = () => robot.ui.closeDrawer()
   const createCurrentFace = () => {
+    if (faceMode === 'deal-with-it') return new DealWithItFace({})
     if (faceMode === 'dog') return new DogFace({})
     if (faceMode === 'image') return new ImageFace({})
     if (faceMode === 'jitome') return createJitomeFace().content

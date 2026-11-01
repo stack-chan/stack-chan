@@ -1,5 +1,8 @@
 {
-  "include": ["$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"],
+  "include": [
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODULES)/web/fetch/manifest.json"
+  ],
   "modules": {
     "mcp-client": "./mcp-client"
   },

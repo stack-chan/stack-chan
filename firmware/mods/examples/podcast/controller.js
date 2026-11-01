@@ -1,7 +1,11 @@
-/** Podcast selection and lifetime. Dependencies keep network and UI tests deterministic. */
+/** Podcast selection and shared finite/live playback. Network and UI dependencies are supplied by the MOD. */
 export class PodcastController {
   #context
   #feeds
+  #stations
+  #stationIndex = 0
+  #source
+  #reason
   #loadFeed
   #effects
   #loadArtwork
@@ -30,15 +34,24 @@ export class PodcastController {
     return {
       feeds: this.#feeds,
       episodes: this.#episodes,
+      stations: this.#stations,
+      stationIndex: this.#stationIndex,
+      source: this.#source,
+      playbackState: this.#state,
+      radioState: this.#source === 'radio' ? this.#state : 'idle',
+      reason: this.#reason,
       feedIndex: this.#feedIndex,
       episodeIndex: this.#episodeIndex,
       status: this.#context.i18n?.localize(this.#status) ?? this.#status,
-      state: this.#state,
+      state: this.#source === 'radio' ? 'idle' : this.#state,
       loading: this.#loading,
       feedError: this.#feedError,
       playbackError: this.#playbackError,
       artEnabled: !!this.#loadArtwork,
-      progress: this.#progress,
+      progress:
+        this.#source === 'radio'
+          ? { position: 0, duration: undefined, estimated: false, seekable: false }
+          : this.#progress,
       artwork: this.#artwork,
       artState: this.#artState,
     }
@@ -75,9 +88,10 @@ export class PodcastController {
     void this.#selectArtwork()
   }
 
-  constructor(context, feeds, loadFeed, effects, loadArtwork) {
+  constructor(context, feeds, loadFeed, effects, loadArtwork, stations = []) {
     this.#context = context
     this.#feeds = feeds
+    this.#stations = stations
     this.#loadFeed = loadFeed
     this.#effects = effects
     this.#loadArtwork = loadArtwork
@@ -156,12 +170,22 @@ export class PodcastController {
 
   stop() {
     this.#generation += 1
-    this.#playGeneration += 1
     this.#request?.cancel()
     this.#request = undefined
-    this.#context.audio.media?.stop()
-    this.#restore()
     this.#loading = false
+    if (this.#source === 'radio') {
+      this.#render()
+      return
+    }
+    this.#stopPlayback()
+  }
+
+  #stopPlayback() {
+    this.#playGeneration += 1
+    this.#context.audio.media?.stop()
+    this.#source = undefined
+    this.#reason = undefined
+    this.#restore()
     this.#state = 'idle'
     this.#playbackError = undefined
     this.#progress = { position: 0, duration: undefined, estimated: false, seekable: false }
@@ -169,9 +193,11 @@ export class PodcastController {
   }
 
   close() {
+    if (this.#closed) return
     this.#closed = true
     this.#clearArtwork()
     this.stop()
+    if (this.#source === 'radio') this.#stopPlayback()
     this.#listeners.clear()
   }
 
@@ -183,7 +209,6 @@ export class PodcastController {
     const identity = this.#episodes[this.#episodeIndex]?.identity
     this.stop()
     const generation = this.#generation
-    this.#indicator(true)
     this.#loading = true
     this.#render()
     try {
@@ -208,17 +233,18 @@ export class PodcastController {
     } finally {
       if (generation === this.#generation) {
         this.#loading = false
-        this.#indicator(false)
         this.#render()
       }
     }
   }
 
   pause() {
+    if (this.#closed || this.#source !== 'podcast') return
     this.#context.audio.media?.pause()
   }
 
   async seek(seconds) {
+    if (this.#closed || this.#source !== 'podcast') return
     const generation = this.#playGeneration
     this.#playbackError = undefined
     try {
@@ -232,7 +258,8 @@ export class PodcastController {
   }
 
   async play() {
-    if (this.#state === 'paused') {
+    if (this.#closed) return
+    if (this.#source === 'podcast' && this.#state === 'paused') {
       const generation = this.#playGeneration
       this.#playbackError = undefined
       try {
@@ -245,23 +272,51 @@ export class PodcastController {
       }
       return
     }
-    if (this.#closed) return
     const episode = this.#episodes[this.#episodeIndex]
     if (!episode) {
       this.#notice('podcast.chooseEpisode')
       return
     }
-    this.stop()
+    await this.#play('podcast', episode)
+  }
+
+  selectStation(index) {
+    if (this.#closed || !Number.isInteger(index) || !this.#stations[index]) return
+    this.stopRadio()
+    this.#stationIndex = index
+    this.#render()
+  }
+
+  stopRadio() {
+    if (this.#closed || this.#source !== 'radio') return
+    this.#stopPlayback()
+  }
+
+  async playRadio() {
+    if (this.#closed) return
+    const station = this.#stations[this.#stationIndex]
+    if (station) await this.#play('radio', station)
+  }
+
+  async #play(source, item) {
+    this.#playGeneration += 1
     const generation = this.#playGeneration
     const context = this.#context
+    this.#source = source
+    this.#progress = { position: 0, duration: undefined, estimated: false, seekable: false }
+    this.#playbackError = undefined
+    this.#reason = undefined
+    this.#state = 'connecting'
+    this.#effects.hide()
+    this.#indicator(true)
     context.ui.setFaceMotionEnabled?.(false)
-    this.#notice(episode.title)
+    this.#notice(item.title)
+    if (generation !== this.#playGeneration || this.#closed) return
     try {
       await context.audio.media.start({
-        url: episode.url,
-        mode: 'finite',
-        volume: 0.2,
-        duration: episode.duration,
+        url: item.url,
+        mode: source === 'radio' ? 'live' : 'finite',
+        duration: source === 'podcast' ? item.duration : undefined,
         onProgress: (progress) => {
           if (generation !== this.#playGeneration || this.#closed) return
           this.#progress = progress
@@ -270,18 +325,20 @@ export class PodcastController {
         onStateChanged: (state, reason) => {
           if (generation !== this.#playGeneration || this.#closed) return
           this.#state = state
+          this.#reason = reason
           const labels = {
             connecting: 'podcast.connecting',
             buffering: 'podcast.buffering',
             playing: 'podcast.playing',
             stalled: 'podcast.stalled',
+            retrying: 'podcast.retrying',
             idle: 'podcast.idle',
             paused: 'podcast.paused',
             ended: 'podcast.ended',
             error: 'podcast.playFailed',
           }
           this.#notice(labels[state] ?? state)
-          this.#indicator(state === 'connecting' || state === 'buffering' || state === 'stalled')
+          this.#indicator(['connecting', 'buffering', 'stalled', 'retrying'].includes(state))
           if (state === 'playing') {
             context.ui.setFaceMotionEnabled?.(false)
             this.#effects.show()
@@ -290,14 +347,17 @@ export class PodcastController {
           this.#effects.hide()
           if (state === 'ended' || state === 'idle' || state === 'error' || state === 'paused') this.#restore()
           if (state === 'ended') this.#notice('podcast.ended')
-          if (state === 'error') this.#notice(`Podcast error: ${reason ?? 'unknown'}`)
+          if (state === 'error') this.#notice(`Playback error: ${reason ?? 'unknown'}`)
         },
       })
     } catch (error) {
       if (generation !== this.#playGeneration) return
+      // Validation may reject before the host replaces the previous stream.
+      context.audio.media?.stop()
       this.#state = 'error'
+      this.#reason = String(error)
       this.#restore()
-      this.#notice(`Podcast error: ${String(error)}`)
+      this.#notice(`Playback error: ${String(error)}`)
     }
   }
 }

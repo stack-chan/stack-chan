@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { resetModules } from '../../testing/fakes/modules.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 import FakeWiFi, { getFakeWiFiInstances, resetFakeWiFi } from './fakes/ecma-wifi.js'
 import NTP, { resetNTP } from './fakes/ntp.js'
@@ -10,6 +11,12 @@ import NTP, { resetNTP } from './fakes/ntp.js'
 /** Map Moddable bare imports to local Node test doubles. */
 function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+  for (const name of ['network-power', 'wifi-power-policy']) {
+    writeAliasPackage(modulesRoot, name, resolve(modulesRoot, `connectivity/${name}.js`))
+  }
+  writeAliasPackage(modulesRoot, 'modules', resolve(modulesRoot, 'testing/fakes/modules.js'), {
+    hasDefaultExport: true,
+  })
   writeAliasPackage(modulesRoot, 'network-state', resolve(modulesRoot, 'connectivity/network-state.js'))
   writeAliasPackage(modulesRoot, 'time', resolve(modulesRoot, 'testing/fakes/time.js'), {
     hasDefaultExport: true,
@@ -31,6 +38,7 @@ const ntpDNS = { io: class FakeDNS {} }
 /** Reset platform doubles and install a complete NTP provider for each test. */
 async function setup(configValues: Record<string, unknown> = {}) {
   installBareSpecifierPackages()
+  resetModules()
   resetFakeWiFi()
   resetNTP()
   ;(globalThis as typeof globalThis & { device: unknown }).device = {

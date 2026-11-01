@@ -1,0 +1,18 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "defines": {
+    "main": { "async": 1 }
+  },
+  "modules": {
+    "main": "./startup.test",
+    "media-mod": "../../mod",
+    "media-volume": "../../volume",
+    "media-look-around": "../../look-around",
+    "media-apps": "./ports",
+    "web-radio-config": "../../../web_radio/config",
+    "stackchan-util": "./random"
+  }
+}

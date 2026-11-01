@@ -22,6 +22,7 @@ type EsptoolModule = {
     terminal: LoaderTerminal
     debugLogging: boolean
   }) => {
+    IS_STUB: boolean
     main: () => Promise<string>
     writeFlash: (options: {
       fileArray: { data: Uint8Array; address: number }[]
@@ -35,11 +36,16 @@ type EsptoolModule = {
   }
 }
 
+export type FlashWriteOptions = {
+  eraseAll?: boolean
+}
+
 export type EsptoolAdapter = {
   inspect: () => Promise<string>
   write: (
     files: { bytes: Uint8Array; address: number }[],
-    onProgress: (fileIndex: number, written: number, total: number) => void
+    onProgress: (fileIndex: number, written: number, total: number) => void,
+    options?: FlashWriteOptions
   ) => Promise<void>
   resetToRunApp: () => Promise<void>
   disconnect: () => Promise<void>
@@ -110,8 +116,12 @@ export async function createEsptoolAdapter(
         terminal.flush()
       }
     },
-    write: (files, reportProgress) =>
-      loader.writeFlash({
+    async write(files, reportProgress, { eraseAll = false } = {}) {
+      // esptool-js silently skips eraseAll without a stub. Never report a full erase in that case.
+      if (eraseAll && loader.IS_STUB !== true) {
+        throw new Error('フラッシュ全体の消去に必要なスタブが起動していません。書き込みを中止しました。')
+      }
+      await loader.writeFlash({
         fileArray: files.map(({ bytes, address }) => ({
           data: bytes,
           address,
@@ -119,10 +129,11 @@ export async function createEsptoolAdapter(
         flashSize: 'keep',
         flashMode: 'keep',
         flashFreq: 'keep',
-        eraseAll: false,
+        eraseAll,
         compress: true,
         reportProgress,
-      }),
+      })
+    },
     async resetToRunApp() {
       await port.setSignals({ dataTerminalReady: false, requestToSend: true })
       await new Promise((resolve) => window.setTimeout(resolve, 100))

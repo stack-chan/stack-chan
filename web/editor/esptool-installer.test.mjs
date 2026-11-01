@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
+import { firmwareDescriptorVersion } from '../../firmware/scripts/lib/moddable-version.mjs'
+import { inspectDeploymentCompatibility } from './capabilities.mjs'
+import { xsArchiveVersion } from './mod-builder.mjs'
 
 import {
   bytesToBinaryString,
@@ -138,6 +142,65 @@ test('installModToDevice returns cancellation without writing when preflight is 
   assert.equal(result.status, DEVICE_OPERATION_STATUS.CANCELLED)
   assert.equal(result.operation, 'install')
   assert.deepEqual(calls, ['disconnect'])
+})
+
+test('Media Player rejects API 0/1 before writing and accepts the current host descriptor', async () => {
+  const base = new URL('../mod-gallery/samples/media-player/', import.meta.url)
+  const definition = JSON.parse(readFileSync(new URL('stackchan-mod.json', base), 'utf8'))
+  const artifact = definition.artifacts[0]
+  const archive = new Uint8Array(readFileSync(new URL(artifact.path, base)))
+  const current = firmwareDescriptorVersion('10.0.1')
+  for (const version of ['10.0.1', '10.0.1+stackchan.1', current]) {
+    let writes = 0,
+      confirmations = 0,
+      disconnects = 0
+    const loader = {
+      transport: {
+        async disconnect() {
+          disconnects++
+        },
+      },
+      async main() {
+        return 'ESP32-S3'
+      },
+      async readFlash(address) {
+        if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
+        if (address === 0x10000) return makeAppHeader(version)
+        throw new Error(`unexpected read: ${address}`)
+      },
+      async writeFlash() {
+        writes++
+      },
+    }
+    const install = installModToDevice(async () => loader, {}, archive, {
+      verify: false,
+      onPreflight({ chip, firmware }) {
+        const result = inspectDeploymentCompatibility(artifact.target, {
+          chip,
+          firmwareVersion: firmware.version,
+          hostApiVersion: firmware.hostApiVersion,
+          xsVersion: xsArchiveVersion(archive),
+          entrypoints: definition.entrypoints ?? ['mod'],
+          requirements: definition.capabilities,
+          requireArchive: true,
+          requireFirmware: true,
+        })
+        if (!result.compatible) throw new Error(result.diagnostics.map((item) => item.code).join(','))
+        confirmations++
+        return true
+      },
+    })
+    if (version === current) {
+      assert.equal((await install).status, DEVICE_OPERATION_STATUS.INSTALLED)
+      assert.equal(writes, 1)
+      assert.equal(confirmations, 1)
+    } else {
+      await assert.rejects(install, /VP_HOST_CAPABILITY_UNAVAILABLE/)
+      assert.equal(writes, 0)
+      assert.equal(confirmations, 0)
+    }
+    assert.equal(disconnects, 1)
+  }
 })
 
 test('installModToDevice reads the table, targets the xs offset, and resets', async () => {

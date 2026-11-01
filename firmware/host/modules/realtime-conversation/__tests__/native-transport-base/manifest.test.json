@@ -1,0 +1,11 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../portable/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "*": ["./native-base.c"],
+    "main": "./native-transport-base.test"
+  }
+}

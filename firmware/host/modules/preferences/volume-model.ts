@@ -1,4 +1,6 @@
 export const DEFAULT_VOLUME = 0.5
+/** Full-scale media gain stays within the CoreS3 streaming output limit. */
+export const MAX_MEDIA_VOLUME = 0.2
 export const MIN_VOLUME_PERCENT = 0
 export const MAX_VOLUME_PERCENT = 100
 

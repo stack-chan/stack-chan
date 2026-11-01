@@ -13,7 +13,8 @@
     "realtimeConversation/http-options": "./http-options",
     "realtimeConversation/http-core": "./http-core",
     "realtimeConversation/http-worker": "./http-worker",
-    "realtimeConversation/http-queue": "./http-queue"
+    "realtimeConversation/http-queue": "./http-queue",
+    "realtimeConversation/http-errors": "./http-errors"
   },
   "platforms": {
     "...": {

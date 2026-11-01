@@ -22,6 +22,7 @@ declare module 'realtimeConversation' {
     code: string
     stage: string
     status?: number
+    nativeCode?: number
   }
   export interface ToolContext {
     callId: string
@@ -66,6 +67,17 @@ declare module 'realtimeConversation' {
     onTranscript?(fragment: Transcript): void
     onEvent?(event: { type: string; [key: string]: unknown }): void
     onError?(error: ConversationError): void
+    /** Fixed progress labels only; exceptions from this diagnostic hook are ignored. */
+    onDiagnostic?(
+      phase:
+        | 'transport_create'
+        | 'transport_start'
+        | 'signaling_request'
+        | 'signaling_response'
+        | 'transport_answer'
+        | 'session_wait'
+        | 'session_started',
+    ): void
   }
   export interface ConversationStats {
     capturedSamples: number

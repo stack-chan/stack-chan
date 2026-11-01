@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 
+import { safeHttpCode } from 'realtimeConversation/http-errors'
 import ToolRunner from 'realtimeConversation/tools'
 
 const ENDPOINT = 'https://api.openai.com/v1/live/sessions'
@@ -68,7 +69,7 @@ export default class Conversation {
         hangup: (sessionId) => adapter.hangup({ sessionId }),
       }
     }
-    for (const name of ['onStateChanged', 'onTranscript', 'onEvent', 'onError', 'onToolResult'])
+    for (const name of ['onStateChanged', 'onTranscript', 'onEvent', 'onError', 'onToolResult', 'onDiagnostic'])
       if (options[name] !== undefined && typeof options[name] !== 'function')
         throw new TypeError(`${name} must be a function`)
     this.#key = options.apiKey
@@ -82,6 +83,7 @@ export default class Conversation {
       onEvent: options.onEvent,
       onError: options.onError,
       onToolResult: options.onToolResult,
+      onDiagnostic: options.onDiagnostic,
     }
     for (const name of ['model', 'instructions', 'voice'])
       if (typeof this.#options[name] !== 'string') throw new TypeError(`invalid ${name}`)
@@ -151,12 +153,22 @@ export default class Conversation {
     this.#setState('connecting')
     if (this.#state !== 'connecting') return promise
     try {
-      this.#transport = this.#platform.createTransport((event) => this.#receive(event))
+      this.#diagnostic('transport_create')
+      try {
+        this.#transport = this.#platform.createTransport((event) => this.#receive(event))
+      } catch {
+        throw new ConversationError('Transport construction failed', 'transport_create_failed', 'transport')
+      }
       this.#transport.setVolume(this.#volume)
       this.#connectTimer = this.#after(60000, () =>
         this.#fail(new ConversationError('Session startup timed out', 'connect_timeout', 'connect')),
       )
-      this.#transport.start()
+      this.#diagnostic('transport_start')
+      try {
+        this.#transport.start()
+      } catch {
+        throw new ConversationError('Transport start failed', 'transport_start_failed', 'transport')
+      }
     } catch (error) {
       this.#fail(error)
     }
@@ -225,6 +237,7 @@ export default class Conversation {
     try {
       const options = this.#options
       let response
+      this.#diagnostic('signaling_request')
       if (this.#signaling) {
         response = await this.#signaling.create(
           sdp,
@@ -251,7 +264,7 @@ export default class Conversation {
           }),
         })
       }
-      const text = await response.text()
+      this.#diagnostic('signaling_response')
       if (response.status !== 201)
         throw new ConversationError(
           `Live session creation failed (HTTP ${response.status})`,
@@ -259,6 +272,7 @@ export default class Conversation {
           'signaling',
           response.status,
         )
+      const text = await response.text()
       if (typeof text !== 'string' || text.length > 131072)
         throw new ConversationError('Session response exceeds limit', 'response_limit', 'signaling')
       let result
@@ -281,9 +295,21 @@ export default class Conversation {
         !result.transport.sdp.startsWith('v=0')
       )
         throw new ConversationError('Missing SDP answer', 'invalid_sdp', 'signaling')
-      this.#transport.acceptAnswer(result.transport.sdp)
+      this.#diagnostic('transport_answer')
+      try {
+        this.#transport.acceptAnswer(result.transport.sdp)
+      } catch {
+        throw new ConversationError('Transport answer failed', 'transport_answer_failed', 'transport')
+      }
+      this.#diagnostic('session_wait')
     } catch (error) {
-      if (!this.#finishing && !this.#result) this.#fail(error)
+      if (!this.#finishing && !this.#result) {
+        this.#fail(
+          error instanceof ConversationError
+            ? error
+            : new ConversationError('HTTPS signaling failed', safeHttpCode(error), 'https'),
+        )
+      }
     } finally {
       this.#signalPending = false
     }
@@ -296,8 +322,12 @@ export default class Conversation {
         void this.#signal(event.sdp)
         return
       }
-      if (event.type === 'error')
-        throw new ConversationError(`WebRTC failure (${event.code})`, 'transport_error', event.stage ?? 'transport')
+      if (event.type === 'error') {
+        const error = new ConversationError('WebRTC failure', 'transport_error', event.stage ?? 'transport')
+        if (Number.isInteger(event.code) && event.code >= -2147483648 && event.code <= 2147483647)
+          error.nativeCode = event.code
+        throw error
+      }
       if (event.type === 'disconnected')
         throw new ConversationError('WebRTC disconnected before session.closed', 'connection_lost', 'transport')
       if (event.type !== 'message') return
@@ -316,6 +346,7 @@ export default class Conversation {
         case 'session.started':
           if (message.session?.id !== this.#sessionId)
             throw new ConversationError('Session ID mismatch', 'session_mismatch', 'events')
+          this.#diagnostic('session_started')
           this.#ready = true
           this.#cancelTimer(this.#connectTimer)
           if (this.#state === 'closing') this.#sendClose()
@@ -445,15 +476,22 @@ export default class Conversation {
     try {
       await transport?.close()
       this.#stats = transport?.stats
-    } catch (error) {
+    } catch {
       failed = true
       result = { ...result, finalized: false, reason: 'cleanup_error' }
-      this.#notify('onError', error)
+      this.#notify('onError', new ConversationError('Transport cleanup failed', 'transport_close_failed', 'close'))
     }
     this.#key = undefined
     this.#result = result
     this.#setState(failed ? 'error' : 'closed')
     this.#closing?.resolve(result)
+  }
+  #diagnostic(phase) {
+    try {
+      this.#options.onDiagnostic?.(phase)
+    } catch {
+      // Diagnostic consumers cannot fail the conversation.
+    }
   }
   #setState(state) {
     this.#state = state

@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
+
+import { httpFailure, safeHttpCode } from 'realtimeConversation/http-errors'
 // The HTTP VM is owned by its caller VM; audio, UI and TLS never share a queue.
 export function createHttpProxy({ createWorker, normalize, decode, schedule, cancel, now }) {
   const worker = createWorker()
@@ -10,7 +12,7 @@ export function createHttpProxy({ createWorker, normalize, decode, schedule, can
     if (!job) return
     pending.delete(message.id)
     cancel(job.timer)
-    if (message.error) job.reject(new Error(message.error))
+    if (message.error) job.reject(httpFailure(safeHttpCode(message)))
     else
       job.resolve({
         status: message.status,
@@ -21,22 +23,22 @@ export function createHttpProxy({ createWorker, normalize, decode, schedule, can
 
   return (url, options) =>
     new Promise((resolve, reject) => {
-      if (pending.size >= 8) throw new Error('HTTPS request capacity')
+      if (pending.size >= 8) throw httpFailure('https_capacity')
       const request = normalize(url, options),
         id = ++sequence
       const started = now()
       const job = { resolve, reject }
       job.timer = schedule(() => {
         pending.delete(id)
-        reject(new Error('HTTPS request timed out'))
+        reject(httpFailure('https_timeout'))
       }, request.timeoutMs)
       pending.set(id, job)
       try {
         worker.postMessage({ id, started, request })
-      } catch (error) {
+      } catch {
         pending.delete(id)
         cancel(job.timer)
-        reject(error)
+        reject(httpFailure('https_ipc_failed'))
       }
     })
 }

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createClosingClient, guardSocketCallbacks, requestHttps } from '../http-core.js'
-import { normalizeRequest } from '../http-options.js'
-import { createHttpProxy } from '../http-proxy.js'
+import { loadModule } from './load-module.mjs'
+
+const { createClosingClient, guardSocketCallbacks, requestHttps } = await loadModule('http-core')
+const { normalizeRequest } = await loadModule('http-options')
+const { createHttpProxy } = await loadModule('http-proxy')
 
 const encode = (text) => new TextEncoder().encode(text).buffer
 const decode = (buffer) => new TextDecoder().decode(buffer)
@@ -244,7 +246,7 @@ test('caller deadlines include Worker delivery/queue time; late replies cannot s
   const b = f.post()
   f.worker.onmessage({ id: f.sent[0].id, status: 200, body: encode('late') })
   f.worker.onmessage({ id: f.sent[1].id, error: 'socket failed' })
-  await assert.rejects(b, /socket failed/)
+  await assert.rejects(b, { code: 'https_request_failed' })
 })
 test('IPC and request capacity failures reject without creating an unbounded queue', async () => {
   const f = proxyFixture(),
@@ -255,7 +257,7 @@ test('IPC and request capacity failures reject without creating an unbounded que
   f.worker.postMessage = () => {
     throw new Error('queue full')
   }
-  await assert.rejects(f.post(), /queue full/)
+  await assert.rejects(f.post(), { code: 'https_ipc_failed' })
   assert.ok(f.timers.at(-1).cancelled)
   const g = proxyFixture()
   await assert.rejects(g.fetch('http://insecure/a', { method: 'POST' }), URIError)
@@ -315,4 +317,25 @@ test('streamed overflow rejects after earlier fragments were accepted', async ()
   f.cb.onReadable.call(f.context, 1)
   await assert.rejects(f.promise, /limit/)
   assert.equal(f.closes, 1)
+})
+
+test('HTTPS connection and deadline codes survive the actual Worker queue and proxy', async () => {
+  const { createHttpQueue } = await loadModule('http-queue')
+  const { httpFailure } = await import('../http-errors.js')
+  for (const code of ['https_connection_failed', 'https_timeout']) {
+    const f = proxyFixture()
+    const queue = createHttpQueue({
+      execute: async () => {
+        throw httpFailure(code)
+      },
+      post: (message) => f.worker.onmessage(message),
+      schedule() {},
+      elapsed: () => 0,
+    })
+    f.worker.postMessage = (message) => {
+      void queue(message)
+    }
+    await assert.rejects(f.post(), { code, stage: 'https' })
+    assert.ok(f.timers.at(-1).cancelled)
+  }
 })

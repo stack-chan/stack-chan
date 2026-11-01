@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 // Standard ECMA-419 HTTP callbacks, bounded response and deterministic close.
+
+import { httpFailure } from 'realtimeConversation/http-errors'
 export function requestHttps(request, platform) {
   return new Promise((resolve, reject) => {
     let client,
@@ -33,13 +35,13 @@ export function requestHttps(request, platform) {
       const headers = new Map(request.headers)
       headers.set('content-length', String(body.byteLength))
       headers.set('connection', 'close')
-      timer = platform.schedule(() => finish(new Error('HTTPS request timed out')), request.timeoutMs)
+      timer = platform.schedule(() => finish(httpFailure('https_timeout')), request.timeoutMs)
       client = platform.createClient({
         host: request.host,
         port: request.port,
         certificate: request.certificate,
         onError() {
-          finish(new Error('HTTPS connection failed'))
+          finish(httpFailure('https_connection_failed'))
         },
       })
       client.request({
@@ -49,7 +51,7 @@ export function requestHttps(request, platform) {
         onHeaders(code, responseHeaders) {
           if (finished) return
           status = code
-          if (Number(responseHeaders.get('content-length')) > 131072) finish(new Error('HTTPS response exceeds limit'))
+          if (Number(responseHeaders.get('content-length')) > 131072) finish(httpFailure('https_response_limit'))
         },
         onWritable(count) {
           if (finished || !count) return
@@ -60,14 +62,17 @@ export function requestHttps(request, platform) {
               offset += count
             }
           } catch {
-            finish(new Error('HTTPS write failed'))
+            finish(httpFailure('https_write_failed'))
           }
         },
         onReadable(count) {
           if (finished || !count) return
           try {
             const end = received + count
-            if (end > 131072) throw new Error()
+            if (end > 131072) {
+              finish(httpFailure('https_response_limit'))
+              return
+            }
             if (!buffer || end > buffer.length) {
               const next = new Uint8Array(Math.min(131072, Math.max(end, (buffer?.length ?? 512) * 2)))
               if (buffer) next.set(buffer.subarray(0, received))
@@ -77,15 +82,15 @@ export function requestHttps(request, platform) {
             if (read !== count) throw new Error()
             received = end
           } catch {
-            finish(new Error('HTTPS response exceeds limit or read failed'))
+            finish(httpFailure('https_read_failed'))
           }
         },
         onDone(error) {
-          finish(error || !Number.isInteger(status) ? new Error('HTTPS request failed') : undefined)
+          finish(error || !Number.isInteger(status) ? httpFailure('https_request_failed') : undefined)
         },
       })
-    } catch (error) {
-      finish(error)
+    } catch {
+      finish(httpFailure('https_request_failed'))
     }
   })
 }

@@ -17,6 +17,7 @@ type WebRadioModule = typeof import('../platforms/m5stackchan-cores3/web-radio-p
 
 function installAliases(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+  writeAliasPackage(modulesRoot, 'volume-model', resolve(modulesRoot, 'preferences/volume-model.js'))
   writeAliasPackage(modulesRoot, 'capabilities', resolve(modulesRoot, 'testing/fakes/capabilities.js'))
   writeAliasPackageSubpath(modulesRoot, 'pins', 'audioout', resolve(modulesRoot, 'testing/fakes/audio-out.js'), {
     hasDefaultExport: true,

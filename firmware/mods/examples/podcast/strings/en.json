@@ -28,5 +28,13 @@
   "podcast.seekFailed": "Seek failed",
   "podcast.resumeFailed": "Resume failed",
   "podcast.chooseEpisode": "Select an episode",
-  "podcast.pressPlay": "Press play"
+  "podcast.pressPlay": "Press play",
+  "radio.title": "WebRadio",
+  "radio.stations": "Stations",
+  "radio.stationField": "Station: {title}  >",
+  "media.volume": "Volume: {percent}%",
+  "media.large": "High (100%)",
+  "media.medium": "Medium (50%)",
+  "media.small": "Low (25%)",
+  "media.mute": "Mute"
 }

@@ -3,6 +3,7 @@ import type { MediaCapability, MediaStartOptions, TTS, WebRadioCapability, WebRa
 import type Microphone from 'microphone'
 import type Speaker from 'speaker'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
+import { DEFAULT_VOLUME, MAX_MEDIA_VOLUME } from 'volume-model'
 
 export type RuntimeAudioConstructorParam = {
   tts: TTS
@@ -10,6 +11,8 @@ export type RuntimeAudioConstructorParam = {
   speaker?: Speaker
   webRadio?: WebRadioCapability
   media?: MediaCapability
+  volume?: number
+  onVolumeChanged?: (volume: number) => void
 }
 
 type RuntimeAudioOptions = {
@@ -24,6 +27,9 @@ export class StackchanRuntimeAudio {
   #webRadio: WebRadioCapability | undefined
   #media: MediaCapability | undefined
   #activeOperations = 0
+  #volume: number | undefined
+  #onVolumeChanged: RuntimeAudioConstructorParam['onVolumeChanged']
+  #exclusive = false
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
     this.#options = options
@@ -31,11 +37,47 @@ export class StackchanRuntimeAudio {
     this.#speaker = params.speaker
     this.#webRadio = params.webRadio
     this.#media = params.media
+    this.#volume = params.volume
+    this.#onVolumeChanged = params.onVolumeChanged
     this.useTTS(params.tts)
+  }
+
+  get volume(): number {
+    return this.#volume ?? DEFAULT_VOLUME
+  }
+
+  set volume(volume: number) {
+    if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw new Error('Volume must be between 0 and 1')
+    if (volume === this.#volume) return
+    this.#onVolumeChanged?.(volume)
+    this.#volume = volume
+    // WASM speakers accept tone volume per call but have no mutable volume property.
+    if (this.#speaker && 'volume' in this.#speaker) this.#speaker.volume = volume
+    this.#media?.setVolume(volume * MAX_MEDIA_VOLUME)
+    if (!this.#media) this.#webRadio?.setVolume(volume * MAX_MEDIA_VOLUME)
   }
 
   get microphone() {
     return this.#microphone
+  }
+
+  /** Reserve I2S for a native conversation after existing short playback finishes. */
+  acquireExclusive(): () => void {
+    if (this.#exclusive || this.#activeOperations || this.#microphone?.recording) throw new Error('audio busy')
+    this.#exclusive = true
+    try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
+    } catch (error) {
+      this.#exclusive = false
+      throw error
+    }
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.#exclusive = false
+    }
   }
 
   get tts(): TTS {
@@ -57,16 +99,19 @@ export class StackchanRuntimeAudio {
         media.pause()
       },
       resume() {
-        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
         return media.resume()
       },
       seek(seconds: number) {
-        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
         return media.seek(seconds)
       },
       start(options: MediaStartOptions) {
-        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
-        return media.start(options)
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        return media.start({
+          ...options,
+          volume: options.volume ?? (runtime.#volume === undefined ? undefined : runtime.#volume * MAX_MEDIA_VOLUME),
+        })
       },
       stop() {
         media.stop()
@@ -108,10 +153,13 @@ export class StackchanRuntimeAudio {
         return runtime.#webRadio?.state ?? 'idle'
       },
       start(options: WebRadioStartOptions) {
-        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
         const webRadio = runtime.#webRadio
         if (!webRadio) return Promise.reject(new Error('WebRadio is not supported'))
-        return webRadio.start(options)
+        return webRadio.start({
+          ...options,
+          volume: options.volume ?? (runtime.#volume === undefined ? undefined : runtime.#volume * MAX_MEDIA_VOLUME),
+        })
       },
       stop() {
         runtime.#webRadio?.stop()
@@ -137,11 +185,12 @@ export class StackchanRuntimeAudio {
   }
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
+    if (this.#exclusive) return { success: false, reason: 'audio busy' }
     this.#activeOperations += 1
     try {
       this.#media?.stop()
       this.#webRadio?.stop()
-      await waitForCompletion((callback) => this.#tts.stream(text, volume, callback))
+      await waitForCompletion((callback) => this.#tts.stream(text, volume ?? this.#volume, callback))
       return {
         success: true,
         value: text,
@@ -158,13 +207,14 @@ export class StackchanRuntimeAudio {
   }
 
   async sing(koe: string, volume?: number): Promise<Maybe<string>> {
+    if (this.#exclusive) return { success: false, reason: 'audio busy' }
     this.#activeOperations += 1
     try {
       this.#media?.stop()
       this.#webRadio?.stop()
       const tts = this.#tts
       if (!tts.streamKoe) throw new Error('The active TTS does not support singing.')
-      await waitForCompletion((callback) => tts.streamKoe(koe, volume, callback))
+      await waitForCompletion((callback) => tts.streamKoe(koe, volume ?? this.#volume, callback))
       return {
         success: true,
         value: koe,
@@ -181,13 +231,20 @@ export class StackchanRuntimeAudio {
   }
 
   async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
+    if (this.#exclusive) throw new Error('audio busy')
     if (!this.#microphone) {
       throw Error('This device does not support a microphone.')
     }
-    return this.#microphone.record(durationMilliSec)
+    this.#activeOperations += 1
+    try {
+      return await this.#microphone.record(durationMilliSec)
+    } finally {
+      this.#activeOperations -= 1
+    }
   }
 
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
+    if (this.#exclusive) throw new Error('audio busy')
     if (volume !== undefined && (volume < 0 || volume > 1)) {
       throw new Error('Volume must be between 0 and 1')
     }
@@ -195,13 +252,14 @@ export class StackchanRuntimeAudio {
     try {
       this.#media?.stop()
       this.#webRadio?.stop()
-      await this.#speaker?.tone(hz, duration, volume)
+      await this.#speaker?.tone(hz, duration, volume ?? this.#volume)
     } finally {
       this.#activeOperations -= 1
     }
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
+    if (this.#exclusive) return false
     if (!this.#speaker) return false
     this.#activeOperations += 1
     try {

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
@@ -31,8 +32,9 @@ export function readBuildVariant(markerPath) {
  * @param {string} manifest
  * @returns {string}
  */
-export function resolveBuildVariant(manifest) {
-  return resolve(manifest)
+export function resolveBuildVariant(manifest, context) {
+  const filename = resolve(manifest)
+  return context ? `${filename}#${createHash('sha256').update(JSON.stringify(context)).digest('hex')}` : filename
 }
 
 /**

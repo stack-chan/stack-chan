@@ -12,7 +12,9 @@ npm run mod:m5stackchan_cores3 -- ./mods/examples/web_radio/manifest.json
 
 起動するとネットワーク接続を待ってGroove Saladの再生を開始します。Drawerの`ラジオ`から`ラジオ停止`、SomaFM 7局、Radio Paradiseを選択できます。接続中、バッファリング中、ストリーム停止からの再接続待ちにはAppBar左上のインジケータを表示します。再生中は音声処理の余裕を確保するため、顔の呼吸、瞬き、視線移動を一時停止します。
 
-局は`mod.ts`の`STATIONS`にラベル名と直接MP3 URLを追加できます。SomaFM以外も同じ形式で選択肢にできます。
+局は`config.ts`の`STATIONS`にラベル名と直接MP3 URLを追加できます。SomaFM以外も同じ形式で選択肢にできます。局設定は[メディアプレイヤーMOD](../media_player/README.md)とも共有します。PodcastとRadioのmini-appを手動で切り替えて使う場合は、そちらを使用してください。
+
+音量はホストの保存済み`tts.volume`に従います。gainは`tts.volume × 0.2`となり、既定値50%では従来の固定gain 0.2から0.1へ変わります。100%では従来と同じ0.2、ミュートでは0です。設定画面で音量を変更してから再起動すると、このMODにも反映されます。
 
 ## 制約
 

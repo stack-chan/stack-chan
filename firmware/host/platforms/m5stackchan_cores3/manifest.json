@@ -7,6 +7,7 @@
   "include": [
     "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",
     "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json",
+    "$(MODDABLE)/modules/drivers/sensors/rfid/st25r3916/manifest.json",
     "$(MODDABLE)/modules/files/flash/manifest.json",
     "$(MODULES)/io/files/esp32/manifest_sdspi.json"
   ],

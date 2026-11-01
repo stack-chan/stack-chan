@@ -1,0 +1,5 @@
+{
+  "include": ["../../../../manifest.json"],
+  "modules": { "main": "./main" },
+  "creation": { "stack": 1024 }
+}

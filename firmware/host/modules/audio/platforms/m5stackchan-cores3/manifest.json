@@ -1,5 +1,6 @@
 {
   "modules": {
+    "volume-model": "../../../preferences/volume-model",
     "media-player": "./media-player",
     "web-radio-player": "./web-radio-player",
     "web-radio-audio-out": "./web-radio-audio-out",

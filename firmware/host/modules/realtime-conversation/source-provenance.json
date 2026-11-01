@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "085a99b16b316f1b9d5cb1b08c3fabcd4d9e04af",
+  "introducedBy": "4eadde0e8792dcfd785b82040168da91b2ba0e69",
+  "sourceDirectory": "modules/network/services/realtimeConversation",
+  "originalSha256": {
+    "tools.js": "7f795608b3f584c0ff6675b98d2f3a72e81cf2e225d3bca364960190a73c95bb",
+    "broker.js": "c7896415e9c57ae337c8cc45f329a84127e446cb4b98a23997133259eff5c3d4",
+    "http.js": "701bb981abd06eb666495ee85b217d44cc84efb3892b72be91928aa1ff1c66a0",
+    "realtimeConversation.js": "788e00b19e5903a6c42d0a7242a96ec59581cc46062f8ed6fb23e8eb2a7dcc86",
+    "core.js": "e34d68aadabe33dfe28cbe6f1c68c0b5fe781cbe8d44c7ef2ba90372000b935b",
+    "httpCore.js": "38fd09e933eca78f50390a6a884d56927a7cd7dcf837508ec575c948a973be2b",
+    "esp32/liveAudio.c": "164eb961e547e650791a12f0d2af6fbdf38842406f2ceaa96036d318c98773e4",
+    "esp32/transport.js": "4e8fcfc763e6b081819f37640ebcec688a6512f6d988ef6badc9e8c1c53e64ca",
+    "esp32/liveAudio.h": "03ae416aaaccb6fbb409bd2b1390d02c31c9ca57ff09612ae178f9b0fc11d157",
+    "esp32/transport.c": "0b56c87454cbc929b7f6446fae27ee3e627165b15e0d4b7fec62df89ce6abd3c",
+    "realtimeConversation.d.ts": "a4bf6d83e7e137a895a4e2a26ef65777c727a62a72c00d7282ee1f53791e7769"
+  },
+  "license": "Apache-2.0",
+  "copyright": "2026 Shinya Ishikawa"
+}

@@ -1,0 +1,8 @@
+{
+  "include": ["./manifest.json"],
+  "config": {
+    "openaiLive": {
+      "apiKey": ""
+    }
+  }
+}

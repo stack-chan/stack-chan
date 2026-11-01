@@ -1,7 +1,17 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
@@ -81,20 +91,30 @@ if (
   )
 }
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
+if (
+  !dryRun &&
+  ['m5stackchan_cores3', 'stackchan_rt'].includes(deviceName) &&
+  command !== 'mod' &&
+  command !== 'mod:build'
+) {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
+      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
+      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
     process.exit(1)
   }
+}
+
+if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
-    const versionSdkconfig = prepareCoreS3VersionSdkconfig()
+    const versionSdkconfig = prepareCoreS3VersionSdkconfig({ realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1' })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
@@ -139,13 +159,15 @@ if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].i
 const buildVariantChanged =
   !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
 
-if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
+if (buildVariantChanged && ['m5stackchan_cores3', 'stackchan_rt'].includes(deviceName)) {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
+      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
+      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared after target clean: ${error.message}`)
@@ -203,11 +225,26 @@ switch (command) {
     }
     const packageDirectory = findPackageDirectory(modInput)
     const projectDirectory = packageDirectory ?? path.dirname(path.resolve(modInput))
-    const projectName = path.basename(projectDirectory)
+    const projectName = packageDirectory
+      ? path.basename(JSON.parse(readFileSync(path.join(packageDirectory, 'package.json'), 'utf8')).name)
+      : path.basename(projectDirectory)
     if (packageDirectory) {
+      // mcpack lowercases the complete -p argument, including custom paths.
+      // A lowercase temporary alias preserves case-sensitive checkout paths.
+      let packagePlatformPath = path.resolve(device.platform)
+      if (process.platform !== 'win32' && packagePlatformPath !== packagePlatformPath.toLowerCase()) {
+        const aliasRoot = path.join('/tmp', `stackchan-mod-platform-${randomUUID()}`)
+        packagePlatformPath = path.join(aliasRoot, 'board')
+        if (!dryRun) {
+          mkdirSync(aliasRoot, { mode: 0o700 })
+          process.once('exit', () => rmSync(aliasRoot, { recursive: true, force: true }))
+          symlinkSync(path.resolve(device.platform), packagePlatformPath, 'dir')
+        }
+      }
+      const packagePlatform = `esp32:${packagePlatformPath}`
       run(
         'mcpack',
-        ['mcrun', ...buildModeArgs, '-m', '-p', platform, '-t', 'build', ...outputArgs, ...args.slice(1)],
+        ['mcrun', ...buildModeArgs, '-m', '-p', packagePlatform, '-t', 'build', ...outputArgs, ...args.slice(1)],
         packageDirectory,
       )
     } else {
@@ -278,20 +315,33 @@ function run(bin, binArgs, cwd = process.cwd()) {
  * previous manifest because every host variant has the same application name.
  */
 function prepareBuildVariant() {
+  if (!process.env.MODDABLE || !existsSync(process.env.MODDABLE)) {
+    console.error('[stack-chan] MODDABLE が設定されていません。`npm run setup` を実行してください。')
+    process.exit(1)
+  }
   const markerPath = buildVariantMarkerPath({
     outputDirectory: buildOutputDirectory,
     deviceName,
     mode: buildMode,
     applicationName: hostApplicationName,
   })
-  const selectedVariant = resolveBuildVariant(manifest)
+  const selectedManifest = path.resolve(manifest)
+  const selectedVariant = resolveBuildVariant(manifest, {
+    sdk: realpathSync(process.env.MODDABLE),
+    idf: process.env.IDF_PATH,
+    realtime: process.env.STACKCHAN_REALTIME_WEBRTC,
+    measured: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE,
+    systemTrace: process.env.STACKCHAN_REALTIME_SYSTEM_TRACE,
+    solution: process.env.ESP_WEBRTC_SOLUTION,
+    manifest: readFileSync(selectedManifest, 'utf8'),
+  })
   if (readBuildVariant(markerPath) === selectedVariant) return false
 
   console.log(`[stack-chan] cleaning target before manifest switch: ${manifest}`)
   ensureBuildOutputDirectory()
   const result = spawnSync(
     'mcconfig',
-    [...buildModeArgs, '-m', '-p', platform, '-t', 'clean', ...outputArgs, selectedVariant],
+    [...buildModeArgs, '-m', '-p', platform, '-t', 'clean', ...outputArgs, selectedManifest],
     { env: subprocessEnvironment, stdio: 'inherit' },
   )
   if (result.error) {

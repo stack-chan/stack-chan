@@ -4,6 +4,7 @@ import { getLocalizationLanguage, normalizeLocale, type SupportedLocale, setLoca
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
+import { BLE_PREFERENCE_WRITE_WINDOW_MS } from 'preference-write-guard'
 import { createSettingsNetworkEntries, type RawWiFiScanResult, type SettingsNetworkEntry } from 'settings-network-list'
 import { createInitialSettingsStatus } from 'settings-status'
 import {
@@ -278,5 +279,11 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       effectiveValues,
       readOnlyKeys: preferences.driver.typeLocked === true ? ['driver.type'] : [],
     })
+    try {
+      preferenceServer.enableWrites(BLE_PREFERENCE_WRITE_WINDOW_MS)
+    } catch (error) {
+      // enableWrites fails closed; local Settings and its normal exit cleanup remain usable.
+      trace(`[settings] BLE preference writes unavailable: ${String(error)}\n`)
+    }
   })
 }

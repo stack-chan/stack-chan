@@ -153,7 +153,7 @@ class Artwork extends Behavior {
 }
 
 /** Regular MOD mini app: audio stays under the host's shared media owner. */
-export function createPodcastView(controller, context, i18n) {
+export function createPodcastView(controller, context, i18n, radio = false) {
   const t = i18n.localize
   const font = i18n.locale === 'zh-CN' ? 'PodcastCJK-12' : 'k8x12-12'
   const style = new Style({ font, color: '#0f172a', horizontal: 'left', vertical: 'middle' })
@@ -162,7 +162,7 @@ export function createPodcastView(controller, context, i18n) {
     white: new Style({ font, color: '#ffffff', horizontal: 'center', vertical: 'middle' }),
   }
   const root = new Container(null, {
-    name: 'podcast',
+    name: radio ? 'radio' : 'podcast',
     width: context.width,
     height: context.height,
     skin: background,
@@ -189,7 +189,7 @@ export function createPodcastView(controller, context, i18n) {
     root.empty()
     const state = snapshot
     if (screen !== 'player') {
-      const items = screen === 'feeds' ? state.feeds : state.episodes
+      const items = radio ? state.stations : screen === 'feeds' ? state.feeds : state.episodes
       page = Math.min(page, Math.max(0, Math.ceil(items.length / rows) - 1))
       root.add(
         new Label(null, {
@@ -197,7 +197,7 @@ export function createPodcastView(controller, context, i18n) {
           right: 8,
           top: 0,
           height: 32,
-          string: `${t(screen === 'feeds' ? 'podcast.feeds' : 'podcast.episodes')}  ${items.length ? page + 1 : 0}/${Math.ceil(items.length / rows)}`,
+          string: `${t(radio ? 'radio.stations' : screen === 'feeds' ? 'podcast.feeds' : 'podcast.episodes')}  ${items.length ? page + 1 : 0}/${Math.ceil(items.length / rows)}`,
           style,
         }),
       )
@@ -214,14 +214,16 @@ export function createPodcastView(controller, context, i18n) {
         )
       items.slice(page * rows, (page + 1) * rows).forEach((item, offset) => {
         const index = page * rows + offset
-        const selected = index === (screen === 'feeds' ? state.feedIndex : state.episodeIndex)
+        const selected =
+          index === (radio ? state.stationIndex : screen === 'feeds' ? state.feedIndex : state.episodeIndex)
         add(
           `item:${index}`,
           `${selected ? '● ' : ''}${item.title}`,
           () => {
             const feed = screen === 'feeds'
             screen = 'player'
-            if (feed) void controller.selectFeed(index)
+            if (radio) controller.selectStation(index)
+            else if (feed) void controller.selectFeed(index)
             else controller.selectEpisode(index)
             render()
           },
@@ -248,6 +250,50 @@ export function createPodcastView(controller, context, i18n) {
         },
         { left: 208, right: 4, top: bottom, height: 36 },
         (page + 1) * rows < items.length,
+      )
+      return
+    }
+    if (radio) {
+      add(
+        'station',
+        t('radio.stationField', { title: state.stations[state.stationIndex]?.title ?? t('podcast.unregistered') }),
+        () => switchScreen('stations'),
+        { left: 8, right: 8, top: 8, height: 52 },
+        state.stations.length > 0,
+      )
+      const current = state.radioState
+      root.add(
+        new Text(null, {
+          name: 'status',
+          left: 12,
+          right: 12,
+          top: 68,
+          height: 72,
+          style,
+          string: `${t(`podcast.${current === 'error' ? 'playFailed' : current}`)}${state.source === 'radio' && state.reason ? `\n${state.reason}` : ''}`,
+        }),
+      )
+      const active = ['connecting', 'buffering', 'playing', 'stalled', 'retrying'].includes(current)
+      const half = Math.floor(width / 2)
+      root.add(
+        iconButton(
+          styles,
+          'play',
+          'play',
+          () => void controller.playRadio(),
+          { left: 8, width: half - 12, top: bottom, height: 36 },
+          !!state.stations.length && !active,
+        ),
+      )
+      root.add(
+        iconButton(
+          styles,
+          'stop',
+          'stop',
+          () => controller.stopRadio(),
+          { left: half + 4, right: 8, top: bottom, height: 36 },
+          current !== 'idle',
+        ),
       )
       return
     }
@@ -341,6 +387,11 @@ export function createPodcastView(controller, context, i18n) {
       state.episodes,
       state.feedIndex,
       state.episodeIndex,
+      state.stations,
+      state.stationIndex,
+      state.radioState,
+      state.source,
+      state.reason,
       state.state,
       state.feedError,
       state.playbackError,
@@ -371,4 +422,8 @@ export function createPodcastView(controller, context, i18n) {
       unsubscribe()
     },
   }
+}
+
+export function createRadioView(controller, context, i18n) {
+  return createPodcastView(controller, context, i18n, true)
 }

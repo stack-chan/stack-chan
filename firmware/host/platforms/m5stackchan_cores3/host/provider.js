@@ -19,6 +19,7 @@
  */
 
 import Touch from 'M5StackCoreS3Touch'
+import RFID from 'embedded:sensor/RFID/ST25R3916'
 import TouchPanel from 'embedded:sensor/Touch/Si12T'
 import device from 'sdk-board-provider'
 
@@ -49,6 +50,18 @@ device.sensor.TouchPanel = class {
     return new TouchPanel({
       ...options,
       sensor: { ...device.i2c.internal, io: device.io.SMBus },
+    })
+  }
+}
+
+// Optional: no instance or RF field is created until a MOD requests RFID.
+// Use the same hardware bus/port as Touch, IMU and the PY32 expander.
+device.sensor.RFID = class {
+  constructor(options) {
+    // biome-ignore lint/correctness/noConstructorReturn: Moddable providers return peripheral instances.
+    return new RFID({
+      ...options,
+      sensor: { ...device.i2c.internal, io: device.io.SMBus, address: 0x50, hz: 400_000 },
     })
   }
 }

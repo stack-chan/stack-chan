@@ -28,5 +28,13 @@
   "podcast.seekFailed": "跳转失败",
   "podcast.resumeFailed": "恢复播放失败",
   "podcast.chooseEpisode": "请选择单集",
-  "podcast.pressPlay": "请按播放"
+  "podcast.pressPlay": "请按播放",
+  "radio.title": "网络电台",
+  "radio.stations": "电台",
+  "radio.stationField": "电台: {title}  >",
+  "media.volume": "音量: {percent}%",
+  "media.large": "大 (100%)",
+  "media.medium": "中 (50%)",
+  "media.small": "小 (25%)",
+  "media.mute": "静音"
 }

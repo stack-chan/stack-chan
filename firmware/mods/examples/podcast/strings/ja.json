@@ -28,5 +28,13 @@
   "podcast.seekFailed": "移動できませんでした",
   "podcast.resumeFailed": "再開できませんでした",
   "podcast.chooseEpisode": "エピソードを選択してください",
-  "podcast.pressPlay": "再生を押してください"
+  "podcast.pressPlay": "再生を押してください",
+  "radio.title": "WebRadio",
+  "radio.stations": "放送局",
+  "radio.stationField": "放送局: {title}  >",
+  "media.volume": "音量: {percent}%",
+  "media.large": "大 (100%)",
+  "media.medium": "中 (50%)",
+  "media.small": "小 (25%)",
+  "media.mute": "ミュート"
 }

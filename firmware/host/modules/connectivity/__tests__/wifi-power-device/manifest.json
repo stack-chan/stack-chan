@@ -1,0 +1,18 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODULES)/base/modules/manifest.json",
+    "$(MODULES)/io/wifi/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "network-power": "../../network-power",
+    "wifi-power-policy": "../../wifi-power-policy",
+    "wifi-power-save": "../../esp32/wifi-power-save",
+    "*": [
+      "$(MODULES)/pins/i2s/sbc_decoder",
+      "$(MODULES)/pins/i2s/dvi_adpcm_decode"
+    ]
+  }
+}

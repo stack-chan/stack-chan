@@ -2,21 +2,12 @@
 
 import type { StackchanContext, WebRadioState } from 'capabilities'
 import { MusicNotes } from 'effects/music-notes'
+import { STATIONS } from 'web-radio-config'
 
-const RADIO_VOLUME = 0.2
 const EFFECT_KEY = 'web-radio:music-notes'
 const DRAWER_KEY = 'web-radio:station'
 const OFF_VALUE = 'off'
-const STATIONS = [
-  { value: 'groovesalad', label: 'Groove Salad', url: 'http://ice2.somafm.com/groovesalad-128-mp3' },
-  { value: 'dronezone', label: 'Drone Zone', url: 'http://ice2.somafm.com/dronezone-128-mp3' },
-  { value: 'deepspaceone', label: 'Deep Space One', url: 'http://ice2.somafm.com/deepspaceone-128-mp3' },
-  { value: 'spacestation', label: 'Space Station Soma', url: 'http://ice2.somafm.com/spacestation-128-mp3' },
-  { value: 'secretagent', label: 'Secret Agent', url: 'http://ice2.somafm.com/secretagent-128-mp3' },
-  { value: 'beatblender', label: 'Beat Blender', url: 'http://ice2.somafm.com/beatblender-128-mp3' },
-  { value: 'indiepop', label: 'Indie Pop Rocks!', url: 'http://ice2.somafm.com/indiepop-128-mp3' },
-  { value: 'radioparadise', label: 'Radio Paradise', url: 'http://stream-tx1.radioparadise.com/mp3-128' },
-] as const
+
 const DEFAULT_STATION = STATIONS[0].value
 const DRAWER_OPTIONS = [
   { value: OFF_VALUE, label: 'ラジオ停止' },
@@ -78,7 +69,6 @@ function selectStation(context: StackchanContext, value: string): void {
   void radio
     .start({
       url: station.url,
-      volume: RADIO_VOLUME,
       sampleRate: 44100,
       reconnect: true,
       onStateChanged: (state, reason) => onRadioState(context, station.value, state, reason),

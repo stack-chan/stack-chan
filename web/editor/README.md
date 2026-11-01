@@ -36,7 +36,7 @@ engine.
 
 ## Rebuilding `vendor/tools.wasm`
 
-The tools binary embeds a Moddable SDK version (currently **10.0.1**, XS 17.9) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
+The tools binary embeds a Moddable SDK version (currently **10.0.2**, XS 17.9) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
 
 ```sh
 cd firmware

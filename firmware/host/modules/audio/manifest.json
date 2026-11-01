@@ -1,12 +1,13 @@
 {
   "include": [
+    "$(MODDABLE)/examples/manifest_net.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
     "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",
-    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "$(MODULES)/web/fetch/manifest.json",
     "$(MODDABLE)/modules/base/worker/manifest.json",
     "$(MODDABLE)/modules/base/uuid/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",

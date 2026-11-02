@@ -46,7 +46,7 @@ const behavior = {
     assert(firstFinished && secondFinished, 'resource release must complete every close caller')
     assert(context.lifecycle.close() === first, 'closed context must retain the same completion')
     assert(closeCount === 1, 'repeated close must not release the MOD resource twice')
-    trace('[MiniApp Lin Smoke] ok\n')
+    trace('[MiniApp Lin Smoke] context cleanup ok\n')
   },
   onClose() {
     closeCount++

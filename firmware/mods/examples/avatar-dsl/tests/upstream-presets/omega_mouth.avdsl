@@ -1,0 +1,272 @@
+-- SPDX-FileCopyrightText: 2026 Kenta IDA <fuga@fugafuga.org>
+-- SPDX-License-Identifier: BSL-1.0
+--
+-- 別の顔のサンプル: 口を ω 形に。
+-- assets/default_face.avdsl のうち `mouth(...)` 関数だけを `mouth_omega(...)`
+-- に置き換えた版。目 / 眉 / 表情エフェクトは default と同一なので、見比べると
+-- DSL で「パーツを 1 つだけ差し替える」やり方の参考になる。
+--
+-- 使い方:
+--   1. avatar.html もしくは Wi-Fi 設定ページ「顔描画 DSL」セクションの
+--      テキスト エリアに本ファイルの内容を貼付け
+--   2. 「コンパイル & 適用」 (avatar.html) または「コンパイル & 送信」
+--      (Wi-Fi 設定) で反映
+--   3. テキスト下の「.avbc ダウンロード」で生成バイトコードを保存して
+--      curl で送ることもできる
+--
+-- ω 形の合成手順:
+--   1. 左右に塗りつぶし円を 2 つ並べる (ロブ)
+--   2. 内側を 1 回り小さい bg 円で刳り抜いて「リング」化
+--   3. リングの上半分を bg 矩形でマスク → 下半分の弧 (∪) が残る
+--   4. 2 つの ∪ の間に bg 三角形を上向きに置いて中央の谷を作る
+--      → ω の中央ピーク (細い ∧)
+--   5. mouth_open > 0 のとき:
+--      - ロブ半径と中央ピーク高さを少し増やす
+--      - ω の左右外端から下に「壁」と、最下端を結ぶ「床」を追加
+--        → ω の下に「開いた口の内部」が現れて全体が縦に伸びる。
+
+----------------------------------------------------------------------
+-- 共通パーツ (default_face.avdsl から流用)
+----------------------------------------------------------------------
+
+fn eye(center_x, center_y, r, is_left, bo)
+  let cx = center_x + gaze_h * 3
+  let cy = center_y + gaze_v * 3 + bo
+  let half = r + 16
+  begin_group(center_x - half, center_y - half, half * 2, half * 2)
+  if eye_open <= 0 then
+    fill_rect(cx - r, cy - 2, r * 2, 4, primary)
+  else
+    fill_circle(cx, cy, r, primary)
+    if expr == ANGRY or expr == SAD then
+      let flip = is_left ~= (expr == ANGRY)
+      let x2 = cx + r
+      if flip then x2 = cx - r end
+      fill_triangle(cx - r, cy - r, cx + r, cy - r, x2, cy, background)
+    elif expr == HAPPY then
+      fill_rect(cx - r, cy, r * 2 + 4, r + 2, background)
+      fill_circle(cx, cy, round(r / 1.5), background)
+    elif expr == SLEEPY then
+      fill_rect(cx - r, cy - r, r * 2 + 4, r + 2, background)
+    end
+  end
+  end_group()
+end
+
+fn eyebrow(cx, cy_base, w, h, is_left, bo)
+  let cy = cy_base + bo
+  let hw = w / 2 + 6
+  let hh = h / 2 + 12
+  begin_group(cx - hw, cy_base - hh, hw * 2, hh * 2)
+  if expr == ANGRY or expr == SAD then
+    let aspect = 1
+    if is_left ~= (expr == SAD) then aspect = -1 end
+    let dx = aspect * 3
+    let dy = aspect * 5
+    let x1 = cx - w / 2
+    let x4 = cx + w / 2
+    let x2 = x1 - dx
+    let x3 = x4 + dx
+    let y1 = cy - h / 2 - dy
+    let y2 = cy + h / 2 - dy
+    let y3 = cy - h / 2 + dy
+    let y4 = cy + h / 2 + dy
+    fill_triangle(x1, y1, x2, y2, x3, y3, primary)
+    fill_triangle(x2, y2, x3, y3, x4, y4, primary)
+  else
+    let happy_off = 0
+    if expr == HAPPY then happy_off = -5 end
+    let x = cx - w / 2
+    let y = cy - h / 2 + happy_off
+    fill_rect(x, y, w, h, primary)
+  end
+  end_group()
+end
+
+fn draw_sweat(x, y, r, offset, color)
+  let yy = y + floor(offset * 5)
+  let rr = r + floor(r * 0.2 * offset)
+  let a = sqrt(3) * rr / 2
+  fill_circle(x, yy, round(rr), color)
+  fill_triangle(x, yy - rr * 2, x - a, yy - rr * 0.5, x + a, yy - rr * 0.5, color)
+end
+
+fn draw_anger(cx, cy, r, offset, fg, bg)
+  let rr = r + r * 0.4 * offset
+  fill_rect(cx - rr / 3, cy - rr, rr * 2 / 3, rr * 2, fg)
+  fill_rect(cx - rr, cy - rr / 3, rr * 2, rr * 2 / 3, fg)
+  fill_rect(cx - rr / 3 + 2, cy - rr, rr * 2 / 3 - 4, rr * 2, bg)
+  fill_rect(cx - rr, cy - rr / 3 + 2, rr * 2, rr * 2 / 3 - 4, bg)
+end
+
+fn draw_chill(x, y, r, offset, color)
+  let h = r + abs(r * 0.2 * offset)
+  let h_half = round(h / 2)
+  fill_rect(x - h_half, y, 3, h_half, color)
+  fill_rect(x, y, 3, h * 3 / 4, color)
+  fill_rect(x + h_half, y, 3, h, color)
+end
+
+fn draw_bubble(x, y, r, offset, color)
+  let rr = r + floor(r * 0.2 * offset)
+  let r_small = round(rr / 4)
+  fill_circle(x, y, rr, color)
+  fill_circle(x, y, r_small, color)
+end
+
+fn draw_heart(x, y, r, offset, color)
+  let rr = r + r * 0.4 * offset
+  let a = rr * 1.41421356 / 4
+  let lobe_r = round(rr / 2)
+  fill_circle(x - rr / 2, y, lobe_r, color)
+  fill_circle(x + rr / 2, y, lobe_r, color)
+  fill_triangle(x, y, x - rr / 2 - a, y + a, x + rr / 2 + a, y + a, color)
+  fill_triangle(x, y + rr / 2 + 2 * a, x - rr / 2 - a, y + a, x + rr / 2 + a, y + a, color)
+end
+
+fn effect()
+  if expr == NEUTRAL then return end
+  let gx = tx(236)
+  let gy = ty(-8)
+  let gw = canvas_w - gx
+  let gh = ty(136) - gy
+  begin_group(gx, gy, gw, gh)
+  if expr == HAPPY then
+    draw_heart(tx(280), ty(50), sz(12), breath, primary)
+  elif expr == DOUBT then
+    draw_sweat(tx(290), ty(110), sz(7), breath, primary)
+  elif expr == ANGRY then
+    draw_anger(tx(280), ty(50), sz(12), breath, primary, background)
+  elif expr == SAD then
+    draw_chill(tx(270), ty(0), sz(30), breath, primary)
+  elif expr == SLEEPY then
+    draw_bubble(tx(290), ty(40), sz(10), breath, primary)
+    draw_bubble(tx(270), ty(52), sz(6),  breath, primary)
+  end
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- ω 形 の口 (この サンプルの本体)
+----------------------------------------------------------------------
+--
+-- パラメータ:
+--   cx, cy : 口の中心 (スケーリング後の実画面座標)
+--   color  : 線色 (= primary)
+--   bg     : 刳り抜き / マスク 色 (= background)
+--   bo     : 呼吸オフセット (breath * 3)
+--
+-- リング厚 / ロブ半径 / 中央ピーク高さ を mouth_open で動かしているので、
+-- 喋ると ω が開閉する。
+
+fn mouth_omega(cx, cy, color, bg, bo)
+  let m = mouth_open                  -- 0..1
+  let r = sz(8 + m * 3)               -- ロブ半径 (開くとやや大きく)
+  let dx = sz(9 + m * 2)              -- 中心からロブ中心までの距離
+  let thick = max(1, round(r * 0.35)) -- リングの線太さ
+  let my = cy + bo
+  let ext = sz(m * 22)                -- 縦方向の伸び (m=0 で 0、m=1 で大きく)
+
+  -- グループ bbox: ω 本体 + 下方への伸び ext + 床 thick + 余白 を覆う。
+  -- ※ DirectCanvas (PSRAM 無) はこの bbox 内のみクリアするので、開閉で
+  --    最大に伸びる範囲を漏らさず覆っておかないと前フレームの残骸が出る。
+  let gw_half = dx + r + 2
+  begin_group(cx - gw_half, my - r - 2, gw_half * 2, r + ext + thick + 6)
+
+  -- 1) 左右に塗りつぶし円 (ロブ本体)
+  fill_circle(cx - dx, my, r, color)
+  fill_circle(cx + dx, my, r, color)
+
+  -- 2) 内側を bg 円で刳り抜いてリング化
+  let ri = max(1, r - thick)
+  fill_circle(cx - dx, my, ri, bg)
+  fill_circle(cx + dx, my, ri, bg)
+
+  -- 3) リングの上半分を bg 矩形でマスク → 下半分の ∪ 弧が残る
+  fill_rect(cx - dx - r, my - r, r * 2, r, bg)
+  fill_rect(cx + dx - r, my - r, r * 2, r, bg)
+
+  -- 4) 2 つの ∪ の間に三角形を上向きに → 中央ピーク (∧)
+  --    foot は ロブ外周 と ぶつからない位置に。開くと中央ピークも少し高く。
+  let peak_h = sz(5 + m * 4)
+  let foot_l = cx - dx + r - max(1, thick - 1)
+  let foot_r = cx + dx - r + max(1, thick - 1)
+  fill_triangle(foot_l, my, foot_r, my, cx, my - peak_h, color)
+
+  -- 5) 開口部 (mouth_open による縦伸び)
+  --    壁 + 床。ただし「床の自然位置 (my + 1 + ext)」が ω 下端 (my + r)
+  --    を超えるまでは何も描かない — そうしないと小さな開きで床がロブの
+  --    途中を横切って見栄えが悪い。条件成立後は:
+  --      ・壁は左右ロブの底接点 (cx ± dx, my + r) から下方に伸びる
+  --        (外端 cx ± (dx + r) から伸ばすと、その x ではロブが ω 下端
+  --         まで存在しないので壁が宙ぶらりんに見える)
+  --      ・床はその壁の下端を渡し、幅は左壁外〜右壁外
+  --    閾値前: 純粋な ω のまま (mouth_open が 0.4 弱までは見た目変化なし)
+  let omega_bottom = my + r
+  let floor_y = my + 1 + ext*2
+  if floor_y > omega_bottom then
+    let visible_ext = floor_y - omega_bottom + 1
+    let half_t = floor(thick / 2)
+    let wall_xl = cx - dx - half_t
+    let wall_xr = cx + dx - half_t
+    fill_rect(wall_xl, omega_bottom, thick, visible_ext, color)
+    fill_rect(wall_xr, omega_bottom, thick, visible_ext, color)
+    fill_rect(wall_xl, floor_y, dx * 2 + thick, thick, color)
+  end
+
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- エントリ
+
+
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+-- Accessory slot 0: cat collar — a red band across the bottom of the
+-- screen with a gold bell hanging from its centre. Static (no breath
+-- offset): it sits on the "neck", not the face. Drawn last so it paints
+-- over the mouth / effects. Enable via FaceTuning accessories bit 0
+-- (settings UI "アクセサリ 1", JSON "acc": 1).
+----------------------------------------------------------------------
+fn collar()
+  let band_y = ty(214)
+  let band_h = sz(24)
+  let gx = tx(0)
+  let gw = sz(320)
+  begin_group(gx, band_y - sz(14), gw, band_h + sz(16))
+  fill_rect(gx, band_y, gw, band_h, 0xF800)
+  -- bell: gold disc on the band, dark slit + clapper dot below
+  let bx = tx(160)
+  let by = ty(224)
+  let br = sz(13)
+  fill_circle(bx, by, br, 0xFEA0)
+  fill_rect(bx - sz(9), by - sz(1), sz(18), sz(2), 0x8200)
+  fill_circle(bx, by + sz(8), sz(3), 0x8200)
+  end_group()
+end
+
+fn draw()
+  let bo = breath * 3
+
+  -- 目 (default と同じ)
+  let er = sz(eye_radius)
+  eye(tx(230 + eye_off_x), ty(96 + eye_off_y), er, false, bo)
+  eye(tx(90  - eye_off_x), ty(93 + eye_off_y), er, true,  bo)
+
+  -- 眉 (default と同じ)
+  if eyebrows_visible then
+    let bw = sz(32)
+    let bh = sz(2)
+    eyebrow(tx(96  - brow_off_x), ty(67 + brow_off_y), bw, bh, false, bo)
+    eyebrow(tx(230 + brow_off_x), ty(72 + brow_off_y), bw, bh, true,  bo)
+  end
+
+  -- 口だけ ω 形に差し替え
+  mouth_omega(tx(160 + mouth_off_x), ty(148 + mouth_off_y), primary, background, bo)
+
+  effect()
+  -- accessories (FaceTuning slots; slot 0 = collar + bell)
+  if accessory_0 then collar() end
+end

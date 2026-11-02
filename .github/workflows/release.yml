@@ -24,7 +24,8 @@ concurrency:
 
 jobs:
   build-release-assets:
-    runs-on: ubuntu-latest
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.metadata.outputs.version }}
     steps:

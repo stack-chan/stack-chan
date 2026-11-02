@@ -1,0 +1,71 @@
+name: Avatar DSL editor
+
+on:
+  pull_request:
+    paths:
+      - "web/**"
+      - "firmware/tools/avatar-dsl/**"
+      - "firmware/mods/examples/avatar-dsl/**"
+      - "firmware/host/modules/ui/components/face/avatar-native/**"
+      - ".github/workflows/avatar-dsl-editor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avatar-dsl-editor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  editor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      MODDABLE: ${{ github.workspace }}/.ci/moddable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Fetch the recorded raster SDK sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: Moddable-OpenSource/moddable
+          ref: 6ec053b83d1b00a27a19824e55bdf6a6101507a3
+          path: .ci/moddable
+          persist-credentials: false
+      - run: npm ci
+        working-directory: web
+      - name: Audit web dependencies
+        run: npm audit --audit-level=high
+        working-directory: web
+      - name: Reject invalid DSL before transfer preparation
+        run: npm run check:avatar-dsl:compiler
+        working-directory: web
+      - name: Test editor behavior and native/WASM parity
+        run: AVDS_NATIVE_PARITY=1 npm test
+        working-directory: web
+      - name: Install isolated browser
+        run: npx --no-install playwright-core install --with-deps chromium
+        working-directory: web
+      - name: Build and test browsers with serial mocks
+        working-directory: web
+        run: |
+          export CHROMIUM_PATH="$(node --input-type=module -e "import { chromium } from 'playwright-core'; console.log(chromium.executablePath())")"
+          npm run test:avatar-dsl:browser
+      - name: Save validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: avatar-dsl-editor-evidence
+          path: |
+            web/avatar-dsl/.test-output/*.json
+            web/avatar-dsl/artifacts/*.json
+            web/avatar-dsl/artifacts/*.png
+          if-no-files-found: warn
+          include-hidden-files: true

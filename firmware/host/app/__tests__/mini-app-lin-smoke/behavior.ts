@@ -107,12 +107,13 @@ export async function runMiniAppSmoke(context: SmokeContext): Promise<void> {
   assert(viewBehavior.main === faceMain, 'Back button must restore FaceView')
   assert(!backButton.visible && !backButton.active, 'FaceView must hide the mini-app Back button')
   assert(appsButton.visible && appsButton.active, 'registered mini app must remain available after exit')
-  trace('[MiniApp Lin Smoke] ok\n')
+  trace('[MiniApp Lin Smoke] mini-app interactions ok\n')
 }
 
 const behavior: SmokeBehavior = {
   async onContextCreated(context) {
     await runMiniAppSmoke(context)
+    trace('[MiniApp Lin Smoke] ok\n')
   },
 }
 

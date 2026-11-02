@@ -44,6 +44,10 @@ showStartupSplash()
 let startupChecks = 0
 const startupTimer = Timer.repeat(() => {
   const state = environment.startupErrorTestState as TestState
+  if (state?.behaviorClosePending) {
+    equal(screenStrings().includes('Startup failed'), false, 'failure UI must wait for asynchronous MOD cleanup')
+    equal(state.dockCloseCount, 0, 'MOD resources must finish closing before the host dock')
+  }
   const ready = screenStrings().includes(state?.replaceOnClose ? 'New screen' : 'Startup failed')
   if (++startupChecks < 100 && !ready) return
   Timer.clear(startupTimer)
@@ -76,7 +80,17 @@ function run() {
     equal(screenStrings().includes('cleanup-secret'), false, 'cleanup failure must not expose its message')
   }
   equal(state.closeCount, state.phase === 'behavior' ? 1 : 0, 'created context must close on behavior failure')
-  equal(state.dockCloseCount, state.phase === 'context' ? 1 : 0, 'pre-context failure must close its dock')
+  equal(state.behaviorCloseCount, state.phase === 'behavior' ? 1 : 0, 'partially started MOD must close once')
+  equal(
+    state.dockCloseCount,
+    state.phase === 'context' || state.phase === 'behavior' ? 1 : 0,
+    'dock must close even if MOD cleanup fails',
+  )
+  equal(
+    state.closeEvents.join(','),
+    state.phase === 'behavior' ? 'behavior,dock' : state.phase === 'context' ? 'dock' : '',
+    'resource close order',
+  )
 
   let restarts = 0
   const restart = () => restarts++

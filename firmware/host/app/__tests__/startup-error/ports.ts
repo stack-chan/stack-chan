@@ -1,6 +1,8 @@
 import config from 'mc/config'
+import { OwnedResources, type CloseHandler } from 'owned-resources'
 import type { Application as PiuApplication } from 'piu/MC'
 import { Label } from 'piu/MC'
+import Timer from 'timer'
 
 export type StackchanContext = {
   ui: { miniApps: unknown }
@@ -19,6 +21,9 @@ export type TestState = {
   replaceUI: boolean
   closeCount: number
   dockCloseCount: number
+  behaviorCloseCount: number
+  behaviorClosePending?: boolean
+  closeEvents: string[]
   closeError?: unknown
   close?: () => Promise<void>
   status?: (status: BootWiFiStatus) => void
@@ -36,6 +41,8 @@ if (!environment.startupErrorTestState) {
     replaceUI: true,
     closeCount: 0,
     dockCloseCount: 0,
+    behaviorCloseCount: 0,
+    closeEvents: [],
     closeError: testConfig.startupErrorCleanupFailure ? new TypeError('password=cleanup-secret') : undefined,
     replaceOnClose: testConfig.startupErrorReplaceOnClose === true,
   }
@@ -64,6 +71,7 @@ export function startStackchanDock(_modules: unknown, _config: unknown): Stackch
   return {
     close() {
       state.dockCloseCount++
+      state.closeEvents.push('dock')
       if (state.closeError !== undefined) throw state.closeError
     },
     onContextCreated() {},
@@ -75,6 +83,14 @@ export function onLaunch() {
 }
 export function onContextCreated() {
   if (state.phase === 'behavior') throw state.error
+}
+export async function onClose() {
+  state.behaviorClosePending = true
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 30))
+  state.behaviorClosePending = false
+  state.behaviorCloseCount++
+  state.closeEvents.push('behavior')
+  if (state.closeError !== undefined) throw state.closeError
 }
 export function startHostBootServices(options: {
   wifi: {
@@ -91,7 +107,14 @@ export function startHostBootServices(options: {
     },
   }
 }
-export function createStackchanContext(_preferences: unknown, _options: unknown): StackchanContext {
+export function createStackchanContext(
+  _preferences: unknown,
+  options: {
+    connectivity?: unknown
+    remoteConversationSession?: unknown
+    closeHandlers?: ReadonlyArray<CloseHandler>
+  },
+): StackchanContext {
   if (state.replaceUI) {
     environment.application?.empty()
     environment.application?.add(
@@ -99,11 +122,13 @@ export function createStackchanContext(_preferences: unknown, _options: unknown)
     )
   }
   if (state.phase === 'context') throw state.error
+  const resources = new OwnedResources(options.closeHandlers)
   return {
     ui: { miniApps: {} },
     lifecycle: {
       async close() {
         state.closeCount++
+        await resources.close()
         await state.close?.()
         if (state.replaceOnClose) {
           environment.application?.empty()

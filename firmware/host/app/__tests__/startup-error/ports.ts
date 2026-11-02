@@ -1,5 +1,5 @@
 import config from 'mc/config'
-import { OwnedResources, type CloseHandler } from 'owned-resources'
+import { type CloseHandler, OwnedResources } from 'owned-resources'
 import type { Application as PiuApplication } from 'piu/MC'
 import { Label } from 'piu/MC'
 import Timer from 'timer'

@@ -193,6 +193,66 @@ test('RT release restores both camera dependencies after clean and manifest swit
   }
 })
 
+test('mcconfig selects WebRTC settings from the manifest, not an inherited source checkout', {
+  skip: process.platform === 'win32',
+}, () => {
+  const fixture = createFirmwareWrapperFixture()
+  try {
+    const realtimeManifest = path.join(fixture.firmware, 'host/app/manifest_realtime.json')
+    writeFileSync(realtimeManifest, JSON.stringify({ modules: { realtimeConversation: './conversation' } }))
+    const fakeMcconfig = path.join(fixture.fakeBin, 'mcconfig')
+    writeFileSync(
+      fakeMcconfig,
+      `#!/usr/bin/env node
+const { readFileSync, writeFileSync } = require('node:fs')
+const path = require('node:path')
+writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG,
+  readFileSync(path.join(process.env.SDKCONFIGPATH, 'sdkconfig.defaults')))
+`,
+    )
+    const run = (manifestPath, checkout) => {
+      const env = {
+        ...process.env,
+        MODDABLE: fixture.fakeModdable,
+        PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+        STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
+      }
+      delete env.ESP_WEBRTC_SOLUTION
+      if (checkout) env.ESP_WEBRTC_SOLUTION = checkout
+      const result = spawnSync(
+        process.execPath,
+        [
+          'scripts/run-mcconfig.mjs',
+          '-i',
+          '-p',
+          'esp32:./host/platforms/m5stackchan_cores3',
+          '-t',
+          'build',
+          manifestPath,
+        ],
+        { cwd: fixture.firmware, encoding: 'utf8', env },
+      )
+      assert.ifError(result.error)
+      assert.equal(result.status, 0, result.stderr)
+      return readFileSync(fixture.commandLog, 'utf8')
+    }
+    const standalone = run(fixture.normalManifest)
+    assert.equal(run(fixture.normalManifest, fixture.solutionDirectory), standalone)
+    const realtime = run(realtimeManifest, fixture.solutionDirectory)
+    assert.notEqual(realtime, standalone, 'an explicit WebRTC manifest must still enable its overlay')
+    const values = new Map(realtime.split('\n').map((line) => line.split('=')))
+    assert.equal(values.get('CONFIG_AUDIO_ENCODER_OPUS_SUPPORT'), 'y')
+    assert.equal(values.get('CONFIG_AUDIO_DECODER_OPUS_SUPPORT'), 'y')
+    assert.equal(
+      run(fixture.normalManifest, fixture.solutionDirectory),
+      standalone,
+      'switching back restores the standalone overlay',
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 /** Create an isolated firmware tree and fake toolchain for command-wrapper tests. */
 function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 'instrument') {
   const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-wrapper-Case-'))

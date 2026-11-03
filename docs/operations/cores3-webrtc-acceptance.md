@@ -134,9 +134,76 @@ size/hash and partition-table comparison. Mark each result **PASS**, **FAIL**,
 
 Device resets can activate existing servo firmware. Before any reset/write,
 identify the port/board, obtain safe-placement authorization, inspect the live
-layout and preserve settings. An incompatible IDF filming layout must not be
+layout and preserve settings. An incompatible IDF flashing layout must not be
 replaced or erased without explicit approval. Do not flash an AI MOD as part of
 this host acceptance. One connected board cannot establish both-board hardware
 acceptance.
 
-See the PR's verification record for actual results and remaining blockers.
+## Recorded device measurements (2026-11-03)
+
+These results cover **M5StackChan CoreS3 only**. Ordinary M5Stack CoreS3 hardware
+acceptance, including its before/after idle largest internal block, is **NOT RUN**.
+The boards share configuration but one board's measurements cannot substitute
+for the other. The internal reserve remains 98304 bytes; these results do not
+justify lowering it or claim that 96 KiB is a per-session allocation.
+
+The runs used Moddable 10.0.2 (`80076c48f5ab87ce29de728071b7408599071a12`),
+ESP-IDF 6.1 and WebRTC solution
+`c8650846b512e6e1375e5f78c1c41619b8d645eb`. The candidate product source was
+`dbf759939d491806ab97865591cffe048a9f1d9e`; the no-WebRTC baseline was develop
+`e7e27e2f8b89b53d535717b186e88b10911fa746`. Both used release mode on the same
+device, standard XS initial chunk/heap/stack (262144 bytes / 4608 slots / 768
+slots), and their respective standard effective sdkconfig. Feature/allocation
+policies differ: reserve/always-internal threshold changed from 32768/16384
+bytes in the baseline to 98304/1024 bytes in the candidate. Total-free differences do
+not isolate an allocation-policy effect or demonstrate a memory saving.
+
+An app-only diagnostic overlay preserved settings, NVS, model, MOD and storage.
+It used a built-in measurement MOD instead of the saved MOD, suppressed preference
+migration writes, startup sound, power shortcuts and USB-audio autostart, and
+added resource counters. The unused checkpoint was 10 seconds after the MOD hook;
+the candidate had imported, constructed and closed a conversation **without
+connecting**, so this is not a pure unrelated-MOD/no-import idle measurement.
+
+All memory values below are bytes. Workers means conversation HTTP Workers;
+I2S means observed modern driver channels.
+
+| Unused checkpoint | Internal free | Largest internal | PSRAM free | Tasks | Workers / I2S |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| No-WebRTC baseline | 189887 | 114688 | 7775312 | 12 | 0 / 0 |
+| Standard candidate after import/construct/close | 204827 | 94208 | 7732792 | 12 | 0 / 0 |
+
+A separate same-boot run performed an API-free capture preflight, local playback,
+then three connect/stop cycles with local playback after each cycle. Before any
+network connection, I2S input and pre-encoder PCM were overwritten with zeros;
+no surrounding audio was sent. Native counters observed zero nonzero samples
+after wiping. Each connection stayed active for about five seconds. Standard
+creation settings and effective sdkconfig were unchanged; zeroing, the bounded
+automatic recipe, counters and preflight-warmed codec/media state are diagnostic
+differences from an unmodified standard host. The measured app SHA-256 was
+`70af3f47e55a70379665a75a6bdd8379581740816b5c9f1f63cf9a14f049abce`.
+
+| Same-boot checkpoint | Internal free | Largest internal | PSRAM free | Largest PSRAM | Tasks | Workers / I2S |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Before first connection, after preflight/local playback | 204459 | 94208 | 7735628 | 7602176 | 12 | 0 / 0 |
+| Close 1 + 20 seconds | 203547 | 63488 | 7715144 | 6946816 | 12 | 0 / 0 |
+| Close 2 + 20 seconds | 203547 | 63488 | 7715144 | 6946816 | 12 | 0 / 0 |
+| Close 3 + 20 seconds | 203547 | 63488 | 7715144 | 6946816 | 12 | 0 / 0 |
+
+**PASS, within this recipe:** all three signaling requests returned HTTP 201;
+all three stops received `close_requested` and finalized native closure. All
+three HTTP Workers terminated, audio/radio leases returned to zero, and all 12
+observed I2S channel creations had matching deletions. Four plays of the local
+`cheerup_ble_lite/assets/01-yay.wav` completed, each with 12 AudioOut played
+callbacks; amplifier-rate restoration succeeded. This is driver/callback
+evidence, not an acoustic listening test. The original app was restored and
+protected regions were verified unchanged; USB was released.
+
+The first-cycle largest internal block fell by 30720 bytes, then the sampled
+20-second settled values were identical through cycle three. This does not
+attribute the initial loss to a leak or establish long-term stability: there
+was no allocation tracing or forced GC, and allocator layout, retained shared
+state and XS heaps can affect the result. A previous failure after a real
+conversation's manual stop was **not reproduced by this silent recipe and is
+not proven fixed**. Ordinary CoreS3, transient amplifier failure, failure-path
+device recovery, actual UI latency and longer repeated operation remain pending.

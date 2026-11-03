@@ -27,11 +27,11 @@ let subprocessEnvironment = process.env
 const platformArgument = args[args.indexOf('-p') + 1] ?? ''
 const platformName = platformArgument.split(/[/:\\]/).at(-1)
 const manifest = args.find((arg) => arg.endsWith('.json'))
-if (
-  manifest &&
+const usesWebRtc =
+  Boolean(manifest) &&
   ['m5stack_cores3', 'm5stackchan_cores3'].includes(platformName) &&
   manifestUsesWebRtc(manifest, platformName)
-) {
+if (usesWebRtc) {
   try {
     const solutionDirectory = prepareWebRtcSolution()
     prepareCoreS3IdfDependencies({
@@ -55,7 +55,7 @@ if (
 if (targetsM5StackChanCoreS3(args)) {
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
-      realtime: Boolean(subprocessEnvironment.ESP_WEBRTC_SOLUTION),
+      realtime: usesWebRtc,
       realtimePerformance: path.basename(manifest ?? '') === 'manifest_openai_live.json',
     })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }

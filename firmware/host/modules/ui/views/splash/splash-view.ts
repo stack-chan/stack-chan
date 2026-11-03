@@ -1,6 +1,6 @@
 import { localize } from 'localization'
-import type { Application as PiuApplication, Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
-import { Application, Column, Container, Label } from 'piu/MC'
+import type { Application as PiuApplication, Container as PiuContainer, Text as PiuText } from 'piu/MC'
+import { Application, Column, Container, Label, Text } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
 import { UI, uiStyles } from 'ui-theme'
 
@@ -47,7 +47,7 @@ export function showStartupError(options: {
   const styles = uiStyles()
   // Clear detached splash references so late Wi-Fi callbacks cannot replace
   // this failure with a status message or recovery choice.
-  currentMessageLabel = null
+  currentMessageText = null
   currentActionArea = null
   let restarting = false
   const root = new Container(null, {
@@ -101,7 +101,7 @@ export function showStartupError(options: {
   return application
 }
 
-let currentMessageLabel: PiuLabel | null = null
+let currentMessageText: PiuText | null = null
 let currentActionArea: PiuContainer | null = null
 
 function showActions(contents: PiuContainer[]) {
@@ -111,15 +111,15 @@ function showActions(contents: PiuContainer[]) {
 }
 
 function setMessage(message: string) {
-  if (currentMessageLabel) currentMessageLabel.string = message
+  if (currentMessageText) currentMessageText.string = message
 }
 
 export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplication {
   const styles = uiStyles()
-  const messageLabel = new Label(null, {
+  const messageText = new Text(null, {
     left: 12,
     right: 12,
-    height: 28,
+    height: 72,
     string: options.message ?? localize('splash.starting'),
     style: styles.bodyMuted,
   })
@@ -129,7 +129,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
     bottom: 12,
     height: UI.touchTarget,
   })
-  currentMessageLabel = messageLabel
+  currentMessageText = messageText
   currentActionArea = actionArea
 
   const application = new Application(options, {
@@ -151,7 +151,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
             string: 'Stack-chan[・＿・]',
             style: styles.brand,
           }),
-          messageLabel,
+          messageText,
         ],
       }),
       actionArea,

@@ -46,7 +46,7 @@ equal(touchCount, 1, 'visible settings action should call the provided callback'
 let retryCount = 0
 let offlineCount = 0
 showWiFiRecoveryChoice({
-  message: '接続失敗',
+  message: 'Wi-Fi接続済み: 時刻同期に失敗しました\n192.0.2.123',
   onRetry() {
     retryCount += 1
   },
@@ -54,6 +54,11 @@ showWiFiRecoveryChoice({
     offlineCount += 1
   },
 })
+equal(
+  message.string,
+  'Wi-Fi接続済み: 時刻同期に失敗しました\n192.0.2.123',
+  'recovery should retain the time server on its own line',
+)
 
 const retryButton = column.next.first
 const offlineButton = retryButton.next as typeof retryButton

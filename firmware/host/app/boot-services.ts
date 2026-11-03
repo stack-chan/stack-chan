@@ -104,7 +104,7 @@ async function startStoredWiFi(
       }
     }
 
-    const message = bootWiFiFailureMessage(lastReason)
+    const message = bootWiFiFailureMessage(lastReason, typeof config.sntp === 'string' ? config.sntp : undefined)
     if (!options.promptRecoveryChoice) {
       return { status: 'failed', reason: lastReason }
     }

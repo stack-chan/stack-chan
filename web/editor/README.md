@@ -58,7 +58,7 @@ Notes:
 An XS archive only loads when its XS version is compatible with the engine that runs it (`fxMapArchive` checks `XS_MOD_COMPATIBLE ≤ archive ≤ engine`). Practically:
 
 - **Simulator** — `web/simulator/mc.wasm` must be built from the same (or newer) SDK as `vendor/tools.wasm`. Rebuild with `npm run build:wasm` in `firmware/`.
-- **Device** — installation checks the detected host SDK version and its XS major/minor range. A 9.5.x host accepts 17.7–17.8; a 10.0.x host accepts 17.7–17.9. Patch revisions are accepted within those ranges. An archive outside the detected host's range is rejected.
+- **Device** — installation checks the detected host SDK version and its XS major/minor range. A 9.5.x host accepts 17.7–17.8; a 10.0.x or 10.1.x host accepts 17.7–17.9. Patch revisions are accepted within those ranges. An archive outside the detected host's range is rejected.
 
 The build status line in the editor shows the XS version of the produced archive (e.g. `XS 17.9.2`). Archive acceptance does not establish that a MOD using new SDK 10 modules will run on an older host. The current host adopts SDK 10 System and must be built with SDK 10; SDK 10 Files and RoundRect features likewise require an SDK 10 host; retained 9.5 archive acceptance is not a new validation of that host on SDK 9.5.
 

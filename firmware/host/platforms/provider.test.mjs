@@ -46,11 +46,11 @@ async function loadDevice(board) {
   await builtin.link(link)
   await builtin.evaluate()
   for (const io of ['analog', 'digital', 'i2c', 'pulsecount', 'pulsewidth', 'pwm', 'serial', 'spi']) {
-    const module = await sourceModule(`config/${io}`, path.join(sdk, 'modules/io', io, 'config.js'))
+    const module = await sourceModule(`config/${io}`, path.join(sdk, 'modules/embedded/io', io, 'config.js'))
     await module.link(link)
     await module.evaluate()
   }
-  const lockdown = await sourceModule('lockdown/device', path.join(sdk, 'modules/io/system/lockdowndevice.js'))
+  const lockdown = await sourceModule('lockdown/device', path.join(sdk, 'modules/embedded/system/lockdowndevice.js'))
   await lockdown.link(link)
   await lockdown.evaluate()
   context.cameraPort = manifest.defines?.camera?.i2c_port

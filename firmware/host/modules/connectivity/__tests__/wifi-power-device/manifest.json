@@ -2,7 +2,7 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODULES)/base/modules/manifest.json",
-    "$(MODULES)/io/wifi/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json",
     "../../../testing/manifest.json"
   ],
   "modules": {

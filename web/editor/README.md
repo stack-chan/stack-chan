@@ -1,6 +1,6 @@
 # Stack-chan Block Editor
 
-Device installation accepts Moddable 9.5.x and 10.0.x hosts within each host's XS archive range. The bundled SDK 10.0 compiler produces XS 17.9 archives, which require a 10.0.x host; a 9.5.x host accepts only XS 17.7–17.8 archives. Update older firmware before installing a newly built MOD. The [SDK 9.5 migration guide](../../docs/migrations/moddable-9.5.md) documents the earlier migration; see [XS version compatibility](#xs-version-compatibility) for current SDK 10 requirements.
+Device installation accepts Moddable 9.5.x, 10.0.x and 10.1.x hosts within each host's XS archive range. The bundled SDK 10.1 compiler produces XS 17.9 archives, which require a 10.0.x or 10.1.x host; a 9.5.x host accepts only XS 17.7–17.8 archives. Update older firmware before installing a newly built MOD. The [SDK 9.5 migration guide](../../docs/migrations/moddable-9.5.md) documents the earlier migration; see [XS version compatibility](#xs-version-compatibility) for current SDK 10 requirements.
 
 Blockly-based MOD editor for Stack-chan. Everything runs client-side:
 
@@ -36,7 +36,7 @@ engine.
 
 ## Rebuilding `vendor/tools.wasm`
 
-The tools binary embeds a Moddable SDK version (currently **10.0.2**, XS 17.9) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
+The tools binary embeds a Moddable SDK version (currently **10.1.0**, XS 17.9) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
 
 ```sh
 cd firmware
@@ -93,7 +93,7 @@ xsbug handshake on native USB-serial-JTAG parts (CoreS3).
 Requirements:
 
 - A browser with WebSerial (Chrome / Edge).
-- The flashed Stack-chan firmware must be **9.5.x or 10.0.x**, and the archive must fit its
+- The flashed Stack-chan firmware must be **9.5.x, 10.0.x or 10.1.x**, and the archive must fit its
   detected host's range: **17.7–17.8 for SDK 9.5**, **17.7–17.9 for SDK 10**.
   The bundled SDK 10 compiler produces 17.9 archives, so update a 9.5 host before installing them.
   See [XS version compatibility](#xs-version-compatibility). No debug build needed.

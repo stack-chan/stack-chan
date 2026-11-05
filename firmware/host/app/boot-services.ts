@@ -1,6 +1,6 @@
 import {
   type BootWiFiRecoveryChoice,
-  bootWiFiFailureMessage,
+  bootWiFiFailureDetails,
   networkReadyResultForRecoveryChoice,
   shouldRetryBootWiFiAttempt,
 } from 'boot-network-recovery'
@@ -29,12 +29,14 @@ export type BootWiFiStatus = {
   message: string
 }
 
+export type BootWiFiRecoveryStatus = BootWiFiStatus & { reason: string; sntpHost?: string }
+
 export type HostBootServicesOptions = {
   wifi?: {
     maxAttempts?: number
     retryDelayMs?: number
     onStatusChanged?: (status: BootWiFiStatus) => void
-    promptRecoveryChoice?: (status: BootWiFiStatus & { reason: string }) => Promise<BootWiFiRecoveryChoice>
+    promptRecoveryChoice?: (status: BootWiFiRecoveryStatus) => Promise<BootWiFiRecoveryChoice>
   }
 }
 
@@ -104,14 +106,13 @@ async function startStoredWiFi(
       }
     }
 
-    const message = bootWiFiFailureMessage(lastReason, typeof config.sntp === 'string' ? config.sntp : undefined)
     if (!options.promptRecoveryChoice) {
       return { status: 'failed', reason: lastReason }
     }
     const choice = await options.promptRecoveryChoice({
       attempt: maxAttempts,
       maxAttempts,
-      message,
+      ...bootWiFiFailureDetails(lastReason, typeof config.sntp === 'string' ? config.sntp : undefined),
       reason: lastReason,
     })
     const result = networkReadyResultForRecoveryChoice(choice, lastReason)

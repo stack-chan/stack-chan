@@ -4,6 +4,7 @@ import type { NetworkReadyResult } from './boot-services.js'
 export type BootWiFiRecoveryChoice = 'retry' | 'offline'
 
 export type BootWiFiFailureKind = 'scan-exhausted' | 'connection-failed' | 'time-sync-failed'
+type BootWiFiFailureDetails = { message: string; sntpHost?: string }
 type OfflineNetworkReadyResult = Extract<NetworkReadyResult, { status: 'skipped' }>
 
 export function shouldRetryBootWiFiAttempt(attempt: number, maxAttempts: number): boolean {
@@ -21,16 +22,15 @@ export function classifyBootWiFiFailure(reason: string): BootWiFiFailureKind {
   return 'connection-failed'
 }
 
-export function bootWiFiFailureMessage(reason: string, sntpHost?: string): string {
+export function bootWiFiFailureDetails(reason: string, sntpHost?: string): BootWiFiFailureDetails {
   const kind = classifyBootWiFiFailure(reason)
   if (kind === 'time-sync-failed') {
-    const message = localize('boot.timeSyncFailed')
-    return sntpHost ? `${message}\n${sntpHost}` : message
+    return { message: localize('boot.timeSyncFailed'), sntpHost: sntpHost || undefined }
   }
   if (kind === 'scan-exhausted') {
-    return localize('boot.wifiNotFound')
+    return { message: localize('boot.wifiNotFound') }
   }
-  return localize('boot.wifiFailed')
+  return { message: localize('boot.wifiFailed') }
 }
 
 export function networkReadyResultForRecoveryChoice(

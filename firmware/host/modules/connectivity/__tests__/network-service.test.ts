@@ -80,7 +80,8 @@ test('NetworkService connects through ECMA-419 Wi-Fi and resolves after IP addre
 })
 
 test('NetworkService synchronizes time after IP when sntp is configured', async () => {
-  const { NetworkService, time } = await setup({ sntp: 'pool.ntp.org' })
+  const sntpHost = `${'Ntp-01'.repeat(10)}.example.`
+  const { NetworkService, time } = await setup({ sntp: sntpHost })
   const service = new NetworkService({ ssid: 'stackchan-ap', password: 'secret' })
   const originalNow = Date.now
   Date.now = () => 0
@@ -89,7 +90,7 @@ test('NetworkService synchronizes time after IP when sntp is configured', async 
     service.connect()
     getFakeWiFiInstances()[0]?.emitGotIP()
 
-    assert.deepEqual(NTP.instances[0].options, { io: NTP, servers: ['pool.ntp.org'], socket: ntpSocket, dns: ntpDNS })
+    assert.deepEqual(NTP.instances[0].options, { io: NTP, servers: [sntpHost], socket: ntpSocket, dns: ntpDNS })
     NTP.instances[0].respond()
     assert.equal(time.ticks, NTP.nextTime / 1000)
     assert.equal(NTP.instances[0].closed, true)

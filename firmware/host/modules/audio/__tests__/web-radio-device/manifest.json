@@ -1,7 +1,7 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/modules/io/wifi/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json",
     "$(MODDABLE)/modules/files/preference/manifest.json",
     "$(MODDABLE)/modules/base/worker/manifest.json",
     "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",

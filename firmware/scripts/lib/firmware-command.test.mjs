@@ -4,6 +4,7 @@ import {
   chmodSync,
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -206,6 +207,7 @@ test('mcconfig selects WebRTC settings from the manifest, not an inherited sourc
       `#!/usr/bin/env node
 const { readFileSync, writeFileSync } = require('node:fs')
 const path = require('node:path')
+if (process.argv.includes('clean')) process.exit(0)
 writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG,
   readFileSync(path.join(process.env.SDKCONFIGPATH, 'sdkconfig.defaults')))
 `,
@@ -252,6 +254,213 @@ writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG,
     rmSync(fixture.root, { recursive: true, force: true })
   }
 })
+
+test('direct CoreS3 build/deploy switches WebRTC on/off/on in each isolated target and mode', () => {
+  const fixture = createDirectRunnerFixture()
+  try {
+    for (const platform of ['esp32/m5stack_cores3', 'esp32:./host/platforms/m5stackchan_cores3']) {
+      for (const mode of ['release', 'debug', 'instrument']) {
+        for (const command of ['build', 'deploy']) {
+          // Also exercise a legacy output tree with no variant marker.
+          rmSync(path.join(fixture.firmware, 'dist/generated/build-variants'), { recursive: true, force: true })
+          const initial = readInvocationsIfPresent(fixture.commandLog).length
+          runDirectFixture(fixture, { platform, mode, command, realtime: true })
+          runDirectFixture(fixture, { platform, mode, command, realtime: true })
+          runDirectFixture(fixture, { platform, mode, command, realtime: false })
+          runDirectFixture(fixture, { platform, mode, command, realtime: true })
+          const invocations = readInvocations(fixture.commandLog).slice(initial)
+          assert.deepEqual(
+            invocations.map((args) => args[args.indexOf('-t') + 1]),
+            ['clean', command, command, 'clean', command, 'clean', command],
+          )
+          for (const args of invocations) {
+            assert.equal(args[args.indexOf('-p') + 1], platform)
+            assert.equal(args[args.indexOf('-o') + 1], path.join(fixture.firmware, 'dist'))
+          }
+        }
+      }
+    }
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test('direct switches tolerate removed sources and preserve reused checkouts, other targets and user settings', () => {
+  const fixture = createDirectRunnerFixture()
+  try {
+    // A managed dependency checkout must survive a target clean, just like an external checkout.
+    const managedSolution = path.join(fixture.firmware, 'dist/dependencies/esp-webrtc-solution')
+    cpSync(fixture.solutionDirectory, managedSolution, { recursive: true })
+    fixture.solutionDirectory = managedSolution
+    const otherTarget = 'esp32/m5stack_cores3'
+    const platform = 'esp32:./host/platforms/m5stackchan_cores3'
+    runDirectFixture(fixture, { platform: otherTarget, realtime: true })
+    runDirectFixture(fixture, { platform, mode: 'debug', realtime: true })
+    runDirectFixture(fixture, { platform, realtime: true })
+    const otherProject = directProject(fixture, 'm5stack_cores3', 'release')
+    const debugProject = directProject(fixture, 'm5stackchan_cores3', 'debug')
+    const otherManifest = readFileSync(path.join(otherProject, 'main/idf_component.yml'), 'utf8')
+    const debugManifest = readFileSync(path.join(debugProject, 'main/idf_component.yml'), 'utf8')
+    const source = path.join(managedSolution, 'components/esp_peer/CMakeLists.txt')
+    const sourceContent = readFileSync(source, 'utf8')
+    const userSettings = path.join(fixture.firmware, 'host/app/user-settings.json')
+    writeFileSync(userSettings, '{"keep":"user settings"}\n')
+
+    runDirectFixture(fixture, { platform, realtime: false })
+    assert.equal(readFileSync(source, 'utf8'), sourceContent)
+    assert.equal(readFileSync(path.join(otherProject, 'main/idf_component.yml'), 'utf8'), otherManifest)
+    assert.equal(readFileSync(path.join(debugProject, 'main/idf_component.yml'), 'utf8'), debugManifest)
+    runDirectFixture(fixture, { platform, realtime: true })
+
+    rmSync(managedSolution, { recursive: true })
+    const dangling = path.join(directProject(fixture), 'components/esp_peer')
+    assert.equal(lstatSync(dangling).isSymbolicLink(), true)
+    // Inherited ESP_WEBRTC_SOLUTION now points to a missing directory.
+    runDirectFixture(fixture, { platform, realtime: false })
+    assert.equal(lstatSync(dangling, { throwIfNoEntry: false }), undefined)
+    cpSync(path.join(fixture.root, 'webrtc-solution'), managedSolution, { recursive: true })
+    runDirectFixture(fixture, { platform, realtime: true })
+    assert.equal(readFileSync(source, 'utf8'), sourceContent)
+    assert.equal(readFileSync(userSettings, 'utf8'), '{"keep":"user settings"}\n')
+    assert.equal(readFileSync(path.join(fixture.fakeModdable, 'tools/VERSION'), 'utf8'), '8.3.1\n')
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test('direct builds invalidate reused sources and retry failed cleans without recording the new variant', () => {
+  const fixture = createDirectRunnerFixture()
+  try {
+    runDirectFixture(fixture, { realtime: true })
+    writeFileSync(path.join(fixture.solutionDirectory, 'components/esp_peer/CMakeLists.txt'), '# modified locally\n')
+    const initial = readInvocations(fixture.commandLog).length
+    runDirectFixture(fixture, { realtime: true })
+    assert.equal(readInvocations(fixture.commandLog).length, initial + 2, 'source edits must invalidate cached builds')
+    runDirectFixture(fixture, { realtime: false, cleanStatus: 29, expectedStatus: 29 })
+    const afterFailure = readInvocations(fixture.commandLog).length
+    runDirectFixture(fixture, { realtime: false })
+    assert.equal(readInvocations(fixture.commandLog).length, afterFailure + 2, 'failed clean must be retried')
+    writeFileSync(fixture.normalManifest, '{"defines":{"changed":true}}\n')
+    const beforeEdit = readInvocations(fixture.commandLog).length
+    runDirectFixture(fixture, { realtime: false })
+    assert.equal(readInvocations(fixture.commandLog).length, beforeEdit + 2, 'same-path manifest edits must invalidate')
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test('direct runner and firmware wrapper share the same host variant marker', () => {
+  const fixture = createDirectRunnerFixture()
+  try {
+    runDirectFixture(fixture, { mode: fixture.mode, realtime: true })
+    const initial = readInvocations(fixture.commandLog).length
+    runFixture(fixture, 'build', fixture.realtimeManifest)
+    runDirectFixture(fixture, { mode: fixture.mode, realtime: true })
+    assert.equal(readInvocations(fixture.commandLog).length, initial + 2, 'entrypoint changes alone must not clean')
+    runDirectFixture(fixture, { mode: fixture.mode, realtime: false })
+    runFixture(fixture, 'build', fixture.realtimeManifest)
+    assert.equal(readInvocations(fixture.commandLog).length, initial + 6, 'entrypoint manifest switches must clean')
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+function directProject(fixture, platformName = 'm5stackchan_cores3', mode = 'release') {
+  return path.join(fixture.firmware, 'dist/tmp/esp32', platformName, mode, 'stack-chan-host/xsProj-esp32s3')
+}
+
+function createDirectRunnerFixture() {
+  const fixture = createFirmwareWrapperFixture()
+  fixture.realtimeManifest = path.join(fixture.firmware, 'host/app/manifest_realtime.json')
+  writeFileSync(fixture.realtimeManifest, JSON.stringify({ modules: { realtimeConversation: './conversation' } }))
+  writeFileSync(
+    path.join(fixture.fakeBin, 'mcconfig'),
+    `#!/usr/bin/env node
+const assert = require('node:assert/strict')
+const { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } = require('node:fs')
+const path = require('node:path')
+const args = process.argv.slice(2)
+appendFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify(args) + '\\n')
+const output = args[args.indexOf('-o') + 1]
+const platform = args[args.indexOf('-p') + 1].split(/[/:\\\\]/).at(-1)
+const mode = args.some(arg => ['-d', '-dn', '-dl', '-dx'].includes(arg)) ? 'debug' : args.includes('-i') ? 'instrument' : 'release'
+const tmp = path.join(output, 'tmp/esp32', platform, mode, 'stack-chan-host')
+const bin = path.join(output, 'bin/esp32', platform, mode, 'stack-chan-host')
+const project = path.join(tmp, 'xsProj-esp32s3')
+if (args[args.indexOf('-t') + 1] === 'clean') {
+  if (Number(process.env.STACKCHAN_TEST_CLEAN_STATUS)) process.exit(Number(process.env.STACKCHAN_TEST_CLEAN_STATUS))
+  rmSync(tmp, { recursive: true, force: true })
+  rmSync(bin, { recursive: true, force: true })
+  process.exit(0)
+}
+const manifestPath = args.find(arg => arg.endsWith('.json'))
+const realtime = Boolean(JSON.parse(readFileSync(manifestPath, 'utf8')).modules?.realtimeConversation)
+const idf = readFileSync(path.join(project, 'main/idf_component.yml'), 'utf8')
+assert.ok(idf.includes('espressif/esp32-camera:'))
+const baseline = ['espressif/esp32-camera', ...(platform === 'm5stackchan_cores3' ? ['espressif/esp_audio_codec'] : [])]
+const conversation = JSON.parse(readFileSync(path.join(process.cwd(), 'host/modules/realtime-conversation/esp32/manifest.json'), 'utf8'))
+const expected = new Set([...baseline, ...(realtime ? conversation.dependencies.filter(dep => dep.name).map(dep => 'espressif/' + dep.name) : [])])
+const actual = new Set([...idf.matchAll(/^  (espressif\\/[^:]+):/gm)].map(match => match[1]))
+assert.deepEqual(actual, expected, 'stale IDF dependencies')
+for (const name of ${JSON.stringify(webRtcComponents)}) {
+  const link = path.join(project, 'components', name)
+  if (realtime) assert.equal(realpathSync(link), realpathSync(path.join(process.env.ESP_WEBRTC_SOLUTION, 'components', name)))
+  else assert.equal(lstatSync(link, { throwIfNoEntry: false }), undefined, 'stale component link')
+}
+for (const filename of [path.join(project, 'sdkconfig'), path.join(bin, 'linked-inputs.json')]) {
+  if (existsSync(filename)) assert.equal(readFileSync(filename, 'utf8'), String(realtime), 'stale compiled/configured inputs')
+  mkdirSync(path.dirname(filename), { recursive: true })
+  writeFileSync(filename, String(realtime))
+}
+`,
+  )
+  return fixture
+}
+
+function readInvocationsIfPresent(filename) {
+  return existsSync(filename) ? readInvocations(filename) : []
+}
+
+function runDirectFixture(
+  fixture,
+  {
+    platform = 'esp32:./host/platforms/m5stackchan_cores3',
+    mode = 'release',
+    command = 'build',
+    realtime,
+    cleanStatus = 0,
+    expectedStatus = 0,
+  },
+) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      'scripts/run-mcconfig.mjs',
+      ...(mode === 'debug' ? ['-dn'] : mode === 'instrument' ? ['-i'] : []),
+      '-m',
+      '-p',
+      platform,
+      '-t',
+      command,
+      realtime ? fixture.realtimeManifest : fixture.normalManifest,
+    ],
+    {
+      cwd: fixture.firmware,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        MODDABLE: fixture.fakeModdable,
+        ESP_WEBRTC_SOLUTION: fixture.solutionDirectory,
+        PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+        STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
+        STACKCHAN_TEST_CLEAN_STATUS: String(cleanStatus),
+      },
+    },
+  )
+  assert.ifError(result.error)
+  assert.equal(result.status, expectedStatus, result.stderr)
+  return result
+}
 
 /** Create an isolated firmware tree and fake toolchain for command-wrapper tests. */
 function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 'instrument') {

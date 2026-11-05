@@ -2,7 +2,7 @@
   "include": [
     "../../../modules/ui/manifest.json",
     "../../../modules/testing/manifest.json",
-    "$(MODULES)/io/system/manifest.json"
+    "$(MODDABLE)/modules/embedded/system/manifest.json"
   ],
   "modules": {
     "main": "./mod-manager.test",

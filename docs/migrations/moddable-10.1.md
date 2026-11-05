@@ -49,9 +49,11 @@ Emscripten 5.0.1. The generated `tools.js` is unchanged; `tools.wasm` changes.
 SHA-256 of `web/editor/vendor/tools.wasm`:
 `4e0c4081cf736f9facb468304bc8b8213baebe6eed3ee25e4cb45ee34cdf0d29`.
 
-The real WASM compiler regression tests compile, inspect and install test MOD
-archives against the supported firmware ranges, including 10.1 hosts. The build
-does not embed the local SDK checkout path.
+The real WASM compiler regression tests compile and inspect generated MOD
+archives against the supported firmware ranges, including 10.1 hosts. Separate
+CLI MOD preflight tests use synthetic archives and stubbed flash commands to
+validate archive compatibility and flash-command sequencing. The build does not
+embed the local SDK checkout path.
 
 ## Validation and hardware acceptance
 

@@ -2,7 +2,7 @@
   "include": [
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/modules/base/worker/manifest.json",
-    "$(MODDABLE)/modules/io/audioout/manifest.json",
+    "$(MODDABLE)/modules/embedded/io/audio/out/manifest.json",
     "$(MODDABLE)/modules/data/text/decoder/manifest.json",
     "$(MODDABLE)/modules/data/text/encoder/manifest.json"
   ],

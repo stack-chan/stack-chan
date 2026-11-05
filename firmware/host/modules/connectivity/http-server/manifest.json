@@ -4,7 +4,7 @@
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODULES)/data/headers/manifest.json",
     "$(MODULES)/data/url/manifest.json",
-    "$(MODULES)/io/http/server/manifest.json"
+    "$(MODDABLE)/modules/embedded/network/http/server/manifest.json"
   ],
   "modules": {
     "*": ["./*"]

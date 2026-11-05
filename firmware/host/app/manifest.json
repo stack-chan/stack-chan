@@ -10,7 +10,8 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
-    "$(MODULES)/io/system/manifest.json",
+    "$(MODULES)/network/http/manifest.json",
+    "$(MODDABLE)/modules/embedded/system/manifest.json",
     "../modules/motion/manifest.json",
     "../modules/audio/manifest.json",
     "../modules/connectivity/manifest.json",
@@ -49,8 +50,7 @@
       "./runtime-input",
       "./runtime-lighting",
       "./runtime-ui",
-      "./owned-resources",
-      "$(MODULES)/network/http/*"
+      "./owned-resources"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera-preview": "../modules/ui/views/camera-preview/camera-preview-view",

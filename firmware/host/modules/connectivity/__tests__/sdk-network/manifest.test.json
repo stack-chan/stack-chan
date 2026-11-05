@@ -3,7 +3,7 @@
     "../../http-server/manifest.json",
     "$(MODULES)/web/fetch/manifest.json",
     "$(MODULES)/web/websocket/manifest.json",
-    "$(MODULES)/io/http/server/route/ws/handshake/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/http/server/route/ws/handshake/manifest.json",
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
     "../../../testing/manifest.json"
   ],

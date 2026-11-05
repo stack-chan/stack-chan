@@ -155,3 +155,21 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
   })
   assert.equal(legacyBasicMod.compatible, true)
 })
+
+
+test('SDK10.1 archive acceptance preserves host API capability requirements', () => {
+  for (const hostApiVersion of [0, 1, 2]) {
+    const result = inspectDeploymentCompatibility('m5stackchan-cores3', {
+      chip: 'ESP32-S3',
+      xsVersion: [17, 9, 2],
+      firmwareVersion: `10.1.0+stackchan.${hostApiVersion}`,
+      hostApiVersion,
+      requirements: ['audio.volume'],
+      requireFirmware: true,
+      requireArchive: true,
+    })
+    assert.equal(result.compatible, hostApiVersion >= 2)
+    assert.deepEqual(result.diagnostics.map((item) => item.code),
+      hostApiVersion >= 2 ? [] : ['VP_HOST_CAPABILITY_UNAVAILABLE'])
+  }
+})

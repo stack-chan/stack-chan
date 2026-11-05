@@ -35,7 +35,7 @@ async function rejected(promise, code) {
 async function flush() {
   for (let i = 0; i < 12; i++) await Promise.resolve()
 }
-function harness(options = {}) {
+function harness(options = {}, overrides = {}) {
   let callback,
     requests = [],
     sent = [],
@@ -95,6 +95,7 @@ function harness(options = {}) {
       clearTimeout(key) {
         timers.delete(key)
       },
+      ...overrides,
     },
   )
   return {
@@ -711,5 +712,119 @@ await test('late injected session creation is finalized through its signaling ad
   await flush()
   equal(hangups, 1)
   equal(h.requests.length, 0)
+})
+await test('native error diagnostics retain only the bounded numeric error and stage', async () => {
+  const h = harness()
+  const started = h.c.connect()
+  h.emit({ type: 'error', code: 257, stage: 'audio_buffers', data: 'private SDP' })
+  await rejected(started, 'transport_error')
+  equal(h.errors[0].nativeCode, 257)
+  equal(h.errors[0].stage, 'audio_buffers')
+  check(!h.errors[0].message.includes('private'))
+  await h.c.close()
+})
+await test('native construction and task start failures have separate safe codes', async () => {
+  for (const phase of ['create', 'start']) {
+    const h = harness(
+      {},
+      {
+        createTransport() {
+          if (phase === 'create') throw new Error('private allocation detail')
+          return {
+            setVolume() {},
+            start() {
+              throw new Error('private task detail')
+            },
+            async close() {},
+          }
+        },
+      },
+    )
+    await rejected(h.c.connect(), `transport_${phase}_failed`)
+    equal(h.errors[0].stage, 'transport')
+    check(!h.errors[0].message.includes('private'))
+    await h.c.close()
+  }
+})
+await test('HTTPS signaling failures retain safe Worker codes without exception text', async () => {
+  for (const code of ['https_timeout', 'https_connection_failed', 'private key']) {
+    const h = harness()
+    h.reply(async () => {
+      throw Object.assign(new Error('private key and SDP'), { code })
+    })
+    const started = h.c.connect()
+    await h.signal()
+    await rejected(started, code === 'private key' ? 'https_request_failed' : code)
+    equal(h.errors[0].stage, 'https')
+    check(!h.errors[0].message.includes('private'))
+    await h.c.close()
+  }
+})
+await test('HTTP authentication status is retained without decoding the private error body', async () => {
+  for (const status of [401, 403, 429, 500]) {
+    const h = harness()
+    h.reply(async () => ({
+      status,
+      text() {
+        throw new Error('must not decode private provider body')
+      },
+    }))
+    const started = h.c.connect()
+    await h.signal()
+    await rejected(started, 'http_error')
+    equal(h.errors[0].status, status)
+    await h.c.close()
+  }
+})
+await test('native answer rejection is distinct from HTTPS failure', async () => {
+  let callback
+  const h = harness(
+    {},
+    {
+      createTransport(cb) {
+        callback = cb
+        return {
+          setVolume() {},
+          start() {},
+          async close() {},
+          acceptAnswer() {
+            throw new Error('private native answer')
+          },
+        }
+      },
+    },
+  )
+  const started = h.c.connect()
+  callback({ type: 'offer', sdp: 'v=0\r\noffer' })
+  await rejected(started, 'transport_answer_failed')
+  equal(h.errors[0].stage, 'transport')
+  await h.c.close()
+})
+await test('diagnostic progress distinguishes offer, HTTPS and session wait without exposing content', async () => {
+  const phases = []
+  const h = harness({ onDiagnostic: (phase) => phases.push(phase) })
+  await h.connect()
+  equal(phases, [
+    'transport_create',
+    'transport_start',
+    'signaling_request',
+    'signaling_response',
+    'transport_answer',
+    'session_wait',
+    'session_started',
+  ])
+  const closing = h.c.close()
+  h.message({ type: 'session.closed' })
+  await closing
+  const brokenLogger = harness({
+    onDiagnostic() {
+      throw new Error('private logger error')
+    },
+  })
+  await brokenLogger.connect()
+  equal(brokenLogger.errors, [])
+  const stop = brokenLogger.c.close()
+  brokenLogger.message({ type: 'session.closed' })
+  await stop
 })
 console.log(`${count} tests passed`)

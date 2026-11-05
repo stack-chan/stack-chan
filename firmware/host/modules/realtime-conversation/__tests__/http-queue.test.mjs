@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createHttpQueue } from '../http-queue.js'
+import { loadModule } from './load-module.mjs'
+
+const { createHttpQueue } = await loadModule('http-queue')
 
 test('undeliverable replies expire and release the next queued request', async () => {
   let now = 100,
@@ -59,4 +61,40 @@ test('expired queued jobs never start and timer allocation failures do not poiso
     executed.map((r) => r.timeoutMs),
     [974, 990],
   )
+})
+
+test('Worker errors transfer fixed codes without stringifying exceptions or arbitrary codes', async () => {
+  const replies = []
+  let failure
+  const queue = createHttpQueue({
+    execute: async () => {
+      throw failure
+    },
+    post: (message) => replies.push(message),
+    schedule() {},
+    elapsed: () => 0,
+  })
+  for (failure of [
+    Object.assign(new Error('private key SDP transcript'), { code: 'https_connection_failed' }),
+    {
+      code: 'private key',
+      toString() {
+        throw new Error('must not format')
+      },
+    },
+    new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('private getter')
+        },
+      },
+    ),
+  ])
+    await queue({ id: 1, started: 0, request: { timeoutMs: 1000 } })
+  assert.deepEqual(
+    replies.map((r) => r.code),
+    ['https_connection_failed', 'https_request_failed', 'https_request_failed'],
+  )
+  assert.ok(!JSON.stringify(replies).includes('private'))
 })

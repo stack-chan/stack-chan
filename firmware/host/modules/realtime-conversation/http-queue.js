@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 
+import { safeHttpCode } from 'realtimeConversation/http-errors'
+
 export function createHttpQueue({ execute, post, schedule, elapsed }) {
   let tail = Promise.resolve(),
     queued = 0
@@ -26,7 +28,7 @@ export function createHttpQueue({ execute, post, schedule, elapsed }) {
   return ({ id, started, request }) => {
     if (queued >= 8) {
       try {
-        post({ id, error: 'HTTPS request capacity' })
+        post({ id, error: true, code: 'https_capacity' })
       } catch {}
       return
     }
@@ -40,7 +42,7 @@ export function createHttpQueue({ execute, post, schedule, elapsed }) {
         try {
           message = { id, ...(await execute({ ...request, timeoutMs })) }
         } catch (error) {
-          message = { id, error: String(error) }
+          message = { id, error: true, code: safeHttpCode(error) }
         }
         await reply(message, remaining)
       } finally {

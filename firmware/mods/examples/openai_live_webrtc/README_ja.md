@@ -80,3 +80,7 @@ CPUテストでは空キー、Wi-Fi待機中のキャンセル、開始終了の
 最終試験の再生アンダーランは7回、無音継続は最大150msでした。100ms周期のメインタイマーの実行間隔は最大797msで、描画遅延そのものは未計測です。接続・会話成立の確認と、音切れ・UI遅延の評価は分けています。統合構成は利用者による動作確認済みです。長時間運転と遅延の定量評価は引き続き確認が必要です。
 
 一次資料: [OpenAI GPT-Live WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc?voice-api=live)、[GPT-Live終了処理](https://developers.openai.com/api/docs/guides/live-conversations)、[ホストConversation](../../../host/modules/realtime-conversation/README.md)。
+
+## 開始失敗の診断
+
+「会話エラー」が出た場合の失敗経路、秘密情報を含まない診断JSON、実機ログの取得方法と未検証事項は[診断手順](../../../../docs/operations/openai-webrtc-startup-diagnostics.md)を参照してください。HTTPS分類とネイティブ番号の保持には、MODに加えて修正後のホストも必要です。

@@ -1,5 +1,5 @@
 import Modules from 'modules'
-import { LiveSession } from 'openai-live-session'
+import { LiveSession, safeFailure } from 'openai-live-session'
 import Timer from 'timer'
 
 const SESSION = 'openai-live:session'
@@ -14,12 +14,27 @@ const messages = {
 }
 
 export function onContextCreated(robot) {
-  if (!Modules.has('realtimeConversation') || !robot.audio.acquireExclusive || !globalThis.amp) {
+  const capabilities = {
+    conversation: Modules.has('realtimeConversation'),
+    audio: typeof robot.audio?.acquireExclusive === 'function',
+    amplifier: !!globalThis.amp,
+    radio: Modules.has('network-power'),
+  }
+  trace(`[openai-live] ${JSON.stringify({ phase: 'host_preflight', ...capabilities })}\n`)
+  if (!Object.values(capabilities).every(Boolean)) {
+    trace('[openai-live] {"phase":"host_preflight","event":"failure","code":"host_unsupported"}\n')
     robot.ui.showBalloon('OpenAI WebRTC 対応ホストが必要です')
     return
   }
-  const Conversation = Modules.importNow('realtimeConversation')
-  const power = Modules.importNow('network-power')
+  let Conversation, power
+  try {
+    Conversation = Modules.importNow('realtimeConversation')
+    power = Modules.importNow('network-power')
+  } catch (error) {
+    trace(`[openai-live] ${JSON.stringify({ phase: 'host_import', event: 'failure', ...safeFailure(error) })}\n`)
+    robot.ui.showBalloon(messages.error)
+    return
+  }
   const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
   const drawer = robot.ui.drawer
   let changingMute = false
@@ -41,6 +56,7 @@ export function onContextCreated(robot) {
     acquireLowLatency: () => power.acquireLowLatency(),
     amp: globalThis.amp,
     settings: (Modules.has('mod/config') ? Modules.importNow('mod/config').openaiLive : undefined) ?? {},
+    onDiagnostic: (record) => trace(`[openai-live] ${JSON.stringify(record)}\n`),
     onState(state) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
       if (state === 'connected' && mouthTimer === undefined && levels && robot.setMouthOpen) {

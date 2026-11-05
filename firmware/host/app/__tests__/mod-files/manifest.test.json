@@ -1,7 +1,7 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODULES)/io/files/posix/manifest.json",
+    "$(MODDABLE)/modules/embedded/storage/files/posix/manifest.json",
     "../../../modules/testing/manifest.json"
   ],
   "modules": {

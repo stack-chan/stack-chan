@@ -19,7 +19,7 @@
   },
   "platforms": {
     "esp32": {
-      "include": ["$(MODDABLE)/modules/io/i2c/manifest.json"]
+      "include": ["$(MODDABLE)/modules/embedded/io/i2c/manifest.json"]
     }
   }
 }

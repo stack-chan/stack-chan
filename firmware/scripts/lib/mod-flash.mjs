@@ -123,7 +123,7 @@ export function installModArchive({
     const archiveRange = xsArchiveVersionRangeForFirmware(firmware.moddableVersion)
     if (!archiveRange) {
       throw new Error(
-        `Unsupported Moddable firmware version: ${firmware.moddableVersion}; supported SDKs: 9.5 and 10.0`,
+        `Unsupported Moddable firmware version: ${firmware.moddableVersion}; supported SDKs: 9.5, 10.0 and 10.1`,
       )
     }
     if (!isXsVersionCompatible(archiveVersion, archiveRange)) {

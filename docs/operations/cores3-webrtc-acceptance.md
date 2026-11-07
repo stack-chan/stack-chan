@@ -186,17 +186,98 @@ The generated CSV records NVS at `0x9000` (size `0x6000`), PHY at `0xf000`
 inspection before writing; no flash operation was performed to obtain these
 build hashes.
 
-M5StackChan CoreS3 real-conversation stop, subsequent host playback/recording,
-reconnect, stack high-water, underruns, amplifier failure recovery, acoustic
-checks and the common release device checklist are **NOT RUN** for this release
-candidate. Update this record with the exact artifact and results when run.
-Do not infer that the earlier real-conversation stop failure is fixed.
+M5StackChan CoreS3 acceptance is **PARTIAL**. The unattended diagnostic run
+below passed one real-downlink stop/host-audio recovery cycle and reconnected.
+The second response checkpoint timed out, and its closure/recovery was not
+verified. The earlier real-conversation stop failure is not established as
+fully fixed. Amplifier failure recovery, acoustic listening, physical touch/UI,
+all-native-task stack coverage and the common release checklist remain **NOT RUN**.
+This is not a complete release-candidate hardware pass.
 
 The maintainer explicitly deferred ordinary M5Stack CoreS3 hardware acceptance
 to issue-driven follow-up for v2.1.0. It is **NOT RUN**, not PASS, and is not a
 pre-publication gate for this release. Automated builds still cover that board.
 This exception does not waive M5StackChan CoreS3 acceptance or establish a
 cross-board hardware result.
+
+## Unattended M5StackChan CoreS3 run (2026-11-07)
+
+**Overall: PARTIAL, not a complete two-cycle pass.** Runtime source was
+`966877ed2024868d2605bb9a5f80eea0354d2d5c`; release candidate
+`5e6c56e474fec28c76e4f6228bba28725e238264` has identical runtime source and
+only metadata/documentation changes. The diagnostic image was **8,271,360 bytes**,
+SHA-256 `7894351175e6b95ec28a30f0ea7bdf125dc02f1e2c7a7aecf40becf98b6df64c`,
+built with Moddable 10.1.0 / ESP-IDF 6.1. It was a diagnostic overlay, not an
+unmodified release artifact.
+
+Raw I2S input was zeroed before fixed offline-synthesized speech replaced the
+microphone input. Output was muted. The run tested real provider traffic without
+sending ambient microphone PCM; it did not test acoustic quality. Programmatic
+invocation used the same `LiveSession.stop()` method as the UI, but did not
+exercise physical touch dispatch or synchronous Drawer callbacks. A diagnostic
+provider-send wrapper preserved its arguments, return value and payload.
+
+### First cycle: PASS within this recipe
+
+- Real downlink: 75,360 rendered samples; telemetry `audibleMs` 120,
+  `outputIdleMs` 0, underruns 0 and overruns 0. `audibleMs` describes non-silent
+  received PCM, not an acoustic listening result; speaker output was muted.
+- Uplink gate: 126 successful provider-send frames, 24,000 injected samples and
+  36,160 captured samples since the pre-start snapshot.
+- The actual session stop reached `close.finalized`, local `session.closed`,
+  native release and final idle with no active session. HTTP Workers,
+  audio/radio leases and I2S ownership counters drained to zero.
+- Normal host TTS completed 12 playback callbacks at volume 0. A 500 ms host
+  recording produced a valid zero-PCM WAV, and normal host WAV playback returned
+  true. Recording data was wiped afterward. This validates the normal host
+  lifecycle with muted/zeroed data, not live-microphone intelligibility.
+- This cycle passed at device uptime 24.672 seconds.
+
+### Second cycle: reconnect PASS; response/closure/recovery incomplete
+
+HTTP setup returned 201 and the session connected at uptime 30.012 seconds.
+At uptime 60.755 seconds the 30-second response checkpoint expired. Cumulative
+successful provider-send frames were 1,714, injected samples 129,520, and
+raw-zero violations 0.
+
+The checkpoint required rendered samples and non-silent PCM plus
+`outputIdleMs >= 1000`. Native `outputIdleMs` counts **received silent PCM**, not
+elapsed time after response completion or absence of packets. Intermediate
+second-cycle downlink statistics were not retained, so missing downlink cannot
+be distinguished from an unmet silence threshold. This result is **insufficient
+to establish a production reconnect/audio failure**.
+
+Second-cycle closing began, but finalized/native-release status was not
+captured before bounded restoration; the second recovery was not reached.
+No safe crash label/backtrace was recorded, which does not prove the absence
+of a runtime problem. No further API attempt followed this timeout.
+
+An earlier approximately 23-second attempt is **HARNESS BLOCKED**: it required
+an offline capture-only probe counter in a provider session. The original app
+was restored before testing the corrected observer. The corrected invocation
+lasted approximately 60.75 seconds; combined bounded test windows were about
+1.5 minutes. Exact billed usage and cost were not retrieved.
+
+### Offline verification, restoration and remaining limits
+
+The corrected final ELF was checked for provider-send and raw-zero I2S wrapper
+call sites. Native observer, zero-input, fixed-speech, one-shot arming and
+independent-watchdog tests passed, as did recipe tests 11/11, production session
+tests 8/8 and RuntimeAudio/TTS lifecycle tests 21/21. The XS calling task's
+minimum free stack was 5,476 bytes, using ESP-IDF's byte units for
+`uxTaskGetStackHighWaterMark(NULL)`; other native task stacks were not measured.
+
+Only the app range was written. The original app was restored, its complete
+partition digest matched, and protected boot/table, NVS, PHY, model, MOD and
+storage regions matched their pre-test hashes. No partition-table/bootloader
+write or whole-device erase occurred. USB ownership returned to its original
+shared Windows state. The restored firmware's app-ready marker was observed
+passively after normal boot, without an extra reset.
+
+Touch/UI regression, acoustic listening, all-native-task stacks, amplifier
+fault recovery, full second-cycle acceptance and long-duration soak remain
+unverified. The ordinary CoreS3 exception above is unchanged. Keep the release
+Draft and the overall hardware acceptance incomplete.
 
 ## Recorded device measurements (2026-11-03)
 

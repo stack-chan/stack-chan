@@ -210,6 +210,24 @@ SHA-256 `7894351175e6b95ec28a30f0ea7bdf125dc02f1e2c7a7aecf40becf98b6df64c`,
 built with Moddable 10.1.0 / ESP-IDF 6.1. It was a diagnostic overlay, not an
 unmodified release artifact.
 
+Retained diagnostic-build provenance was verified by matching its binary hash
+and size to the tested image before hashing the adjacent generated metadata:
+
+- Moddable SHA: `2d54ac4308501a03f45d4fcfe33beee45ee44ac4`.
+- ESP-IDF SHA: `fff9895c82d744c7237be8847347bdd1b07c6643`.
+- Diagnostic `manifest_flat.json` SHA-256:
+  `4ca01177e5b1ff205211978f584cc06ddeb6a8084fb9d4b421355acd69f4f675`.
+- Diagnostic effective `sdkconfig` SHA-256:
+  `3028d1c71acb25e40c44b1ff7f36385b2bfa7977797bc09e82b0f66dc51affb5`.
+
+These hashes identify this diagnostic build, not the standard release outputs
+listed above. The live device retained its existing application range
+`[0x10000, 0xef0000)` and a separate model partition. The generated standard
+bundle partition table was not written and must not be treated as the live
+device layout. This app-only test and restoration are **not evidence of full
+bundle migration compatibility**; a full-bundle/live-layout compatibility test
+is **NOT RUN**.
+
 Raw I2S input was zeroed before fixed offline-synthesized speech replaced the
 microphone input. Output was muted. The run tested real provider traffic without
 sending ambient microphone PCM; it did not test acoustic quality. Programmatic

@@ -100,13 +100,24 @@ test('the CoreS3 realtime overlay enables Opus while preserving the standalone p
     assert.equal(values.get('CONFIG_AUDIO_ENCODER_OPUS_SUPPORT'), 'y')
     assert.equal(values.get('CONFIG_AUDIO_DECODER_OPUS_SUPPORT'), 'y')
     assert.equal(values.get('CONFIG_AUDIO_DECODER_MP3_SUPPORT'), 'y')
-    // Application overlays are merged last: leave these values to the Live manifest.
-    for (const key of [
-      'CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL',
-      'CONFIG_SPIRAM_SPEED_40M',
-      'CONFIG_ESPTOOLPY_FLASHMODE_DIO',
-    ])
-      assert.equal(values.has(key), false)
+    // Feature allocation policy may change; the board's validated bus timings must survive.
+    assert.equal(values.has('CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL'), false)
+    const boardValues = new Map(source.split('\n').map((line) => line.split('=')))
+    for (const key of ['CONFIG_SPIRAM_SPEED_40M', 'CONFIG_ESPTOOLPY_FLASHMODE_DIO'])
+      assert.equal(values.get(key), boardValues.get(key))
+    assert.equal(readFileSync(live.partitionFilePath, 'utf8'), readFileSync(partitionSourcePath, 'utf8'))
+    const performance = prepareCoreS3VersionSdkconfig({ ...options, realtime: true, realtimePerformance: true })
+    const performanceKeys = new Set(
+      readFileSync(performance.filePath, 'utf8')
+        .split('\n')
+        .map((line) => line.split('=')[0]),
+    )
+    for (const key of ['CONFIG_SPIRAM_SPEED_40M', 'CONFIG_ESPTOOLPY_FLASHMODE_DIO'])
+      assert.equal(
+        performanceKeys.has(key),
+        false,
+        'only the explicit performance profile defers timings to its manifest',
+      )
     const normal = prepareCoreS3VersionSdkconfig(options)
     assert.match(readFileSync(normal.filePath, 'utf8'), /CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=n/)
     assert.match(readFileSync(normal.filePath, 'utf8'), /CONFIG_SPIRAM_SPEED_40M=y/)

@@ -47,6 +47,7 @@ All commands should be run from the `firmware/` directory:
 - Use the repository npm scripts instead of invoking `mcconfig`, `mcrun`, or `mcpack` directly. The wrappers supply the managed Moddable `-o` argument.
 - Normal host, MOD, and test builds write programs to `firmware/dist/bin/` and intermediate files to `firmware/dist/tmp/`.
 - The host application name is always `stack-chan-host`.
+- Use one build configuration per target. The wrappers do not detect configuration changes or automatically clean; run `npm run clean` explicitly or use a separate worktree when changing configuration.
 - Do not add a custom `-o`; repository commands reject it to keep worktree output isolated under `firmware/dist`.
 - `npm run clean` removes all generated files under `firmware/dist`.
 - `npm run bundle` builds every release target under `firmware/dist/`, stages validated target artifacts in `firmware/dist/bundle-targets/`, and writes the assembled directory and ZIP under `firmware/host/app/`.

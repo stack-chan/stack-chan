@@ -9,12 +9,7 @@
       "incremental": 4096
     }
   },
-  "build": {
-    "C_FLAGS": "-I$(SUBPLATFORMDIRECTORY) -I$(MODDABLE)/modules/piu/MC -I$(SUBPLATFORMDIRECTORY)/../../modules/realtime-conversation/esp32"
-  },
   "modules": {
-    "*": ["./io-performance.c", "./media-scheduler.c", "./opus-policy.c"],
-    "io-performance": "./io-performance",
     "setup/realtime-performance": "./setup-realtime",
     "screen-scheduler": "./screen-scheduler"
   },

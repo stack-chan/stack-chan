@@ -26,6 +26,7 @@
   "modules": {
     "host-main": "../../main",
     "app-behavior": "../../app-behavior",
+    "owned-resources": "../../owned-resources",
     "app-behavior-resolver": "../../app-behavior-resolver",
     "app-launch": "../../app-launch",
     "app-default-behavior": "./behavior",

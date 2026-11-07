@@ -8,6 +8,7 @@
 #include "xsHost.h"
 #include "xsmc.h"
 #include "mc.xs.h"
+#include "mc.defines.h"
 
 #include "esp_heap_caps.h"
 #include "esp_memory_utils.h"
@@ -18,6 +19,9 @@
 #include "freertos/task.h"
 
 #define OPUS_ENCODER_STACK_BYTES (24 * 1024)
+#if MODDEF_STACKCHAN_REALTIME
+extern int stackchanRealtimeMediaInit(void);
+#endif
 #define OPUS_MAX_INPUT_BYTES 1920
 #define OPUS_MAX_PACKET_BYTES 1275
 #define PCM_FRAME_BYTES 1920
@@ -252,6 +256,10 @@ void xs_esp32_opus_encoder_destructor(void *data)
 
 void xs_esp32_opus_encoder_constructor(xsMachine *the)
 {
+#if MODDEF_STACKCHAN_REALTIME
+	if (stackchanRealtimeMediaInit() != ESP_OK)
+		xsUnknownError("Realtime media initialization failed");
+#endif
 	xsESP32OpusEncoderRecord *encoder = c_calloc(1, sizeof(xsESP32OpusEncoderRecord));
 	esp_opus_enc_config_t config = {
 		.sample_rate = ESP_AUDIO_SAMPLE_RATE_16K,

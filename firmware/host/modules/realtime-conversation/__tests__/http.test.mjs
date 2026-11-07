@@ -3,6 +3,7 @@ import test from 'node:test'
 import { createClosingClient, guardSocketCallbacks, requestHttps } from '../http-core.js'
 import { normalizeRequest } from '../http-options.js'
 import { createHttpProxy } from '../http-proxy.js'
+import { createHttpQueue } from '../http-queue.js'
 
 const encode = (text) => new TextEncoder().encode(text).buffer
 const decode = (buffer) => new TextDecoder().decode(buffer)
@@ -260,6 +261,80 @@ test('IPC and request capacity failures reject without creating an unbounded que
   const g = proxyFixture()
   await assert.rejects(g.fetch('http://insecure/a', { method: 'POST' }), URIError)
   assert.equal(g.sent.length, 0)
+})
+
+test('the HTTP proxy releases its VM after actual request cleanup on success, failure, and caller timeout', async () => {
+  for (const outcome of ['success', 'failure', 'timeout']) {
+    const order = [],
+      callerTimers = new Set(),
+      deferredClose = []
+    let callbacks, clientOptions
+    const worker = {}
+    const queue = createHttpQueue({
+      execute: (request) =>
+        requestHttps(request, {
+          createClient(options) {
+            clientOptions = options
+            return {
+              request(options) {
+                callbacks = options
+              },
+              close() {
+                order.push('socket closed')
+              },
+            }
+          },
+          schedule(callback, ms) {
+            if (ms === 0) deferredClose.push(callback)
+            return callback
+          },
+          cancel() {},
+        }),
+      post: (message) => queueMicrotask(() => worker.onmessage(message)),
+      onIdle(id) {
+        order.push('worker idle')
+        queueMicrotask(() => worker.onmessage({ idle: id }))
+      },
+      schedule: () => assert.fail('no IPC retries expected'),
+      elapsed: () => 0,
+    })
+    worker.postMessage = (message) => queueMicrotask(() => queue(message))
+    const fetch = createHttpProxy({
+      createWorker: () => worker,
+      releaseWorker() {
+        order.push('VM released')
+      },
+      normalize,
+      decode,
+      now: () => 0,
+      schedule(callback) {
+        callerTimers.add(callback)
+        return callback
+      },
+      cancel: (timer) => callerTimers.delete(timer),
+    })
+    const request = fetch('https://service.test/path', { method: 'POST' })
+    const result = outcome === 'success' ? request : assert.rejects(request, /failed|timed out/)
+    await new Promise(setImmediate)
+    if (outcome === 'timeout') {
+      const timer = [...callerTimers][0]
+      callerTimers.delete(timer)
+      timer()
+      await result
+      assert.deepEqual(order, [], 'the caller deadline cannot free an active TLS VM')
+    }
+    if (outcome === 'failure') clientOptions.onError()
+    else {
+      callbacks.onHeaders(200, new Map())
+      callbacks.onDone()
+    }
+    assert.deepEqual(order, [], 'SDK socket close is deferred outside its callback')
+    deferredClose.shift()()
+    await result
+    await new Promise(setImmediate)
+    assert.deepEqual(order, ['socket closed', 'worker idle', 'VM released'])
+    assert.equal(callerTimers.size, 0)
+  }
 })
 
 test('TLS callback exceptions become socket errors without escaping the I/O task', () => {

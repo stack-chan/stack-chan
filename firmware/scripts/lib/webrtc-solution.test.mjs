@@ -8,9 +8,9 @@ import { manifestUsesWebRtc, prepareWebRtcSolution } from './webrtc-solution.mjs
 
 const firmware = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-test('WebRTC remains opt-in for standard hosts until explicitly included', () => {
+test('standard host manifests include WebRTC for both CoreS3 boards and leave other boards unchanged', () => {
   for (const platform of ['m5stack_cores3', 'm5stackchan_cores3'])
-    assert.equal(manifestUsesWebRtc(path.join(firmware, 'host/app/manifest.json'), platform), false, platform)
+    assert.equal(manifestUsesWebRtc(path.join(firmware, 'host/app/manifest.json'), platform), true, platform)
   for (const platform of ['m5stack', 'm5stack_core2', 'stackchan_rt', 'takao_core2_sg90', 'wasm'])
     assert.equal(manifestUsesWebRtc(path.join(firmware, 'host/app/manifest.json'), platform), false, platform)
 })

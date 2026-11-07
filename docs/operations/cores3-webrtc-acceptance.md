@@ -186,13 +186,13 @@ The generated CSV records NVS at `0x9000` (size `0x6000`), PHY at `0xf000`
 inspection before writing; no flash operation was performed to obtain these
 build hashes.
 
-M5StackChan CoreS3 acceptance is **PARTIAL**. The unattended diagnostic run
-below passed one real-downlink stop/host-audio recovery cycle and reconnected.
-The second response checkpoint timed out, and its closure/recovery was not
-verified. The earlier real-conversation stop failure is not established as
-fully fixed. Amplifier failure recovery, acoustic listening, physical touch/UI,
-all-native-task stack coverage and the common release checklist remain **NOT RUN**.
-This is not a complete release-candidate hardware pass.
+M5StackChan CoreS3 **two-cycle lifecycle acceptance passed within the final
+diagnostic recipe** below. Each cycle received real downlink, used the actual
+session stop method, released resources and recovered normal host audio.
+Cycle 2 recorded four underruns of undetermined cause. Acoustic quality,
+physical touch/UI, amplifier fault recovery, long-duration stability,
+all-native-task stack coverage and the common release checklist remain
+unverified. This is not a complete release-candidate hardware pass.
 
 The maintainer explicitly deferred ordinary M5Stack CoreS3 hardware acceptance
 to issue-driven follow-up for v2.1.0. It is **NOT RUN**, not PASS, and is not a
@@ -202,100 +202,110 @@ cross-board hardware result.
 
 ## Unattended M5StackChan CoreS3 run (2026-11-07)
 
-**Overall: PARTIAL, not a complete two-cycle pass.** Runtime source was
-`966877ed2024868d2605bb9a5f80eea0354d2d5c`; release candidate
-`5e6c56e474fec28c76e4f6228bba28725e238264` has identical runtime source and
-only metadata/documentation changes. The diagnostic image was **8,271,360 bytes**,
-SHA-256 `7894351175e6b95ec28a30f0ea7bdf125dc02f1e2c7a7aecf40becf98b6df64c`,
-built with Moddable 10.1.0 / ESP-IDF 6.1. It was a diagnostic overlay, not an
-unmodified release artifact.
+**PASS: two consecutive real-audio lifecycle cycles, within this diagnostic
+recipe.** This is not acoustic-quality, touch/UI or overall release acceptance.
+Runtime source was `966877ed2024868d2605bb9a5f80eea0354d2d5c`; release candidate
+`5e6c56e474fec28c76e4f6228bba28725e238264` and subsequent evidence-only commits
+have identical runtime source. The final diagnostic image was **8,271,360 bytes**,
+SHA-256 `7dc5410ca95d9597d1711edfa23ebb0f7b270c70ac3d51050f761afd51cd82b0`.
+It is a diagnostic overlay, not an unmodified release artifact.
 
-Retained diagnostic-build provenance was verified by matching its binary hash
-and size to the tested image before hashing the adjacent generated metadata:
+The retained final binary hash/size matched the tested image before the
+adjacent generated metadata was hashed:
 
-- Moddable SHA: `2d54ac4308501a03f45d4fcfe33beee45ee44ac4`.
-- ESP-IDF SHA: `fff9895c82d744c7237be8847347bdd1b07c6643`.
+- Moddable 10.1.0 SHA: `2d54ac4308501a03f45d4fcfe33beee45ee44ac4`.
+- ESP-IDF 6.1 SHA: `fff9895c82d744c7237be8847347bdd1b07c6643`.
 - Diagnostic `manifest_flat.json` SHA-256:
   `4ca01177e5b1ff205211978f584cc06ddeb6a8084fb9d4b421355acd69f4f675`.
 - Diagnostic effective `sdkconfig` SHA-256:
   `3028d1c71acb25e40c44b1ff7f36385b2bfa7977797bc09e82b0f66dc51affb5`.
 
-These hashes identify this diagnostic build, not the standard release outputs
-listed above. The live device retained its existing application range
+The overlay supplies a built-in no-touch MOD, fixed offline-synthesized input,
+raw microphone zeroing, muted output, counters, one-shot arming and independent
+deadlines. Product source and shared SDK source were unchanged. Both sessions
+used fresh native stats; upon receiving rendered and non-silent PCM, the
+harness explicitly invoked the actual `LiveSession.stop()` method. It did not
+use `outputIdleMs` as a response-completion indicator. Physical Drawer touch
+dispatch and synchronous UI callbacks were not exercised. `session.closed` is
+a local lifecycle event, not proof of remote hangup acknowledgement.
+
+### Final measured cycles
+
+| Measurement | Cycle 1 | Cycle 2 |
+| --- | ---: | ---: |
+| Rendered samples at downlink checkpoint | 110880 | 103200 |
+| Non-silent PCM duration before volume scaling | 450 ms | 420 ms |
+| `outputIdleMs`, informational only | 200 | 50 |
+| Underruns / overruns at checkpoint | 0 / 0 | 4 / 0 |
+| Injected samples since pre-start snapshot | 28480 | 40640 |
+| Captured samples since pre-start snapshot | 42240 | 40640 |
+| Successful provider-send frames since pre-start snapshot | 169 | 159 |
+| `close.finalized`, native release, idle, no active session | PASS | PASS |
+| Normal local TTS and playback callbacks | PASS; 12 | PASS; 12 |
+| 500 ms normal host recording and WAV playback | PASS | PASS |
+| Zero PCM recorded, then wiped | 16000 bytes | 16000 bytes |
+
+The second cycle reconnected after first-cycle recovery. At completion, HTTP
+Workers were created 2 / terminated 2 / outstanding 0; audio and radio leases
+were 0; I2S channels were created 10 / deleted 10 / current 0 / enabled 0.
+Raw-zero violations were 0. Both cycle-pass and trial-complete snapshots
+confirmed release. Cumulative successful provider-send frames were 437.
+Output was muted: non-silent PCM counters are not a listening result.
+The cause and acoustic impact of cycle 2's four underruns remain undetermined.
+
+The XS calling task's minimum free stack was 5476 bytes via
+`uxTaskGetStackHighWaterMark(NULL)`, using ESP-IDF's byte units. Other native
+task stacks were not measured. Completion observations: internal free heap
+198087 bytes, minimum observed 41744 bytes, largest free block 94208 bytes;
+PSRAM free 7680960 bytes. These are bounded diagnostic observations, not
+unrestricted memory or stack guarantees.
+
+### Offline checks and earlier attempts
+
+Recipe tests passed 12/12, including independent fresh stats for both sessions;
+production session tests passed 8/8 and RuntimeAudio/TTS tests 21/21. Native
+provider-send observer tests preserve arguments, return and payload and count
+only successful nonempty frames. Raw-zeroing, fixed speech, one-shot arming
+and a 150-second independent watchdog passed offline tests. Final ELF call
+sites, controller syntax, telemetry allowlist and the 160-second absolute host
+deadline were checked. Cleanup cannot extend that deadline.
+
+The first earlier attempt was **HARNESS BLOCKED** by using an offline-only
+probe counter in a provider session. The next passed one cycle and reconnected,
+but its 30-second checkpoint mistook received silent PCM (`outputIdleMs`) for
+general response completion. Its second closure was not observed, rather than
+proven to have failed. These observer/criterion limitations were corrected
+offline before the final run; they are not established production regressions.
+
+Final trial-complete was at device uptime 39.796239 seconds. The measured host
+arm-to-capture-end interval was 46.056 seconds; arm-to-restoration bootloader
+connection was 47.832 seconds. Earlier terminal uptimes were about 23.24 and
+60.75 seconds, but their exact host arm/reset intervals were not retained.
+These timings are not billing durations; actual usage/cost was not queried.
+No further API/device attempt followed the final successful run.
+
+### Restoration and remaining limits
+
+Raw microphone PCM was zeroed before network capture; only fixed synthetic
+speech or zeros entered the provider. No ambient PCM, credential values,
+packet payloads or raw serial logs were retained.
+
+Only the app range was written. The live device retained its application range
 `[0x10000, 0xef0000)` and a separate model partition. The generated standard
-bundle partition table was not written and must not be treated as the live
-device layout. This app-only test and restoration are **not evidence of full
-bundle migration compatibility**; a full-bundle/live-layout compatibility test
-is **NOT RUN**.
+bundle table was not written or treated as the live layout. Full-bundle
+migration compatibility remains **NOT RUN**.
 
-Raw I2S input was zeroed before fixed offline-synthesized speech replaced the
-microphone input. Output was muted. The run tested real provider traffic without
-sending ambient microphone PCM; it did not test acoustic quality. Programmatic
-invocation used the same `LiveSession.stop()` method as the UI, but did not
-exercise physical touch dispatch or synchronous Drawer callbacks. A diagnostic
-provider-send wrapper preserved its arguments, return value and payload.
+The original app's entire partition digest matched after restoration, and
+protected boot/table, NVS, PHY, model, MOD and storage regions matched their
+pre-test hashes. USB returned to its original shared Windows state. The
+restored original firmware emitted its app-ready marker after 9.075 seconds
+of passive observation, with no extra reset. No bootloader/partition-table
+write, whole-device erase or persistent permission change occurred.
 
-### First cycle: PASS within this recipe
-
-- Real downlink: 75,360 rendered samples; telemetry `audibleMs` 120,
-  `outputIdleMs` 0, underruns 0 and overruns 0. `audibleMs` describes non-silent
-  received PCM, not an acoustic listening result; speaker output was muted.
-- Uplink gate: 126 successful provider-send frames, 24,000 injected samples and
-  36,160 captured samples since the pre-start snapshot.
-- The actual session stop reached `close.finalized`, local `session.closed`,
-  native release and final idle with no active session. HTTP Workers,
-  audio/radio leases and I2S ownership counters drained to zero.
-- Normal host TTS completed 12 playback callbacks at volume 0. A 500 ms host
-  recording produced a valid zero-PCM WAV, and normal host WAV playback returned
-  true. Recording data was wiped afterward. This validates the normal host
-  lifecycle with muted/zeroed data, not live-microphone intelligibility.
-- This cycle passed at device uptime 24.672 seconds.
-
-### Second cycle: reconnect PASS; response/closure/recovery incomplete
-
-HTTP setup returned 201 and the session connected at uptime 30.012 seconds.
-At uptime 60.755 seconds the 30-second response checkpoint expired. Cumulative
-successful provider-send frames were 1,714, injected samples 129,520, and
-raw-zero violations 0.
-
-The checkpoint required rendered samples and non-silent PCM plus
-`outputIdleMs >= 1000`. Native `outputIdleMs` counts **received silent PCM**, not
-elapsed time after response completion or absence of packets. Intermediate
-second-cycle downlink statistics were not retained, so missing downlink cannot
-be distinguished from an unmet silence threshold. This result is **insufficient
-to establish a production reconnect/audio failure**.
-
-Second-cycle closing began, but finalized/native-release status was not
-captured before bounded restoration; the second recovery was not reached.
-No safe crash label/backtrace was recorded, which does not prove the absence
-of a runtime problem. No further API attempt followed this timeout.
-
-An earlier approximately 23-second attempt is **HARNESS BLOCKED**: it required
-an offline capture-only probe counter in a provider session. The original app
-was restored before testing the corrected observer. The corrected invocation
-lasted approximately 60.75 seconds; combined bounded test windows were about
-1.5 minutes. Exact billed usage and cost were not retrieved.
-
-### Offline verification, restoration and remaining limits
-
-The corrected final ELF was checked for provider-send and raw-zero I2S wrapper
-call sites. Native observer, zero-input, fixed-speech, one-shot arming and
-independent-watchdog tests passed, as did recipe tests 11/11, production session
-tests 8/8 and RuntimeAudio/TTS lifecycle tests 21/21. The XS calling task's
-minimum free stack was 5,476 bytes, using ESP-IDF's byte units for
-`uxTaskGetStackHighWaterMark(NULL)`; other native task stacks were not measured.
-
-Only the app range was written. The original app was restored, its complete
-partition digest matched, and protected boot/table, NVS, PHY, model, MOD and
-storage regions matched their pre-test hashes. No partition-table/bootloader
-write or whole-device erase occurred. USB ownership returned to its original
-shared Windows state. The restored firmware's app-ready marker was observed
-passively after normal boot, without an extra reset.
-
-Touch/UI regression, acoustic listening, all-native-task stacks, amplifier
-fault recovery, full second-cycle acceptance and long-duration soak remain
-unverified. The ordinary CoreS3 exception above is unchanged. Keep the release
-Draft and the overall hardware acceptance incomplete.
+Keep the release Draft. Physical touch/UI regression, acoustic quality,
+amplifier fault recovery, all-native-task stacks, long-duration soak and the
+common release checklist are not certified by this test. Ordinary CoreS3
+hardware remains deferred under the explicit scope exception above.
 
 ## Recorded device measurements (2026-11-03)
 

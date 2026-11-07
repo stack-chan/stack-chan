@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { webRtcComponents } from './webrtc-solution.mjs'
 
 const dependenciesByPlatform = {
   m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
@@ -69,21 +70,20 @@ export function prepareCoreS3IdfDependencies({
   }
 
   if (realtime) {
-    if (platformName !== 'm5stackchan_cores3' || !solutionDirectory)
+    if (!['m5stack_cores3', 'm5stackchan_cores3'].includes(platformName) || !solutionDirectory)
       throw new Error('RealtimeConversation requires CoreS3 and ESP_WEBRTC_SOLUTION')
-    const components = ['esp_webrtc', 'esp_peer', 'media_lib_utils', 'webrtc_utils', 'av_render']
     const componentDirectory = path.join(mainDirectory, '..', 'components')
     mkdirSync(componentDirectory, { recursive: true })
-    for (const name of components) {
+    for (const name of webRtcComponents) {
       const source = path.resolve(solutionDirectory, 'components', name)
       if (!existsSync(path.join(source, 'CMakeLists.txt'))) throw new Error(`Missing WebRTC component: ${name}`)
       linkComponent(source, path.join(componentDirectory, name))
     }
     // Use ESP-IDF's project component discovery; never patch the SDK CMake project.
     const conversation = JSON.parse(
-      readFileSync(new URL('../../host/modules/realtime-conversation/manifest.json', import.meta.url)),
+      readFileSync(new URL('../../host/modules/realtime-conversation/esp32/manifest.json', import.meta.url)),
     )
-    for (const { name, version } of conversation.platforms['esp32/m5stackchan_cores3'].dependency) {
+    for (const { name, version } of conversation.dependencies) {
       if (name && !manifest.includes(`  espressif/${name}:`)) manifest += `  espressif/${name}: '${version}'\n`
     }
   }

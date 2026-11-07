@@ -140,3 +140,60 @@ test('timer initialization failure releases native ownership before another cons
   fail = false
   assert.doesNotThrow(() => new Transport(() => {}))
 })
+
+test('failed native startup can close and release ownership before a fresh transport starts', async () => {
+  let owner,
+    fail = true,
+    starts = 0,
+    stopping = false
+  const timers = []
+  const Transport = createTransport({
+    Base: class {},
+    Timer: {
+      repeat(callback) {
+        const timer = { callback }
+        timers.push(timer)
+        return timer
+      },
+      clear(timer) {
+        timer.cleared = true
+      },
+      schedule() {},
+    },
+    native: (name) =>
+      function () {
+        if (name === 'xs_live_transport_constructor') {
+          if (owner) throw new Error('audio is in use')
+          owner = this
+          stopping = false
+        }
+        if (name === 'xs_live_transport_start') {
+          if (fail) throw new Error('Realtime codec registration failed')
+          starts++
+        }
+        if (name === 'xs_live_transport_close') stopping = true
+        if (name === 'xs_live_transport_read' && stopping) return { type: 'released' }
+        if (name === 'xs_live_transport_release') {
+          assert.equal(owner, this)
+          owner = undefined
+        }
+      },
+  })
+  const first = new Transport(() => {})
+  assert.throws(() => first.start(), /codec registration failed/)
+  assert.equal(starts, 0)
+  assert.throws(() => new Transport(() => {}), /audio is in use/)
+  const closing = first.close()
+  timers[0].callback(timers[0])
+  await closing
+  assert.equal(owner, undefined)
+  assert.ok(timers[0].cleared)
+  fail = false
+  const second = new Transport(() => {})
+  second.start()
+  assert.equal(starts, 1)
+  const secondClose = second.close()
+  timers[1].callback(timers[1])
+  await secondClose
+  assert.equal(owner, undefined)
+})

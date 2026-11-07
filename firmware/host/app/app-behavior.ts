@@ -11,6 +11,8 @@ export type StackchanAppBehaviorOption = {
 export type StackchanAppBehavior = {
   onLaunch?: () => Promise<boolean> | boolean
   onContextCreated?: (context: StackchanContext, option: StackchanAppBehaviorOption) => Promise<void> | void
+  /** Await app-owned resource cleanup before the context closes its audio and other runtimes. */
+  onClose?: () => Promise<void> | void
 }
 
 export async function runContextCreatedBehaviors(

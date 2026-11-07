@@ -143,7 +143,10 @@ async function main() {
     context = createStackchanContext(preferences, {
       connectivity: bootServices.connectivity,
       remoteConversationSession: ownedDock?.remoteConversationSession,
-      closeHandlers: ownedDock ? [() => ownedDock.close()] : undefined,
+      closeHandlers: [
+        ...appBehaviors.map((behavior) => () => behavior.onClose?.()),
+        ...(ownedDock ? [() => ownedDock.close()] : []),
+      ],
     })
     phase = 'behavior'
     ownedDock?.onContextCreated(context)

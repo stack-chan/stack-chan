@@ -6,6 +6,7 @@
     "XS_MODS": 1
   },
   "include": [
+    "../platforms/core_s3_audioout/manifest.select.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODULES)/base/modules/manifest.json",

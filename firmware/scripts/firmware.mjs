@@ -2,16 +2,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  statSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
@@ -20,17 +11,12 @@ import {
   hostApplicationName,
   moddableOutputArguments,
 } from './lib/build-output.mjs'
-import {
-  buildVariantMarkerPath,
-  readBuildVariant,
-  resolveBuildVariant,
-  writeBuildVariant,
-} from './lib/build-variant.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
 import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
+import { manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -80,6 +66,20 @@ const uploadPort =
   readOption(rawArgs, 'port') ?? process.env.STACKCHAN_PORT ?? process.env.UPLOAD_PORT ?? process.env.ESPPORT
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
+let realtime = false
+let solutionDirectory
+if (!dryRun && deviceName === 'm5stackchan_cores3' && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
+  try {
+    realtime = manifestUsesWebRtc(manifest, deviceName)
+    if (realtime) {
+      solutionDirectory = prepareWebRtcSolution()
+      subprocessEnvironment = { ...subprocessEnvironment, ESP_WEBRTC_SOLUTION: solutionDirectory }
+    }
+  } catch (error) {
+    console.error(`[stack-chan] WebRTC dependency setup failed: ${error.message}`)
+    process.exit(1)
+  }
+}
 
 if (
   deviceName === 'm5stackchan_cores3' &&
@@ -103,8 +103,8 @@ if (
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
-      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
-      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
+      realtime,
+      solutionDirectory,
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
@@ -114,7 +114,10 @@ if (
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
-    const versionSdkconfig = prepareCoreS3VersionSdkconfig({ realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1' })
+    const versionSdkconfig = prepareCoreS3VersionSdkconfig({
+      realtime,
+      realtimePerformance: path.basename(manifest) === 'manifest_openai_live.json',
+    })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
@@ -152,25 +155,6 @@ if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].i
     process.on('exit', () => rmSync(toolManifest, { force: true }))
   } catch (error) {
     console.error(`[stack-chan] firmware version could not be prepared: ${error.message}`)
-    process.exit(1)
-  }
-}
-
-const buildVariantChanged =
-  !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
-
-if (buildVariantChanged && ['m5stackchan_cores3', 'stackchan_rt'].includes(deviceName)) {
-  try {
-    prepareCoreS3IdfDependencies({
-      outputDirectory: buildOutputDirectory,
-      platformName: deviceName,
-      applicationName: hostApplicationName,
-      mode: buildMode,
-      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
-      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
-    })
-  } catch (error) {
-    console.error(`[stack-chan] IDF dependencies could not be prepared after target clean: ${error.message}`)
     process.exit(1)
   }
 }
@@ -307,50 +291,6 @@ function run(bin, binArgs, cwd = process.cwd()) {
     process.exit(1)
   }
   if (result.status !== 0) process.exit(result.status ?? 1)
-}
-
-/**
- * Cleans a shared Moddable target before switching its application manifest.
- * mcconfig otherwise may reuse generated resources and configuration from the
- * previous manifest because every host variant has the same application name.
- */
-function prepareBuildVariant() {
-  if (!process.env.MODDABLE || !existsSync(process.env.MODDABLE)) {
-    console.error('[stack-chan] MODDABLE が設定されていません。`npm run setup` を実行してください。')
-    process.exit(1)
-  }
-  const markerPath = buildVariantMarkerPath({
-    outputDirectory: buildOutputDirectory,
-    deviceName,
-    mode: buildMode,
-    applicationName: hostApplicationName,
-  })
-  const selectedManifest = path.resolve(manifest)
-  const selectedVariant = resolveBuildVariant(manifest, {
-    sdk: realpathSync(process.env.MODDABLE),
-    idf: process.env.IDF_PATH,
-    realtime: process.env.STACKCHAN_REALTIME_WEBRTC,
-    measured: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE,
-    systemTrace: process.env.STACKCHAN_REALTIME_SYSTEM_TRACE,
-    solution: process.env.ESP_WEBRTC_SOLUTION,
-    manifest: readFileSync(selectedManifest, 'utf8'),
-  })
-  if (readBuildVariant(markerPath) === selectedVariant) return false
-
-  console.log(`[stack-chan] cleaning target before manifest switch: ${manifest}`)
-  ensureBuildOutputDirectory()
-  const result = spawnSync(
-    'mcconfig',
-    [...buildModeArgs, '-m', '-p', platform, '-t', 'clean', ...outputArgs, selectedManifest],
-    { env: subprocessEnvironment, stdio: 'inherit' },
-  )
-  if (result.error) {
-    console.error(`[stack-chan] mcconfigを実行できませんでした: ${result.error.message}`)
-    process.exit(1)
-  }
-  if (result.status !== 0) process.exit(result.status ?? 1)
-  writeBuildVariant(markerPath, selectedVariant)
-  return true
 }
 
 /**

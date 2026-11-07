@@ -15,6 +15,13 @@ test('standard host manifests include WebRTC for both CoreS3 boards and leave ot
     assert.equal(manifestUsesWebRtc(path.join(firmware, 'host/app/manifest.json'), platform), false, platform)
 })
 
+test('the explicit Live profile includes the WebRTC backend', () => {
+  assert.equal(
+    manifestUsesWebRtc(path.join(firmware, 'host/app/manifest_openai_live.json'), 'm5stackchan_cores3'),
+    true,
+  )
+})
+
 test('dependency graph discovery handles board conditions and shared cyclic includes', () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'stackchan-webrtc-graph-'))
   try {

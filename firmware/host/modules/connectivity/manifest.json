@@ -2,11 +2,11 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODULES)/io/ntp/client/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/ntp/client/manifest.json",
     "$(MODULES)/web/websocket/manifest.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
-    "$(MODULES)/io/dnssd/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/dnssd/manifest.json",
     "$(MODULES)/crypt/digest/manifest.json",
     "$(MODULES)/data/text/encoder/manifest.json",
     "$(MODULES)/data/text/decoder/manifest.json",
@@ -48,7 +48,9 @@
   },
   "platforms": {
     "esp32": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "include": [
+        "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json"
+      ],
       "modules": {
         "~": ["./sim/local-peer-transports"],
         "local-peer-capability": "./local-peer-capability",
@@ -60,19 +62,25 @@
       "include": ["./manifest_local_peer_ble_only.json"]
     },
     "esp": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "include": [
+        "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json"
+      ],
       "modules": {
         "~": "./local-peer-capability"
       }
     },
     "pico": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "include": [
+        "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json"
+      ],
       "modules": {
         "~": "./local-peer-capability"
       }
     },
     "zephyr": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "include": [
+        "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json"
+      ],
       "modules": {
         "~": "./local-peer-capability"
       }
@@ -101,7 +109,9 @@
       }
     },
     "esp32/m5stackchan_cores3": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "include": [
+        "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json"
+      ],
       "modules": {
         "~": ["./sim/local-peer-capability", "./sim/local-peer-transports"],
         "local-peer-capability": "./local-peer-capability",

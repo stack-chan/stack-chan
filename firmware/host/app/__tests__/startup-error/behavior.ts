@@ -1,3 +1,3 @@
-import { onContextCreated, onLaunch } from 'startup-error-ports'
+import { onClose, onContextCreated, onLaunch } from 'startup-error-ports'
 
-export default { onContextCreated, onLaunch }
+export default { onContextCreated, onLaunch, onClose }

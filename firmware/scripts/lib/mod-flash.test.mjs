@@ -13,7 +13,7 @@ test('resolves mcrun archives using the observable output contract', () => {
       mode: 'debug',
       projectName: 'look_around',
     }),
-    '/repo/firmware/dist/bin/esp32/debug/look_around/look_around.xsa',
+    path.join('/repo/firmware/dist', 'bin', 'esp32', 'debug', 'look_around', 'look_around.xsa'),
   )
   assert.equal(
     resolveModArchivePath({
@@ -21,7 +21,7 @@ test('resolves mcrun archives using the observable output contract', () => {
       mode: 'instrument',
       projectName: 'look_around',
     }),
-    '/repo/firmware/dist/bin/esp32/instrument/look_around/look_around.xsa',
+    path.join('/repo/firmware/dist', 'bin', 'esp32', 'instrument', 'look_around', 'look_around.xsa'),
   )
   assert.equal(
     resolveModArchivePath({
@@ -29,7 +29,7 @@ test('resolves mcrun archives using the observable output contract', () => {
       mode: 'release',
       projectName: 'look_around',
     }),
-    '/repo/firmware/dist/bin/esp32/release/look_around/look_around.xsa',
+    path.join('/repo/firmware/dist', 'bin', 'esp32', 'release', 'look_around', 'look_around.xsa'),
   )
 })
 
@@ -245,7 +245,7 @@ test('9.5 MOD preflight rejects an out-of-range archive before writing', () => {
 })
 
 test('CLI MOD preflight uses the detected SDK archive range before any write', () => {
-  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1']) {
+  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1', '10.1.0', '10.1.0+stackchan.2']) {
     for (const minor of [6, 7, 8, 9, 10]) {
       const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-flash-range-'))
       try {
@@ -286,7 +286,7 @@ test('CLI MOD preflight uses the detected SDK archive range before any write', (
 })
 
 test('CLI MOD preflight rejects unknown SDKs without writing or verifying flash', () => {
-  for (const version of ['8.3.1', '9.6.0', '10.1.0', '11.0.0', 'unrecognized']) {
+  for (const version of ['8.3.1', '9.6.0', '10.2.0', '10.10.0', '11.0.0', 'unrecognized']) {
     const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-flash-unknown-sdk-'))
     const archivePath = path.join(fixture, 'mod.xsa')
     const calls = []

@@ -37,7 +37,7 @@ export const DEVICE_PROFILES = Object.freeze({
     deviceInstall: true,
     xsArchiveVersion: [17, 9, 2],
     xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
-    firmwareVersionPrefixes: ['9.5.', '10.0.'],
+    firmwareVersionPrefixes: ['9.5.', '10.0.', '10.1.'],
     chipPatterns: ['ESP32-S3'],
     entrypoints: ['mod', 'miniapp'],
     capabilities: Object.values(CAPABILITIES),
@@ -48,7 +48,7 @@ export const DEVICE_PROFILES = Object.freeze({
     deviceInstall: false,
     xsArchiveVersion: [17, 9, 2],
     xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
-    firmwareVersionPrefixes: ['10.0.'],
+    firmwareVersionPrefixes: ['10.0.', '10.1.'],
     chipPatterns: [],
     entrypoints: ['mod', 'miniapp'],
     capabilities: [

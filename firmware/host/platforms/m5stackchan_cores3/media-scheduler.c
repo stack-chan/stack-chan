@@ -9,6 +9,8 @@
 #include "media_lib_adapter.h"
 #include <string.h>
 
+extern int stackchanRealtimeMediaInit(void);
+
 static BaseType_t stackchanMediaCreate(TaskFunction_t body, const char *name,
     uint32_t stackSize, void *arg, UBaseType_t priority, TaskHandle_t *handle,
     BaseType_t core, UBaseType_t caps) {
@@ -33,6 +35,6 @@ static BaseType_t stackchanMediaCreate(TaskFunction_t body, const char *name,
 
 // The full media library also serves MP3 playback before the first conversation.
 void xs_realtime_media_setup(xsMachine *the) {
-  if (media_lib_add_default_adapter() != ESP_OK)
+  if (stackchanRealtimeMediaInit() != ESP_OK)
     xsUnknownError("Realtime media initialization failed");
 }

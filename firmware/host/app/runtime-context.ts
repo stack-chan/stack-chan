@@ -65,6 +65,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   #uiRuntime: StackchanRuntimeUI
   #updateFaceHandler: Timer | undefined
   #closed = false
+  #closePromise: Promise<void> | undefined
   #ownedResources: OwnedResources
 
   constructor(params: RuntimeContextConstructorParam) {
@@ -503,7 +504,13 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   private createLifecycleCapability(): LifecycleCapability {
     return {
-      close: () => this.#close(),
+      close: () => {
+        if (!this.#closePromise) {
+          this.#closed = true
+          this.#closePromise = Promise.resolve().then(() => this.#close())
+        }
+        return this.#closePromise
+      },
     }
   }
 
@@ -665,8 +672,6 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   async #close(): Promise<void> {
-    if (this.#closed) return
-    this.#closed = true
     if (this.#updateFaceHandler) {
       Timer.clear(this.#updateFaceHandler)
       this.#updateFaceHandler = undefined

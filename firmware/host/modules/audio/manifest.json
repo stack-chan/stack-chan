@@ -63,8 +63,8 @@
   "platforms": {
     "mac": {
       "modules": {
-        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/mac/audioin"
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/mac/audioin"
       },
       "defines": {
         "audioOut": {
@@ -75,22 +75,22 @@
       }
     },
     "lin": {
-      "include": ["$(MODDABLE)/modules/io/audioout/manifest.json"],
+      "include": ["$(MODDABLE)/modules/embedded/io/audio/out/manifest.json"],
       "modules": {
-        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin"
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/lin/audioin"
       }
     },
     "win": {
       "modules": {
-        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/win/audioin"
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/win/audioin"
       }
     },
     "esp32": {
       "modules": {
-        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/esp32/audioin"
       },
       "dependency": [
         {
@@ -121,7 +121,7 @@
     },
     "esp32/m5stackchan_cores3": {
       "include": [
-        "$(MODDABLE)/modules/io/audioout/manifest.json",
+        "$(MODDABLE)/modules/embedded/io/audio/out/manifest.json",
         "../../../vendor/stackchan-voice/manifest.json",
         "./platforms/m5stackchan-cores3/manifest.json"
       ],
@@ -130,11 +130,11 @@
       },
       "modules": {
         "~": "./tts-stackchan-voice",
-        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
         "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
         "stackchanOpusDecoder": "./platforms/m5stackchan-cores3/esp32-opus-decoder",
         "stackchanOpusEncoder": "./platforms/m5stackchan-cores3/esp32-opus-encoder",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/esp32/audioin",
         "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
       },
       "dependency": [
@@ -176,8 +176,8 @@
     },
     "esp32/stackchan_rt": {
       "modules": {
-        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/esp32/audioin"
       },
       "dependency": [
         {

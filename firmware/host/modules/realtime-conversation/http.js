@@ -21,6 +21,7 @@ export default createHttpProxy({
       nativeStack: 6144,
       priority: 3,
     }),
+  releaseWorker: (worker) => worker.terminate(),
   normalize: (url, options) =>
     normalizeRequest(
       url,

@@ -12,7 +12,16 @@ import {
 } from 'lucide-react'
 
 export type NavigationId =
-  'home' | 'flash' | 'preference' | 'mod-gallery' | 'mediapipe' | 'simulator' | 'editor' | 'face-editor' | 'tutorial'
+  | 'home'
+  | 'flash'
+  | 'preference'
+  | 'mod-gallery'
+  | 'mediapipe'
+  | 'simulator'
+  | 'editor'
+  | 'face-editor'
+  | 'avatar-dsl'
+  | 'tutorial'
 
 export type NavigationItem = {
   id: NavigationId
@@ -71,6 +80,13 @@ export const TOOL_NAVIGATION_ITEMS: readonly NavigationItem[] = [
     href: 'face-editor/',
     label: 'Shape顔エディタ',
     description: 'Shape型Faceを設計する',
+    icon: Smile,
+  },
+  {
+    id: 'avatar-dsl',
+    href: 'avatar-dsl/',
+    label: '顔 DSL エディタ',
+    description: '顔コードを編集・検証・転送する',
     icon: Smile,
   },
 ]

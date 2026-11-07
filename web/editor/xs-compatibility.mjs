@@ -1,4 +1,4 @@
-// Default archive range of the bundled Moddable SDK 10.0 compiler/simulator.
+// Default archive range of the bundled Moddable SDK 10.1 compiler/simulator.
 export const XS_ARCHIVE_VERSION_RANGE = Object.freeze([17, 7, 17, 9])
 const SDK_9_5_ARCHIVE_VERSION_RANGE = Object.freeze([17, 7, 17, 8])
 
@@ -6,7 +6,7 @@ const SDK_9_5_ARCHIVE_VERSION_RANGE = Object.freeze([17, 7, 17, 8])
 export function xsArchiveVersionRangeForFirmware(firmwareVersion) {
   if (typeof firmwareVersion !== 'string') return null
   if (firmwareVersion.startsWith('9.5.')) return SDK_9_5_ARCHIVE_VERSION_RANGE
-  if (firmwareVersion.startsWith('10.0.')) return XS_ARCHIVE_VERSION_RANGE
+  if (firmwareVersion.startsWith('10.0.') || firmwareVersion.startsWith('10.1.')) return XS_ARCHIVE_VERSION_RANGE
   return null
 }
 

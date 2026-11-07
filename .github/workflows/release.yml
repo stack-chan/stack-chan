@@ -24,7 +24,8 @@ concurrency:
 
 jobs:
   build-release-assets:
-    runs-on: ubuntu-latest
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.metadata.outputs.version }}
     steps:
@@ -59,7 +60,7 @@ jobs:
       - name: Setup firmware toolchain
         uses: ./.github/actions/setup
         with:
-          target-branch: "10.0.2"
+          target-branch: "10.1.0"
       - name: Build firmware bundle
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle

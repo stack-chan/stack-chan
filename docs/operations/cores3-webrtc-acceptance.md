@@ -139,6 +139,65 @@ replaced or erased without explicit approval. Do not flash an AI MOD as part of
 this host acceptance. One connected board cannot establish both-board hardware
 acceptance.
 
+## v2.1.0 candidate status (2026-11-07)
+
+The release scope is current `develop` (`906ee9a0cd2a0107a24c714efb10274f3b546afa`)
+plus the runtime-coexistence prerequisite #772 (`7a0733da37441c4e7f9980548937cb3e824b3e8c`)
+and standard-host inclusion #757 (`966877ed2024868d2605bb9a5f80eea0354d2d5c`).
+The release branch preserves this ancestry. At preparation time neither PR is
+merged; their integration/review and the release PR's own CI remain pending.
+
+Both prerequisite heads passed Build and Bundle CI, including six release build
+targets, XS tests, simulator smoke and web checks:
+[#772 Build](https://github.com/stack-chan/stack-chan/actions/runs/42333975928),
+[#772 Bundle](https://github.com/stack-chan/stack-chan/actions/runs/42333975840),
+[#757 Build](https://github.com/stack-chan/stack-chan/actions/runs/42333948376),
+[#757 Bundle](https://github.com/stack-chan/stack-chan/actions/runs/42333945012).
+These are build/test passes for those source heads, not device acceptance for
+the release candidate. Current source builds use Moddable 10.1.0, unlike the
+historical device measurements below.
+
+### Retained source-head build artifacts
+
+The following hashes were read from retained standard release outputs for
+#757 head `966877ed2024868d2605bb9a5f80eea0354d2d5c`, with no tracked source
+changes in that build worktree. They identify the earlier source-head builds,
+not a newly built v2.1.0 artifact or the 2026-11-03 hardware run.
+
+Toolchain: Moddable 10.1.0 `2d54ac4308501a03f45d4fcfe33beee45ee44ac4`,
+ESP-IDF 6.1 `fff9895c82d744c7237be8847347bdd1b07c6643`, pinned WebRTC solution
+`c8650846b512e6e1375e5f78c1c41619b8d645eb`. Both builds use release mode and the
+standard host manifest.
+
+| Artifact | Ordinary CoreS3 | M5StackChan CoreS3 |
+| --- | --- | --- |
+| `xs_esp32.bin` bytes | 5524176 | 7353456 |
+| `xs_esp32.bin` SHA-256 | `19a804affaeacb1117528e92468b5e2bb64664bc9096a594b08164276d828b34` | `ff2c49b027d0335b20ba0f1c547e5e43d8f6a7b1b68ada3bce0d921bb7f7f271` |
+| `manifest_flat.json` SHA-256 | `2d7f526954a3c4335ff14bed5fde75fdd107ed48de89578d2ce3ed4bf922daa7` | `25469f0f38e5bce12109bddf3d48d6de0f4fe655f6f99caee8df99ad863a4eb2` |
+| Effective `sdkconfig` SHA-256 | `5c0b55d075033964b030dd18fbdc003ffb7016acc7705006420231487b7414d5` | `38ac24cfc06df417962cc9f09cdd1b856db3b8a79ac42a145770ac4491101236` |
+| `partition-table.bin` SHA-256 | `5150c0619b8d0467983ab64faa89fdb5109efe51ef6442687bc7b9cb40e7fddd` | `5150c0619b8d0467983ab64faa89fdb5109efe51ef6442687bc7b9cb40e7fddd` |
+
+The two candidate partition binaries are byte-identical. Comparing a generated
+no-WebRTC baseline partition binary with these candidates is **NOT RUN** in
+this release preparation; equality between boards is not that comparison.
+The generated CSV records NVS at `0x9000` (size `0x6000`), PHY at `0xf000`
+(size `0x1000`), factory size `0xf90000`, XS size `0x40000`, and storage size
+`0x10000`. Device partition identity and compatibility still require live
+inspection before writing; no flash operation was performed to obtain these
+build hashes.
+
+M5StackChan CoreS3 real-conversation stop, subsequent host playback/recording,
+reconnect, stack high-water, underruns, amplifier failure recovery, acoustic
+checks and the common release device checklist are **NOT RUN** for this release
+candidate. Update this record with the exact artifact and results when run.
+Do not infer that the earlier real-conversation stop failure is fixed.
+
+The maintainer explicitly deferred ordinary M5Stack CoreS3 hardware acceptance
+to issue-driven follow-up for v2.1.0. It is **NOT RUN**, not PASS, and is not a
+pre-publication gate for this release. Automated builds still cover that board.
+This exception does not waive M5StackChan CoreS3 acceptance or establish a
+cross-board hardware result.
+
 ## Recorded device measurements (2026-11-03)
 
 These results cover **M5StackChan CoreS3 only**. Ordinary M5Stack CoreS3 hardware
@@ -164,6 +223,14 @@ migration writes, startup sound, power shortcuts and USB-audio autostart, and
 added resource counters. The unused checkpoint was 10 seconds after the MOD hook;
 the candidate had imported, constructed and closed a conversation **without
 connecting**, so this is not a pure unrelated-MOD/no-import idle measurement.
+
+Historical evidence completeness: the baseline and candidate generated
+`manifest_flat.json`, binary sizes, baseline binary hash and partition-table
+comparison are **NOT RUN / not recorded in this acceptance record**. The
+same-boot diagnostic app hash below is available, but does not fill these gaps.
+Stack high-water and audio-underrun measurements are also **NOT RUN**; the
+runtime-memory acceptance requirement is incomplete. Do not reconstruct missing
+measurements from source, newer binaries or a different run.
 
 All memory values below are bytes. Workers means conversation HTTP Workers;
 I2S means observed modern driver channels.

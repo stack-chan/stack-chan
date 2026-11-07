@@ -12,9 +12,9 @@ then use `npm run build:m5stack_cores3` or `npm run build:m5stackchan_cores3`.
 Release distribution builds use the corresponding `build:release:<board>`
 scripts. The wrappers fetch the pinned Espressif WebRTC solution into this
 workspace's `firmware/dist/dependencies`; `ESP_WEBRTC_SOLUTION` can select an
-existing source checkout. No shared SDK source is modified. Build output and
-the dependency fingerprint belong to the workspace. Keep separate output and
-IDF component caches when comparing firmware or MOD variants.
+existing source checkout. No shared SDK source is modified. Build output belongs to the workspace. Each target uses one build configuration;
+configuration changes do not trigger an automatic clean. Run `npm run clean`
+explicitly or use a separate worktree when changing that configuration.
 
 The default firmware does not preload `realtimeConversation`, create its HTTPS
 Worker, initialize media adapters, start native media tasks, or open I2S for an

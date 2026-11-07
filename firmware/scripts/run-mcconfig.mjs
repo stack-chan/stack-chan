@@ -9,7 +9,6 @@ import {
   hostApplicationName,
   moddableOutputArguments,
 } from './lib/build-output.mjs'
-import { prepareBuildVariant } from './lib/build-variant.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { prepareCoreS3VersionSdkconfig } from './lib/moddable-version.mjs'
 import { manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
@@ -38,27 +37,6 @@ try {
   if (manifest && isCoreS3) {
     const modeArgs = args.filter((arg) => ['-d', '-dn', '-dl', '-dx', '-i'].includes(arg))
     const mode = modeArgs.some((arg) => arg !== '-i') ? 'debug' : modeArgs.includes('-i') ? 'instrument' : 'release'
-    prepareBuildVariant({
-      outputDirectory: buildOutputDirectory,
-      deviceName: platformName,
-      mode,
-      applicationName: hostApplicationName,
-      manifest,
-      realtime: usesWebRtc,
-      solutionDirectory,
-      clean(selectedManifest) {
-        const result = spawnSync(
-          'mcconfig',
-          [...moddableOutputArguments(), ...modeArgs, '-m', '-p', platformArgument, '-t', 'clean', selectedManifest],
-          { env: subprocessEnvironment, stdio: 'inherit' },
-        )
-        if (result.error) throw result.error
-        if (result.status !== 0) process.exit(result.status ?? 1)
-      },
-    })
-    // Clean removes the generated project, including component links, IDF
-    // manifest, sdkconfig and cached link inputs. Re-seed only the selected
-    // target/mode; never remove the shared source checkout or SDK settings.
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
       platformName,

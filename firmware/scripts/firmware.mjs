@@ -11,13 +11,12 @@ import {
   hostApplicationName,
   moddableOutputArguments,
 } from './lib/build-output.mjs'
-import { prepareBuildVariant as prepareTargetBuildVariant } from './lib/build-variant.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
 import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
-import { prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
+import { manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -67,12 +66,15 @@ const uploadPort =
   readOption(rawArgs, 'port') ?? process.env.STACKCHAN_PORT ?? process.env.UPLOAD_PORT ?? process.env.ESPPORT
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
-const realtime = deviceName === 'm5stackchan_cores3'
+let realtime = false
 let solutionDirectory
-if (!dryRun && realtime && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
+if (!dryRun && deviceName === 'm5stackchan_cores3' && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
-    solutionDirectory = prepareWebRtcSolution()
-    subprocessEnvironment = { ...subprocessEnvironment, ESP_WEBRTC_SOLUTION: solutionDirectory }
+    realtime = manifestUsesWebRtc(manifest, deviceName)
+    if (realtime) {
+      solutionDirectory = prepareWebRtcSolution()
+      subprocessEnvironment = { ...subprocessEnvironment, ESP_WEBRTC_SOLUTION: solutionDirectory }
+    }
   } catch (error) {
     console.error(`[stack-chan] WebRTC dependency setup failed: ${error.message}`)
     process.exit(1)
@@ -153,25 +155,6 @@ if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].i
     process.on('exit', () => rmSync(toolManifest, { force: true }))
   } catch (error) {
     console.error(`[stack-chan] firmware version could not be prepared: ${error.message}`)
-    process.exit(1)
-  }
-}
-
-const buildVariantChanged =
-  !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
-
-if (buildVariantChanged && ['m5stackchan_cores3', 'stackchan_rt'].includes(deviceName)) {
-  try {
-    prepareCoreS3IdfDependencies({
-      outputDirectory: buildOutputDirectory,
-      platformName: deviceName,
-      applicationName: hostApplicationName,
-      mode: buildMode,
-      realtime,
-      solutionDirectory,
-    })
-  } catch (error) {
-    console.error(`[stack-chan] IDF dependencies could not be prepared after target clean: ${error.message}`)
     process.exit(1)
   }
 }
@@ -308,38 +291,6 @@ function run(bin, binArgs, cwd = process.cwd()) {
     process.exit(1)
   }
   if (result.status !== 0) process.exit(result.status ?? 1)
-}
-
-/**
- * Cleans a shared Moddable target before switching its application manifest.
- * mcconfig otherwise may reuse generated resources and configuration from the
- * previous manifest because every host variant has the same application name.
- */
-function prepareBuildVariant() {
-  try {
-    return prepareTargetBuildVariant({
-      outputDirectory: buildOutputDirectory,
-      deviceName,
-      mode: buildMode,
-      applicationName: hostApplicationName,
-      manifest,
-      realtime,
-      solutionDirectory,
-      clean(selectedManifest) {
-        ensureBuildOutputDirectory()
-        const result = spawnSync(
-          'mcconfig',
-          [...buildModeArgs, '-m', '-p', platform, '-t', 'clean', ...outputArgs, selectedManifest],
-          { env: subprocessEnvironment, stdio: 'inherit' },
-        )
-        if (result.error) throw result.error
-        if (result.status !== 0) process.exit(result.status ?? 1)
-      },
-    })
-  } catch (error) {
-    console.error(`[stack-chan] target could not be prepared: ${error.message}`)
-    process.exit(1)
-  }
 }
 
 /**

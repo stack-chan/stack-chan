@@ -1,6 +1,7 @@
 {
   "include": [
     "../../../../app/manifest.json",
+    "../../manifest.json",
     "../../../testing/manifest.json"
   ],
   "modules": {

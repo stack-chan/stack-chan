@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { buildOutputDirectory } from './build-output.mjs'
 
@@ -42,21 +41,6 @@ export function prepareWebRtcSolution({
     git(directory, ['checkout', '--detach', '--quiet', 'FETCH_HEAD'])
   }
   return validateSolution(directory)
-}
-
-export function webRtcSolutionFingerprint(directory) {
-  const hash = createHash('sha256')
-  function visit(relative) {
-    for (const entry of readdirSync(path.join(directory, relative), { withFileTypes: true }).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    )) {
-      const filename = path.join(relative, entry.name)
-      if (entry.isDirectory()) visit(filename)
-      else hash.update(filename).update(readFileSync(path.join(directory, filename)))
-    }
-  }
-  for (const name of webRtcComponents) visit(path.join('components', name))
-  return `${git(directory, ['rev-parse', 'HEAD'], false) ?? 'sources'}:${hash.digest('hex')}`
 }
 
 function validateSolution(directory) {

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { manifestUsesWebRtc, prepareWebRtcSolution, webRtcSolutionFingerprint } from './webrtc-solution.mjs'
+import { manifestUsesWebRtc, prepareWebRtcSolution } from './webrtc-solution.mjs'
 
 const firmware = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -55,7 +55,7 @@ test('dependency discovery accepts directory includes supported by mcconfig', ()
   }
 })
 
-test('local dependency sources are validated without mutation and changes invalidate their fingerprint', () => {
+test('local dependency sources are validated without mutation', () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'stackchan-webrtc-sources-'))
   try {
     // These are the externally supplied libraries needed by the native backend.
@@ -68,14 +68,10 @@ test('local dependency sources are validated without mutation and changes invali
     writeFileSync(source, 'void peer(void) {}\n')
     const before = readFileSync(source, 'utf8')
     assert.equal(prepareWebRtcSolution({ solutionDirectory: directory }), directory)
-    const fingerprint = webRtcSolutionFingerprint(directory)
-    assert.equal(webRtcSolutionFingerprint(directory), fingerprint)
     assert.equal(readFileSync(source, 'utf8'), before)
-    writeFileSync(source, 'void peer(void) { /* changed implementation */ }\n')
-    assert.notEqual(webRtcSolutionFingerprint(directory), fingerprint)
     rmSync(path.join(directory, 'components/esp_peer/CMakeLists.txt'))
     assert.throws(() => prepareWebRtcSolution({ solutionDirectory: directory }), /Missing WebRTC component/)
-    assert.equal(readFileSync(source, 'utf8'), 'void peer(void) { /* changed implementation */ }\n')
+    assert.equal(readFileSync(source, 'utf8'), before)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

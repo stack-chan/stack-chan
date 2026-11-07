@@ -18,6 +18,7 @@ on:
   pull_request:
     branches:
       - develop
+      - feat/webrtc-runtime-coexistence
       - feat/moddable-v10-foundation
       - main
     paths:

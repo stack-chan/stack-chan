@@ -1,0 +1,13 @@
+{
+  "platforms": {
+    "...": {
+      "error": "Memory diagnostics require CoreS3 or M5StackChan CoreS3"
+    },
+    "esp32/m5stack_cores3": {},
+    "esp32/m5stackchan_cores3": {}
+  },
+  "modules": {
+    "memory-diagnostics": "./snapshot",
+    "*": "./snapshot.c"
+  }
+}

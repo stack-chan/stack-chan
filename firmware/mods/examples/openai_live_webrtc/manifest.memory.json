@@ -1,0 +1,19 @@
+{
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "modules": {
+    "*": ["./mod"],
+    "openai-live-session-base": "./session",
+    "openai-live-session": "./memory-session",
+    "memory-recorder": "../../../host/modules/testing/memory/recorder"
+  },
+  "config": {
+    "openaiLive": {
+      "apiKey": "",
+      "model": "gpt-live-1",
+      "backendModel": "gpt-6-luna",
+      "voice": "marin",
+      "instructions": "日本語で短く自然に会話してください。",
+      "volume": 0.1
+    }
+  }
+}

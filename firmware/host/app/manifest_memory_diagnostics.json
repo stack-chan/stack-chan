@@ -1,0 +1,6 @@
+{
+  "include": [
+    "./manifest_local.json",
+    "../modules/testing/memory/manifest.json"
+  ]
+}

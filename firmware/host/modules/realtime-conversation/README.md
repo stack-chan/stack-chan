@@ -4,9 +4,9 @@ Stack-chanホスト向けのOpenAI互換会話モジュール。会話プロト�
 
 ## 組み込み
 
-Include this directory's `manifest.json` in a CoreS3 or M5StackChan CoreS3 host manifest to enable the backend. Public modules are `realtimeConversation`, `realtimeConversation/core`, `/tools`, `/transport`, and `/http`.
+Standard CoreS3 and M5StackChan CoreS3 hosts include this backend. Public modules are `realtimeConversation`, `realtimeConversation/core`, `/tools`, `/transport`, and `/http`.
 
-Use the repository build wrappers with your selected manifest. The supplied `host/app/manifest_openai_live.json` selects the backend and the larger Live VM/cache/timing profile explicitly. The wrappers fetch pinned Espressif sources into the workspace and register external components in the generated IDF project; `ESP_WEBRTC_SOLUTION` can select an existing checkout. No shared SDK files change. Each target uses one build configuration; use `npm run clean` explicitly or a separate worktree when changing configuration.
+Use `npm run build:m5stack_cores3` or `npm run build:m5stackchan_cores3`. The wrappers fetch pinned Espressif sources into the workspace and register external components in the generated IDF project; `ESP_WEBRTC_SOLUTION` can select an existing checkout. No shared SDK files change. Large Live VM/cache/timing settings remain opt-in. See [activation, audio ownership, and acceptance](../../../../docs/operations/cores3-webrtc-acceptance.md).
 
 ```js
 import RealtimeConversation from 'realtimeConversation'
@@ -27,7 +27,7 @@ const result = await conversation.close()
 
 HTTPS POST uses the standard Moddable ECMA-419 HTTPS client in a dedicated Worker, with direct messages from the caller VM. It retains the eight-request limit, deadline including queue time, 128 KiB response limit, certificate verification, and redirect prohibition. The SDK manages TLS session caching; custom-CA requests clear the cache before and after use to isolate trust settings. The Worker is created on the first valid request, with priority 3 and a 6 KiB native stack. It is retired after pending callers and its actual request queue drain, then recreated on demand. Caller timeout alone does not terminate ongoing TLS cleanup. An asynchronous hangup can finish after conversation closure. Merely importing or constructing a conversation starts no HTTPS Worker or native transport.
 
-On a host that includes the backend, a MOD opts in by calling `connect()`; no eager allocation flag is required. Use its optional `onClose` hook to await the same session shutdown used by the stop action. The host runs this hook before closing its audio runtime, including cleanup after `onContextCreated` fails. The Live example delegates it to `LiveSession.stop()`. MOD replacement still restarts the host; this hook does not add hot unloading. Keep shared codec registrations and USB resources under their existing owners. Linked static data and the compiled ESP-IDF heap policy remain even when a MOD never connects.
+A MOD opts in by calling `connect()`; no extra host profile or eager allocation flag is required. Use its optional `onClose` hook to await the same session shutdown used by the stop action. The host runs this hook before closing its audio runtime, including cleanup after `onContextCreated` fails. The Live example delegates it to `LiveSession.stop()`. MOD replacement still restarts the host; this hook does not add hot unloading. Keep shared codec registrations and USB resources under their existing owners. Linked static data and the compiled ESP-IDF heap policy remain even when a MOD never connects; see [memory acceptance](../../../../docs/operations/cores3-webrtc-acceptance.md).
 
 ## 維持する動作
 

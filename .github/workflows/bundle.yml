@@ -18,6 +18,7 @@ on:
   pull_request:
     branches:
       - develop
+      - feat/webrtc-runtime-coexistence
       - main
     paths:
       - "firmware/**"

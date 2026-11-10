@@ -3,7 +3,7 @@
     "../../../modules/ui/manifest.json",
     "../../../modules/testing/manifest.json",
     "$(MODULES)/base/modules/manifest.json",
-    "$(MODULES)/io/system/manifest.json"
+    "$(MODDABLE)/modules/embedded/system/manifest.json"
   ],
   "resources": {
     "*": ["../../strings/*"],
@@ -26,6 +26,7 @@
   "modules": {
     "host-main": "../../main",
     "app-behavior": "../../app-behavior",
+    "owned-resources": "../../owned-resources",
     "app-behavior-resolver": "../../app-behavior-resolver",
     "app-launch": "../../app-launch",
     "app-default-behavior": "./behavior",

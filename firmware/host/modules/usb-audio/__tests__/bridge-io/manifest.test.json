@@ -5,7 +5,7 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin",
+    "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/lin/audioin",
     "main": "./bridge-io.test",
     "stackchan-usb-crc32": "./unused-crc32",
     "stackchan-usb-serial": "./unused-usb-serial",

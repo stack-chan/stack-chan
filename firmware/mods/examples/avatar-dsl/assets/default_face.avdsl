@@ -1,0 +1,238 @@
+-- SPDX-FileCopyrightText: 2026 Kenta IDA <fuga@fugafuga.org>
+-- SPDX-License-Identifier: BSL-1.0
+--
+-- Default Stack-chan avatar face for the avatar_vm DSL. Bit-for-bit
+-- port of the original components/avatar/{face,eye,eyebrow,mouth,effect}.cpp
+-- (which were deleted when the VM took over). Authored against the 320x240
+-- design space; `tx/ty/sz` scale to the live canvas at runtime so the same
+-- bytecode drives both CoreS3 (320x240) and AtomS3R (128x128).
+--
+-- A `fn draw()` is mandatory (entry point, fn id 0). Helper functions follow.
+
+----------------------------------------------------------------------
+-- Mouth: single rectangle whose height grows with mouth_open and whose width
+-- shrinks with mouth_form (0 = wide, 1 = narrow). Hosts that only drive
+-- mouth_open (level meters) get mouth_form == mouth_open, i.e. the classic
+-- "narrower as it opens" look; TTS vowel lip-sync sets the two independently
+-- (い = wide + slightly open, う = narrow, あ = wide-ish + fully open).
+-- The group box covers the maximum extent so the direct canvas strategy
+-- clears stale frames correctly.
+----------------------------------------------------------------------
+fn mouth(cx, cy, min_w, max_w, min_h, max_h, bo)
+  let h = min_h + (max_h - min_h) * mouth_open
+  let w = min_w + (max_w - min_w) * (1 - mouth_form)
+  let x = cx - w / 2
+  let y = cy - h / 2 + breath * 2 + bo
+  let gx = cx - max_w / 2 - 1
+  let gy = cy - max_h / 2 - 8
+  let gw = max_w + 2
+  let gh = max_h + 16
+  begin_group(gx, gy, gw, gh)
+  fill_rect(x, y, w, h, primary)
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Eye: base filled circle (or short rect when closed); Angry/Sad mask
+-- one upper corner with a bg triangle; Happy uses a bottom mask + a bg
+-- circle cutout to leave the `^` arch; Sleepy uses an upper mask only.
+----------------------------------------------------------------------
+fn eye(center_x, center_y, r, is_left, bo)
+  let cx = center_x + gaze_h * 3
+  let cy = center_y + gaze_v * 3 + bo
+  let half = r + 16
+  begin_group(center_x - half, center_y - half, half * 2, half * 2)
+  if eye_open <= 0 then
+    fill_rect(cx - r, cy - 2, r * 2, 4, primary)
+  else
+    fill_circle(cx, cy, r, primary)
+    if expr == ANGRY or expr == SAD then
+      let flip = is_left ~= (expr == ANGRY)
+      let x2 = cx + r
+      if flip then x2 = cx - r end
+      fill_triangle(cx - r, cy - r, cx + r, cy - r, x2, cy, background)
+    elif expr == HAPPY then
+      fill_rect(cx - r, cy, r * 2 + 4, r + 2, background)
+      fill_circle(cx, cy, round(r / 1.5), background)
+    elif expr == SLEEPY then
+      fill_rect(cx - r, cy - r, r * 2 + 4, r + 2, background)
+    end
+  end
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Eyebrow: simple bar most of the time; Angry/Sad split it into two
+-- triangles to form a tilted parallelogram. The is_left/Sad XOR gives
+-- the per-side direction; Happy nudges the bar up by 5 px.
+----------------------------------------------------------------------
+fn eyebrow(cx, cy_base, w, h, is_left, bo)
+  let cy = cy_base + bo
+  let hw = w / 2 + 6
+  let hh = h / 2 + 12
+  begin_group(cx - hw, cy_base - hh, hw * 2, hh * 2)
+  if expr == ANGRY or expr == SAD then
+    let aspect = 1
+    if is_left ~= (expr == SAD) then aspect = -1 end
+    let dx = aspect * 3
+    let dy = aspect * 5
+    let x1 = cx - w / 2
+    let x4 = cx + w / 2
+    let x2 = x1 - dx
+    let x3 = x4 + dx
+    let y1 = cy - h / 2 - dy
+    let y2 = cy + h / 2 - dy
+    let y3 = cy - h / 2 + dy
+    let y4 = cy + h / 2 + dy
+    fill_triangle(x1, y1, x2, y2, x3, y3, primary)
+    fill_triangle(x2, y2, x3, y3, x4, y4, primary)
+  else
+    let happy_off = 0
+    if expr == HAPPY then happy_off = -5 end
+    let x = cx - w / 2
+    let y = cy - h / 2 + happy_off
+    fill_rect(x, y, w, h, primary)
+  end
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Per-expression effect helpers (top-right anchors). Each takes pre-
+-- scaled screen coords + a pre-scaled radius. `offset` is the breath
+-- phase used to pulse the marks.
+----------------------------------------------------------------------
+fn draw_sweat(x, y, r, offset, color)
+  let yy = y + floor(offset * 5)
+  let rr = r + floor(r * 0.2 * offset)
+  let a = sqrt(3) * rr / 2
+  fill_circle(x, yy, round(rr), color)
+  fill_triangle(x, yy - rr * 2, x - a, yy - rr * 0.5, x + a, yy - rr * 0.5, color)
+end
+
+fn draw_anger(cx, cy, r, offset, fg, bg)
+  let rr = r + r * 0.4 * offset
+  -- Outer cross.
+  fill_rect(cx - rr / 3, cy - rr, rr * 2 / 3, rr * 2, fg)
+  fill_rect(cx - rr, cy - rr / 3, rr * 2, rr * 2 / 3, fg)
+  -- Inner symmetric cutout (clean `#`).
+  fill_rect(cx - rr / 3 + 2, cy - rr, rr * 2 / 3 - 4, rr * 2, bg)
+  fill_rect(cx - rr, cy - rr / 3 + 2, rr * 2, rr * 2 / 3 - 4, bg)
+end
+
+fn draw_chill(x, y, r, offset, color)
+  let h = r + abs(r * 0.2 * offset)
+  let h_half = round(h / 2)
+  fill_rect(x - h_half, y, 3, h_half, color)
+  fill_rect(x, y, 3, h * 3 / 4, color)
+  fill_rect(x + h_half, y, 3, h, color)
+end
+
+fn draw_bubble(x, y, r, offset, color)
+  let rr = r + floor(r * 0.2 * offset)
+  let r_small = round(rr / 4)
+  fill_circle(x, y, rr, color)
+  fill_circle(x, y, r_small, color)
+end
+
+fn draw_heart(x, y, r, offset, color)
+  let rr = r + r * 0.4 * offset
+  let a = rr * 1.41421356 / 4
+  let lobe_r = round(rr / 2)
+  fill_circle(x - rr / 2, y, lobe_r, color)
+  fill_circle(x + rr / 2, y, lobe_r, color)
+  fill_triangle(x, y, x - rr / 2 - a, y + a, x + rr / 2 + a, y + a, color)
+  fill_triangle(x, y + rr / 2 + 2 * a, x - rr / 2 - a, y + a, x + rr / 2 + a, y + a, color)
+end
+
+fn effect()
+  if expr == NEUTRAL then return end
+  let gx = tx(236)
+  let gy = ty(-8)
+  let gw = canvas_w - gx
+  let gh = ty(136) - gy
+  begin_group(gx, gy, gw, gh)
+  if expr == HAPPY then
+    draw_heart(tx(280), ty(50), sz(12), breath, primary)
+  elif expr == DOUBT then
+    draw_sweat(tx(290), ty(110), sz(7), breath, primary)
+  elif expr == ANGRY then
+    draw_anger(tx(280), ty(50), sz(12), breath, primary, background)
+  elif expr == SAD then
+    draw_chill(tx(270), ty(0), sz(30), breath, primary)
+  elif expr == SLEEPY then
+    draw_bubble(tx(290), ty(40), sz(10), breath, primary)
+    draw_bubble(tx(270), ty(52), sz(6),  breath, primary)
+  end
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Accessory slot 0: cat collar — a red band across the bottom of the
+-- screen with a gold bell hanging from its centre. Static (no breath
+-- offset): it sits on the "neck", not the face. Drawn last so it paints
+-- over the mouth / effects. Enable via FaceTuning accessories bit 0
+-- (settings UI "アクセサリ 1", JSON "acc": 1).
+----------------------------------------------------------------------
+fn collar()
+  let band_y = ty(214)
+  let band_h = sz(24)
+  let gx = tx(0)
+  let gw = sz(320)
+  begin_group(gx, band_y - sz(14), gw, band_h + sz(16) + sz(14))
+  fill_rect(gx, band_y, gw, band_h, 0xF800)
+  -- bell: gold disc on the band, dark slit + clapper dot below
+  let bx = tx(160)
+  let by = ty(224)
+  let br = sz(13)
+  fill_circle(bx, by, br, 0xFEA0)
+  fill_rect(bx - sz(9), by - sz(1), sz(18), sz(2), 0x8200)
+  fill_circle(bx, by + sz(8), sz(3), 0x8200)
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Entry point. The effect group is drawn FIRST: its box (x >= 236)
+-- overlaps the right eye / eyebrow groups, and clearing it after they
+-- have been drawn wiped their right edge every frame (visible flicker
+-- on the right eyebrow). Painting the effect first lets the eye and
+-- eyebrow groups repaint over the overlap. Remaining order matches
+-- face.cpp:50-58 (mouth, eyes, eyebrows). Balloon is drawn by the C++
+-- side after this returns.
+----------------------------------------------------------------------
+fn draw()
+  effect()
+  let bo = breath * 3
+  -- mouth (max_w / max_h clamped to >= min in face.cpp; mirror that).
+  mouth(tx(163 + mouth_off_x), ty(148 + mouth_off_y),
+        sz(mouth_min_w), sz(max(mouth_min_w, mouth_max_w)),
+        sz(mouth_min_h), sz(max(mouth_min_h, mouth_max_h)),
+        bo)
+  -- eyes. Face.cpp puts the x=230 eye on `eye_left` with is_left=false
+  -- (m5stack-avatar-rs naming convention) and the x=90 eye on the right.
+  let er = sz(eye_radius)
+  eye(tx(230 + eye_off_x), ty(96 + eye_off_y), er, false, bo)
+  eye(tx(90  - eye_off_x), ty(93 + eye_off_y), er, true,  bo)
+  -- eyebrows (skip when hidden by FaceTuning).
+  if eyebrows_visible then
+    let bw = sz(32)
+    let bh = sz(2)
+    -- Eyebrow is_left flags in face.cpp are swapped relative to the eyes
+    -- (see face.cpp:40-41); replicate that here to keep Angry/Sad tilts
+    -- pixel-identical to the old C++.
+    eyebrow(tx(96  - brow_off_x), ty(67 + brow_off_y), bw, bh, false, bo)
+    eyebrow(tx(230 + brow_off_x), ty(72 + brow_off_y), bw, bh, true,  bo)
+  end
+  -- Optional cheek marks (off by default — opt-in via FaceTuning so the
+  -- standard face is unchanged for existing users). Same horizontal-
+  -- symmetric layout as the eyes / brows: positive cheek_off_x spreads
+  -- the pair outward. Drawn as soft filled circles in primary colour.
+  if cheeks_visible then
+    let cr = sz(cheek_radius)
+    -- Resting cheek baseline at y=140 in 320x240 design space, just
+    -- below the eyes and above the mouth.
+    fill_circle(tx(90  - cheek_off_x), ty(140 + cheek_off_y), cr, primary)
+    fill_circle(tx(230 + cheek_off_x), ty(140 + cheek_off_y), cr, primary)
+  end
+  -- accessories (FaceTuning slots; slot 0 = collar + bell)
+  if accessory_0 then collar() end
+end

@@ -24,8 +24,11 @@ const platform = {
 }
 self.onmessage = createHttpQueue({
   post: (message) => self.postMessage(message),
+  // requestHttps resolves only after its deferred HTTP/TLS close. This also
+  // acknowledges queued requests that expired without executing HTTPS.
+  onIdle: (id) => self.postMessage({ idle: id }),
   schedule: platform.schedule,
-  elapsed: (started) => Time.delta(started),
+  elapsed: (started) => Time.delta(started, Time.ticks),
   async execute(request) {
     // The SDK session cache keys only by host, without the trust anchor.
     if (request.certificate) tlsCache.deleteSessionID()

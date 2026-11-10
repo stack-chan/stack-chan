@@ -1,0 +1,1931 @@
+{
+  "oldVersion": "55d7785cedbb2cc386952850051db679b20c395f (optimized JS backend)",
+  "newVersion": "5dbc157320f0c660f29ebfcd1c2d2712bb326cf6 (native backend)",
+  "settings": {
+    "durationMs": 15000,
+    "warmupMs": 3000,
+    "repeats": 2,
+    "inputMs": 33,
+    "sdk": "9.5.0",
+    "sharedHost": true
+  },
+  "hostConfigIdentical": true,
+  "sharedHostBinary": true,
+  "complete": true,
+  "automaticChecks": 163,
+  "checks": [
+    {
+      "passed": true,
+      "label": "driver-none-locked"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-0"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-1"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-2"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-3"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-4"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-5"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-6"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-7"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-8"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-9"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-10"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-11"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-12"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-13"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-14"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-15"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-16"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-17"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-18"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-19"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-20"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-21"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-22"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-23"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-24"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-25"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-26"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-27"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-28"
+    },
+    {
+      "passed": true,
+      "label": "default-same-vm-context-29"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-0"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-1"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-2"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-3"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-4"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-5"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-6"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-7"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-8"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-9"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-10"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-11"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-12"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-13"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-14"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-15"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-16"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-17"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-18"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-19"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-20"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-21"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-22"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-23"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-24"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-25"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-26"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-27"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-28"
+    },
+    {
+      "passed": true,
+      "label": "omega-same-vm-context-29"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-0"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-1"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-2"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-3"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-4"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-5"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-6"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-7"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-8"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-9"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-10"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-11"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-12"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-13"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-14"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-15"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-16"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-17"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-18"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-19"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-20"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-21"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-22"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-23"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-24"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-25"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-26"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-27"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-28"
+    },
+    {
+      "passed": true,
+      "label": "aokko-same-vm-context-29"
+    },
+    {
+      "passed": true,
+      "label": "js-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-default-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-default-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-default-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-omega-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "native-aokko-raster-pairs"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-attached"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-no-fallback"
+    },
+    {
+      "passed": true,
+      "label": "js-aokko-raster-pairs"
+    }
+  ],
+  "errors": [],
+  "comparisons": [
+    {
+      "preset": "default",
+      "dynamic": false,
+      "js": {
+        "actualFps": 5.260339460213383,
+        "fpsRuns": [5.288805952580227, 5.232177763659077],
+        "cpu0": 99.0,
+        "cpu1": 0.0,
+        "vmMs": 60.576194539249144,
+        "geometryMs": 9.125921501706486,
+        "vmPlusGeometryMs": 69.70211604095563,
+        "rasterMs": 2.9172857142857143,
+        "submissionMs": 0.18968944099378882,
+        "drawPassFps": 5.258516510435379,
+        "evaluations": 293,
+        "draws": 161,
+        "instrumentSeconds": 23.952826800057665
+      },
+      "native": {
+        "actualFps": 6.967268274259893,
+        "fpsRuns": [6.934487606305851, 6.999964533514605],
+        "cpu0": 41.73530035711459,
+        "cpu1": 0.0,
+        "vmMs": 0.37241530740276035,
+        "geometryMs": 0.2037452948557089,
+        "vmPlusGeometryMs": 0.5761606022584692,
+        "rasterMs": 3.582644230769231,
+        "submissionMs": 0.056144230769230766,
+        "drawPassFps": 6.883770187979878,
+        "evaluations": 797,
+        "draws": 208,
+        "instrumentSeconds": 23.96922200010158
+      },
+      "fpsRatio": 1.324490240022888,
+      "vmRatio": 162.65763875741308
+    },
+    {
+      "preset": "default",
+      "dynamic": true,
+      "js": {
+        "actualFps": 3.6234236220341742,
+        "fpsRuns": [3.5825848197719448, 3.6599290321958264],
+        "cpu0": 99.03788245513125,
+        "cpu1": 0.0,
+        "vmMs": 76.30889237668161,
+        "geometryMs": 31.94414798206278,
+        "vmPlusGeometryMs": 108.2530403587444,
+        "rasterMs": 4.740828828828828,
+        "submissionMs": 0.20870270270270272,
+        "drawPassFps": 3.5675258725975447,
+        "evaluations": 223,
+        "draws": 111,
+        "instrumentSeconds": 24.838387499796227
+      },
+      "native": {
+        "actualFps": 20.504074837590977,
+        "fpsRuns": [20.540487246454344, 20.467644065849086],
+        "cpu0": 98.70951648844407,
+        "cpu1": 0.12491121902502561,
+        "vmMs": 0.5350177705977383,
+        "geometryMs": 0.8201534733441034,
+        "vmPlusGeometryMs": 1.3551712439418415,
+        "rasterMs": 6.072757673667206,
+        "submissionMs": 0.05494507269789984,
+        "drawPassFps": 20.439836217144368,
+        "evaluations": 619,
+        "draws": 619,
+        "instrumentSeconds": 24.04400120000355
+      },
+      "fpsRatio": 5.658757290454512,
+      "vmRatio": 142.62870612956834
+    },
+    {
+      "preset": "omega",
+      "dynamic": false,
+      "js": {
+        "actualFps": 2.3316879777149833,
+        "fpsRuns": [2.4236738106178546, 2.240361014762015],
+        "cpu0": 98.96041841407597,
+        "cpu1": 0.0,
+        "vmMs": 69.85914134275617,
+        "geometryMs": 14.39643816254417,
+        "vmPlusGeometryMs": 84.25557950530035,
+        "rasterMs": 3.2543333333333333,
+        "submissionMs": 0.20161333333333334,
+        "drawPassFps": 2.4639442820066364,
+        "evaluations": 283,
+        "draws": 75,
+        "instrumentSeconds": 24.016935599967837
+      },
+      "native": {
+        "actualFps": 2.9981068579132124,
+        "fpsRuns": [2.9999831251119455, 2.996232936179833],
+        "cpu0": 26.846242726839467,
+        "cpu1": 0.0,
+        "vmMs": 0.4157830080367394,
+        "geometryMs": 0.13678874856486797,
+        "vmPlusGeometryMs": 0.5525717566016074,
+        "rasterMs": 3.9249655172413793,
+        "submissionMs": 0.06072413793103448,
+        "drawPassFps": 2.884232860363347,
+        "evaluations": 871,
+        "draws": 87,
+        "instrumentSeconds": 24.01515470002778
+      },
+      "fpsRatio": 1.2858096308629205,
+      "vmRatio": 168.0182691270137
+    },
+    {
+      "preset": "omega",
+      "dynamic": true,
+      "js": {
+        "actualFps": 2.535238425780662,
+        "fpsRuns": [2.528935404529858, 2.5409957712757687],
+        "cpu0": 99.16392839587843,
+        "cpu1": 0.0,
+        "vmMs": 100.97685,
+        "geometryMs": 61.190987500000006,
+        "vmPlusGeometryMs": 162.1678375,
+        "rasterMs": 6.2053,
+        "submissionMs": 0.2984375,
+        "drawPassFps": 2.5504511110402652,
+        "evaluations": 160,
+        "draws": 80,
+        "instrumentSeconds": 24.8497337999288
+      },
+      "native": {
+        "actualFps": 20.36947786831681,
+        "fpsRuns": [20.33007933459442, 20.409029402766453],
+        "cpu0": 98.66466110513477,
+        "cpu1": 0.41750074495125256,
+        "vmMs": 0.6144290375203915,
+        "geometryMs": 1.090063621533442,
+        "vmPlusGeometryMs": 1.7044926590538336,
+        "rasterMs": 6.487632952691681,
+        "submissionMs": 0.05365089722675367,
+        "drawPassFps": 20.232358571522873,
+        "evaluations": 613,
+        "draws": 613,
+        "instrumentSeconds": 23.957413300173357
+      },
+      "fpsRatio": 8.03454131224149,
+      "vmRatio": 164.34257470562468
+    },
+    {
+      "preset": "aokko",
+      "dynamic": false,
+      "js": {
+        "actualFps": 3.283584110679911,
+        "fpsRuns": [3.233988898265634, 3.333426252553871],
+        "cpu0": 99.0431667199367,
+        "cpu1": 0.0,
+        "vmMs": 95.86179207920793,
+        "geometryMs": 23.84700495049505,
+        "vmPlusGeometryMs": 119.70879702970296,
+        "rasterMs": 6.561039215686274,
+        "submissionMs": 0.26419607843137255,
+        "drawPassFps": 3.2851299558761955,
+        "evaluations": 202,
+        "draws": 102,
+        "instrumentSeconds": 24.059076100122184
+      },
+      "native": {
+        "actualFps": 7.079959870778606,
+        "fpsRuns": [7.1665876550618615, 6.999994938426657],
+        "cpu0": 43.190876082064484,
+        "cpu1": 0.0,
+        "vmMs": 0.5371437422552664,
+        "geometryMs": 0.23085873605947954,
+        "vmPlusGeometryMs": 0.768002478314746,
+        "rasterMs": 7.0578,
+        "submissionMs": 0.05708571428571429,
+        "drawPassFps": 6.94031330557208,
+        "evaluations": 807,
+        "draws": 210,
+        "instrumentSeconds": 25.000141700031236
+      },
+      "fpsRatio": 2.1561682698338442,
+      "vmRatio": 178.4658081963684
+    },
+    {
+      "preset": "aokko",
+      "dynamic": true,
+      "js": {
+        "actualFps": 2.9443754954063124,
+        "fpsRuns": [2.9725649852328107, 2.9143689539021325],
+        "cpu0": 99.0791514603496,
+        "cpu1": 0.0,
+        "vmMs": 95.82767934782608,
+        "geometryMs": 42.058706521739126,
+        "vmPlusGeometryMs": 137.8863858695652,
+        "rasterMs": 7.203358695652174,
+        "submissionMs": 0.2650217391304348,
+        "drawPassFps": 2.941834809580149,
+        "evaluations": 184,
+        "draws": 92,
+        "instrumentSeconds": 24.793033400084823
+      },
+      "native": {
+        "actualFps": 20.46104314282382,
+        "fpsRuns": [20.469543366455483, 20.452515324362363],
+        "cpu0": 98.58040977219301,
+        "cpu1": 0.8768092932530227,
+        "vmMs": 0.6118171521035599,
+        "geometryMs": 0.7130436893203883,
+        "vmPlusGeometryMs": 1.3248608414239482,
+        "rasterMs": 8.006862459546925,
+        "submissionMs": 0.05424757281553398,
+        "drawPassFps": 20.396039603960396,
+        "evaluations": 618,
+        "draws": 618,
+        "instrumentSeconds": 23.996821499895304
+      },
+      "fpsRatio": 6.949196247131609,
+      "vmRatio": 156.62797131193489
+    }
+  ],
+  "vmBench": [
+    {
+      "preset": "default",
+      "frames": 30,
+      "jsUs": 2369139,
+      "nativeCallUs": 33932,
+      "nativeUs": 13611
+    },
+    {
+      "preset": "omega",
+      "frames": 30,
+      "jsUs": 2906101,
+      "nativeCallUs": 37348,
+      "nativeUs": 16042
+    },
+    {
+      "preset": "aokko",
+      "frames": 30,
+      "jsUs": 2198197,
+      "nativeCallUs": 33310,
+      "nativeUs": 12280
+    }
+  ],
+  "phases": [
+    {
+      "backend": "js",
+      "preset": "default",
+      "dynamic": false,
+      "repeat": 0,
+      "actualMs": 15303,
+      "writes": 0,
+      "delta": {
+        "evaluations": 146,
+        "preparations": 146,
+        "calls": 146,
+        "vmUs": 8842408,
+        "geometryUs": 1314761,
+        "preparationUs": 10548390
+      },
+      "drawDelta": {
+        "rasterUs": 233161,
+        "submitUs": 15853,
+        "passes": 80,
+        "pairs": 19200,
+        "unmatched": 0
+      },
+      "instrumentFrames": 63,
+      "instrumentSeconds": 11.911951499991119,
+      "instrumentSamples": 13,
+      "actualFps": 5.288805952580227,
+      "cpu0": 99.0,
+      "cpu1": 0.0,
+      "vmMs": 60.56443835616439,
+      "geometryMs": 9.005212328767124,
+      "vmPlusGeometryMs": 69.5696506849315,
+      "rasterMs": 2.9145125,
+      "submissionMs": 0.1981625,
+      "drawPassFps": 5.227733124224009
+    },
+    {
+      "backend": "native",
+      "preset": "default",
+      "dynamic": false,
+      "repeat": 0,
+      "actualMs": 15119,
+      "writes": 0,
+      "delta": {
+        "evaluations": 397,
+        "updates": 0,
+        "ticks": 397,
+        "preparations": 397,
+        "rasterPasses": 104,
+        "failures": 0,
+        "geometryChanges": 728,
+        "vmUs": 150734,
+        "geometryUs": 80190,
+        "rasterSubmitUs": 8357,
+        "elapsed": 15087,
+        "nativeBytes": 0,
+        "rasterUs": 302999,
+        "instructions": 0,
+        "commands": 0,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 373139,
+        "submitUs": 5997,
+        "passes": 104,
+        "pairs": 24960,
+        "unmatched": 0
+      },
+      "instrumentFrames": 83,
+      "instrumentSeconds": 11.969161200104281,
+      "instrumentSamples": 13,
+      "actualFps": 6.934487606305851,
+      "cpu0": 41.72057858143814,
+      "cpu1": 0.0,
+      "vmMs": 0.37968261964735517,
+      "geometryMs": 0.20198992443324937,
+      "vmPlusGeometryMs": 0.5816725440806045,
+      "rasterMs": 3.587875,
+      "submissionMs": 0.05766346153846154,
+      "drawPassFps": 6.878761822871883
+    },
+    {
+      "backend": "js",
+      "preset": "default",
+      "dynamic": true,
+      "repeat": 0,
+      "actualMs": 15656,
+      "writes": 56,
+      "delta": {
+        "evaluations": 111,
+        "preparations": 111,
+        "calls": 111,
+        "vmUs": 8504264,
+        "geometryUs": 3679902,
+        "preparationUs": 12496742
+      },
+      "drawDelta": {
+        "rasterUs": 259532,
+        "submitUs": 11376,
+        "passes": 55,
+        "pairs": 13200,
+        "unmatched": 0
+      },
+      "instrumentFrames": 42,
+      "instrumentSeconds": 11.723379099974409,
+      "instrumentSamples": 13,
+      "actualFps": 3.5825848197719448,
+      "cpu0": 99.08026176514207,
+      "cpu1": 0.0,
+      "vmMs": 76.61499099099099,
+      "geometryMs": 33.15227027027027,
+      "vmPlusGeometryMs": 109.76726126126125,
+      "rasterMs": 4.7187636363636365,
+      "submissionMs": 0.20683636363636365,
+      "drawPassFps": 3.513030148185999
+    },
+    {
+      "backend": "native",
+      "preset": "default",
+      "dynamic": true,
+      "repeat": 0,
+      "actualMs": 15154,
+      "writes": 309,
+      "delta": {
+        "evaluations": 309,
+        "updates": 309,
+        "ticks": 309,
+        "preparations": 309,
+        "rasterPasses": 309,
+        "failures": 0,
+        "geometryChanges": 3754,
+        "vmUs": 166142,
+        "geometryUs": 254511,
+        "rasterSubmitUs": 29268,
+        "elapsed": 14975,
+        "nativeBytes": 0,
+        "rasterUs": 1670440,
+        "instructions": -80,
+        "commands": -6,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 1877245,
+        "submitUs": 16846,
+        "passes": 309,
+        "pairs": 74160,
+        "unmatched": 0
+      },
+      "instrumentFrames": 247,
+      "instrumentSeconds": 12.02503119991161,
+      "instrumentSamples": 13,
+      "actualFps": 20.540487246454344,
+      "cpu0": 98.75456418771671,
+      "cpu1": 0.24975947672831805,
+      "vmMs": 0.5376763754045307,
+      "geometryMs": 0.8236601941747573,
+      "vmPlusGeometryMs": 1.3613365695792878,
+      "rasterMs": 6.075226537216828,
+      "submissionMs": 0.054517799352750806,
+      "drawPassFps": 20.39065593242708
+    },
+    {
+      "backend": "js",
+      "preset": "omega",
+      "dynamic": false,
+      "repeat": 0,
+      "actualMs": 15183,
+      "writes": 0,
+      "delta": {
+        "evaluations": 141,
+        "preparations": 141,
+        "calls": 141,
+        "vmUs": 9850012,
+        "geometryUs": 1979967,
+        "preparationUs": 12210325
+      },
+      "drawDelta": {
+        "rasterUs": 123459,
+        "submitUs": 7307,
+        "passes": 38,
+        "pairs": 9120,
+        "unmatched": 0
+      },
+      "instrumentFrames": 29,
+      "instrumentSeconds": 11.96530649997294,
+      "instrumentSamples": 13,
+      "actualFps": 2.4236738106178546,
+      "cpu0": 98.92055127045145,
+      "cpu1": 0.0,
+      "vmMs": 69.85824113475178,
+      "geometryMs": 14.042319148936171,
+      "vmPlusGeometryMs": 83.90056028368794,
+      "rasterMs": 3.248921052631579,
+      "submissionMs": 0.1922894736842105,
+      "drawPassFps": 2.5027991832971086
+    },
+    {
+      "backend": "native",
+      "preset": "omega",
+      "dynamic": false,
+      "repeat": 0,
+      "actualMs": 15091,
+      "writes": 0,
+      "delta": {
+        "evaluations": 436,
+        "updates": 0,
+        "ticks": 436,
+        "preparations": 436,
+        "rasterPasses": 44,
+        "failures": 0,
+        "geometryChanges": 484,
+        "vmUs": 181761,
+        "geometryUs": 60227,
+        "rasterSubmitUs": 4155,
+        "elapsed": 15062,
+        "nativeBytes": 0,
+        "rasterUs": 143317,
+        "instructions": 0,
+        "commands": 0,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 172668,
+        "submitUs": 2846,
+        "passes": 44,
+        "pairs": 10560,
+        "unmatched": 0
+      },
+      "instrumentFrames": 36,
+      "instrumentSeconds": 12.000067499931902,
+      "instrumentSamples": 13,
+      "actualFps": 2.9999831251119455,
+      "cpu0": 27.00001956658918,
+      "cpu1": 0.0,
+      "vmMs": 0.41688302752293577,
+      "geometryMs": 0.13813532110091742,
+      "vmPlusGeometryMs": 0.5550183486238531,
+      "rasterMs": 3.9242727272727276,
+      "submissionMs": 0.06468181818181819,
+      "drawPassFps": 2.915645086475383
+    },
+    {
+      "backend": "js",
+      "preset": "omega",
+      "dynamic": true,
+      "repeat": 0,
+      "actualMs": 15683,
+      "writes": 40,
+      "delta": {
+        "evaluations": 80,
+        "preparations": 80,
+        "calls": 80,
+        "vmUs": 8032335,
+        "geometryUs": 5010175,
+        "preparationUs": 13279805
+      },
+      "drawDelta": {
+        "rasterUs": 246816,
+        "submitUs": 11909,
+        "passes": 40,
+        "pairs": 9600,
+        "unmatched": 0
+      },
+      "instrumentFrames": 30,
+      "instrumentSeconds": 11.862699199933559,
+      "instrumentSamples": 13,
+      "actualFps": 2.528935404529858,
+      "cpu0": 99.23681140796823,
+      "cpu1": 0.0,
+      "vmMs": 100.4041875,
+      "geometryMs": 62.6271875,
+      "vmPlusGeometryMs": 163.031375,
+      "rasterMs": 6.1704,
+      "submissionMs": 0.297725,
+      "drawPassFps": 2.5505324236434355
+    },
+    {
+      "backend": "native",
+      "preset": "omega",
+      "dynamic": true,
+      "repeat": 0,
+      "actualMs": 15161,
+      "writes": 306,
+      "delta": {
+        "evaluations": 306,
+        "updates": 306,
+        "ticks": 306,
+        "preparations": 306,
+        "rasterPasses": 306,
+        "failures": 0,
+        "geometryChanges": 5637,
+        "vmUs": 188752,
+        "geometryUs": 331391,
+        "rasterSubmitUs": 32771,
+        "elapsed": 15056,
+        "nativeBytes": 0,
+        "rasterUs": 1777576,
+        "instructions": -69,
+        "commands": 2,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 1982140,
+        "submitUs": 16605,
+        "passes": 306,
+        "pairs": 73440,
+        "unmatched": 0
+      },
+      "instrumentFrames": 244,
+      "instrumentSeconds": 12.001920700073242,
+      "instrumentSamples": 13,
+      "actualFps": 20.33007933459442,
+      "cpu0": 98.8326481943681,
+      "cpu1": 0.4201425026979263,
+      "vmMs": 0.6168366013071895,
+      "geometryMs": 1.0829771241830064,
+      "vmPlusGeometryMs": 1.699813725490196,
+      "rasterMs": 6.477581699346405,
+      "submissionMs": 0.054264705882352944,
+      "drawPassFps": 20.183365213376426
+    },
+    {
+      "backend": "js",
+      "preset": "aokko",
+      "dynamic": false,
+      "repeat": 0,
+      "actualMs": 15519,
+      "writes": 0,
+      "delta": {
+        "evaluations": 101,
+        "preparations": 101,
+        "calls": 101,
+        "vmUs": 9686463,
+        "geometryUs": 2447118,
+        "preparationUs": 12415406
+      },
+      "drawDelta": {
+        "rasterUs": 334375,
+        "submitUs": 13273,
+        "passes": 51,
+        "pairs": 12240,
+        "unmatched": 0
+      },
+      "instrumentFrames": 39,
+      "instrumentSeconds": 12.05941059999168,
+      "instrumentSamples": 13,
+      "actualFps": 3.233988898265634,
+      "cpu0": 99.0,
+      "cpu1": 0.0,
+      "vmMs": 95.90557425742574,
+      "geometryMs": 24.22889108910891,
+      "vmPlusGeometryMs": 120.13446534653465,
+      "rasterMs": 6.556372549019607,
+      "submissionMs": 0.2602549019607843,
+      "drawPassFps": 3.286294219988401
+    },
+    {
+      "backend": "native",
+      "preset": "aokko",
+      "dynamic": false,
+      "repeat": 0,
+      "actualMs": 15097,
+      "writes": 0,
+      "delta": {
+        "evaluations": 404,
+        "updates": 0,
+        "ticks": 404,
+        "preparations": 404,
+        "rasterPasses": 106,
+        "failures": 0,
+        "geometryChanges": 1756,
+        "vmUs": 216326,
+        "geometryUs": 93994,
+        "rasterSubmitUs": 11281,
+        "elapsed": 15030,
+        "nativeBytes": 0,
+        "rasterUs": 672180,
+        "instructions": 0,
+        "commands": 0,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 741822,
+        "submitUs": 6110,
+        "passes": 106,
+        "pairs": 25048,
+        "unmatched": 0
+      },
+      "instrumentFrames": 86,
+      "instrumentSeconds": 12.00013229995966,
+      "instrumentSamples": 13,
+      "actualFps": 7.1665876550618615,
+      "cpu0": 44.294864224135544,
+      "cpu1": 0.0,
+      "vmMs": 0.535460396039604,
+      "geometryMs": 0.23265841584158414,
+      "vmPlusGeometryMs": 0.7681188118811881,
+      "rasterMs": 6.998320754716981,
+      "submissionMs": 0.05764150943396226,
+      "drawPassFps": 7.021262502483937
+    },
+    {
+      "backend": "js",
+      "preset": "aokko",
+      "dynamic": true,
+      "repeat": 0,
+      "actualMs": 15563,
+      "writes": 46,
+      "delta": {
+        "evaluations": 92,
+        "preparations": 92,
+        "calls": 92,
+        "vmUs": 8815236,
+        "geometryUs": 3872741,
+        "preparationUs": 12954263
+      },
+      "drawDelta": {
+        "rasterUs": 328740,
+        "submitUs": 12320,
+        "passes": 46,
+        "pairs": 11040,
+        "unmatched": 0
+      },
+      "instrumentFrames": 38,
+      "instrumentSeconds": 12.783572500105947,
+      "instrumentSamples": 14,
+      "actualFps": 2.9725649852328107,
+      "cpu0": 99.06964603204003,
+      "cpu1": 0.0,
+      "vmMs": 95.81778260869565,
+      "geometryMs": 42.095010869565215,
+      "vmPlusGeometryMs": 137.91279347826085,
+      "rasterMs": 7.146521739130435,
+      "submissionMs": 0.26782608695652177,
+      "drawPassFps": 2.9557283300134936
+    },
+    {
+      "backend": "native",
+      "preset": "aokko",
+      "dynamic": true,
+      "repeat": 0,
+      "actualMs": 15161,
+      "writes": 308,
+      "delta": {
+        "evaluations": 308,
+        "updates": 308,
+        "ticks": 308,
+        "preparations": 308,
+        "rasterPasses": 308,
+        "failures": 0,
+        "geometryChanges": 5324,
+        "vmUs": 187677,
+        "geometryUs": 219029,
+        "rasterSubmitUs": 32489,
+        "elapsed": 14981,
+        "nativeBytes": 0,
+        "rasterUs": 2261846,
+        "instructions": -28,
+        "commands": -2,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 2467319,
+        "submitUs": 16802,
+        "passes": 308,
+        "pairs": 73920,
+        "unmatched": 0
+      },
+      "instrumentFrames": 246,
+      "instrumentSeconds": 12.01785479998216,
+      "instrumentSamples": 13,
+      "actualFps": 20.469543366455483,
+      "cpu0": 98.49849677830413,
+      "cpu1": 0.9181971893898335,
+      "vmMs": 0.6093409090909091,
+      "geometryMs": 0.7111331168831169,
+      "vmPlusGeometryMs": 1.320474025974026,
+      "rasterMs": 8.010775974025975,
+      "submissionMs": 0.05455194805194805,
+      "drawPassFps": 20.315282633071696
+    },
+    {
+      "backend": "native",
+      "preset": "default",
+      "dynamic": false,
+      "repeat": 1,
+      "actualMs": 15097,
+      "writes": 0,
+      "delta": {
+        "evaluations": 400,
+        "updates": 0,
+        "ticks": 400,
+        "preparations": 400,
+        "rasterPasses": 104,
+        "failures": 0,
+        "geometryChanges": 728,
+        "vmUs": 146081,
+        "geometryUs": 82195,
+        "rasterSubmitUs": 8473,
+        "elapsed": 15097,
+        "nativeBytes": 0,
+        "rasterUs": 302054,
+        "instructions": 0,
+        "commands": 0,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 372051,
+        "submitUs": 5681,
+        "passes": 104,
+        "pairs": 24960,
+        "unmatched": 0
+      },
+      "instrumentFrames": 84,
+      "instrumentSeconds": 12.0000607999973,
+      "instrumentSamples": 13,
+      "actualFps": 6.999964533514605,
+      "cpu0": 41.7499842249016,
+      "cpu1": 0.0,
+      "vmMs": 0.3652025,
+      "geometryMs": 0.20548750000000002,
+      "vmPlusGeometryMs": 0.57069,
+      "rasterMs": 3.5774134615384616,
+      "submissionMs": 0.054625,
+      "drawPassFps": 6.888785851493674
+    },
+    {
+      "backend": "js",
+      "preset": "default",
+      "dynamic": false,
+      "repeat": 1,
+      "actualMs": 15314,
+      "writes": 0,
+      "delta": {
+        "evaluations": 147,
+        "preparations": 147,
+        "calls": 147,
+        "vmUs": 8906417,
+        "geometryUs": 1359134,
+        "preparationUs": 10660167
+      },
+      "drawDelta": {
+        "rasterUs": 236522,
+        "submitUs": 14687,
+        "passes": 81,
+        "pairs": 19440,
+        "unmatched": 0
+      },
+      "instrumentFrames": 63,
+      "instrumentSeconds": 12.040875300066546,
+      "instrumentSamples": 13,
+      "actualFps": 5.232177763659077,
+      "cpu0": 99.0,
+      "cpu1": 0.0,
+      "vmMs": 60.587870748299316,
+      "geometryMs": 9.245809523809523,
+      "vmPlusGeometryMs": 69.83368027210885,
+      "rasterMs": 2.9200246913580243,
+      "submissionMs": 0.18132098765432098,
+      "drawPassFps": 5.289277785033303
+    },
+    {
+      "backend": "native",
+      "preset": "default",
+      "dynamic": true,
+      "repeat": 1,
+      "actualMs": 15130,
+      "writes": 310,
+      "delta": {
+        "evaluations": 310,
+        "updates": 310,
+        "ticks": 310,
+        "preparations": 310,
+        "rasterPasses": 310,
+        "failures": 0,
+        "geometryChanges": 3754,
+        "vmUs": 165034,
+        "geometryUs": 253164,
+        "rasterSubmitUs": 29835,
+        "elapsed": 14988,
+        "nativeBytes": 0,
+        "rasterUs": 1674006,
+        "instructions": -29,
+        "commands": -1,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 1881792,
+        "submitUs": 17165,
+        "passes": 310,
+        "pairs": 74400,
+        "unmatched": 0
+      },
+      "instrumentFrames": 246,
+      "instrumentSeconds": 12.01897000009194,
+      "instrumentSamples": 13,
+      "actualFps": 20.467644065849086,
+      "cpu0": 98.66444607149205,
+      "cpu1": 0.0,
+      "vmMs": 0.5323677419354839,
+      "geometryMs": 0.816658064516129,
+      "vmPlusGeometryMs": 1.349025806451613,
+      "rasterMs": 6.070296774193548,
+      "submissionMs": 0.05537096774193548,
+      "drawPassFps": 20.48909451421018
+    },
+    {
+      "backend": "js",
+      "preset": "default",
+      "dynamic": true,
+      "repeat": 1,
+      "actualMs": 15458,
+      "writes": 56,
+      "delta": {
+        "evaluations": 112,
+        "preparations": 112,
+        "calls": 112,
+        "vmUs": 8512619,
+        "geometryUs": 3443643,
+        "preparationUs": 12273044
+      },
+      "drawDelta": {
+        "rasterUs": 266700,
+        "submitUs": 11790,
+        "passes": 56,
+        "pairs": 13440,
+        "unmatched": 0
+      },
+      "instrumentFrames": 48,
+      "instrumentSeconds": 13.115008399821818,
+      "instrumentSamples": 14,
+      "actualFps": 3.6599290321958264,
+      "cpu0": 99.0,
+      "cpu1": 0.0,
+      "vmMs": 76.0055267857143,
+      "geometryMs": 30.7468125,
+      "vmPlusGeometryMs": 106.75233928571429,
+      "rasterMs": 4.7625,
+      "submissionMs": 0.21053571428571427,
+      "drawPassFps": 3.6227196273774096
+    },
+    {
+      "backend": "native",
+      "preset": "omega",
+      "dynamic": false,
+      "repeat": 1,
+      "actualMs": 15073,
+      "writes": 0,
+      "delta": {
+        "evaluations": 435,
+        "updates": 0,
+        "ticks": 435,
+        "preparations": 435,
+        "rasterPasses": 43,
+        "failures": 0,
+        "geometryChanges": 473,
+        "vmUs": 180386,
+        "geometryUs": 58916,
+        "rasterSubmitUs": 4088,
+        "elapsed": 15019,
+        "nativeBytes": 0,
+        "rasterUs": 139951,
+        "instructions": 0,
+        "commands": 0,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 168804,
+        "submitUs": 2437,
+        "passes": 43,
+        "pairs": 10320,
+        "unmatched": 0
+      },
+      "instrumentFrames": 36,
+      "instrumentSeconds": 12.015087200095877,
+      "instrumentSamples": 13,
+      "actualFps": 2.996232936179833,
+      "cpu0": 26.692658118905204,
+      "cpu1": 0.0,
+      "vmMs": 0.414680459770115,
+      "geometryMs": 0.1354390804597701,
+      "vmPlusGeometryMs": 0.5501195402298851,
+      "rasterMs": 3.9256744186046513,
+      "submissionMs": 0.05667441860465117,
+      "drawPassFps": 2.852783122138924
+    },
+    {
+      "backend": "js",
+      "preset": "omega",
+      "dynamic": false,
+      "repeat": 1,
+      "actualMs": 15256,
+      "writes": 0,
+      "delta": {
+        "evaluations": 142,
+        "preparations": 142,
+        "calls": 142,
+        "vmUs": 9920125,
+        "geometryUs": 2094225,
+        "preparationUs": 12396772
+      },
+      "drawDelta": {
+        "rasterUs": 120616,
+        "submitUs": 7814,
+        "passes": 37,
+        "pairs": 8880,
+        "unmatched": 0
+      },
+      "instrumentFrames": 27,
+      "instrumentSeconds": 12.051629099994898,
+      "instrumentSamples": 13,
+      "actualFps": 2.240361014762015,
+      "cpu0": 99.0,
+      "cpu1": 0.0,
+      "vmMs": 69.8600352112676,
+      "geometryMs": 14.74806338028169,
+      "vmPlusGeometryMs": 84.6080985915493,
+      "rasterMs": 3.259891891891892,
+      "submissionMs": 0.2111891891891892,
+      "drawPassFps": 2.4252753015207134
+    },
+    {
+      "backend": "native",
+      "preset": "omega",
+      "dynamic": true,
+      "repeat": 1,
+      "actualMs": 15137,
+      "writes": 307,
+      "delta": {
+        "evaluations": 307,
+        "updates": 307,
+        "ticks": 307,
+        "preparations": 307,
+        "rasterPasses": 307,
+        "failures": 0,
+        "geometryChanges": 5678,
+        "vmUs": 187893,
+        "geometryUs": 336818,
+        "rasterSubmitUs": 33482,
+        "elapsed": 14992,
+        "nativeBytes": 0,
+        "rasterUs": 1790208,
+        "instructions": -69,
+        "commands": 2,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 1994779,
+        "submitUs": 16283,
+        "passes": 307,
+        "pairs": 73680,
+        "unmatched": 0
+      },
+      "instrumentFrames": 244,
+      "instrumentSeconds": 11.955492600100115,
+      "instrumentSamples": 13,
+      "actualFps": 20.409029402766453,
+      "cpu0": 98.49602165287182,
+      "cpu1": 0.4148487281716079,
+      "vmMs": 0.612029315960912,
+      "geometryMs": 1.0971270358306189,
+      "vmPlusGeometryMs": 1.7091563517915311,
+      "rasterMs": 6.497651465798046,
+      "submissionMs": 0.053039087947882736,
+      "drawPassFps": 20.281429609565965
+    },
+    {
+      "backend": "js",
+      "preset": "omega",
+      "dynamic": true,
+      "repeat": 1,
+      "actualMs": 15684,
+      "writes": 40,
+      "delta": {
+        "evaluations": 80,
+        "preparations": 80,
+        "calls": 80,
+        "vmUs": 8123961,
+        "geometryUs": 4780383,
+        "preparationUs": 13140526
+      },
+      "drawDelta": {
+        "rasterUs": 249608,
+        "submitUs": 11966,
+        "passes": 40,
+        "pairs": 9600,
+        "unmatched": 0
+      },
+      "instrumentFrames": 33,
+      "instrumentSeconds": 12.98703459999524,
+      "instrumentSamples": 14,
+      "actualFps": 2.5409957712757687,
+      "cpu0": 99.09735513448072,
+      "cpu1": 0.0,
+      "vmMs": 101.54951249999999,
+      "geometryMs": 59.7547875,
+      "vmPlusGeometryMs": 161.30429999999998,
+      "rasterMs": 6.2402,
+      "submissionMs": 0.29914999999999997,
+      "drawPassFps": 2.550369803621525
+    },
+    {
+      "backend": "native",
+      "preset": "aokko",
+      "dynamic": false,
+      "repeat": 1,
+      "actualMs": 15161,
+      "writes": 0,
+      "delta": {
+        "evaluations": 403,
+        "updates": 0,
+        "ticks": 403,
+        "preparations": 403,
+        "rasterPasses": 104,
+        "failures": 0,
+        "geometryChanges": 1756,
+        "vmUs": 217149,
+        "geometryUs": 92309,
+        "rasterSubmitUs": 10741,
+        "elapsed": 15024,
+        "nativeBytes": 0,
+        "rasterUs": 671093,
+        "instructions": 42,
+        "commands": 4,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 740316,
+        "submitUs": 5878,
+        "passes": 104,
+        "pairs": 24960,
+        "unmatched": 0
+      },
+      "instrumentFrames": 91,
+      "instrumentSeconds": 13.000009400071576,
+      "instrumentSamples": 14,
+      "actualFps": 6.999994938426657,
+      "cpu0": 42.17179960644543,
+      "cpu1": 0.0,
+      "vmMs": 0.5388312655086849,
+      "geometryMs": 0.22905459057071959,
+      "vmPlusGeometryMs": 0.7678858560794044,
+      "rasterMs": 7.118423076923077,
+      "submissionMs": 0.056519230769230766,
+      "drawPassFps": 6.859705824154079
+    },
+    {
+      "backend": "js",
+      "preset": "aokko",
+      "dynamic": false,
+      "repeat": 1,
+      "actualMs": 15530,
+      "writes": 0,
+      "delta": {
+        "evaluations": 101,
+        "preparations": 101,
+        "calls": 101,
+        "vmUs": 9677619,
+        "geometryUs": 2369977,
+        "preparationUs": 12331587
+      },
+      "drawDelta": {
+        "rasterUs": 334851,
+        "submitUs": 13675,
+        "passes": 51,
+        "pairs": 12240,
+        "unmatched": 0
+      },
+      "instrumentFrames": 40,
+      "instrumentSeconds": 11.999665500130504,
+      "instrumentSamples": 13,
+      "actualFps": 3.333426252553871,
+      "cpu0": 99.0865483625305,
+      "cpu1": 0.0,
+      "vmMs": 95.8180099009901,
+      "geometryMs": 23.465118811881187,
+      "vmPlusGeometryMs": 119.28312871287129,
+      "rasterMs": 6.565705882352941,
+      "submissionMs": 0.2681372549019608,
+      "drawPassFps": 3.2839665164198326
+    },
+    {
+      "backend": "native",
+      "preset": "aokko",
+      "dynamic": true,
+      "repeat": 1,
+      "actualMs": 15139,
+      "writes": 310,
+      "delta": {
+        "evaluations": 310,
+        "updates": 310,
+        "ticks": 310,
+        "preparations": 310,
+        "rasterPasses": 310,
+        "failures": 0,
+        "geometryChanges": 5358,
+        "vmUs": 190426,
+        "geometryUs": 221632,
+        "rasterSubmitUs": 33666,
+        "elapsed": 14996,
+        "nativeBytes": 0,
+        "rasterUs": 2274297,
+        "instructions": 0,
+        "commands": 0,
+        "disposed": 0
+      },
+      "drawDelta": {
+        "rasterUs": 2480922,
+        "submitUs": 16723,
+        "passes": 310,
+        "pairs": 74400,
+        "unmatched": 0
+      },
+      "instrumentFrames": 245,
+      "instrumentSeconds": 11.978966699913144,
+      "instrumentSamples": 13,
+      "actualFps": 20.452515324362363,
+      "cpu0": 98.66258868557087,
+      "cpu1": 0.8352870368924185,
+      "vmMs": 0.6142774193548387,
+      "geometryMs": 0.714941935483871,
+      "vmPlusGeometryMs": 1.3292193548387097,
+      "rasterMs": 8.002974193548386,
+      "submissionMs": 0.053945161290322584,
+      "drawPassFps": 20.476913930906928
+    },
+    {
+      "backend": "js",
+      "preset": "aokko",
+      "dynamic": true,
+      "repeat": 1,
+      "actualMs": 15710,
+      "writes": 46,
+      "delta": {
+        "evaluations": 92,
+        "preparations": 92,
+        "calls": 92,
+        "vmUs": 8817057,
+        "geometryUs": 3866061,
+        "preparationUs": 12951965
+      },
+      "drawDelta": {
+        "rasterUs": 333969,
+        "submitUs": 12062,
+        "passes": 46,
+        "pairs": 11040,
+        "unmatched": 0
+      },
+      "instrumentFrames": 35,
+      "instrumentSeconds": 12.009460899978876,
+      "instrumentSamples": 13,
+      "actualFps": 2.9143689539021325,
+      "cpu0": 99.08926959412365,
+      "cpu1": 0.0,
+      "vmMs": 95.83757608695653,
+      "geometryMs": 42.022402173913044,
+      "vmPlusGeometryMs": 137.85997826086958,
+      "rasterMs": 7.260195652173913,
+      "submissionMs": 0.2622173913043478,
+      "drawPassFps": 2.928071292170592
+    }
+  ],
+  "methods": {
+    "fps": "Sum SDK Frames drawn counters divided by monotonic capture elapsed seconds between corresponding samples; discard first/last samples at phase boundaries and omit first kept counter.",
+    "cpu": "SDK samples the running task on each core every 1250 us and returns integer-truncated non-idle percent. Weight by actual duration of each SDK sample. Whole application and all tasks, not isolated MOD CPU; decimal aggregate values do not imply sub-percent single-sample precision.",
+    "preparation": "VM plus geometry/presentation operation CPU time per evaluation. JS wrappers use the same ESP microsecond clock as native counters.",
+    "raster": "Both backends use the same outer Piu container with paired no-pixel Poco callbacks for every raster band; summed raster work divided by face draw passes. Excludes panel transfer.",
+    "submission": "Outer Piu container traversal / command-list generation per face draw pass; distinct from raster execution.",
+    "input": "Same function of actual elapsed time; 33 ms timer callbacks can skip deadlines under load. Built-in animation schedulers retain each implementation behavior."
+  },
+  "limitations": [
+    "SDK Frames drawn / Piu passes are not an external panel or camera FPS measurement.",
+    "Instrumented diagnostic host; servo locked none, Wi-Fi empty overrides, head LED null.",
+    "Two sequential measurements per condition on one physical device; reverse backend order in the second repeat.",
+    "Per-frame execution counters cover the full measured phase, whereas SDK FPS/CPU use the interior steady window.",
+    "The native renderer retains its internal raster timing markers in addition to the common outer probe."
+  ],
+  "device": {
+    "model": "M5StackChan CoreS3",
+    "port": "COM12"
+  },
+  "restoration": {
+    "utc": "2026-10-08T13:53:41.832715+00:00",
+    "verified": true,
+    "preserved": true,
+    "appReady": true,
+    "captureSeconds": 24.239662000210956,
+    "positiveFrameSamples": 16,
+    "totalFramesAfterReady": 110
+  },
+  "comparisonScope": "The legacy JS backend is unchanged from 55d7785; both backends execute under the same diagnostic instrument host based on 5dbc157. This controls host/config differences and compares the face engines, rather than whole old and new host firmware binaries.",
+  "diagnosticConfiguration": {
+    "cpuMHz": 240,
+    "flashMode": "DIO",
+    "flashMHz": 80,
+    "driver": "none",
+    "driverTypeLocked": true,
+    "wifiEmptyOverrides": true,
+    "headLed": null,
+    "sdkVersion": "9.5.0",
+    "faceWidth": 320,
+    "faceHeight": 240,
+    "builtinAnimationVariables": {
+      "27": 1,
+      "34": 1
+    }
+  },
+  "localEvidenceSha256": {
+    "serial.jsonl": "4b92e52f3fafe2b7cd410aa5c2ecff4b2675e40f9c84b44693c7bf09277caa8f",
+    "restored.jsonl": "07eb00a4ddfd28c6513dcaed7c0293d302dda2e5ce2593ac7c1caee95fcd41d3",
+    "flash.json": "37d84e87f52e0833a299785940c5146362192cc3ffc658fbf4b42ac917c6a346",
+    "restore.json": "79cb39844a98e7e2e0ccbb26f184d0cd607574c3b5cfb102ff526ddde9e464a3",
+    "comparison.csv": "c887e88907e0cab1195009611819bef0672100e739320d755206ea4a8373e1ee"
+  },
+  "checkedInEvidenceSha256": {
+    "cores3-native-20261008.csv": "eb63419d6192132f2cf7041f4208af2c296b0c71c75b5617df97caaee96c7475",
+    "cores3-native-20261008.jsonl": "a35b34cf0aa30922a7ba422ff828a13d0bbc5367f49df1058bbd31432ec9ffa5"
+  },
+  "lineEndings": "Git-normalized LF for checked-in CSV/JSONL; localEvidenceSha256 identifies original captures before normalization."
+}

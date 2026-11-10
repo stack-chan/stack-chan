@@ -4,6 +4,7 @@ import Timer from 'timer'
 
 const SESSION = 'openai-live:session'
 const MUTE = 'openai-live:mute'
+let session
 const messages = {
   idle: 'OpenAI 会話を終了しました',
   connecting: 'OpenAI に接続中',
@@ -34,7 +35,7 @@ export function onContextCreated(robot) {
       // A rendering failure must not prevent session cleanup.
     }
   }
-  const session = new LiveSession({
+  session = new LiveSession({
     Conversation,
     audio: robot.audio,
     networkReady: robot.connectivity.network?.ready,
@@ -94,4 +95,8 @@ export function onContextCreated(robot) {
       })
     },
   })
+}
+
+export function onClose() {
+  return session?.stop()
 }

@@ -4,9 +4,9 @@ Stack-chanホスト向けのOpenAI互換会話モジュール。会話プロト�
 
 ## 組み込み
 
-ホストのマニフェストへ本ディレクトリーの`manifest.json`を追加する。公開モジュールは`realtimeConversation`、`realtimeConversation/core`、`/tools`、`/transport`、`/http`。CoreS3のネイティブ実装とホスト設定を含む。対応対象はM5StackChan CoreS3のみ。
+Standard CoreS3 and M5StackChan CoreS3 hosts include this backend. Public modules are `realtimeConversation`, `realtimeConversation/core`, `/tools`, `/transport`, and `/http`.
 
-ビルドには`STACKCHAN_REALTIME_WEBRTC=1`と`ESP_WEBRTC_SOLUTION`を指定し、リポジトリーの`npm run build`を使う。ラッパーが生成先のESP-IDFプロジェクトへ外部コンポーネントを登録する。ModdableのCMake・Makefile・ランタイムを変更しない。
+Use `npm run build:m5stack_cores3` or `npm run build:m5stackchan_cores3`. The wrappers fetch pinned Espressif sources into the workspace and register external components in the generated IDF project; `ESP_WEBRTC_SOLUTION` can select an existing checkout. No shared SDK files change. Large Live VM/cache/timing settings remain opt-in. See [activation, audio ownership, and acceptance](../../../../docs/operations/cores3-webrtc-acceptance.md).
 
 ```js
 import RealtimeConversation from 'realtimeConversation'
@@ -25,7 +25,9 @@ const result = await conversation.close()
 
 公開型は`realtimeConversation.d.ts`。`apiKey`と`signaling`は排他的に指定する。認証・短期トークンの取得・エージェント設定・具体的なツール・履歴保存の方針は利用側で実装する。プロンプト、委譲先モデル、検索ツールは呼び出し側が指定し、hostでは追加しない。`tools`を直接登録する場合はResponses用の`delegation`設定も渡す。
 
-HTTPS POSTはModdable標準のECMA-419 HTTPSクライアントを専用Worker内で使う。会話Workerから直接要求・応答を渡し、メインスレッドを経由しない。呼び出し元VMごとに待機中を含む8要求の上限、待機時間を含む期限、128KiBの応答上限、証明書検証、リダイレクト禁止を維持する。通常のTLSセッションキャッシュはSDKへ任せる。カスタムCAを指定した要求では前後でキャッシュを消し、信頼設定の異なる要求への再利用を防ぐ。独自のネイティブHTTP・接続再利用処理は持たない。HTTP Workerはモジュール読込時に準備し、会話中の初回起動を避ける。優先度3、ネイティブスタック6KiBで、呼び出し元VMとともに破棄される。
+HTTPS POST uses the standard Moddable ECMA-419 HTTPS client in a dedicated Worker, with direct messages from the caller VM. It retains the eight-request limit, deadline including queue time, 128 KiB response limit, certificate verification, and redirect prohibition. The SDK manages TLS session caching; custom-CA requests clear the cache before and after use to isolate trust settings. The Worker is created on the first valid request, with priority 3 and a 6 KiB native stack. It is retired after pending callers and its actual request queue drain, then recreated on demand. Caller timeout alone does not terminate ongoing TLS cleanup. An asynchronous hangup can finish after conversation closure. Merely importing or constructing a conversation starts no HTTPS Worker or native transport.
+
+A MOD opts in by calling `connect()`; no extra host profile or eager allocation flag is required. Use its optional `onClose` hook to await the same session shutdown used by the stop action. The host runs this hook before closing its audio runtime, including cleanup after `onContextCreated` fails. The Live example delegates it to `LiveSession.stop()`. MOD replacement still restarts the host; this hook does not add hot unloading. Keep shared codec registrations and USB resources under their existing owners. Linked static data and the compiled ESP-IDF heap policy remain even when a MOD never connects; see [memory acceptance](../../../../docs/operations/cores3-webrtc-acceptance.md).
 
 ## 維持する動作
 

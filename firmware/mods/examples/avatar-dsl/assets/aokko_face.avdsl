@@ -1,0 +1,221 @@
+-- SPDX-FileCopyrightText: 2026 Kenta IDA <fuga@fugafuga.org>
+-- SPDX-License-Identifier: BSL-1.0
+--
+-- Aokko-style face preset for the avatar_vm DSL. **Coord values and color
+-- palette pattern are inspired by `mongonta0716/m5stack-avatar-mic-nekomimi_led`
+-- branch `aokkoface` (MIT 2024 washishi)** — only the numeric facts (eye /
+-- mouth / cheek geometry) are referenced; no upstream source code is copied.
+-- The implementation here is original to stay BSL-1.0 single-licensed.
+--
+-- Design highlights vs default_face.avdsl:
+--   * Eyes are tall vertical pills (a "capsule" composed of one rect + two
+--     end-cap circles). The 1:3 width:height ratio mirrors aokko-face's
+--     EllipseEye(18, 54). Width is driven by `eye_radius` so FaceTuning still
+--     lets the operator scale the eyes globally.
+--   * Cheeks are 6-pointed stars (hexagram, "Star of David"), drawn as two
+--     overlapping equilateral triangles via fill_triangle.
+--   * Mouth uses default's rectangle scheme but with the wider min/max range
+--     the upstream uses (50..90 wide, 4..60 tall) so big mouth_open values
+--     look right against the taller eye silhouette.
+--   * No eyebrows, no expression effect marks. The upstream design is a
+--     "music-synced LED dancer" — expressions are intentionally minimal. The
+--     only expression-aware branch is HAPPY squinting the eyes.
+--
+-- Usage:
+--   * Compile + ship to a running device via the Wi-Fi settings page
+--     ("顔描画 DSL" textarea → "コンパイル & 送信"), or POST the bytecode
+--     directly to /api/avatar-dsl.
+--   * Live preview in browser via wasm/avatar.html (this file is registered
+--     as the "aokko" preset there — see wasm/build.sh).
+
+----------------------------------------------------------------------
+-- Vertical-pill ("ellipse-approx") eye **with 3-bar eyelashes**.
+--   w = full horizontal extent of the pill (pixels). Snapped to the
+--       nearest odd value internally so the cap circle bounding box
+--       (2*r + 1) and the body rect width match exactly — without the
+--       snap, fill_rect(x, y, 2*r, h) covers 2*r columns while
+--       fill_circle(cx, cy, r) covers 2*r + 1 columns, leaving a 1-px
+--       step at the cap/body join.
+--   h = full vertical extent. Same odd-snap applies to the height span.
+-- When h < w the pill degrades into a circle of radius r (trim clamps to 0).
+--
+-- gaze_h / gaze_v shift the pill **and the eyelashes together** — in this
+-- stylized face the "eye" is the pupil substitute, so saccade moves the
+-- whole eye block including the lashes (anatomically not strictly right,
+-- but it's the avatar convention). bbox is sized asymmetrically (taller
+-- on top) to clear the lash region while keeping the bottom tight, and
+-- has enough slack for the max gaze + breath excursion.
+----------------------------------------------------------------------
+fn ellipse_eye(center_x, center_y, w, h, color, bo)
+  let cx = center_x + gaze_h * 3
+  let cy = center_y + gaze_v * 3 + bo
+  -- Cap radius. Choosing r = floor(w / 2) means the cap circle's pixel
+  -- diameter (2*r + 1) is the largest odd value <= w + 1, which is what
+  -- we use as the body rect width below so caps and body align column-
+  -- for-column.
+  let r = floor(w / 2)
+  let body_w = r * 2 + 1
+  -- Vertical: half-height in whole pixels, plus the same odd-snap idea.
+  -- trim is the distance from the eye center to each cap center, so the
+  -- total vertical span [cy - trim - r, cy + trim + r] is 2*(trim + r) + 1.
+  let half_h_pix = floor(h / 2)
+  let trim = half_h_pix - r
+  if trim < 0 then trim = 0 end
+  -- Eyelash geometry (proportional to eye width so it scales with FaceTuning).
+  let lash_t = max(1, round(w / 8))      -- thickness per lash bar
+  let lash_len = max(3, round(w * 0.6))  -- vertical length
+  let lash_half_t = floor(lash_t / 2)
+  let lash_spread = round(w / 3)         -- distance from center to side lash
+  -- Lashes anchor a few pixels below the eye rim so they "sprout" from the
+  -- eyelid rather than float above it. Side lashes drop a bit more than the
+  -- center one, giving the 3-bar set a subtle ⌒-fan shape. Both drops scale
+  -- with lash_len so the proportions hold at AtomS3R / StopWatch sizes too.
+  let lash_drop_center = max(1, round(lash_len * 0.3))
+  let lash_drop_side   = max(1, round(lash_len * 0.25))
+  let lash_y_center = cy - half_h_pix - lash_len + lash_drop_center
+  let lash_y_side   = lash_y_center
+  -- Asymmetric bbox: extra room on top for lashes, tight on bottom.
+  let pad_x = r + 12
+  let top_pad = half_h_pix + lash_len + 12
+  let bot_pad = half_h_pix + 12
+  begin_group(center_x - pad_x, center_y - top_pad, pad_x * 2, top_pad + bot_pad)
+  if eye_open <= 0 then
+    -- Closed: short flat line (matches default_face's blink convention),
+    -- width matched to the open-eye width so blinks don't pulse sideways.
+    fill_rect(cx - r, cy - 2, body_w, 4, color)
+    -- Closed-state lashes: all 3 share the same length and bottom y so they
+    -- read as a tidy "|||" attached to the closed lid. The ⌒-fan shape of
+    -- the open state would look wrong here (no eyeball to flank).
+    let closed_lash_y = cy - 2 - lash_len
+    fill_rect(cx - lash_spread - lash_half_t, closed_lash_y, lash_t, lash_len, color)
+    fill_rect(cx + lash_spread - lash_half_t, closed_lash_y, lash_t, lash_len, color)
+    fill_rect(cx               - lash_half_t, closed_lash_y, lash_t, lash_len, color)
+  else
+    if trim > 0 then
+      -- Body rect spans rows [cy - trim, cy + trim - 1] (= 2*trim px) and
+      -- overlaps each cap by r rows, so the union has no gap regardless of
+      -- trim. body_w pairs with the cap diameter exactly.
+      fill_rect(cx - r, cy - trim, body_w, trim * 2, color)
+    end
+    fill_circle(cx, cy - trim, r, color)
+    fill_circle(cx, cy + trim, r, color)
+    if expr == HAPPY then
+      -- Cover the lower portion to leave a `⌒` arch — same trick as
+      -- default_face's HAPPY masking, adapted to the taller silhouette.
+      -- +1 px slack on each side so the mask outpaces the cap rim.
+      fill_rect(cx - r - 1, cy, body_w + 2, half_h_pix + 2, background)
+    end
+    -- Open-state lashes: side bars extend further down than the center for
+    -- a subtle ⌒-fan. Draw sides first, center on top so any aliasing at
+    -- the join reads cleanly.
+    fill_rect(cx - lash_spread - lash_half_t, lash_y_side,   lash_t, lash_len + lash_drop_side, color)
+    fill_rect(cx + lash_spread - lash_half_t, lash_y_side,   lash_t, lash_len + lash_drop_side, color)
+    fill_rect(cx               - lash_half_t, lash_y_center, lash_t, lash_len                 , color)
+  end
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Hexagram (Star of David) cheek: two overlapping equilateral triangles,
+-- one apex-up, one apex-down. r is the circumradius of each triangle so
+-- the visible star is bound by a 2r × 2r square (plus 1 px slack for the
+-- AA-ish snapping the filled-triangle primitive does).
+----------------------------------------------------------------------
+fn hexagram_cheek(cx, cy, r, color)
+  -- Vertical and horizontal extents are slightly asymmetric for an
+  -- equilateral triangle (apex farther from center than the base edge),
+  -- but the union of the up- and down-triangle covers a square of side 2r.
+  let half = round(r) + 1
+  begin_group(cx - half, cy - half, half * 2, half * 2)
+  let a = sqrt(3) * r / 2  -- half of the base edge
+  let half_r = r / 2
+  -- Apex-up.
+  fill_triangle(cx, cy - r, cx - a, cy + half_r, cx + a, cy + half_r, color)
+  -- Apex-down.
+  fill_triangle(cx, cy + r, cx - a, cy - half_r, cx + a, cy - half_r, color)
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Mouth: same rectangle scheme as default_face but with a wider min/max
+-- range so the open-mouth state reads against the taller eyes.
+----------------------------------------------------------------------
+fn mouth_rect(cx, cy, min_w, max_w, min_h, max_h, bo)
+  let h = min_h + (max_h - min_h) * mouth_open
+  let w = min_w + (max_w - min_w) * (1 - mouth_open)
+  let x = cx - w / 2
+  let y = cy - h / 2 + breath * 2 + bo
+  let gx = cx - max_w / 2 - 1
+  let gy = cy - max_h / 2 - 8
+  let gw = max_w + 2
+  let gh = max_h + 16
+  begin_group(gx, gy, gw, gh)
+  fill_rect(x, y, w, h, primary)
+  end_group()
+end
+
+----------------------------------------------------------------------
+-- Entry point.
+-- Upstream aokko-face anchors (320×240 design space, from research §2.1):
+--   left  eye    (x= 90, y= 96)
+--   right eye    (x=230, y= 96)
+--   mouth        (x=163, y=148)   Mouth(50, 90, 4, 60)
+--   left  cheek  (x= 65, y=153)   r=10 hexagram
+--   right cheek  (x=255, y=153)
+-- All coords flow through tx/ty so the same bytecode scales to any panel
+-- (CoreS3 320×240, AtomS3R 128×128, future StopWatch 466×466).
+
+----------------------------------------------------------------------
+-- Accessory slot 0: cat collar — a red band across the bottom of the
+-- screen with a gold bell hanging from its centre. Static (no breath
+-- offset): it sits on the "neck", not the face. Drawn last so it paints
+-- over the mouth / effects. Enable via FaceTuning accessories bit 0
+-- (settings UI "アクセサリ 1", JSON "acc": 1).
+----------------------------------------------------------------------
+fn collar()
+  let band_y = ty(214)
+  let band_h = sz(24)
+  let gx = tx(0)
+  let gw = sz(320)
+  begin_group(gx, band_y - sz(14), gw, band_h + sz(16) + sz(14))
+  fill_rect(gx, band_y, gw, band_h, 0xF800)
+  -- bell: gold disc on the band, dark slit + clapper dot below
+  let bx = tx(160)
+  let by = ty(224)
+  let br = sz(13)
+  fill_circle(bx, by, br, 0xFEA0)
+  fill_rect(bx - sz(9), by - sz(1), sz(18), sz(2), 0x8200)
+  fill_circle(bx, by + sz(8), sz(3), 0x8200)
+  end_group()
+end
+
+----------------------------------------------------------------------
+fn draw()
+  let bo = breath * 3
+
+  -- Mouth — upstream's wider 50..90 / 4..60 envelope (overrides FaceTuning
+  -- mouth_* on purpose so the aokko shape stays recognizable).
+  mouth_rect(tx(163 + mouth_off_x), ty(148 + mouth_off_y),
+             sz(50), sz(90), sz(4), sz(60), bo)
+
+  -- Eyes — vertical pill. eye_radius is the existing FaceTuning hook
+  -- (semantically a half-width radius), so the full pill width is 2×
+  -- eye_radius; height keeps aokko's 1:3 aspect for a 6× factor.
+  let ew = sz(eye_radius * 2)
+  let eh = sz(eye_radius * 6)
+  ellipse_eye(tx(230 + eye_off_x), ty(96 + eye_off_y), ew, eh, primary, bo)
+  ellipse_eye(tx(90  - eye_off_x), ty(96 + eye_off_y), ew, eh, primary, bo)
+
+  -- Cheeks — hexagram. Honor FaceTuning's cheek_* knobs so the operator can
+  -- toggle / move / resize them alongside default_face's circle cheeks.
+  -- cheeks_visible defaults OFF in FaceTuning, so users switching to this
+  -- preset must enable it to see the aokko hallmark stars (the Wi-Fi /
+  -- BLE settings UI has the toggle in the avatar tab).
+  if cheeks_visible then
+    let cr = sz(cheek_radius)
+    hexagram_cheek(tx(65  - cheek_off_x), ty(153 + cheek_off_y) + bo, cr, primary)
+    hexagram_cheek(tx(255 + cheek_off_x), ty(153 + cheek_off_y) + bo, cr, primary)
+  end
+  -- accessories (FaceTuning slots; slot 0 = collar + bell)
+  if accessory_0 then collar() end
+end

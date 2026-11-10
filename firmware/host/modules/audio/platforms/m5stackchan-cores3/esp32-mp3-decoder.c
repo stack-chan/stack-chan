@@ -11,6 +11,10 @@
 #define MP3_PCM_SCRATCH_BYTES (MP3_MAX_SAMPLES_PER_FRAME * MP3_MAX_CHANNELS * sizeof(int16_t))
 #define MP3_RESERVOIR_BYTES 8192
 
+#if MODDEF_STACKCHAN_REALTIME
+extern int stackchanRealtimeMediaInit(void);
+#endif
+
 // WebRTC links the standard media_lib_sal allocator. Keep standalone MP3's
 // placement policy only when that implementation is absent.
 #if !MODDEF_STACKCHAN_REALTIME
@@ -94,6 +98,10 @@ void xs_esp32_mp3_destructor(void *data)
 
 void xs_esp32_mp3_constructor(xsMachine *the)
 {
+#if MODDEF_STACKCHAN_REALTIME
+	if (stackchanRealtimeMediaInit() != ESP_OK)
+		xsUnknownError("Realtime media initialization failed");
+#endif
 	xsESP32MP3Record *decoder = c_calloc(1, sizeof(xsESP32MP3Record));
 	esp_audio_err_t openResult;
 	if (!decoder)

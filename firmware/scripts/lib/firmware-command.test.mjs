@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { webRtcComponents } from './webrtc-solution.mjs'
 
 const firmwareDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const manifest = 'mods/examples/look_around/manifest.json'
@@ -145,52 +146,190 @@ process.exit(Number(process.env.STACKCHAN_TEST_MCPACK_STATUS))
   }
 })
 
-test('firmware wrapper cleans manifest switches before every CoreS3 command and restores IDF dependencies', () => {
+test('firmware wrapper prepares CoreS3 dependencies once before the requested command', () => {
   for (const command of ['build', 'flash', 'deploy', 'debug']) {
     const fixture = createFirmwareWrapperFixture()
     try {
-      const first = runFixture(fixture, command, fixture.normalManifest)
-      assert.equal(count(first.stdout, 'prepared IDF dependencies:'), 2, `${command}: first build preparation`)
-      let invocations = readInvocations(fixture.commandLog)
-      assertCommandPair(invocations, command, fixture.normalManifest)
-
-      const same = runFixture(fixture, command, fixture.normalManifest)
-      assert.equal(count(same.stdout, 'prepared IDF dependencies:'), 1, `${command}: same variant preparation`)
-      invocations = readInvocations(fixture.commandLog)
-      assert.equal(invocations.length, 3, `${command}: same variant must not clean`)
-      assertMainCommand(invocations[2], command, fixture.normalManifest)
-
-      const switched = runFixture(fixture, command, fixture.diagnosticManifest)
-      assert.equal(count(switched.stdout, 'prepared IDF dependencies:'), 2, `${command}: switched preparation`)
-      invocations = readInvocations(fixture.commandLog)
-      assert.equal(invocations.length, 5)
-      assertCommandPair(invocations.slice(3), command, fixture.diagnosticManifest)
+      const result = runFixture(fixture, command, fixture.normalManifest)
+      assert.equal(count(result.stdout, 'prepared IDF dependencies:'), 1)
+      const invocations = readInvocations(fixture.commandLog)
+      assert.equal(invocations.length, 1)
+      assertMainCommand(invocations[0], command, fixture.normalManifest)
     } finally {
       rmSync(fixture.root, { recursive: true, force: true })
     }
   }
 })
 
-test('RT release restores both camera dependencies after clean and manifest switches', () => {
+test('RT release prepares both camera dependencies before the build', () => {
   const fixture = createFirmwareWrapperFixture('stackchan_rt', 'release')
   try {
     runFixture(fixture, 'build', fixture.normalManifest)
-    let invocations = readInvocations(fixture.commandLog)
-    assert.equal(invocations.length, 2)
-    assert.equal(invocations[0][invocations[0].indexOf('-t') + 1], 'clean')
-
-    runFixture(fixture, 'build', fixture.normalManifest)
-    invocations = readInvocations(fixture.commandLog)
-    assert.equal(invocations.length, 3, 'same variant must not clean')
-
-    runFixture(fixture, 'build', fixture.diagnosticManifest)
-    invocations = readInvocations(fixture.commandLog)
-    assert.equal(invocations.length, 5)
-    assert.equal(invocations[3][invocations[3].indexOf('-t') + 1], 'clean')
+    const invocations = readInvocations(fixture.commandLog)
+    assert.equal(invocations.length, 1)
+    assert.equal(invocations[0][invocations[0].indexOf('-t') + 1], 'build')
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }
 })
+
+test('build wrappers select WebRTC settings from the manifest, not an inherited source checkout', {
+  skip: process.platform === 'win32',
+}, () => {
+  const fixture = createFirmwareWrapperFixture()
+  try {
+    const realtimeManifest = path.join(fixture.firmware, 'host/app/manifest_realtime.json')
+    writeFileSync(realtimeManifest, JSON.stringify({ modules: { realtimeConversation: './conversation' } }))
+    const fakeMcconfig = path.join(fixture.fakeBin, 'mcconfig')
+    writeFileSync(
+      fakeMcconfig,
+      `#!/usr/bin/env node
+const { readFileSync, writeFileSync } = require('node:fs')
+const path = require('node:path')
+writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG,
+  readFileSync(path.join(process.env.SDKCONFIGPATH, 'sdkconfig.defaults')))
+`,
+    )
+    const run = (manifestPath, checkout, runner) => {
+      const env = {
+        ...process.env,
+        MODDABLE: fixture.fakeModdable,
+        PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+        STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
+      }
+      delete env.ESP_WEBRTC_SOLUTION
+      if (checkout) env.ESP_WEBRTC_SOLUTION = checkout
+      const result = spawnSync(
+        process.execPath,
+        runner === 'firmware'
+          ? ['scripts/firmware.mjs', 'build', '--mode=instrument', '--manifest', manifestPath]
+          : [
+              'scripts/run-mcconfig.mjs',
+              '-i',
+              '-p',
+              'esp32:./host/platforms/m5stackchan_cores3',
+              '-t',
+              'build',
+              manifestPath,
+            ],
+        { cwd: fixture.firmware, encoding: 'utf8', env },
+      )
+      assert.ifError(result.error)
+      assert.equal(result.status, 0, result.stderr)
+      return readFileSync(fixture.commandLog, 'utf8')
+    }
+    for (const runner of ['firmware', 'mcconfig']) {
+      const standalone = run(fixture.normalManifest, undefined, runner)
+      assert.equal(run(fixture.normalManifest, fixture.solutionDirectory, runner), standalone)
+      const realtime = run(realtimeManifest, fixture.solutionDirectory, runner)
+      assert.notEqual(realtime, standalone, 'an explicit WebRTC manifest must still enable its overlay')
+      const values = new Map(realtime.split('\n').map((line) => line.split('=')))
+      assert.equal(values.get('CONFIG_AUDIO_ENCODER_OPUS_SUPPORT'), 'y')
+      assert.equal(values.get('CONFIG_AUDIO_DECODER_OPUS_SUPPORT'), 'y')
+    }
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test('direct CoreS3 commands prepare selected dependencies in each target and mode', () => {
+  for (const platform of ['esp32/m5stack_cores3', 'esp32:./host/platforms/m5stackchan_cores3']) {
+    for (const mode of ['release', 'debug', 'instrument']) {
+      for (const command of ['build', 'deploy']) {
+        for (const realtime of [false, true]) {
+          const fixture = createDirectRunnerFixture()
+          try {
+            runDirectFixture(fixture, { platform, mode, command, realtime })
+            const invocations = readInvocations(fixture.commandLog)
+            assert.equal(invocations.length, 1)
+            const [args] = invocations
+            assert.equal(args[args.indexOf('-t') + 1], command)
+            assert.equal(args[args.indexOf('-p') + 1], platform)
+            assert.equal(args[args.indexOf('-o') + 1], path.join(fixture.firmware, 'dist'))
+          } finally {
+            rmSync(fixture.root, { recursive: true, force: true })
+          }
+        }
+      }
+    }
+  }
+})
+
+function createDirectRunnerFixture() {
+  const fixture = createFirmwareWrapperFixture()
+  fixture.realtimeManifest = path.join(fixture.firmware, 'host/app/manifest_realtime.json')
+  writeFileSync(fixture.realtimeManifest, JSON.stringify({ modules: { realtimeConversation: './conversation' } }))
+  writeFileSync(
+    path.join(fixture.fakeBin, 'mcconfig'),
+    `#!/usr/bin/env node
+const assert = require('node:assert/strict')
+const { appendFileSync, lstatSync, readFileSync, realpathSync } = require('node:fs')
+const path = require('node:path')
+const args = process.argv.slice(2)
+appendFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify(args) + '\\n')
+const output = args[args.indexOf('-o') + 1]
+const platform = args[args.indexOf('-p') + 1].split(/[/:\\\\]/).at(-1)
+const mode = args.some(arg => ['-d', '-dn', '-dl', '-dx'].includes(arg)) ? 'debug' : args.includes('-i') ? 'instrument' : 'release'
+const tmp = path.join(output, 'tmp/esp32', platform, mode, 'stack-chan-host')
+const project = path.join(tmp, 'xsProj-esp32s3')
+const manifestPath = args.find(arg => arg.endsWith('.json'))
+const realtime = Boolean(JSON.parse(readFileSync(manifestPath, 'utf8')).modules?.realtimeConversation)
+const idf = readFileSync(path.join(project, 'main/idf_component.yml'), 'utf8')
+assert.ok(idf.includes('espressif/esp32-camera:'))
+const baseline = ['espressif/esp32-camera', ...(platform === 'm5stackchan_cores3' ? ['espressif/esp_audio_codec'] : [])]
+const conversation = JSON.parse(readFileSync(path.join(process.cwd(), 'host/modules/realtime-conversation/esp32/manifest.json'), 'utf8'))
+const expected = new Set([...baseline, ...(realtime ? conversation.dependencies.filter(dep => dep.name).map(dep => 'espressif/' + dep.name) : [])])
+const actual = new Set([...idf.matchAll(/^  (espressif\\/[^:]+):/gm)].map(match => match[1]))
+assert.deepEqual(actual, expected, 'stale IDF dependencies')
+for (const name of ${JSON.stringify(webRtcComponents)}) {
+  const link = path.join(project, 'components', name)
+  if (realtime) assert.equal(realpathSync(link), realpathSync(path.join(process.env.ESP_WEBRTC_SOLUTION, 'components', name)))
+  else assert.equal(lstatSync(link, { throwIfNoEntry: false }), undefined, 'stale component link')
+}
+
+`,
+  )
+  return fixture
+}
+
+function runDirectFixture(
+  fixture,
+  {
+    platform = 'esp32:./host/platforms/m5stackchan_cores3',
+    mode = 'release',
+    command = 'build',
+    realtime,
+    expectedStatus = 0,
+  },
+) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      'scripts/run-mcconfig.mjs',
+      ...(mode === 'debug' ? ['-dn'] : mode === 'instrument' ? ['-i'] : []),
+      '-m',
+      '-p',
+      platform,
+      '-t',
+      command,
+      realtime ? fixture.realtimeManifest : fixture.normalManifest,
+    ],
+    {
+      cwd: fixture.firmware,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        MODDABLE: fixture.fakeModdable,
+        ESP_WEBRTC_SOLUTION: fixture.solutionDirectory,
+        PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+        STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
+      },
+    },
+  )
+  assert.ifError(result.error)
+  assert.equal(result.status, expectedStatus, result.stderr)
+  return result
+}
 
 /** Create an isolated firmware tree and fake toolchain for command-wrapper tests. */
 function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 'instrument') {
@@ -213,6 +352,18 @@ function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 
     path.join(fixtureFirmware, 'host', 'modules', 'audio', 'platforms', 'm5stackchan-cores3', 'sdkconfig'),
     { recursive: true },
   )
+  const conversationDirectory = path.join(fixtureFirmware, 'host/modules/realtime-conversation/esp32')
+  mkdirSync(conversationDirectory, { recursive: true })
+  cpSync(
+    path.join(firmwareDirectory, 'host/modules/realtime-conversation/esp32/manifest.json'),
+    path.join(conversationDirectory, 'manifest.json'),
+  )
+  const solutionDirectory = path.join(root, 'webrtc-solution')
+  for (const component of webRtcComponents) {
+    const directory = path.join(solutionDirectory, 'components', component)
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(path.join(directory, 'CMakeLists.txt'), '# local test component\n')
+  }
   mkdirSync(fixtureWebEditor, { recursive: true })
   cpSync(
     path.resolve(firmwareDirectory, '../web/editor/esptool-installer.mjs'),
@@ -258,7 +409,7 @@ function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 
   writeFileSync(
     fakeMcconfig,
     `#!/usr/bin/env node
-const { appendFileSync, existsSync, readFileSync, rmSync } = require('node:fs')
+const { appendFileSync, existsSync, readFileSync } = require('node:fs')
 const path = require('node:path')
 
 const args = process.argv.slice(2)
@@ -276,10 +427,7 @@ const idfManifest = path.join(
   'main',
   'idf_component.yml',
 )
-const targetIndex = args.indexOf('-t')
-if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
-  rmSync(idfManifest, { force: true })
-} else if (
+if (
   !existsSync(idfManifest) ||
   !${JSON.stringify(deviceName === 'stackchan_rt' ? ['esp32-camera', 'esp_jpeg'] : ['esp_audio_codec'])}.every(
     (name) => readFileSync(idfManifest, 'utf8').includes('espressif/' + name + ':'),
@@ -299,6 +447,7 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
     firmware: fixtureFirmware,
     fakeBin,
     fakeModdable,
+    solutionDirectory,
     commandLog,
     normalManifest,
     diagnosticManifest,
@@ -324,6 +473,7 @@ function runFixture(fixture, command, manifestPath) {
       env: {
         ...process.env,
         MODDABLE: fixture.fakeModdable,
+        ESP_WEBRTC_SOLUTION: fixture.solutionDirectory,
         PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
         STACKCHAN_BUILD_MODE: '',
         STACKCHAN_DRY_RUN: '',
@@ -343,15 +493,6 @@ function readInvocations(commandLog) {
     .split('\n')
     .filter(Boolean)
     .map((line) => JSON.parse(line))
-}
-
-function assertCommandPair(invocations, command, manifestPath) {
-  assert.equal(invocations.length, 2)
-  const [clean, main] = invocations
-  assert.equal(clean[clean.indexOf('-p') + 1], 'esp32:./host/platforms/m5stackchan_cores3')
-  assert.equal(clean[clean.indexOf('-t') + 1], 'clean')
-  assert.equal(clean.at(-1), manifestPath)
-  assertMainCommand(main, command, manifestPath)
 }
 
 function assertMainCommand(invocation, command, manifestPath) {

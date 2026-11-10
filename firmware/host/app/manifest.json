@@ -6,11 +6,13 @@
     "XS_MODS": 1
   },
   "include": [
+    "../platforms/core_s3_audioout/manifest.select.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
-    "$(MODULES)/io/system/manifest.json",
+    "$(MODULES)/network/http/manifest.json",
+    "$(MODDABLE)/modules/embedded/system/manifest.json",
     "../modules/motion/manifest.json",
     "../modules/audio/manifest.json",
     "../modules/connectivity/manifest.json",
@@ -49,8 +51,7 @@
       "./runtime-input",
       "./runtime-lighting",
       "./runtime-ui",
-      "./owned-resources",
-      "$(MODULES)/network/http/*"
+      "./owned-resources"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera-preview": "../modules/ui/views/camera-preview/camera-preview-view",
@@ -121,6 +122,14 @@
         "noImplicitAny": false,
         "lib": ["es2025", "esnext.disposable"]
       }
+    }
+  },
+  "platforms": {
+    "esp32/m5stack_cores3": {
+      "include": ["../modules/realtime-conversation/manifest.json"]
+    },
+    "esp32/m5stackchan_cores3": {
+      "include": ["../modules/realtime-conversation/manifest.json"]
     }
   }
 }

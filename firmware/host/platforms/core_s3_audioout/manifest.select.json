@@ -1,0 +1,10 @@
+{
+  "platforms": {
+    "esp32/m5stack_cores3": {
+      "include": ["./manifest.json"]
+    },
+    "esp32/m5stackchan_cores3": {
+      "include": ["./manifest.json"]
+    }
+  }
+}

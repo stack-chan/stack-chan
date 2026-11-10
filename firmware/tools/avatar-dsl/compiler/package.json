@@ -1,0 +1,8 @@
+{
+  "name": "avatar-dsl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lua-flavoured DSL + bytecode compiler for the stackchan avatar VM. Browser + Node compatible.",
+  "license": "BSL-1.0"
+}

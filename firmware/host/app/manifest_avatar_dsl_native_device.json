@@ -1,0 +1,24 @@
+{
+  "include": [
+    "./manifest_m5stackchan_cores3.json",
+    "$(MODDABLE)/modules/base/debug/manifest.json",
+    "$(MODDABLE)/modules/base/instrumentation/manifest.json"
+  ],
+  "modules": {
+    "compose": "../../mods/examples/avatar-dsl/tests/avatar-dsl-comparison/compose-probe",
+    "compose-real": "./compose"
+  },
+  "config": {
+    "driver": {
+      "type": "none",
+      "typeLocked": true
+    },
+    "wifi": {
+      "ssid": "",
+      "password": ""
+    },
+    "led": {
+      "head": null
+    }
+  }
+}

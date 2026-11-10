@@ -1,0 +1,45 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
+    "$(MODDABLE)/modules/base/debug/manifest.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "../../../../host/modules/ui/components/face/avatar-native/manifest.json"
+  ],
+  "modules": {
+    "main": "./group-render",
+    "avatar-dsl/native-face": "../native-face",
+    "avatar-dsl/face": "../face",
+    "avatar-dsl/historical-face": "./historical-face",
+    "avatar-dsl/context": "../context",
+    "avatar-dsl/driver": "../driver",
+    "avatar-dsl/vm": "../vm",
+    "avatar-dsl/clips": "../clips",
+    "avatar-dsl/vendor/compiler/opcodes": "../vendor/compiler/opcodes",
+    "face-state": "../../../../host/modules/ui/state/face-state"
+  },
+  "resources": {
+    "*": [
+      "../../../../dist/avatar-dsl-groups/groups.avbc",
+      "../../../../dist/avatar-dsl-groups/fallback.avbc",
+      "../../../../dist/avatar-dsl-groups/extreme.avbc",
+      "../../../../dist/avatar-dsl-groups/upstream-default_face.avbc",
+      "../../../../dist/avatar-dsl-groups/upstream-omega_mouth.avbc",
+      "../../../../dist/avatar-dsl-groups/upstream-aokko_face.avbc",
+      "../assets/default_face.avbc",
+      "../assets/omega_mouth.avbc",
+      "../assets/aokko_face.avbc"
+    ]
+  },
+  "build": {
+    "NAME": "avatar-dsl-groups-render"
+  },
+  "creation": {
+    "stack": 2048
+  },
+  "config": {
+    "startupSound": false
+  }
+}

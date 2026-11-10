@@ -317,10 +317,8 @@ export function emit(ast) {
     const id = fnIds.get(fn.name);
     const fc = new FnCompiler(fn, fnIds, fnDecls, consts, null);
     fc.emitBlock(fn.body);
-    // Ensure trailing RET (idempotent if user wrote it).
-    if (fc.code.bytes[fc.code.bytes.length - 1] !== Op.Ret) {
-      fc.code.emit(Op.Ret);
-    }
+    // A conditional can jump past a terminal RET and still needs a return target.
+    fc.code.emit(Op.Ret);
     compiled[id] = {
       paramCount: fn.params.length,
       localCount: fc.localCount,

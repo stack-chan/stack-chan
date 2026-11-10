@@ -11,6 +11,37 @@ import { createContext } from '../../../firmware/mods/examples/avatar-dsl/contex
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const runtime = await createRuntime({ wasmBytes: readFileSync(new URL('./avds.wasm', import.meta.url)) })
 const preset = (name) => readFileSync(path.join(root, `firmware/mods/examples/avatar-dsl/assets/${name}.avbc`))
+const terminalReturnSources = [
+  'fn draw() end',
+  'fn draw() return end',
+  'fn draw() while false do return end end',
+  `fn draw() ${Array.from({ length: 53 }, (_, i) => `let value${i} = ${i}`).join(' ')} end`,
+  ...['true', 'false'].flatMap((condition) => [
+    `fn draw() if ${condition} then return end end`,
+    `fn draw() if false then return elif ${condition} then return end end`,
+    `fn draw() if ${condition} then else return end end`,
+    `fn draw() if ${condition} then if true then return end end end`,
+    `fn draw() if ${condition} then return end end fn unused() fill_rect(0,0,1,1,primary) end`,
+  ]),
+]
+const returningHelperSource = `
+  fn draw() helper(true) helper(false) fill_rect(7,8,1,1,primary) end
+  fn helper(stop) if stop then return end end
+  fn unused() fill_rect(30,30,1,1,primary) end
+`
+
+test('terminal returns and conditional fallthrough stay inside their function', () => {
+  for (const source of terminalReturnSources) {
+    const result = runtime.run(compile(source))
+    assert.equal(result.commands.length, 0, source)
+  }
+})
+
+test('conditional helper returns resume the caller without executing the next function', () => {
+  const result = runtime.run(compile(returningHelperSource))
+  assert.equal(result.commands.length, 8)
+  assert.deepEqual(Array.from(result.commands.subarray(1, 5)), [7, 8, 1, 1])
+})
 
 test('shared C runtime draws all presets with bounded detached output', () => {
   for (const name of ['default_face', 'omega_mouth', 'aokko_face']) {
@@ -166,6 +197,8 @@ test('native and WASM commands, clipping plans and RGB565 pixels agree', { skip:
     }
   }
   for (const source of [
+    ...terminalReturnSources,
+    returningHelperSource,
     'fn draw() begin_group(20,20,30,40) fill_circle(20,20,60,0xffff) end_group() end',
     'fn draw() begin_group(-5,0,25,25) begin_group(10,10,20,20) fill_rect(0,0,100,100,0x07e0) end_group() end_group() end',
     'fn draw() fill_circle(160,120,32767,0xffff) end',

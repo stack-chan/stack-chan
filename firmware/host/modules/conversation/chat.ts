@@ -281,7 +281,8 @@ export function createChatConversation(options: {
           },
           onPlayback(receipt: PlaybackReceipt) {
             onEvent({ type: 'output.playback', receipt })
-            onEvent({ type: 'turn.ended', turnId: receipt.outputId, status: 'completed' })
+            const status = receipt.state === 'played' ? 'completed' : receipt.state
+            onEvent({ type: 'turn.ended', turnId: receipt.outputId, status })
           },
           onStateChanged(value: number) {
             const state = mapState(value, constants)

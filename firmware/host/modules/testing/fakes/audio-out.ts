@@ -1,8 +1,10 @@
 type AudioOutOptions = {
-  streams: number
+  streams?: number
   bitsPerSample?: number
   sampleRate?: number
   numChannels?: number
+  channels?: number
+  onWritable?(size: number): void
 }
 
 let constructorFailure: unknown
@@ -31,6 +33,22 @@ export default class AudioOut {
   options: AudioOutOptions
   started = 0
   stopped = 0
+  volume = 1
+  writes: Uint8Array[] = []
+
+  get sampleRate() {
+    return this.options.sampleRate
+  }
+  get channels() {
+    return this.options.channels
+  }
+  get bitsPerSample() {
+    return this.options.bitsPerSample
+  }
+
+  write(bytes: Uint8Array) {
+    this.writes.push(bytes.slice())
+  }
 
   constructor(options: AudioOutOptions) {
     if (constructorFailure !== undefined) {

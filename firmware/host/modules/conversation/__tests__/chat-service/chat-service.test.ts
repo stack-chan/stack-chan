@@ -59,6 +59,11 @@ async function run() {
   equal(io.options.configuration.features.mcp, true)
   equal(io.options.configuration.helloExtension.robot, true)
   equal(io.options.functions[0].name, 'echo')
+  io.options.onPlayback({ outputId: 'failed-audio', state: 'failed', generation: 0, position: { basis: 'unknown' } })
+  assert(
+    events.some((event) => event.type === 'turn.ended' && event.turnId === 'failed-audio' && event.status === 'failed'),
+    'speaker failure must not complete the chat turn',
+  )
   equal(conversation.capabilities.textInput, false, 'XiaoZhi v1 supports speech input')
   let unsupported = false
   try {

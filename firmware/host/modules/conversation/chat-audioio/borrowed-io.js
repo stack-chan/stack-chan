@@ -213,17 +213,28 @@ export function createBorrowedChatIO(io, options, states, level) {
           const packet = packets.shift()
           let offset = packet.offset,
             remaining = packet.size
-          while (remaining && active === item && !io.voiceClosed) {
-            const bytes = Math.min(remaining, io.outputBuffer.byteLength - offset, 2048)
-            const samples = new Uint8Array(io.outputBuffer, offset, bytes)
-            options.onOutputLevelChanged?.(level(samples))
-            await writeSink(item.sink, samples)
+          const accepted = (size) => {
             if (active !== item || io.voiceClosed) return
-            offset = (offset + bytes) % io.outputBuffer.byteLength
-            remaining -= bytes
-            queued -= bytes
+            if (options.onOutputLevelChanged) {
+              const samples = new Uint8Array(io.outputBuffer, offset, size)
+              options.onOutputLevelChanged(level(samples))
+              if (active !== item || io.voiceClosed) return
+            }
+            offset = (offset + size) % io.outputBuffer.byteLength
+            remaining -= size
+            queued -= size
             Atomics.store(io.barrier, 0, offset)
             Atomics.notify(io.barrier, 0)
+          }
+          while (remaining && active === item && !io.voiceClosed) {
+            const contiguous = Math.min(remaining, io.outputBuffer.byteLength - offset)
+            const bytes = item.sink.writeBorrowed ? contiguous : Math.min(contiguous, 2048)
+            const samples = new Uint8Array(io.outputBuffer, offset, bytes)
+            if (item.sink.writeBorrowed) await item.sink.writeBorrowed(samples, accepted)
+            else {
+              await writeSink(item.sink, samples)
+              accepted(bytes)
+            }
           }
         }
         if (active === item && waiting && !io.voiceClosed) {
@@ -232,6 +243,10 @@ export function createBorrowedChatIO(io, options, states, level) {
           options.onPlayback?.(receipt)
           active = undefined
           waiting = false
+          if (receipt.state !== 'played') {
+            io.failed({ string: `Chat playback ${receipt.state}` })
+            return
+          }
           io.worker.postMessage({ id: 'listened' })
           state(states.SPEAKING)
         }

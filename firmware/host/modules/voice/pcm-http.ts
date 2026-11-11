@@ -3,7 +3,10 @@ import { voiceError } from 'stackchan/voice/scope'
 type BodyReader = { read(target: Uint8Array): number | undefined }
 
 // HTTP readability reports the current byte count. Retain it while the speaker has no capacity.
-export function createPcmBodyReader(consume: (bytes: Uint8Array) => Promise<void>, finish: (error?: unknown) => void) {
+export function createPcmBodyReader(
+  consume: (bytes: Uint8Array) => void | Promise<void>,
+  finish: (error?: unknown) => void,
+) {
   const scratch = new Uint8Array(2048)
   let reader: BodyReader,
     available = 0,
@@ -30,7 +33,10 @@ export function createPcmBodyReader(consume: (bytes: Uint8Array) => Promise<void
         const length = offset + count
         carry = length % 2 ? scratch[length - 1] : -1
         const aligned = length & ~1
-        if (aligned) await consume(aligned === scratch.length ? scratch : scratch.subarray(0, aligned))
+        if (aligned) {
+          const pending = consume(aligned === scratch.length ? scratch : scratch.subarray(0, aligned))
+          if (pending) await pending
+        }
       }
       if (ended && !closed) settle(carry < 0 ? undefined : voiceError('provider_failed', 'truncated PCM sample'))
     } catch (error) {

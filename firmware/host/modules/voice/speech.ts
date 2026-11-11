@@ -79,7 +79,7 @@ function streamSpeech(
   apiKey: string,
   body: ArrayBuffer,
   signal: VoiceSignal,
-  consume: (bytes: Uint8Array) => Promise<void>,
+  consume: (bytes: Uint8Array) => void | Promise<void>,
 ) {
   return new Promise<void>((resolve, reject) => {
     let client: HTTPClient,
@@ -165,7 +165,7 @@ export function createOpenAISpeechTTS(options: { apiKey: string; model?: string 
             const body = ArrayBuffer.fromString(
               JSON.stringify({ model: options.model ?? 'tts-1', voice, input: text, response_format: 'pcm' }),
             )
-            await streamSpeech(options.apiKey, body, scope.signal, source.push)
+            await streamSpeech(options.apiKey, body, scope.signal, source.offer)
             source.end()
           } catch (error) {
             source.end(error)

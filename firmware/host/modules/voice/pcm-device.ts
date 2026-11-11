@@ -1,6 +1,7 @@
 import Modules from 'modules'
 import type AudioOutput from 'pins/audioout'
 import type { AudioSink, DuplexLease, PcmFormat, PlaybackReceipt } from 'stackchan/voice/contracts'
+import type * as CoreS3Output from 'stackchan/voice/cores3-pcm-output'
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
@@ -40,13 +41,13 @@ type OutputSegment = {
   id: string
   generation: number
   frames: number
-  lengths: number[]
-  flush(): void
-  flushTimer?: ReturnType<typeof Timer.set>
   wake?: ReturnType<typeof deferred<void>>
   writing: boolean
   sealed: boolean
-}
+} & (
+  | { direct: ReturnType<typeof CoreS3Output.openOutput>; drain?: Promise<void> }
+  | { lengths: number[]; flush(): void; flushTimer?: ReturnType<typeof Timer.set> }
+)
 
 function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLease {
   requireActive(signal)
@@ -65,6 +66,11 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
   const preRoll = Math.ceil(((requirements.preRollMs ?? 0) * inputFormat.sampleRate) / 1000) * 2
   const chunkSize = Math.min(2048, Math.floor((inputLimit - preRoll) / 4) * 2)
   const outputLimit = Math.min(outputCapacity, budget.maxBufferedBytes - preRoll - 2 * chunkSize)
+  const deviceOutput = Modules.has('stackchan/voice/cores3-pcm-output')
+    ? (Modules.importNow('stackchan/voice/cores3-pcm-output', true) as typeof CoreS3Output)
+    : undefined
+  const directLimit = Math.min(capacity(budget, outputFormat), budget.maxBufferedBytes - preRoll - 2 * chunkSize)
+  const directOutput = deviceOutput && directLimit >= deviceOutput.minimumOutputBytes ? deviceOutput : undefined
   if (preRoll < 0 || chunkSize < 2 || outputLimit < 2)
     throw voiceError('resource_exhausted', 'PCM lease exceeds budget')
   const slots = [new Uint8Array(chunkSize), new Uint8Array(chunkSize)]
@@ -80,7 +86,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
   const slotBytes = Math.min(2048, Math.floor(outputLimit / 4) * 2)
   if (slotBytes < 2) throw voiceError('resource_exhausted', 'output requires two PCM slots')
   const flushDelayMs = Math.min(12, Math.floor((slotBytes * 500) / outputFormat.sampleRate))
-  const slotsOut = [new SharedArrayBuffer(slotBytes), new SharedArrayBuffer(slotBytes)]
+  const slotsOut = directOutput ? [] : [new SharedArrayBuffer(slotBytes), new SharedArrayBuffer(slotBytes)]
   let active: OutputSegment | undefined
   function wake(item: OutputSegment) {
     item.wake?.resolve()
@@ -156,9 +162,17 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     const item = active
     if (!item) return
     active = undefined
-    if (item.flushTimer !== undefined) Timer.clear(item.flushTimer)
+    if (!('direct' in item) && item.flushTimer !== undefined) Timer.clear(item.flushTimer)
     try {
-      out?.stop()
+      if ('direct' in item) {
+        item.frames = item.direct.frames
+        try {
+          item.direct.close()
+        } catch (error) {
+          failedClose = error
+          throw error
+        }
+      } else out?.stop()
     } finally {
       try {
         closeOutput()
@@ -185,11 +199,46 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     if (active) throw voiceError('device_busy')
     stopMic()
     try {
+      if (directOutput) {
+        const direct = directOutput.openOutput(outputFormat.sampleRate, volume, directLimit)
+        const item: OutputSegment = {
+          id,
+          generation,
+          frames: 0,
+          writing: false,
+          sealed: false,
+          direct,
+        }
+        active = item
+        const onFailure = (error: unknown): never => {
+          if (active === item) retire('failed')
+          throw error
+        }
+        const write = (bytes: Uint8Array, onAccepted?: (size: number) => void) => {
+          if (active !== item || item.sealed) throw voiceError('cancelled')
+          if (item.writing || bytes.length % 2 || (!onAccepted && bytes.length > directLimit))
+            throw voiceError('resource_exhausted', 'unaccepted PCM output')
+          item.writing = true
+          try {
+            const pending = direct.write(bytes, onAccepted)
+            if (pending)
+              return pending.catch(onFailure).finally(() => {
+                item.writing = false
+                wake(item)
+              })
+            item.writing = false
+          } catch (error) {
+            item.writing = false
+            onFailure(error)
+          }
+        }
+        return Object.assign(createPcmSink(outputFormat, write), { writeBorrowed: write })
+      }
       out = new AudioOut({ streams: 1, sampleRate: outputFormat.sampleRate, bitsPerSample: 16, numChannels: 1 })
       const driver = out
       let stagedSlot = -1
       let stagedBytes = 0
-      const item: OutputSegment = {
+      const item: Extract<OutputSegment, { lengths: number[] }> = {
         id,
         generation,
         frames: 0,
@@ -282,12 +331,15 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
         while (active === item && item.writing) await progress(item)
         if (active === item) {
           try {
-            item.flush()
+            if ('direct' in item) {
+              item.drain ??= item.direct.drain()
+              await item.drain
+            } else item.flush()
           } catch {
-            retire('failed')
+            if (active === item) retire('failed')
           }
         }
-        while (active === item && item.lengths.some((size) => size > 0)) await progress(item)
+        while (active === item && !('direct' in item) && item.lengths.some((size) => size > 0)) await progress(item)
         if (active === item) retire('played')
       }
       const result = remembered.get(id)
@@ -315,6 +367,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     },
     setVolume(gain) {
       volume = gain
+      if (active && 'direct' in active) active.direct.setVolume(volume)
       if (out) out.enqueue(0, AudioOut.Volume, Math.round(volume * 256))
     },
     async close() {

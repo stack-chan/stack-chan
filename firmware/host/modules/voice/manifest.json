@@ -10,5 +10,10 @@
     "stackchan/voice/device": "./pcm-device",
     "stackchan/voice/pcm-http": "./pcm-http",
     "stackchan/voice/speech": "./speech"
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "modules": { "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output" }
+    }
   }
 }

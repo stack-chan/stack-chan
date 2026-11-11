@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { registerHooks } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -174,6 +175,16 @@ test('device lease bounds pending audio, retains queued samples and fences stale
   await lease.close()
   assert.deepEqual([inputs, reserved], [0, false])
 
+  resetModules({
+    'audio-in': Input,
+    'pins/audioout': Output,
+    'stackchan/voice/cores3-pcm-output': {
+      minimumOutputBytes: 10240,
+      openOutput() {
+        assert.fail('DMA exceeds tiny budget')
+      },
+    },
+  })
   const tiny = await runtime.acquire(
     runtime.microphone,
     runtime.speaker,
@@ -186,6 +197,92 @@ test('device lease bounds pending audio, retains queued samples and fences stale
   output.callback(1)
   assert.equal((await drained).state, 'played')
   await tiny.close()
+})
+
+test('CoreS3 output grants ring credit after write and drains a final partial DMA block', async () => {
+  const hook = registerHooks({
+    resolve(specifier, context, next) {
+      if (specifier === 'embedded:io/audio/out')
+        return { shortCircuit: true, url: new URL('../../testing/fakes/audio-out.js', import.meta.url).href }
+      return next(specifier, context)
+    },
+  })
+  const driver = await import('../cores3-pcm-output.js')
+  hook.deregister()
+  const { resetModules } = await import('../../testing/fakes/modules.js')
+  const { getAudioOutInstances } = await import('../../testing/fakes/audio-out.js')
+  const { createAudioRuntime } = await import('../pcm-device.js')
+  class Input {
+    channels = 1
+    sampleRate = 16000
+    start() {}
+    close() {}
+  }
+  resetModules({ 'audio-in': Input, 'stackchan/voice/cores3-pcm-output': driver })
+  const runtime = createAudioRuntime({ acquireExclusive: () => () => {} })
+  const lease = await runtime.acquire(
+    runtime.microphone,
+    runtime.speaker,
+    { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
+    { ...createVoiceScope(), budget },
+  )
+  const platform = globalThis as typeof globalThis & { amp?: { sampleRate: number } }
+  const previousAmp = platform.amp
+  platform.amp = { sampleRate: 0 }
+  try {
+    const sink = lease.output.begin('ring', 0) as import('../contracts.js').AudioSink & {
+      writeBorrowed(bytes: Uint8Array, accepted: (n: number) => void): Promise<void>
+    }
+    assert.equal(platform.amp.sampleRate, 24000)
+    const device = getAudioOutInstances().at(-1)
+    assert.ok(device)
+    const credit = device.options.onWritable
+    assert.ok(credit)
+    const pcm = new Uint8Array(14000).fill(73)
+    const accepted: number[] = []
+    const writing = sink.writeBorrowed(pcm, (size) => {
+      assert.equal(device.writes.at(-1)?.length, size)
+      accepted.push(size)
+    })
+    assert.deepEqual(accepted, [])
+    credit(10240)
+    await tick()
+    assert.deepEqual(accepted, [10240])
+    credit(4096)
+    await writing
+    assert.deepEqual(accepted, [10240, 3760])
+    pcm.fill(0)
+    assert.ok(device.writes.every((part) => part.every((x) => x === 73)))
+    let completed = false
+    const done = lease.output.finish('ring').then((result) => {
+      completed = true
+      return result
+    })
+    await tick()
+    assert.equal(completed, false)
+    credit(10240)
+    await tick()
+    credit(10240)
+    await tick()
+    assert.equal(completed, false)
+    credit(10240)
+    const receipt = await done
+    assert.deepEqual(receipt.position, { basis: 'estimate', sampleRate: 24000, renderedFrames: 7000 })
+    assert.equal(receipt.state, 'played')
+    assert.ok(device.writes.slice(2).every((part) => part.every((x) => x === 0)))
+
+    const next = lease.output.begin('cancel', 0) as typeof sink
+    const lateCredit = getAudioOutInstances().at(-1)?.options.onWritable
+    assert.ok(lateCredit)
+    const blocked = next.writeBorrowed(pcm, () => assert.fail('credit after fence'))
+    await lease.output.fence(1)
+    await assert.rejects(blocked, /cancelled/)
+    lateCredit(10240)
+  } finally {
+    if (previousAmp) platform.amp = previousAmp
+    else delete platform.amp
+    await lease.close()
+  }
 })
 
 test('button utterance carries pre-roll into STT and plays synthesized PCM through the borrowed sink', async () => {
@@ -381,6 +478,22 @@ test('HTTP PCM waits for playback credit, carries a split sample, and rejects a 
   stopped.close()
   stopped.ready(body, 2)
   assert.equal(read, 7)
+})
+
+test('HTTP PCM drains the current notification immediately while the speaker has credit', async () => {
+  const { createPcmBodyReader } = await import('../pcm-http.js')
+  const chunks: number[] = []
+  const receiver = createPcmBodyReader(
+    (bytes) => {
+      chunks.push(bytes.length)
+    },
+    (error) => {
+      assert.equal(error, undefined)
+    },
+  )
+  receiver.ready({ read: (target) => target.length }, 4608)
+  assert.deepEqual(chunks, [2048, 2048, 512])
+  receiver.done()
 })
 
 test('a restart-required interrupt releases the device before a replacement pipeline starts', async () => {

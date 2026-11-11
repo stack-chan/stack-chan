@@ -4,7 +4,7 @@ const Modules = {
   has(specifier: string): boolean {
     return Object.hasOwn(moduleValues, specifier)
   },
-  importNow(specifier: string): unknown {
+  importNow(specifier: string, _namespace?: boolean): unknown {
     return moduleValues[specifier]
   },
 }

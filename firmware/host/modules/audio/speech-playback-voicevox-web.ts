@@ -1,0 +1,103 @@
+/* eslint-disable prefer-const */
+
+import type { HTTPClientProvider } from 'embedded:network/http/client'
+import { fetch } from 'fetch'
+import MP3Streamer from 'mp3streamer'
+import type AudioOut from 'pins/audioout'
+import { beginSpeechPlayback } from 'speech-playback-lifecycle'
+import type { SpeechCompletion, SpeechDoneListener, SpeechPlaybackListener } from 'speech-playback-types'
+import { URL } from 'url'
+
+/* global trace, SharedArrayBuffer */
+declare const device: {
+  network: {
+    https: {
+      client: HTTPClientProvider
+    }
+  }
+}
+
+export type SpeechPlaybackOptions = {
+  onPlayed?: SpeechPlaybackListener
+  onDone?: SpeechDoneListener
+  token: string
+  sampleRate?: number
+  speakerId?: number
+  volume?: number
+}
+
+export class SpeechPlayback {
+  audio?: AudioOut
+  onPlayed?: SpeechPlaybackListener
+  onDone?: SpeechDoneListener
+  token: string
+  streaming: boolean
+  speakerId: number
+  sampleRate?: number
+  volume: number
+  constructor(props: SpeechPlaybackOptions) {
+    this.onPlayed = props.onPlayed
+    this.onDone = props.onDone
+    this.streaming = false
+    this.speakerId = props.speakerId ?? 1
+    this.token = props.token
+    this.volume = props.volume ?? 0.5
+  }
+
+  async getQuery(text: string, speakerId = 1): Promise<string> {
+    return fetch(
+      encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`),
+    )
+      .then((response) => {
+        if (response.status !== 200) {
+          throw new Error(`response error:${response.status}`)
+        }
+        return response.json()
+      })
+      .then((data) => {
+        trace(`isApiKeyValid: ${data.isApiKeyValid}\n`)
+        trace(`mp3StreamingUrl: ${data.mp3StreamingUrl}\n`)
+        return data.mp3StreamingUrl
+      })
+  }
+
+  /** Resolve a VoiceVox Web audio URL and stream it through the shared playback lifecycle. */
+  stream(key: string, volume?: number, callback?: SpeechCompletion): void {
+    const lifecycle = beginSpeechPlayback(this, callback)
+    if (!lifecycle) return
+
+    const speakerId = this.speakerId
+    this.getQuery(key, speakerId).then(
+      (streamUrl) => {
+        try {
+          const url = new URL(streamUrl)
+          const audio = lifecycle.openAudio(
+            { streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate ?? 22050 },
+            volume ?? this.volume,
+          )
+          lifecycle.attach(
+            new MP3Streamer({
+              http: device.network.https.client,
+              host: url.host,
+              path: url.pathname,
+              port: 443,
+              audio: {
+                out: audio,
+                stream: 0,
+              },
+              onPlayed: lifecycle.onPlayed,
+              onReady: lifecycle.onReady,
+              onError: lifecycle.onError,
+              onDone: lifecycle.onDone,
+            }),
+          )
+        } catch (error) {
+          lifecycle.fail(error)
+        }
+      },
+      (error) => {
+        lifecycle.fail(new Error(`getQuery failed: ${error}`))
+      },
+    )
+  }
+}

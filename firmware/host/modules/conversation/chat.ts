@@ -1,18 +1,15 @@
 import ChatAudioIO from 'StackChanChatAudioIO'
-import {
-  type ChatFunctionCallSnapshot,
-  ChatSessionState,
-  ChatState,
-  type ChatState as ChatStateValue,
-  type ChatTranscriptSnapshot,
-} from 'chat-state'
+import { ChatState, type ChatState as ChatStateValue } from 'chat-state'
 import config from 'mc/config'
+import type { CloseResult, Conversation, PlaybackReceipt, ToolSet } from 'stackchan/voice/contracts'
+import { createVoiceScope, deferred, requireActive, voiceError } from 'stackchan/voice/scope'
+import Timer from 'timer'
 
-export { ChatState, type ChatStateName, ChatStateNames, chatStateToName, MAX_TRANSCRIPT_CHARS } from 'chat-state'
+export { ChatState, type ChatStateName, ChatStateNames, chatStateToName } from 'chat-state'
 
 export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
 
-/** Legacy ChatAudioIO configuration. Prefer a connection factory for server-backed transports. */
+/** Provider settings for an SDK chat worker. */
 export type ChatConfig = {
   type: ChatType
   specifier?: string
@@ -67,7 +64,7 @@ export type XiaozhiV1Connection = Readonly<{
 }>
 
 /**
- * Opaque connection descriptors accepted by ChatService. Service integrations
+ * Connection descriptors accepted by createChatConversation. Service integrations
  * should construct these through their own factory and a protocol factory such
  * as createXiaozhiV1Connection().
  */
@@ -81,28 +78,6 @@ export function createXiaozhiV1Connection(options: XiaozhiV1ConnectionOptions): 
   if (!options.deviceId) throw new Error('XiaoZhi v1 deviceId is required')
   if (!options.clientId) throw new Error('XiaoZhi v1 clientId is required')
   return Object.freeze({ kind: 'xiaozhi-v1' as const, ...options })
-}
-
-export type ChatToolSchema = {
-  name: string
-  description?: string
-  parameters?: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string; [key: string]: unknown }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-  // Dialogue compatibility.
-  inputSchema?: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string; [key: string]: unknown }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-}
-
-export type ChatTool = ChatToolSchema & {
-  execute?: (params: Record<string, unknown>) => Promise<unknown> | unknown
 }
 
 export type ChatAlert = {
@@ -145,26 +120,6 @@ export type ChatCallbacks = {
   onGlyphPush?: (glyphPush: ChatGlyphPush) => void
 }
 
-type ChatServiceOptions = {
-  config?: ChatConfig
-  connection?: ChatConnection
-  tools?: Record<string, ChatTool>
-  callbacks?: ChatCallbacks
-  chatAudioIOCtor?: new (chatOptions: Record<string, unknown>) => ChatAudioIO
-  sessionState?: ChatSessionState
-}
-
-type ChatFunctionSchema = {
-  name: string
-  description?: string
-  parameters: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string; [key: string]: unknown }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-}
-
 type ResolvedChatConnection = {
   specifier: string
   configuration?: Record<string, unknown>
@@ -174,8 +129,6 @@ type ResolvedChatConnection = {
   modelID?: string
   apiKey?: string
 }
-
-const noop = () => {}
 
 type ChatAudioIOStateConstants = {
   FAILED: number
@@ -188,28 +141,7 @@ type ChatAudioIOStateConstants = {
   WAITING: number
 }
 
-function toFunctionSchema(tool: ChatTool): ChatFunctionSchema | null {
-  if (!tool?.name) return null
-  const parameters = tool.parameters ?? tool.inputSchema
-  if (!parameters) {
-    return {
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    }
-  }
-  return {
-    name: tool.name,
-    description: tool.description,
-    parameters,
-  }
-}
-
-function resolveConnection(connection: ChatConnection, functions: ChatFunctionSchema[]): ResolvedChatConnection {
+function resolveConnection(connection: ChatConnection, functions: readonly unknown[]): ResolvedChatConnection {
   return {
     specifier: 'xiaozhiV1',
     instructions: connection.instructions,
@@ -231,7 +163,8 @@ function resolveConnection(connection: ChatConnection, functions: ChatFunctionSc
   }
 }
 
-function resolveLegacyConfig(chatConfig: ChatConfig): ResolvedChatConnection {
+function resolveWorkerConfig(chatConfig: ChatConfig | undefined): ResolvedChatConnection {
+  if (!chatConfig) throw new TypeError('Missing Chat worker configuration')
   return {
     specifier: chatConfig.specifier ?? String(chatConfig.type),
     instructions: chatConfig.instructions,
@@ -265,189 +198,207 @@ function mapState(state: number, constants: ChatAudioIOStateConstants): ChatStat
   }
 }
 
-export class ChatService {
-  static protocolContractVersion(protocol: string): number | undefined {
-    if (protocol === 'xiaozhi-v1' && config.xiaozhiV1Available === true) {
-      return XIAOZHI_V1_CONTRACT_VERSION
-    }
-    return undefined
-  }
-
-  static supportsProtocol(protocol: string, minimumContractVersion = 1): boolean {
-    const version = ChatService.protocolContractVersion(protocol)
-    return (
-      version !== undefined &&
-      Number.isInteger(minimumContractVersion) &&
-      minimumContractVersion >= 1 &&
-      version >= minimumContractVersion
-    )
-  }
-
-  #chat: ChatAudioIO
-  #state: ChatStateValue = ChatState.DISCONNECTED
-  #error = ''
-  #callbacks: Required<ChatCallbacks>
-  #sessionState: ChatSessionState
-
-  constructor(options: ChatServiceOptions) {
-    if ((options.config ? 1 : 0) + (options.connection ? 1 : 0) !== 1) {
-      throw new Error('ChatService requires exactly one of config or connection')
-    }
-
-    this.#sessionState = options.sessionState ?? new ChatSessionState()
-    const callbacks = options.callbacks ?? {}
-    this.#callbacks = {
-      onStateChanged: callbacks.onStateChanged ?? noop,
-      onInputLevelChanged: callbacks.onInputLevelChanged ?? noop,
-      onOutputLevelChanged: callbacks.onOutputLevelChanged ?? noop,
-      onInputTranscript: callbacks.onInputTranscript ?? noop,
-      onOutputTranscript: callbacks.onOutputTranscript ?? noop,
-      onFunctionCall: callbacks.onFunctionCall ?? noop,
-      onEmotionChanged: callbacks.onEmotionChanged ?? noop,
-      onAlert: callbacks.onAlert ?? noop,
-      onSystemCommand: callbacks.onSystemCommand ?? noop,
-      onCustomEvent: callbacks.onCustomEvent ?? noop,
-      onUnknownEvent: callbacks.onUnknownEvent ?? noop,
-      onProtocolWarning: callbacks.onProtocolWarning ?? noop,
-      onMcpNotification: callbacks.onMcpNotification ?? noop,
-      onMcpResponse: callbacks.onMcpResponse ?? noop,
-      onGlyphPush: callbacks.onGlyphPush ?? noop,
-    }
-
-    const functions = Object.values(options.tools ?? {})
-      .map((tool) => toFunctionSchema(tool))
-      .filter((schema): schema is ChatFunctionSchema => schema != null)
-
-    const resolved = options.connection
-      ? resolveConnection(options.connection, functions)
-      : resolveLegacyConfig(options.config as ChatConfig)
-    if (resolved.specifier === 'xiaozhiV1' && !ChatService.supportsProtocol('xiaozhi-v1')) {
-      throw new Error('The selected realtime protocol is unavailable on this target')
-    }
-
-    const ChatAudioIOCtor =
-      options.chatAudioIOCtor ??
-      (ChatAudioIO as unknown as {
-        new (chatOptions: Record<string, unknown>): ChatAudioIO
-      })
-    const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants
-    this.#chat = new ChatAudioIOCtor({
-      specifier: resolved.specifier,
-      configuration: resolved.configuration,
-      instructions: resolved.instructions,
-      voiceID: resolved.voiceID,
-      providerID: resolved.providerID,
-      modelID: resolved.modelID,
-      apiKey: resolved.apiKey,
-      functions: functions.length > 0 ? functions : undefined,
-      onStateChanged: (state: number) => {
-        this.#state = mapState(state, chatAudioIOConstants)
-        this.#error = this.#chat.error ?? ''
-        this.#sessionState.setState(this.#state, this.#error)
-        this.#callbacks.onStateChanged(this.#state, this.#error || undefined)
-      },
-      onInputLevelChanged: (level: number) => this.#callbacks.onInputLevelChanged(level),
-      onOutputLevelChanged: (level: number) => this.#callbacks.onOutputLevelChanged(level),
-      onInputTranscript: (text: string, more: boolean) => {
-        this.#sessionState.appendTranscript('input', text, more)
-        this.#callbacks.onInputTranscript(text, more)
-      },
-      onOutputTranscript: (text: string, more: boolean) => {
-        this.#sessionState.appendTranscript('output', text, more)
-        this.#callbacks.onOutputTranscript(text, more)
-      },
-      onFunctionCall: (call: string, name: string, params: Record<string, unknown>) => {
-        this.#sessionState.recordFunctionCall(call, name, params)
-        this.#callbacks.onFunctionCall(call, name, params)
-      },
-      onEmotionChanged: (emotion: string, text?: string) => this.#callbacks.onEmotionChanged(emotion, text),
-      onAlert: (alert: ChatAlert) => this.#callbacks.onAlert(alert),
-      onSystemCommand: (command: ChatSystemCommand) => this.#callbacks.onSystemCommand(command),
-      onCustomEvent: (event: ChatCustomEvent) => this.#callbacks.onCustomEvent(event),
-      onUnknownEvent: (event: Record<string, unknown>) => this.#callbacks.onUnknownEvent(event),
-      onProtocolWarning: (message: string, event?: Record<string, unknown>) =>
-        this.#callbacks.onProtocolWarning(message, event),
-      onMcpNotification: (payload: Record<string, unknown>) => this.#callbacks.onMcpNotification(payload),
-      onMcpResponse: (payload: Record<string, unknown>) => this.#callbacks.onMcpResponse(payload),
-      onGlyphPush: (glyphPush: ChatGlyphPush) => this.#callbacks.onGlyphPush(glyphPush),
-    })
-  }
-
-  get state(): ChatStateValue {
-    return this.#state
-  }
-
-  get error(): string {
-    return this.#error
-  }
-
-  get transcript(): ChatTranscriptSnapshot {
-    return this.#sessionState.transcript
-  }
-
-  get functionCalls(): ChatFunctionCallSnapshot[] {
-    return this.#sessionState.functionCalls
-  }
-
-  start(): void {
-    this.#sessionState.clearTranscript()
-    this.#chat.connect()
-  }
-
-  stop(): void {
-    this.#chat.disconnect()
-  }
-
-  close(): void {
-    this.#chat.close()
-  }
-
-  sendText(text: string): void {
-    this.#chat.sendText(text)
-  }
-
-  sendFunctionResult(call: string, name: string, result: unknown): void {
-    this.#sessionState.recordFunctionResult(call, name, result)
-    this.#chat.sendFunctionResult(call, name, result)
-  }
-
-  setMicrophoneEnabled(enabled: boolean): void {
-    this.#chat.changeMicrophone(enabled)
-  }
-
-  setVolume(volume: number): void {
-    this.#chat.changeVolume(volume)
-  }
-
-  startListening(mode: ChatListeningMode = 'auto'): void {
-    const extension = this.#chat as unknown as { startListening?: (mode: ChatListeningMode) => void }
-    if (!extension.startListening) throw new Error('The active chat transport does not support explicit listening')
-    extension.startListening(mode)
-  }
-
-  stopListening(): void {
-    const extension = this.#chat as unknown as { stopListening?: () => void }
-    if (!extension.stopListening) throw new Error('The active chat transport does not support explicit listening')
-    extension.stopListening()
-  }
-
-  notifyWakeWordDetected(text?: string): void {
-    const extension = this.#chat as unknown as { notifyWakeWordDetected?: (text?: string) => void }
-    if (!extension.notifyWakeWordDetected) {
-      throw new Error('The active chat transport does not support wake-word notification')
-    }
-    extension.notifyWakeWordDetected(text)
-  }
-
-  abort(reason?: string): void {
-    const extension = this.#chat as unknown as { abort?: (reason?: string) => void }
-    if (!extension.abort) throw new Error('The active chat transport does not support abort')
-    extension.abort(reason)
-  }
-
-  sendMcpMessage(payload: Record<string, unknown>): void {
-    const extension = this.#chat as unknown as { sendMcpMessage?: (payload: Record<string, unknown>) => void }
-    if (!extension.sendMcpMessage) throw new Error('The active chat transport does not support MCP')
-    extension.sendMcpMessage(payload)
+let chatSessionSerial = 0
+const workerRates = Object.freeze({
+  openAIRealtime: [8000, 24000],
+  deepgramAgent: [8000, 16000],
+  humeAIEVI: [8000, 48000],
+  googleGeminiLive: [24000, 24000],
+  elevenLabsAgent: [16000, 16000],
+  xiaozhiV1: [16000, 24000],
+})
+type ChatVoiceIO = ChatAudioIO & {
+  drain(): Promise<void>
+  fence(): Promise<PlaybackReceipt[]>
+}
+export function createChatConversation(options: {
+  config?: ChatConfig
+  connection?: ChatConnection
+  tools?: ToolSet
+  callbacks?: ChatCallbacks
+  chatAudioIOCtor?: new (options: Record<string, unknown>) => ChatVoiceIO
+}): Conversation {
+  if (!!options.connection === !!options.config) throw new TypeError('Choose a connection or configuration')
+  const functions = options.tools?.definitions.map(({ name, description, parameters }) => ({
+    name,
+    description,
+    parameters,
+  }))
+  const connection = options.connection
+    ? resolveConnection(options.connection, functions ?? [])
+    : resolveWorkerConfig(options.config)
+  if (connection.specifier === 'xiaozhiV1' && config.xiaozhiV1Available !== true)
+    throw voiceError('unsupported_capability', 'XiaoZhi unavailable on this target')
+  const rates = workerRates[connection.specifier]
+  const textInput = connection.specifier !== 'xiaozhiV1'
+  if (!rates) throw voiceError('unsupported_capability', 'Unknown worker audio format')
+  const format = (sampleRate: number) => ({ encoding: 'pcm_s16le' as const, channels: 1 as const, sampleRate })
+  return {
+    capabilities: { interruption: 'local-only', historyRepair: 'restart', imageInput: false, textInput },
+    audio: { input: [format(rates[0])], output: [format(rates[1])], duplex: 'half' },
+    async open({ media, history, signal, onEvent }) {
+      requireActive(signal)
+      if (history.length) throw voiceError('unsupported_capability', 'Chat worker cannot import history')
+      const id = 'chat-' + ++chatSessionSerial
+      const scope = createVoiceScope(signal),
+        ready = deferred<void>(),
+        ended = deferred<boolean>()
+      const seen = new Set<string>()
+      const callbacks = options.callbacks ?? {}
+      const Ctor = options.chatAudioIOCtor ?? (ChatAudioIO as unknown as NonNullable<typeof options.chatAudioIOCtor>)
+      const constants = Ctor as unknown as ChatAudioIOStateConstants
+      let io!: ChatVoiceIO
+      let outputId = '',
+        utterance = 0,
+        settled = false,
+        stopping = false
+      let closing: Promise<CloseResult>,
+        playback: PlaybackReceipt[] = []
+      const deadline = Timer.set(() => ready.reject(voiceError('deadline_exceeded')), 30000)
+      const cancel = () => ready.reject(voiceError('cancelled'))
+      signal.addEventListener('abort', cancel)
+      async function execute(call: string, name: string, args: Record<string, unknown>) {
+        if (seen.has(call) || scope.signal.aborted) return
+        if (seen.size >= 256) throw voiceError('resource_exhausted', 'Session tool call limit')
+        seen.add(call)
+        callbacks.onFunctionCall?.(call, name, args)
+        if (!options.tools) throw voiceError('unsupported_capability', 'Tool unavailable')
+        const result = await options.tools.execute(
+          { type: 'function_call', id: call, call_id: call, name, arguments: JSON.stringify(args) },
+          { sessionId: id, turnId: 'utterance-' + utterance, callId: call, signal: scope.signal },
+        )
+        if (!scope.signal.aborted) io.sendFunctionResult(call, name, result.output)
+      }
+      try {
+        io = new Ctor({
+          ...connection,
+          functions,
+          ...callbacks,
+          media,
+          onOutputStarted(value: string) {
+            outputId = value
+            onEvent({ type: 'turn.started', turnId: outputId })
+          },
+          onPlayback(receipt: PlaybackReceipt) {
+            onEvent({ type: 'output.playback', receipt })
+            onEvent({ type: 'turn.ended', turnId: receipt.outputId, status: 'completed' })
+          },
+          onStateChanged(value: number) {
+            const state = mapState(value, constants)
+            if (state === ChatState.CONNECTED) ready.resolve()
+            if (state === ChatState.DISCONNECTED || state === ChatState.FAILED) {
+              ended.resolve(state === ChatState.DISCONNECTED)
+              if (!settled) ready.reject(voiceError('provider_failed', io?.error || 'Worker disconnected'))
+              else if (!stopping) onEvent({ type: 'error', code: 'provider_closed', fatal: true })
+            }
+            callbacks.onStateChanged?.(state, io?.error)
+          },
+          onInputTranscript(text: string, more: boolean) {
+            if (stopping) return
+            callbacks.onInputTranscript?.(text, more)
+            onEvent({ type: 'input.transcript', value: { text, final: !more, utteranceId: 'utterance-' + utterance } })
+            if (!more) utterance++
+          },
+          onOutputTranscript(text: string, more: boolean, itemId?: string) {
+            if (stopping) return
+            callbacks.onOutputTranscript?.(text, more)
+            if (text) onEvent({ type: 'output.text', outputId: itemId ?? outputId, delta: text })
+          },
+          onFunctionCall(call, name, args) {
+            void execute(call, name, args).catch(() => {
+              if (!scope.signal.aborted) io.sendFunctionResult(call, name, { error: 'tool_failed' })
+            })
+          },
+        })
+        io.connect()
+        await ready.promise
+        requireActive(signal)
+        settled = true
+      } catch (error) {
+        scope.abort(error)
+        try {
+          await io?.fence?.()
+        } finally {
+          try {
+            io?.close()
+          } finally {
+            dispose()
+          }
+        }
+        throw error
+      } finally {
+        signal.removeEventListener('abort', cancel)
+        Timer.clear(deadline)
+      }
+      function dispose() {
+        try {
+          options.tools?.releaseSession?.(id)
+        } finally {
+          seen.clear()
+          scope.dispose()
+        }
+      }
+      function stop(mode: 'abort' | 'drain', timeoutMs = 3000) {
+        if (closing) return closing
+        stopping = true
+        scope.abort()
+        closing = Promise.resolve().then(async () => {
+          let timer: ReturnType<typeof Timer.set> | undefined,
+            reason: CloseResult['reason'] = mode === 'drain' ? 'drained' : 'aborted'
+          const expired = new Promise<boolean>((resolve) => {
+            timer = Timer.set(() => resolve(false), Math.max(1, timeoutMs))
+          })
+          let confirmed = false
+          try {
+            io.changeMicrophone(false)
+            if (mode === 'drain' && !(await Promise.race([io.drain().then(() => true), expired])))
+              reason = 'drain-timeout'
+            if (reason !== 'drained') {
+              playback = await io.fence()
+              for (const receipt of playback) {
+                onEvent({ type: 'output.playback', receipt })
+                onEvent({ type: 'turn.ended', turnId: receipt.outputId, status: 'interrupted' })
+              }
+            }
+            io.disconnect()
+            confirmed = await Promise.race([ended.promise, expired])
+          } finally {
+            if (timer !== undefined) Timer.clear(timer)
+            try {
+              io.close()
+            } finally {
+              dispose()
+            }
+          }
+          return { reason, remoteFinalization: confirmed ? ('confirmed' as const) : ('unknown' as const) }
+        })
+        return closing
+      }
+      return {
+        id,
+        async submit(message, scope) {
+          requireActive(scope.signal)
+          if (stopping) throw voiceError('cancelled')
+          if (!textInput || message.role !== 'user' || message.content.some((part) => part.type !== 'input_text'))
+            throw voiceError('unsupported_capability')
+          const text = message.content.map((part) => (part.type === 'input_text' ? part.text : '')).join('')
+          if (text.length > 8192) throw voiceError('resource_exhausted')
+          io.sendText(text)
+        },
+        async setInputEnabled(enabled) {
+          if (stopping) throw voiceError('cancelled')
+          io.changeMicrophone(enabled)
+        },
+        async interrupt() {
+          const result = await stop('abort', 1500)
+          return {
+            playback,
+            remote: result.remoteFinalization === 'confirmed' ? 'cancelled' : 'unknown',
+            history: 'restart-required',
+          }
+        },
+        close: ({ mode, timeoutMs }) => stop(mode, timeoutMs),
+      }
+    },
   }
 }

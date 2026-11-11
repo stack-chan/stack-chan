@@ -1,124 +1,97 @@
-import { ChatGPTDialogue, type Tool } from 'dialogue-chatgpt'
-import config from 'mc/config'
-import { MCPClientService } from 'mcp-client'
+import { createAgent, createToolSet, createVision, outputText, type LLM } from 'stackchan/ai'
+import { createResponsesLLM } from 'stackchan-ai-responses'
+import { createVoiceScope } from 'stackchan/voice/scope'
 
-const token = config.token ?? 'test-token'
-const mcp = config.mcp
-
-// Test tools for local execution
-const testTools: Tool[] = [
-  {
-    name: 'get_time',
-    description: 'Get current time',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {},
-      required: [],
-    },
-    execute: async () => {
-      return `Current time: ${new Date().toISOString()}`
-    },
+const llm: LLM = {
+  capabilities: { tools: true, image: false },
+  async createResponse(request) {
+    const hasResult = request.input.some(
+      (item) => item.type === 'function_call_output' && item.call_id === 'call' && item.output === 'noon',
+    )
+    return {
+      id: 'r',
+      status: 'completed',
+      output: hasResult
+        ? [{ type: 'message', id: 'm', role: 'assistant', content: [{ type: 'output_text', text: '正午です' }] }]
+        : [{ type: 'function_call', id: 'f', call_id: 'call', name: 'clock', arguments: '{}' }],
+    }
   },
-  {
-    name: 'calculator',
-    description: 'Simple calculator',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        operation: {
-          type: 'string',
-          description: 'Operation: add, subtract, multiply, divide',
-        },
-        a: {
-          type: 'number',
-          description: 'First number',
-        },
-        b: {
-          type: 'number',
-          description: 'Second number',
+}
+const agent = createAgent({
+  llm,
+  tools: createToolSet([
+    {
+      definition: {
+        type: 'function',
+        name: 'clock',
+        description: 'Get local time',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute() {
+        return 'noon'
+      },
+    },
+  ]),
+  instructions: '',
+  maxToolRounds: 1,
+})
+agent
+  .run(
+    {
+      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: '何時？' }] }],
+      sessionId: 'test',
+      turnId: 'one',
+    },
+    createVoiceScope(),
+  )
+  .then(async (result) => {
+    if (result.status !== 'completed' || outputText(result.response) !== '正午です') throw Error('tool loop failed')
+    let released = false
+    const vision = createVision({
+      camera: {
+        async capture() {
+          return {
+            image: { format: 'rgb565le', width: 1, height: 1, data: Uint8Array.of(0, 248) },
+            capturedAtMs: 123,
+            release() {
+              released = true
+            },
+          }
         },
       },
-      required: ['operation', 'a', 'b'],
-    },
-    execute: async (args: Record<string, unknown>) => {
-      const { operation, a, b } = args
-      const numA = Number(a)
-      const numB = Number(b)
-
-      switch (operation) {
-        case 'add':
-          return `${numA} + ${numB} = ${numA + numB}`
-        case 'subtract':
-          return `${numA} - ${numB} = ${numA - numB}`
-        case 'multiply':
-          return `${numA} * ${numB} = ${numA * numB}`
-        case 'divide':
-          return `${numA} / ${numB} = ${numA / numB}`
-        default:
-          throw new Error('Invalid operation')
-      }
-    },
-  },
-]
-
-function isValidOption(option: unknown): option is { url: string } {
-  return (
-    typeof option === 'object' &&
-    option !== null &&
-    'url' in option &&
-    typeof option.url === 'string' &&
-    option.url.length > 0
-  )
-}
-
-async function runTest() {
-  trace('=== ChatGPT Dialogue with Tools and MCP Test ===\n')
-
-  /**
-   * Configure the MCP server URL in manifest.json under config.mcp
-   * ```manifest.json
-   * "config": {
-   *   "mcp": {
-   *    "your-mcp-server": {
-   *      "url": "https://your-mcp-server.example.com/mcp"
-   *    }
-   *   }
-   * }
-   * ```
-   */
-  // Create MCP clients if URL is provided
-  const mcpClients: MCPClientService[] = []
-  if (mcp != null) {
-    for (const [name, option] of Object.entries(mcp)) {
-      if (!isValidOption(option)) {
-        trace(`MCP client for ${name} is not configured with a valid URL. Skipping.\n`)
-        return
-      }
-      try {
-        const mcpClient = new MCPClientService({ url: option.url })
-        await mcpClient.initialize()
-        mcpClients.push(mcpClient)
-        trace(`MCP client ${name} initialized successfully\n`)
-      } catch (error) {
-        trace(`MCP client ${name} initialization failed: ${error}\n`)
-      }
-    }
-  }
-
-  // Create dialogue with tools and MCP support
-  const dialogue = new ChatGPTDialogue({
-    apiKey: token,
-    tools: testTools,
-    mcpClients: mcpClients,
+      llm: createResponsesLLM({
+        model: 'test',
+        provider: 'test',
+        async send(body, consume) {
+          const data = new Uint8Array(body.length)
+          let offset = 0
+          for (const chunk of body.read()) {
+            data.set(chunk, offset)
+            offset += chunk.byteLength
+          }
+          const request = JSON.parse(String.fromArrayBuffer(data.buffer))
+          if (
+            offset !== body.length ||
+            !request.input[0].content[1].image_url.startsWith('data:image/png;base64,iVBOR')
+          )
+            throw Error('invalid uploaded PNG')
+          const completed = {
+            type: 'response.completed',
+            response: {
+              id: 'r',
+              status: 'completed',
+              output: [{ type: 'message', id: 'm', role: 'assistant', content: [{ type: 'output_text', text: '赤' }] }],
+            },
+          }
+          await consume(new Uint8Array(ArrayBuffer.fromString('data: ' + JSON.stringify(completed) + '\n\n')))
+        },
+      }),
+    })
+    const seen = await vision.observe({ question: '何色？' }, createVoiceScope())
+    if (!released || seen.text !== '赤' || seen.capturedAtMs !== 123) throw Error('observation failed')
+    trace('@@STACKCHAN_TEST:PASS@@\n')
   })
-  trace('Dialogue initialized with tools and MCP clients\n')
-  dialogue.clear()
-
-  trace('=== Test Complete ===\n')
-  trace('@@STACKCHAN_TEST:PASS@@\n')
-}
-
-runTest().catch((error) => {
-  trace('@@STACKCHAN_TEST:FAIL@@\n')
-  trace(`Test execution failed: ${error}\n`)
-})
+  .catch((error) => {
+    trace('@@STACKCHAN_TEST:FAIL@@\n')
+    trace(String(error))
+  })

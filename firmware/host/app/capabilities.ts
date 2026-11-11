@@ -1,4 +1,5 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
+import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../modules/voice/contracts.js'
 import type { RobotCamera } from 'camera'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
@@ -13,7 +14,7 @@ import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
-import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
+import type { SpeechPlayback } from 'speech-playback-types'
 
 export type {
   JsonValue,
@@ -28,13 +29,7 @@ export type {
 } from 'local-peer-types'
 export { LocalPeerError } from 'local-peer-types'
 
-export type TTS = {
-  stream: (text: string, volume?: number, callback?: TTSCompletion) => void
-  /** Streams raw stackchan-voice koe notation when the provider supports singing. */
-  streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-}
+export type { SpeechPlayback } from 'speech-playback-types'
 
 export type UIEffect = PiuContent
 export type RobotLed = {
@@ -117,21 +112,13 @@ export type MotionCapability = {
 }
 
 export type AudioCapability = {
-  /** Shared saved TTS volume, 0..1 linear gain. Media scales it to its output limit. */
+  /** Shared saved audio volume, 0..1 linear gain. Media scales it to its output limit. */
   volume?: number
-  /** Reserve native audio; release only after the external I2S owner has closed. */
-  acquireExclusive(): () => void
-  tts: TTS
-  microphone?: {
-    record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
-  }
-  /**
-   * Replaces the TTS engine and rebinds playback lifecycle callbacks.
-   * Prefer this namespaced API over the legacy flat `context.useTTS(...)` shim.
-   */
-  useTTS(tts: TTS): void
+  speaker: VoiceSpeaker
+  microphone?: VoiceMicrophone
+  useSpeechPlayback(playback: SpeechPlayback): void
   say(text: string, volume?: number): Promise<Maybe<string>>
-  /** Sings raw koe notation. Returns a failure when the active TTS does not support singing. */
+  /** Sings raw koe notation. Returns a failure when the active player does not support singing. */
   sing(koe: string, volume?: number): Promise<Maybe<string>>
   record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
   tone(hz: number, duration: number, volume?: number): Promise<void>
@@ -323,7 +310,7 @@ export type StackchanCapabilityNamespaces = {
 
 export type StackchanLegacyFlatCapability = FaceCapability &
   MotionCapability &
-  Omit<AudioCapability, 'acquireExclusive'> &
+  Omit<AudioCapability, 'useSpeechPlayback' | 'speaker' | 'microphone'> &
   InputCapability &
   LightingCapability &
   CameraCapability &

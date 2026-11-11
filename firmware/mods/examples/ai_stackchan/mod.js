@@ -1,139 +1,173 @@
-import { ChatGPTDialogue } from 'dialogue-chatgpt'
+import { createAgent, createToolSet, createVision, adaptRobotCamera, OpenAIResponsesLLM } from 'stackchan/ai'
+import {
+  createCascadedConversation,
+  createConversationPipeline,
+  createPushToTalk,
+  createVoiceScope,
+} from 'stackchan/voice'
+import { createOpenAISpeechTTS, createWhisperSTT } from 'stackchan/voice/speech'
 import { Emoticon } from 'effects/emoticon'
 import { Emotion, EmotionNames, emotionFromName } from 'face-state'
-import Whisper from 'stt-whisper'
 
-const heartDecorator = new Emoticon({ key: 'heart', left: 20, top: 20 })
-const sweatDecorator = new Emoticon({ key: 'sweat', left: 20, top: 20 })
+let stop
 
-const INSTRUCTIONS = `
-You are "スタックちゃん (Stack-chan)", the palm-sized super kawaii companion robot baby.
-You must respond in a short sentence.
-The sentence is speech only. Any symbols, emojis, or other non-speech characters must not be included.
-
-**Emotions:**
-You should exporess emotionswith set_emotion tool.
-`
+export function onClose() {
+  return stop?.()
+}
 
 export function onContextCreated(robot, option) {
-  const setEmotionTool = {
-    name: 'set_emotion',
-    description: "Set the robot's emotion",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        emotion: {
-          type: 'string',
-          description: `Emotion to set for the robot. One of: ${EmotionNames.join(', ')}`,
+  const prefs = option.config.ai
+  const llm = new OpenAIResponsesLLM({ apiKey: prefs.token, model: prefs.model ?? 'gpt-4o-mini' })
+  /** @type {import('stackchan/ai').Tool[]} */
+  const registered = [
+    {
+      definition: {
+        type: 'function',
+        name: 'set_emotion',
+        description: 'Change the robot facial expression.',
+        parameters: {
+          type: 'object',
+          properties: { emotion: { type: 'string', enum: EmotionNames } },
+          required: ['emotion'],
+          additionalProperties: false,
         },
       },
-      required: ['emotion'],
+      execute({ emotion }) {
+        const value = typeof emotion === 'string' ? emotionFromName(emotion) : undefined
+        if (value === undefined) throw new Error('invalid emotion')
+        robot.face.setEmotion(value)
+        return { emotion }
+      },
     },
-    execute: async (args) => {
-      const emotion = args.emotion
-      if (typeof emotion === 'string') {
-        const nextEmotion = emotionFromName(emotion)
-        if (nextEmotion !== undefined) {
-          robot.face.setEmotion(nextEmotion)
-          return `Emotion set to ${emotion.toUpperCase()}`
-        }
+  ]
+  if (robot.camera && robot.camera.available !== false) {
+    const vision = createVision({ camera: adaptRobotCamera(robot.camera), llm })
+    registered.push({
+      definition: {
+        type: 'function',
+        name: 'observe',
+        description: 'Look through the robot camera to answer a question.',
+        parameters: {
+          type: 'object',
+          properties: { question: { type: 'string' } },
+          required: ['question'],
+          additionalProperties: false,
+        },
+      },
+      execute: ({ question }, context) => vision.observe({ question: String(question) }, context),
+    })
+  }
+  const tools = createToolSet(registered)
+  const agent = createAgent({
+    llm,
+    tools,
+    maxToolRounds: 4,
+    instructions:
+      'あなたは手のひらサイズのスタックチャンです。絵文字や読み上げ用でない記号を使わず、短い日本語のひとことで話してください。気持ちはset_emotionで顔に表してください。',
+  })
+  const pushToTalk = createPushToTalk()
+  const conversation = createCascadedConversation({
+    agent,
+    turnDetector: pushToTalk.detector,
+    stt: createWhisperSTT({ apiKey: prefs.token, maxAudioBytes: 192000 + 2560 }),
+    tts: createOpenAISpeechTTS({ apiKey: prefs.token }),
+    voice: prefs.voice ?? 'alloy',
+  })
+  const scope = createVoiceScope()
+  const heart = new Emoticon({ key: 'heart', left: 20, top: 20 })
+  const sweat = new Emoticon({ key: 'sweat', left: 20, top: 20 })
+  const button = robot.input.button.a
+  const previous = button.onEvent
+  let pipeline,
+    opening,
+    closing,
+    effect,
+    held = false,
+    recording = false
+  function face(nextEffect, emotion) {
+    if (effect !== nextEffect) {
+      if (effect) robot.ui.removeEffect(effect)
+      if (nextEffect) robot.ui.addEffect(nextEffect)
+      effect = nextEffect
+    }
+    robot.face.setEmotion(emotion)
+  }
+  function closePipeline() {
+    if (closing || !pipeline) return closing
+    const target = pipeline
+    closing = target.close({ mode: 'abort' }).then(() => {
+      if (pipeline === target) {
+        pipeline = undefined
+        opening = undefined
       }
-      throw new Error('Invalid emotion')
-    },
+      closing = undefined
+    })
+    return closing
   }
-
-  let talking = false
-
-  // Integrate ChatGPT and Whisper
-  const aiPrefs = option.config.ai
-  const dialogue = new ChatGPTDialogue({
-    apiKey: aiPrefs.token,
-    instructions: INSTRUCTIONS,
-    tools: [setEmotionTool],
-  })
-  const stt = new Whisper({
-    apiKey: aiPrefs.token,
-  })
-
-  async function talk() {
-    if (talking) {
+  function startPipeline() {
+    const next = createConversationPipeline({
+      microphone: robot.audio.microphone,
+      speaker: robot.audio.speaker,
+      conversation,
+      mediaBudget: { maxBufferedMs: 250, maxBufferedBytes: 24576 },
+      onEvent(value) {
+        if (pipeline !== next || scope.signal.aborted) return
+        if (value.type === 'error') {
+          if (recording) {
+            recording = false
+            pushToTalk.release()
+          }
+          face(undefined, Emotion.NEUTRAL)
+          robot.ui.showBalloon(value.code === 'input_overrun' ? '6秒以内で話してね' : `音声対話: ${value.code}`)
+          if (value.fatal) void closePipeline()?.catch((error) => trace(String(error)))
+        } else if (value.type === 'input.transcript' && value.value.final && !value.value.text.trim()) {
+          face(undefined, Emotion.NEUTRAL)
+        } else if (value.type === 'turn.ended' && !recording) {
+          face(undefined, Emotion.NEUTRAL)
+        }
+      },
+    })
+    pipeline = next
+    next.setVolume(robot.audio.volume)
+    opening = next.start(scope).catch(async (error) => {
+      await closePipeline()
+      throw error
+    })
+    return opening
+  }
+  async function onButton(event) {
+    held = event.pressed
+    if (!held) {
+      if (recording) {
+        recording = false
+        pushToTalk.release()
+        face(sweat, Emotion.DOUBTFUL)
+      }
       return
     }
-    talking = true
-    let result
-    let decorator
-
-    async function handleError(message) {
-      trace(`${message}\n`)
-      talking = false
-      robot.ui.removeEffect(decorator)
-      robot.face.setEmotion(Emotion.NEUTRAL)
-      await robot.audio.say(message)
-    }
-
-    // set up recording face
-    decorator = heartDecorator
-    robot.ui.addEffect(decorator)
-    robot.face.setEmotion(Emotion.HAPPY)
-
-    // recording
-    trace('start recording.\n')
-    let buffer
-    try {
-      buffer = await robot.audio.record()
-    } catch (error) {
-      trace(`recording failed: ${error.message}`)
-      handleError('録音できませんでした')
-      return
-    }
-    await robot.audio.tone(600, 100)
-    trace('end recording.\n')
-
-    // transcription
-    trace('start transcription.\n')
-    result = await stt.transcribe(buffer)
-    if (!result.success) {
-      trace(`transcription failed: ${result.reason}`)
-      handleError('聞き取れませんでした')
-      return
-    }
-    trace(`transcription text:${result.value}\n`)
-
-    // set up thinking dace
-    robot.ui.removeEffect(decorator)
-    decorator = sweatDecorator
-    robot.ui.addEffect(decorator)
-    robot.face.setEmotion(Emotion.DOUBTFUL)
-
-    // completions
-    trace('start completion.\n')
-    result = await dialogue.post(result.value)
-    if (!result.success) {
-      trace(`completion failed: ${result.reason}`)
-      handleError('わかりません！')
-      return
-    }
-    trace(`completion text:${result.value}\n`)
-
-    // speech
-    await robot.audio.say(result.value)
-    talking = false
-
-    // set up default face
-    robot.ui.removeEffect(decorator)
-    robot.face.setEmotion(Emotion.NEUTRAL)
-
-    return
-  }
-
-  async function startTalk() {
-    await robot.audio.tone(1000, 100)
-    await talk()
-  }
-
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      startTalk().catch((error) => trace(`talk failed: ${error}\n`))
+    if (closing) await closing
+    if (!held || scope.signal.aborted) return
+    await (opening ?? startPipeline())
+    if (held && !scope.signal.aborted && !closing && !recording) {
+      recording = true
+      face(heart, Emotion.HAPPY)
+      pushToTalk.press()
     }
   }
+  button.onEvent = (event) => {
+    void onButton(event).catch((error) => {
+      if (!scope.signal.aborted) {
+        face(undefined, Emotion.NEUTRAL)
+        robot.ui.showBalloon(String(error))
+      }
+    })
+  }
+  const shutdown = async () => {
+    button.onEvent = previous
+    scope.abort()
+    face(undefined, Emotion.NEUTRAL)
+    await closePipeline()
+    if (stop === shutdown) stop = undefined
+  }
+  stop = shutdown
 }

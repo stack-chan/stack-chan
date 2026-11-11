@@ -1,11 +1,4 @@
-import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
-
-export type TTS = {
-  stream: (text: string, volume?: number, callback?: TTSCompletion) => void
-  streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-}
+export type { SpeechPlayback } from 'speech-playback-types'
 
 export type MediaState = WebRadioState | 'ended' | 'paused'
 

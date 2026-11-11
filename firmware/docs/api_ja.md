@@ -57,7 +57,8 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 新しい MOD では次の形式を推奨します。
 
 - `context.audio.say(...)`、`context.audio.record(...)`、`context.audio.playAudio(...)`
-- MOD が speech engine の選択を所有する場合の `context.audio.useTTS(...)`
+- `context.audio.microphone` と `context.audio.speaker` を音声対話のパイプラインに渡せます。[実装例](chat-audioio-integration.md)
+- 発話・歌唱の再生方式を切り替える `context.audio.useSpeechPlayback(...)`
 - `context.motion.lookAt(...)`、`context.motion.setPose(...)`、`context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`、`context.face.setColor(...)`
 - `context.i18n.locale`、`context.i18n.localize(...)`
@@ -83,7 +84,7 @@ MOD の Drawer Button や Piu `Label` に表示する文字列は `context.i18n.
 MOD 自身の辞書、host 辞書、キー文字列の順に解決されます。
 辞書の追加方法は [Firmware のローカライズ](./localization_ja.md)を参照してください。
 
-`context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)`、`context.useTTS(...)` などの flat API は、既存 MOD 互換の shim として残しています。
+`context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)` などの flat API は、既存 MOD 互換の shim として残しています。
 新規コードでは非推奨です。
 sample MOD と downstream MOD の移行後に削除対象になります。
 
@@ -121,10 +122,11 @@ wasm audio bridge は、現在の public capability 実装で唯一、非同期 
 
 ### Audio capability
 
-公開 audio API は、MOD に渡す capability object から音声再生機能を提供します。
-local、remote、Voicevox、ElevenLabs、OpenAI などの provider object は `host/modules/audio` の内部実装です。
+`context.audio.say(text)` は設定済みの `SpeechPlayback` を使って再生します。MOD は音声の使用を終えてから `context.audio.useSpeechPlayback(player)` で再生方式を切り替えられます。たとえば、同梱の音声素材を使うときは `speech-playback-local` の `SpeechPlayback` を渡します。
 
-`sing(koe, volume?)` は、使用中の TTS provider が対応している場合に stackchan-voice の歌唱記法を再生します。
+音声対話の `TTS` はテキストから音声を合成します。再生には会話パイプラインが確保したスピーカーを使います。
+
+`sing(koe, volume?)` は、使用中の SpeechPlayback が対応している場合に stackchan-voice の歌唱記法を再生します。
 歌唱非対応の provider では失敗結果を返し、歌唱記法を通常の文章として読み上げることはありません。
 
 `playAudio(buffer)` は、target が借用 buffer を受け取り、再生が完了した場合だけ `true` を返します。

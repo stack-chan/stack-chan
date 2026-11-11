@@ -34,13 +34,13 @@
     "speaker",
     "stt-whisper",
     "calculatePower",
-    "tts-local",
-    "tts-remote",
-    "tts-voicevox",
-    "tts-voicevox-web",
-    "tts-elevenlabs",
-    "tts-openai",
-    "tts-stackchan-voice"
+    "speech-playback-local",
+    "speech-playback-remote",
+    "speech-playback-voicevox",
+    "speech-playback-voicevox-web",
+    "speech-playback-elevenlabs",
+    "speech-playback-openai",
+    "speech-playback-stackchan-voice"
   ],
   "data": {
     "*": [
@@ -129,13 +129,13 @@
         "SDKCONFIGPATH ?=": "./platforms/m5stackchan-cores3/sdkconfig"
       },
       "modules": {
-        "~": "./tts-stackchan-voice",
+        "~": "./speech-playback-stackchan-voice",
         "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
         "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
         "stackchanOpusDecoder": "./platforms/m5stackchan-cores3/esp32-opus-decoder",
         "stackchanOpusEncoder": "./platforms/m5stackchan-cores3/esp32-opus-encoder",
         "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/esp32/audioin",
-        "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
+        "speech-playback-stackchan-voice": "./stackchan-voice/speech-playback-stackchan-voice"
       },
       "dependency": [
         {

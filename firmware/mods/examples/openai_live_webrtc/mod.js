@@ -1,5 +1,6 @@
 import Modules from 'modules'
 import { LiveSession } from 'openai-live-session'
+import { createConversationPipeline } from 'stackchan/voice'
 import Timer from 'timer'
 
 const SESSION = 'openai-live:session'
@@ -15,11 +16,11 @@ const messages = {
 }
 
 export function onContextCreated(robot) {
-  if (!Modules.has('realtimeConversation') || !robot.audio.acquireExclusive || !globalThis.amp) {
+  if (!Modules.has('realtimeConversation') || !robot.audio.microphone || !globalThis.amp) {
     robot.ui.showBalloon('OpenAI WebRTC 対応ホストが必要です')
     return
   }
-  const Conversation = Modules.importNow('realtimeConversation')
+  const { createLiveConversation } = Modules.importNow('realtimeConversation', true)
   const power = Modules.importNow('network-power')
   const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
   const drawer = robot.ui.drawer
@@ -36,11 +37,16 @@ export function onContextCreated(robot) {
     }
   }
   session = new LiveSession({
-    Conversation,
-    audio: robot.audio,
+    createConversation: createLiveConversation,
+    createPipeline: (conversation) =>
+      createConversationPipeline({
+        conversation,
+        microphone: robot.audio.microphone,
+        speaker: robot.audio.speaker,
+        mediaBudget: { maxBufferedBytes: 128 * 1024, maxBufferedMs: 1000 },
+      }),
     networkReady: robot.connectivity.network?.ready,
     acquireLowLatency: () => power.acquireLowLatency(),
-    amp: globalThis.amp,
     settings: (Modules.has('mod/config') ? Modules.importNow('mod/config').openaiLive : undefined) ?? {},
     onState(state) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
@@ -88,7 +94,7 @@ export function onContextCreated(robot) {
     callback: () => {
       if (changingMute) return
       changingMute = true
-      const muted = !session.active?.conversation?.muted
+      const muted = !session.active?.muted
       void session.setMuted(muted).then((value) => {
         changingMute = false
         drawer.setDrawerButtonState(MUTE, value)

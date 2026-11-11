@@ -1,3 +1,5 @@
+import type { createAudioRuntime as CreateAudioRuntime } from '../modules/voice/pcm-device.js'
+import type { LeaseFactory } from '../modules/voice/runtime.js'
 import type { PreferenceConfig } from 'loadPreference'
 import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
@@ -9,7 +11,7 @@ import type {
   RobotLed,
   RobotUI,
   StackchanContext,
-  TTS,
+  SpeechPlayback,
 } from 'capabilities'
 import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
 import { DOMAIN } from 'consts'
@@ -36,13 +38,13 @@ import { PWMServoDriver } from 'sg90-driver'
 import Speaker from 'speaker'
 import Touch, { type TouchOptions } from 'touch'
 import TouchPanel from 'touch-panel'
-import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
-import { TTS as LocalTTS } from 'tts-local'
-import { TTS as OpenAITTS } from 'tts-openai'
-import { TTS as RemoteTTS } from 'tts-remote'
-import { TTS as StackchanVoiceTTS } from 'tts-stackchan-voice'
-import { TTS as VoiceVoxTTS } from 'tts-voicevox'
-import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
+import { SpeechPlayback as ElevenLabsPlayback } from 'speech-playback-elevenlabs'
+import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
+import { SpeechPlayback as OpenAIPlayback } from 'speech-playback-openai'
+import { SpeechPlayback as RemotePlayback } from 'speech-playback-remote'
+import { SpeechPlayback as StackchanVoicePlayback } from 'speech-playback-stackchan-voice'
+import { SpeechPlayback as VoiceVoxPlayback } from 'speech-playback-voicevox'
+import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-web'
 import { canonicalizeVolume } from 'volume-model'
 
 type DeviceButton = {
@@ -140,14 +142,17 @@ export function createStackchanContext(
     ['rs30x', (param) => new RS30XDriver(param as ConstructorParameters<typeof RS30XDriver>[0])],
     ['none', () => new NoneDriver()],
   ])
-  const ttsEngines = new Map<string, (param: unknown) => TTS>([
-    ['local', (param) => new LocalTTS(param as ConstructorParameters<typeof LocalTTS>[0])],
-    ['remote', (param) => new RemoteTTS(param as ConstructorParameters<typeof RemoteTTS>[0])],
-    ['voicevox', (param) => new VoiceVoxTTS(param as ConstructorParameters<typeof VoiceVoxTTS>[0])],
-    ['voicevox-web', (param) => new VoiceVoxWebTTS(param as ConstructorParameters<typeof VoiceVoxWebTTS>[0])],
-    ['elevenlabs', (param) => new ElevenLabsTTS(param as ConstructorParameters<typeof ElevenLabsTTS>[0])],
-    ['openai', (param) => new OpenAITTS(param as ConstructorParameters<typeof OpenAITTS>[0])],
-    ['stackchan-voice', (param) => new StackchanVoiceTTS(param as ConstructorParameters<typeof StackchanVoiceTTS>[0])],
+  const speechPlayers = new Map<string, (param: unknown) => SpeechPlayback>([
+    ['local', (param) => new LocalPlayback(param as ConstructorParameters<typeof LocalPlayback>[0])],
+    ['remote', (param) => new RemotePlayback(param as ConstructorParameters<typeof RemotePlayback>[0])],
+    ['voicevox', (param) => new VoiceVoxPlayback(param as ConstructorParameters<typeof VoiceVoxPlayback>[0])],
+    ['voicevox-web', (param) => new VoiceVoxWebPlayback(param as ConstructorParameters<typeof VoiceVoxWebPlayback>[0])],
+    ['elevenlabs', (param) => new ElevenLabsPlayback(param as ConstructorParameters<typeof ElevenLabsPlayback>[0])],
+    ['openai', (param) => new OpenAIPlayback(param as ConstructorParameters<typeof OpenAIPlayback>[0])],
+    [
+      'stackchan-voice',
+      (param) => new StackchanVoicePlayback(param as ConstructorParameters<typeof StackchanVoicePlayback>[0]),
+    ],
   ])
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
@@ -171,20 +176,20 @@ export function createStackchanContext(
   const driverKey = driverPrefs.type ?? 'scservo'
   const Driver = drivers.get(driverKey)
 
-  // TTS
+  // Standalone speech playback
   const ttsPrefs = preferences.tts
   const ttsKey = ttsPrefs.type ?? 'local'
-  const TTS = ttsEngines.get(ttsKey)
+  const createSpeechPlayback = speechPlayers.get(ttsKey)
 
   // UI
   const uiPrefs = preferences.ui
   const uiKey = uiPrefs.type ?? 'simple'
   const UI = uiControllers.get(uiKey)
 
-  if (!Driver || !TTS || !UI) {
+  if (!Driver || !createSpeechPlayback || !UI) {
     for (const [key, klass] of [
       [driverKey, Driver],
-      [ttsKey, TTS],
+      [ttsKey, createSpeechPlayback],
       [uiKey, UI],
     ]) {
       if (klass == null) {
@@ -194,11 +199,11 @@ export function createStackchanContext(
     throw new Error(errors.join('\n'))
   }
 
-  trace(`[main] TTS engine: ${ttsKey}\n`)
+  trace(`[main] speech playback: ${ttsKey}\n`)
 
   const driver = Driver(driverPrefs)
   const ui = UI(uiPrefs)
-  const tts = TTS(ttsPrefs)
+  const speechPlayback = createSpeechPlayback(ttsPrefs)
 
   const touch = config.Touch ? new Touch(config.Touch, createTouchOptions()) : undefined
   const touchPanelConstructor = (config.TouchPanel ?? globalEnv.device?.sensor?.TouchPanel) as
@@ -260,9 +265,28 @@ export function createStackchanContext(
   }
 
   const contextParams = {
+    createVoiceRuntime(acquireExclusive: () => () => void) {
+      const { createAudioRuntime } = Modules.importNow('stackchan/voice/device', true) as {
+        createAudioRuntime: typeof CreateAudioRuntime
+      }
+      return createAudioRuntime({
+        acquireExclusive,
+        openNativeLease(options) {
+          if (
+            options.requirements.nativeBackend !== 'gpt-live-webrtc' ||
+            !Modules.has('realtimeConversation/audioLease')
+          )
+            throw Object.assign(new Error('Unsupported native audio backend'), { code: 'unsupported_capability' })
+          const backend = Modules.importNow('realtimeConversation/audioLease', true) as {
+            openRealtimeAudioLease: LeaseFactory
+          }
+          return backend.openRealtimeAudioLease(options)
+        },
+      })
+    },
     driver,
     ui,
-    tts,
+    speechPlayback,
     button: globalEnv.button,
     touch,
     touchPanel,

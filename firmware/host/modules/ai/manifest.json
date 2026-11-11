@@ -1,0 +1,23 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/https/client/manifest.json"
+  ],
+  "modules": {
+    "stackchan/ai": "./index",
+    "stackchan-ai-core": "./ai-core",
+    "stackchan-ai-http": "./ai-http",
+    "stackchan-ai-http-stream": "./ai-http-stream",
+    "stackchan-ai-image": "./ai-image",
+    "stackchan-ai-responses": "./ai-responses",
+    "stackchan-ai-chat": "./ai-chat",
+    "stackchan-ai-wire": "./ai-wire",
+    "realtimeConversation/http-core": [
+      "../realtime-conversation/http-core",
+      "./http-core-types.d.ts"
+    ]
+  },
+  "resources": { "ca*": ["$(MODDABLE)/modules/crypt/data/ca*"] }
+}

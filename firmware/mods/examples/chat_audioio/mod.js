@@ -1,6 +1,8 @@
 // biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
-import { ChatService, ChatState, chatStateToName } from 'chat'
+import { createChatConversation, ChatState, chatStateToName } from 'chat'
+import { createToolSet } from 'stackchan/ai'
+import { createConversationPipeline } from 'stackchan/voice'
 import { hasValidChatType, normalizeChatConfig } from 'chat-audioio-config'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { EmotionNames, emotionFromName } from 'face-state'
@@ -168,6 +170,11 @@ Conversation style:
 
 You are a cute, energetic, and polite community-built robot who enjoys talking with people.
 `
+
+let closeChat
+export function onClose() {
+  return closeChat?.()
+}
 
 export function onContextCreated(robot) {
   const rawChatConfig = normalizeChatConfig(config)
@@ -491,80 +498,93 @@ export function onContextCreated(robot) {
     queueBalloonText(transcriptText, !more)
   }
 
-  const chat = new ChatService({
-    config: chatConfig,
-    tools,
-    callbacks: {
-      onStateChanged: (state, error) => {
-        trace(`onStateChanged: ${chatStateToName(state)}\n`)
-        app?.distribute?.('onChatState', state, error)
-        if (state !== ChatState.SPEAKING) {
-          app?.distribute?.('onChatInputLevel', 0)
-        }
-        if (state !== ChatState.LISTENING) {
-          queueMouthOpen(0, true)
-        }
-        if (state !== lastState) {
-          if (state === ChatState.LISTENING || state === ChatState.SPEAKING) {
-            clearBalloon()
+  let pipeline
+  let closing
+  const toolSet = () =>
+    createToolSet(
+      Object.values(tools).map(({ execute, ...schema }) => ({
+        definition: { type: 'function', ...schema },
+        execute,
+      })),
+    )
+  const buildConversation = () =>
+    createChatConversation({
+      config: chatConfig,
+      tools: toolSet(),
+      callbacks: {
+        onStateChanged: (state, error) => {
+          trace(`onStateChanged: ${chatStateToName(state)}\n`)
+          app?.distribute?.('onChatState', state, error)
+          if (state !== ChatState.SPEAKING) {
+            app?.distribute?.('onChatInputLevel', 0)
           }
-          lastState = state
-        }
-        if (state === ChatState.DISCONNECTED || state === ChatState.FAILED) {
-          active = false
-          robot.ui.drawer.setDrawerButtonState('toggleChat', false)
-          removeBalloon()
-        }
+          if (state !== ChatState.LISTENING) {
+            queueMouthOpen(0, true)
+          }
+          if (state !== lastState) {
+            if (state === ChatState.LISTENING || state === ChatState.SPEAKING) {
+              clearBalloon()
+            }
+            lastState = state
+          }
+          if (state === ChatState.DISCONNECTED || state === ChatState.FAILED) {
+            void stopChat()
+          }
+        },
+        onInputLevelChanged: (level) => {
+          app?.distribute?.('onChatInputLevel', level)
+        },
+        onOutputLevelChanged: (level) => {
+          queueMouthLevel(level)
+        },
+        // onInputTranscript: (text, more) => {
+        //   onTranscript(text, more)
+        // },
+        onOutputTranscript: (text, more) => {
+          onTranscript(text, more)
+        },
       },
-      onInputLevelChanged: (level) => {
-        app?.distribute?.('onChatInputLevel', level)
-      },
-      onOutputLevelChanged: (level) => {
-        queueMouthLevel(level)
-      },
-      // onInputTranscript: (text, more) => {
-      //   onTranscript(text, more)
-      // },
-      onOutputTranscript: (text, more) => {
-        onTranscript(text, more)
-      },
-      onFunctionCall: async (call, name, params) => {
-        const tool = tools[name]
-        if (!tool?.execute) {
-          chat.sendFunctionResult(call, name, `Tool not found: ${name}`)
-          return
-        }
-        try {
-          const result = await tool.execute(params ?? {})
-          chat.sendFunctionResult(call, name, result)
-        } catch (err) {
-          chat.sendFunctionResult(call, name, String(err?.message ?? err))
-        }
-      },
-    },
-  })
+    })
 
   const startChat = () => {
-    if (active) return
+    if (active || closing || !robot.audio.microphone) return
     active = true
     startUiTimers()
     robot.ui.drawer.setDrawerButtonState('toggleChat', true)
-    chat.setVolume(0.5)
+    const current = createConversationPipeline({
+      conversation: buildConversation(),
+      microphone: robot.audio.microphone,
+      speaker: robot.audio.speaker,
+      mediaBudget: { maxBufferedBytes: 128 * 1024, maxBufferedMs: 2000 },
+    })
+    pipeline = current
+    current.setVolume(0.5)
     queueMouthOpen(0, true)
     ensureBalloon()
     refreshBalloonCols(true)
     clearBalloon()
-    chat.start()
+    void current.start().catch(() => {
+      if (pipeline === current) void stopChat()
+    })
   }
 
   const stopChat = () => {
-    if (!active) return
+    if (!active) return closing
     active = false
     robot.ui.drawer.setDrawerButtonState('toggleChat', false)
-    chat.stop()
+    const current = pipeline
+    pipeline = undefined
+    closing = current
+      ?.close({ mode: 'abort' })
+      .catch(() => trace('[chat_audioio] close failed\n'))
+      .finally(() => {
+        closing = undefined
+      })
     queueMouthOpen(0, true)
     removeBalloon()
+    return closing
   }
+  closeChat = stopChat
 
   robot.ui.drawer.addDrawerButton({
     key: 'toggleChat',

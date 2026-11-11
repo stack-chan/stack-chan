@@ -2,16 +2,16 @@
 
 [日本語](./text-to-speech_ja.md)
 
-Currently there are two way to use TTS.
+These instructions configure the standalone speech player used by `robot.audio.say(text)`.
 
 * __Pregenerated__: Generates and flash speeches at buildtime and plays standalone. Suitable for predefined statements.
 * __Remote__: Queries speech statements to the TTS server, then streams the voice generated.
 
-__Local(On demand)__ TTS such as aquestalk is not available for now pull requests are welcome!
+CoreS3 and the WASM simulator also support on-device Japanese synthesis and singing. See [stackchan-voice](./stackchan-voice.md).
 
 ## Prerequisites
 
-No matter which way you choose, you should prepare an extrenal TTS engine first.
+For pregenerated and remote speech, configure an external speech engine.
 
 Tested below:
 

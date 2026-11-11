@@ -1,148 +1,56 @@
-# ChatAudioIO と Stack-chan の統合設計
+# Stack-chan の音声会話
 
-## 目的
+MOD はマイク、会話、スピーカーを選んで `createConversationPipeline` に渡す。パイプラインは開始時に音声デバイスの使用権を取り、会話の終了処理を待って返す。1回の接続につき1個のパイプラインを作る。
 
-Moddable の `ChatAudioIO` を Stack-chan の会話機能として扱う。
+```js
+import { createConversationPipeline } from 'stackchan/voice'
+import { createChatConversation } from 'chat'
 
-会話の実装本体は `host/modules/conversation` に置く。
-UI、顔、Drawer、音声出力の更新は `StackchanContext` の capability API を通して行う。
+const microphone = robot.audio.microphone
+if (!microphone) throw new Error('この端末にはマイクがありません')
 
-## レイヤ構成
-
-```mermaid
-flowchart TD
-  Behavior["product behavior または利用者 MOD"]
-  Context["StackchanContext"]
-  Conversation["host/modules/conversation"]
-  ChatService["ChatService"]
-  ChatAudioIO["ChatAudioIO"]
-  UI["context.ui / context.drawer / context.showBalloon"]
-  Face["context.setMouthOpen / context.setEmotion"]
-  Audio["context.say / context.tts"]
-
-  Behavior --> Context
-  Behavior --> ChatService
-  ChatService --> Conversation
-  Conversation --> ChatAudioIO
-  ChatService --> Behavior
-  Context --> UI
-  Context --> Face
-  Context --> Audio
+const pipeline = createConversationPipeline({
+  microphone,
+  speaker: robot.audio.speaker,
+  conversation: createChatConversation({ config: chatConfig, tools }),
+  mediaBudget: { maxBufferedMs: 2000, maxBufferedBytes: 128 * 1024 },
+})
+await pipeline.start()
+// MOD の onClose や停止ボタンから呼ぶ。
+await pipeline.close({ mode: 'abort' })
 ```
 
-`ChatService` は UI と顔を直接知らない。
-`ChatService` は状態、入力レベル、出力レベル、 transcript、function call を callback で上位へ通知する。
+## 会話を差し替える
 
-上位の product behavior または利用者 MOD は、その callback を `StackchanContext` の capability API に変換する。
-たとえば transcript は `context.showBalloon()`、出力レベルは `context.setMouthOpen()`、開始と停止は `context.drawer` のボタン状態へ反映する。
+| 構成 | 会話の作り方 | 音声の経路 |
+| --- | --- | --- |
+| STT → LLM → TTS | `createCascadedConversation({ turnDetector, stt, agent, tts, voice })` | マイクから STT に PCM を渡し、TTS の PCM をスピーカーへ送る。 |
+| ChatAudioIO | `createChatConversation({ config, tools, callbacks })` | provider の Worker が借用した PCM 入出力を使う。入力の空き容量を超えた場合はエラーを通知する。 |
+| OpenAI Live | `createLiveConversation(options)` | CoreS3 の native WebRTC transport が借用した I2S を使う。JS では制御、transcript、tool call を処理する。 |
 
-## ChatService の境界
+`mediaBudget` は音声をキューに保持する時間とバイト数の上限。モデルの履歴、HTTP、コーデック、WebRTC 自体が使うメモリはそれぞれの実装で管理する。`setMuted` は音声入力を切り替え、`interrupt` は再生済みの範囲と会話履歴の状態を返す。端末で聞こえた位置を特定できる精度はバックエンドによって異なる。
 
-`ChatService` は `host/modules/conversation/chat.ts` に置く。
-この module は `ChatAudioIO` を包み、Stack-chan 側の最小契約だけを公開する。
+カスケード方式では、LLM が最終回答と明示したテキストを文単位で先に読み上げる。最終回答か判別できないモデルでは応答の完了を待つ。割り込まれたときは再生を終えた文までを履歴に残す。WebRTC の連続した音声には文と再生位置の対応がないため、割り込みは接続を終了し、`restart-required` を返す。続けて話すときは、新しいパイプラインを作って開始する。
 
-```ts
-export type ChatCallbacks = {
-  onStateChanged?: (state: ChatState, error?: string) => void
-  onInputLevelChanged?: (level: number) => void
-  onOutputLevelChanged?: (level: number) => void
-  onInputTranscript?: (text: string, more: boolean) => void
-  onOutputTranscript?: (text: string, more: boolean) => void
-  onFunctionCall?: (call: string, name: string, params: Record<string, unknown>) => void
-}
+## サンプルのバッファ設定
 
-export class ChatService {
-  start(): void
-  stop(): void
-  close(): void
-  sendText(text: string): void
-  sendFunctionResult(call: string, name: string, result: unknown): void
-  setMicrophoneEnabled(enabled: boolean): void
-  setVolume(volume: number): void
-  get state(): ChatState
-}
-```
+| MOD | PCM 経路に渡す上限 | 送受信の動作 |
+| --- | --- | --- |
+| `ai_stackchan` | 24 KiB、250 ms | マイク入力は 16 kHz、再生は 24 kHz。Whisper への送信用に約6秒分の音声を別途保持する。TTS の HTTP 受信はスピーカーに空きができるまで次の読み出しを待つ。 |
+| `chat_audioio` | 128 KiB、2000 ms | 入力スロットは Worker が送信を終えた範囲から再利用する。SDK の WebSocket 送信待ちは別枠で 64 KiB まで。 |
+| `openai_live_webrtc` | 128 KiB、1000 ms | CoreS3 の I2S と WebRTC の間はネイティブコードが送受信する。再生停止時はキューの静止を待ってデバイスを返す。 |
 
-`ChatService` は UI の `Application`、Piu `Content`、Drawer の具象型を受け取らない。
-これにより、会話 module は `host/modules/conversation` の中で完結し、UI module への逆依存を持たない。
+これらはキューの設定値。端末全体の空き RAM や会話の遅延を判断するには、実際の基板でネットワーク接続中に測定する。
 
-## UI と顔への反映
+## カメラとツール
 
-会話状態の表示は `StackchanContext` の UI capability を使う。
+`stackchan/ai` の LLM はテキスト・画像・関数定義を含むリクエストから1回の応答を生成する。`createToolSet` で関数定義と実装を対応づけ、`createAgent` に渡すとツールの実行結果を次の推論に渡せる。会話履歴はセッションが管理する。
 
-- 接続中と切断中は、Drawer ボタンの状態または status bar へ反映する。
-- ユーザー発話と AI 応答は、`context.showBalloon()` または `context.ui.addEffect()` で表示する。
-- AI 応答の出力レベルは、`context.setMouthOpen()` に渡す。
-- エラーは会話 module で握りつぶさず、`onStateChanged(state, error)` で上位へ返す。
+`createVision({ camera: adaptRobotCamera(robot.camera), llm })` は質問を受けるたびに撮影し、画像と質問を LLM に送る。MOD が `observe` ツールとして登録すると、会話からも使える。
 
-口の開きは `0..1` にクランプする。
-既存 TTS と同じスケールを使う場合は、`Math.min(level / 2000, 1)` を基準にする。
+## 実装例
 
-## Drawer ボタンからの開始と停止
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant Drawer as Drawer button
-  participant Behavior as Product behavior or MOD
-  participant ChatService as ChatService
-  participant Context as StackchanContext
-
-  User->>Drawer: tap
-  Drawer->>Behavior: callback(context)
-  Behavior->>ChatService: start()
-  ChatService-->>Behavior: onStateChanged(CONNECTING)
-  Behavior->>Context: drawer.setDrawerButtonState(...)
-  ChatService-->>Behavior: onStateChanged(CONNECTED)
-  ChatService-->>Behavior: onInputTranscript(text, more)
-  Behavior->>Context: showBalloon(text, ...)
-  ChatService-->>Behavior: onOutputLevelChanged(level)
-  Behavior->>Context: setMouthOpen(open)
-  User->>Drawer: tap
-  Drawer->>Behavior: callback(context)
-  Behavior->>ChatService: stop()
-  ChatService-->>Behavior: onStateChanged(DISCONNECTED)
-  Behavior->>Context: hideBalloon()
-```
-
-Drawer の callback は `StackchanContext` を受け取る。
-旧来の全機能を抱えた facade を前提にしない。
-
-## 設定
-
-会話設定は `config.chat` に置く。
-`ChatService` は `type`、`modelID`、`voiceID`、`instructions` を受け取り、`ChatAudioIO` の specifier へ変換する。
-
-```json
-{
-  "chat": {
-    "type": "openAIRealtime",
-    "modelID": "gpt-realtime-mini",
-    "voiceID": "marin",
-    "instructions": "..."
-  }
-}
-```
-
-API key は `ChatAudioIO` の標準設定に合わせる。
-ファイルへ固定値を書かない場合は、`mcconfig` の config 上書きで渡す。
-
-## テスト配置
-
-会話 module の pure logic は `host/modules/conversation` 配下に置く。
-Node.js で検証できるものは、module-local な `*.test.ts` として置く。
-
-Piu `Application`、Drawer、Speech balloon、顔表示に依存する確認は、対象 UI または app behavior の `__tests__/<case>/manifest.test.json` に置く。
-`npm run test:moddable` は `host/app`、`host/modules`、`mods/examples` の runnable `manifest.test.json` を列挙する。
-
-sample MOD 固有の設定や provider wiring は、`mods/examples/<sample>/__tests__/<case>/manifest.test.json` に置く。
-これらは通常の CI と同じ `npm run test:moddable` で走る。
-
-## 確認項目
-
-- `ChatService` は `ChatAudioIO` の状態と transcript を callback へ中継する。
-- Drawer ボタンは `StackchanContext` 経由で開始と停止を切り替える。
-- transcript 表示は UI capability を通す。
-- 出力レベルは `context.setMouthOpen()` だけで顔へ反映する。
-- `host/modules/conversation` は `host/modules/ui` に依存しない。
-- sample MOD の test manifest は `mods/examples` 配下に置く。
+- [ボタンを押して話し、カメラで観察する](../mods/examples/ai_stackchan/mod.js)
+- [ChatAudioIO の設定、顔や吹き出しへの反映](../mods/examples/chat_audioio/mod.js)
+- [OpenAI Live の接続と終了](../mods/examples/openai_live_webrtc/session.js)
+- [TypeScript の公開契約](../host/modules/voice/contracts.ts)

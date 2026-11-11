@@ -4,17 +4,17 @@ import { getAxp2101Power } from 'axp2101-power-capture'
 // Consolidated constructor smokes: each module only needs to prove it loads
 // and constructs in XS, so they share one manifest instead of paying a full
 // mcconfig build per module.
-import { ChatService, createXiaozhiV1Connection } from 'chat'
+import { createChatConversation, createXiaozhiV1Connection } from 'chat'
 import config from 'mc/config'
 import { NetworkService } from 'network-service'
 import STT from 'stt-whisper'
 import { equal } from 'testing/assert'
-import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
-import { TTS as LocalTTS } from 'tts-local'
-import { TTS as OpenAITTS } from 'tts-openai'
-import { TTS as StackchanVoiceTTS } from 'tts-stackchan-voice'
-import { TTS as VoiceVoxTTS } from 'tts-voicevox'
-import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
+import { SpeechPlayback as ElevenLabsPlayback } from 'speech-playback-elevenlabs'
+import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
+import { SpeechPlayback as OpenAIPlayback } from 'speech-playback-openai'
+import { SpeechPlayback as StackchanVoicePlayback } from 'speech-playback-stackchan-voice'
+import { SpeechPlayback as VoiceVoxPlayback } from 'speech-playback-voicevox'
+import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-web'
 
 trace('=== module smoke test ===\n')
 
@@ -22,7 +22,7 @@ const token = (config.token as string) ?? 'test-token'
 const host = (config.host as string) ?? '127.0.0.1'
 let realtimeError = ''
 try {
-  new ChatService({
+  createChatConversation({
     connection: createXiaozhiV1Connection({
       endpoint: `ws://${host}/xiaozhi-v1`,
       deviceId: 'test-device',
@@ -44,29 +44,29 @@ const onDone = () => {
   trace('done\n')
 }
 
-void new LocalTTS({ onPlayed, onDone })
-trace('smoke: tts-local\n')
+void new LocalPlayback({ onPlayed, onDone })
+trace('smoke: speech-playback-local\n')
 
-void new ElevenLabsTTS({ token, onPlayed, onDone })
-trace('smoke: tts-elevenlabs\n')
+void new ElevenLabsPlayback({ token, onPlayed, onDone })
+trace('smoke: speech-playback-elevenlabs\n')
 
-void new OpenAITTS({ token, onPlayed, onDone })
-trace('smoke: tts-openai\n')
+void new OpenAIPlayback({ token, onPlayed, onDone })
+trace('smoke: speech-playback-openai\n')
 
-void new VoiceVoxTTS({ host, port: 50021, sampleRate: 24000, speakerId: 1, onPlayed, onDone })
-trace('smoke: tts-voicevox\n')
+void new VoiceVoxPlayback({ host, port: 50021, sampleRate: 24000, speakerId: 1, onPlayed, onDone })
+trace('smoke: speech-playback-voicevox\n')
 
-void new VoiceVoxWebTTS({ token, onPlayed, onDone })
-trace('smoke: tts-voicevox-web\n')
+void new VoiceVoxWebPlayback({ token, onPlayed, onDone })
+trace('smoke: speech-playback-voicevox-web\n')
 
-const stackchanVoice = new StackchanVoiceTTS({ onPlayed, onDone })
+const stackchanVoice = new StackchanVoicePlayback({ onPlayed, onDone })
 let stackchanVoiceCallbackCalled = false
 stackchanVoice.stream('hello', undefined, (error) => {
   equal(String(error), 'Error: stackchan-voice is unavailable on this target')
   stackchanVoiceCallbackCalled = true
 })
 equal(stackchanVoiceCallbackCalled, true, 'unavailable stackchan-voice should report through its callback')
-trace('smoke: tts-stackchan-voice unavailable\n')
+trace('smoke: speech-playback-stackchan-voice unavailable\n')
 
 void new STT({ apiKey: token })
 trace('smoke: stt-whisper\n')

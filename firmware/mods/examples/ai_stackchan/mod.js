@@ -107,7 +107,7 @@ export function onContextCreated(robot, option) {
           top: 0,
           height: 16,
           style,
-          string: '音声：つくよみちゃんコーパス © 夢前黎',
+          string: '音声：つくよみちゃんコーパス (C) 夢前黎',
         }),
         new Label(null, {
           left: 0,

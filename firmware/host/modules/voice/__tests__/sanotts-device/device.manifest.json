@@ -1,0 +1,8 @@
+{
+  "modules": {
+    "stackchan/voice/sanotts": "../../sanotts",
+    "stackchan/voice/contracts": "../../contracts",
+    "stackchan/voice/media": "../../media",
+    "stackchan/voice/scope": "../../scope"
+  }
+}

@@ -215,15 +215,6 @@ class StreamSession {
     this.#hasPlayed = false
     try {
       await this.#closing
-    } catch (error) {
-      if (this.#isCurrent(generation)) {
-        this.#terminal = true
-        this.#setState('error', String(error))
-        this.result.reject(error)
-      }
-      return
-    }
-    try {
       if (!this.#isCurrent(generation)) return
       const scope = createVoiceScope()
       this.#attempt = scope
@@ -403,7 +394,12 @@ class StreamSession {
         }
       }
     })()
-    void this.#closing.catch(() => {})
+    void this.#closing.catch((error) => {
+      if (this.#terminal) return
+      this.#terminal = true
+      this.result.reject(error)
+      this.#setState('error', String(error))
+    })
     return this.#closing
   }
 

@@ -18,7 +18,7 @@
     "stackchan/voice/device": "../../../voice/pcm-device",
     "~": "$(MODDABLE)/modules/base/timer/timer.js",
     "stackchan/voice/cores3-pcm-output": "../../../voice/cores3-pcm-output",
-    "pins/audioout": "./driver",
+    "pins/audioout": "../../../testing/fakes/audio-out",
     "main": "./media-playback.test",
     "timer": "./timer",
     "capabilities": "../../../testing/fakes/capabilities",

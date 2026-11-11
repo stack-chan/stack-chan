@@ -345,26 +345,33 @@ async function runTests() {
       budget: { maxBufferedMs: 250, maxBufferedBytes: 24576 },
     })
     const audio = new AudioOut(lease, (error) => {
-        throw error
-      }),
-      output = SharedByteRing.allocate(32),
-      completion = new Int32Array(new SharedArrayBuffer(4))
-    put(output, new Uint8Array([1, 2, 3, 4, 5, 6]))
+      throw error
+    })
+    const output = SharedByteRing.allocate(16384)
+    const completion = new Int32Array(new SharedArrayBuffer(4))
+    const pcm = Uint8Array.from({ length: 12006 }, (_, index) => index % 251)
+    put(output, pcm)
     audio.attachSharedOutput(output, completion, () => {})
     audio.start()
-    equal(Atomics.load(completion, 0), 6)
+    const driver = outputs.at(-1)
+    equal(Atomics.load(completion, 0), 10240, 'return only the prefix accepted by DMA')
+    equal(output.readableBytes, pcm.length - 10240, 'the decoder cannot reuse a pending tail')
     equal(audio.playedSeconds, 0, 'queued PCM is not played PCM')
+    driver.writable(10240)
+    await settle()
+    equal(output.readableBytes, 0)
+    equal(Atomics.load(completion, 0), pcm.length)
+    equal(driver.writes[1][0], pcm[10240], 'a resumed write starts at the first unaccepted byte')
     let drained = false
     const promise = audio.drain().then(() => {
       drained = true
     })
     await Promise.resolve()
     assert(!drained)
-    const driver = outputs[outputs.length - 1]
     await drainDriver(driver)
     await promise
     assert(drained)
-    equal(audio.playedSeconds, 6 / 48000, 'drain padding is not progress')
+    equal(audio.playedSeconds, pcm.length / 48000, 'drain padding is not progress')
     await audio.close()
   }
   // Actual worker entry point and resampler run in XS with message and DMA boundaries controlled.

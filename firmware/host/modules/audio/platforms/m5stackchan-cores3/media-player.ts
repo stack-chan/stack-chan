@@ -104,7 +104,8 @@ class StreamSession {
   }
 
   async pause(): Promise<void> {
-    if (this.#options?.mode !== 'finite' || this.#state === 'paused' || this.#terminal) return this.#closing
+    if (this.#options?.mode !== 'finite' || (this.#state === 'paused' && this.#stopped) || this.#terminal)
+      return this.#closing
     this.#position = this.progress.position
     this.#stopped = true
     this.#generation++
@@ -125,7 +126,7 @@ class StreamSession {
     if (this.#terminal) return
     if (this.#options?.mode !== 'finite') throw new Error('Seek requires finite playback')
     if (!Number.isFinite(seconds) || seconds < 0) throw new Error('Invalid seek position')
-    const paused = this.#state === 'paused'
+    const paused = this.#state === 'paused' && this.#stopped
     const generation = ++this.#generation
     this.#clearTimers()
     const closing = this.#closeSession()

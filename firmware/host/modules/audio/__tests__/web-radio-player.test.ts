@@ -413,3 +413,38 @@ test('pause reports a teardown failure through the control promise and session d
   await assert.rejects(media.done, /decoder close failed/)
   assert.equal(media.state, 'error')
 })
+
+test('pause supersedes a resume waiting for the previous worker to close', async () => {
+  const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+  const { createVoiceScope, deferred } = await import('../../voice/scope.js')
+  const player = new MediaPlayer(speaker)
+  const media = await player.open({ mode: 'finite', url: 'https://episodes.test/one' }, createVoiceScope())
+  const workerClosed = deferred<void>()
+  getMP3StreamerInstances()[0].close = () => workerClosed.promise
+  const pausing = media.pause()
+  const resuming = media.resume()
+  const pauseAgain = media.pause()
+  workerClosed.resolve()
+  await Promise.all([pausing, resuming, pauseAgain])
+  assert.equal(media.state, 'paused')
+  assert.equal(getMP3StreamerInstances().length, 1)
+  await media.stop()
+})
+
+test('seek supersedes a resume waiting for worker release and keeps playback active', async () => {
+  const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+  const { createVoiceScope, deferred } = await import('../../voice/scope.js')
+  const player = new MediaPlayer(speaker)
+  const media = await player.open({ mode: 'finite', url: 'https://episodes.test/one' }, createVoiceScope())
+  const workerClosed = deferred<void>()
+  getMP3StreamerInstances()[0].close = () => workerClosed.promise
+  const pausing = media.pause()
+  const resuming = media.resume()
+  const seeking = media.seek(15)
+  workerClosed.resolve()
+  await Promise.all([pausing, resuming, seeking])
+  assert.equal(media.state, 'buffering')
+  assert.equal(getMP3StreamerInstances().length, 2)
+  assert.equal(getMP3StreamerInstances()[1].options.seek?.target, 15)
+  await media.stop()
+})

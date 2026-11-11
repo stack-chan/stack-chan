@@ -20,6 +20,56 @@ node mods/examples/media_player/sync-gallery.mjs
 
 中国語用ビットマップフォントはNoto Sans CJK SC 2.004由来で、SIL Open Font License 1.1です。Galleryでは `LICENSE.font.txt` を同梱します。ソースと変換方法はリポジトリの `firmware/host/modules/ui/assets/fonts/StackchanCJK-Regular.README.md` に記載しています。
 
+## 再生セッションAPIへの移行
+
+この版のMODには、`context.audio.media.open()` と `stackchan/voice/scope` を提供するホストが必要です。ホストとMODを併せて更新してください。
+
+`open()` は再生ごとのセッションを返します。有限長音声には `mode: 'finite'` を指定します。
+
+```js
+import { createVoiceScope } from 'stackchan/voice/scope'
+
+const scope = createVoiceScope()
+const episode = await context.audio.media.open(
+  { mode: 'finite', url: 'https://example.com/episode.mp3', duration: 180 },
+  { signal: scope.signal, volume: 0.1 },
+)
+await episode.pause()
+await episode.seek(30)
+await episode.resume()
+await episode.stop()
+trace(`${await episode.done}\n`)
+```
+
+`duration` とシーク位置は秒単位です。`pause()` は通信・デコーダ・スピーカーを解放し、位置を保持します。`resume()` はその位置から取り直します。一時停止中の `seek()` は移動後も一時停止を保ちます。
+
+`done` は末尾の音声を出力して解放を終えると `'ended'`、停止・別セッションへの切り替え・Scopeの取消では `'stopped'` で完了します。再生や解放に失敗した場合はrejectします。`await session.stop()` の正常完了時には、そのセッションの通信・Worker・スピーカーを解放済みです。古いセッションの `stop()` は、そのセッションだけを対象にします。
+
+ラジオには `mode: 'live'` を指定します。`reconnect` の既定値は `true` です。
+
+```js
+const radioScope = createVoiceScope()
+const radio = await context.audio.media.open(
+  { mode: 'live', url: 'https://example.com/radio', reconnect: true },
+  { signal: radioScope.signal },
+)
+radio.setVolume(0.1)
+radioScope.abort()
+await radio.stop()
+```
+
+ライブの返り値は `MediaSession`、有限長音声の返り値は `FiniteMediaSession` です。両方で `state`、`progress`、`done`、`setVolume()`、`stop()` を使えます。`pause()`、`resume()`、`seek()` は `FiniteMediaSession` が提供します。通知は `open()` のoptionsに `onStateChanged` と `onProgress` を渡します。
+
+ホスト外でプレイヤーを直接構築するコードは、コンストラクタにスピーカー取得関数を渡してください。
+
+```js
+import MediaPlayer from 'media-player'
+
+const media = new MediaPlayer(() => context.audio.speaker)
+```
+
+`WebRadioPlayer` を直接構築する場合も同じ関数を渡します。このスピーカーの音声ランタイムが、発話・会話とメディアの所有権を管理します。`context.audio.media` を使うMODではホストが構築します。既存の `audio.media.start()` と `audio.webRadio` は互換用に利用できます。
+
 ## 共通音量
 
 Drawerの「音量」は既存の `tts.volume` 設定を共有し、大100%・中50%・小25%・ミュート0%を選べます。0～100%は線形の音量値です。メディア出力は既存上限0.2を掛けるため、実際のゲインは0.2・0.1・0.05・0です。同じ割合でもTTSと配信音源の聴感上の音量は異なります。

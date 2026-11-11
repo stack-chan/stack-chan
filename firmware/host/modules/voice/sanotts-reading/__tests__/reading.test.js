@@ -16,4 +16,11 @@ for (const text of ['電車', '猫🛸', 'a\0b', '猫'.repeat(1600)]) {
   assert(error instanceof RangeError)
 }
 equal(plain('音声'), 'おんせー')
+let invalid
+try {
+  toKana({ includes: () => false, toString: () => '猫' })
+} catch (cause) {
+  invalid = cause
+}
+assert(invalid instanceof TypeError)
 trace('@@STACKCHAN_TEST:PASS@@\n')

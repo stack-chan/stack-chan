@@ -1,6 +1,7 @@
 import { Emoticon } from 'effects/emoticon'
 import { Emotion, EmotionNames, emotionFromName } from 'face-state'
 import Modules from 'modules'
+import { Container, Label, Skin, Style } from 'piu/MC'
 import { adaptRobotCamera, createAgent, createToolSet, createVision, OpenAIResponsesLLM } from 'stackchan/ai'
 import {
   createCascadedConversation,
@@ -68,9 +69,10 @@ export function onContextCreated(robot, option) {
   })
   const pushToTalk = createPushToTalk()
   const localSpeech = option.config.tts?.type === 'sanotts'
+  const usesSanoVoice = localSpeech && Modules.has('stackchan/voice/sanotts')
   let tts
   if (localSpeech) {
-    tts = Modules.has('stackchan/voice/sanotts')
+    tts = usesSanoVoice
       ? Modules.importNow('stackchan/voice/sanotts', true).createSanoTTS()
       : Modules.importNow('stackchan/voice/stackchan-voice', true).createStackchanVoiceTTS()
   } else {
@@ -88,6 +90,37 @@ export function onContextCreated(robot, option) {
   const sweat = new Emoticon({ key: 'sweat', left: 20, top: 20 })
   const button = robot.input.button.a
   const previous = button.onEvent
+  let credit
+  if (usesSanoVoice) {
+    const style = new Style({ font: 'k8x12-12', color: 'white', horizontal: 'center' })
+    credit = new Container(null, {
+      name: 'sano-voice-credit',
+      left: 0,
+      right: 0,
+      top: 24,
+      height: 32,
+      skin: new Skin({ fill: 'black' }),
+      contents: [
+        new Label(null, {
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 16,
+          style,
+          string: '音声：つくよみちゃんコーパス © 夢前黎',
+        }),
+        new Label(null, {
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 16,
+          style,
+          string: 'https://tyc.rei-yumesaki.net/material/corpus/',
+        }),
+      ],
+    })
+    robot.ui.addEffect(credit)
+  }
   let pipeline,
     opening,
     closing,
@@ -174,6 +207,7 @@ export function onContextCreated(robot, option) {
   }
   const shutdown = async () => {
     button.onEvent = previous
+    if (credit) robot.ui.removeEffect(credit)
     scope.abort()
     face(undefined, Emotion.NEUTRAL)
     await closePipeline()

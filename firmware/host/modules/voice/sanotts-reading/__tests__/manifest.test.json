@@ -5,5 +5,5 @@
     "../manifest.json",
     "../../../testing/manifest.json"
   ],
-  "modules": { "main": "./reading" }
+  "modules": { "main": "./reading.test" }
 }

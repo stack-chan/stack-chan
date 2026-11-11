@@ -103,6 +103,7 @@ static int is_kanji(unsigned cp)
 void xs_sanotts_reading(xsMachine *the)
 {
     enum { limit = 4096 };
+    if (xsmcTypeOf(xsArg(1)) != xsStringType) xsTypeError("Japanese reading requires a string");
     xsmcVars(1);
     xsmcSetArrayBuffer(xsVar(0), NULL, limit + 1);
     uint8_t *data;

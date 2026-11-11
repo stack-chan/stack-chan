@@ -2,16 +2,14 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
     "../../../testing/manifest.json"
   ],
   "modules": {
     "main": "./provider.test",
     "sanotts-native": "./native",
     "stackchan/voice/sanotts-reading": "./reading",
-    "stackchan/voice/sanotts": "../../sanotts",
-    "stackchan/voice/contracts": "../../contracts",
-    "stackchan/voice/media": "../../media",
-    "stackchan/voice/scope": "../../scope"
+    "stackchan/voice/sanotts": "../../sanotts"
   },
   "typescript": {
     "tsconfig": {

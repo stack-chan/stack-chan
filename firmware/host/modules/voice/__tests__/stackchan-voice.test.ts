@@ -24,7 +24,8 @@ const { mono, readSource } = await import('../media.js')
 const { default: timer } = await import('../../testing/fakes/timer.js')
 hooks.deregister()
 
-test('StackchanVoice buffers one native block until accepted and tracks completed playback', async () => {
+test('StackchanVoice buffers one native block until accepted and tracks completed playback', async (t) => {
+  t.mock.method(Date, 'now', () => 0)
   const tts = createStackchanVoiceTTS({ speed: 85, voice: 'cute' })
   const scope = createVoiceScope()
   const args = { ...scope, format: mono(24000), voice: 'default' }
@@ -46,7 +47,7 @@ test('StackchanVoice buffers one native block until accepted and tracks complete
   assert.deepEqual(native.starts.at(-1), { method: 'say', text: 'こんにちは', speed: 85, preset: 1 })
   accepted.resolve()
   await new Promise((ok) => setImmediate(ok))
-  timer.advance(1)
+  assert.equal(blocks.length, 2, 'Speaker credit resumes synthesis without a timer tick')
   await done
   assert.deepEqual(
     blocks.map((block) => block.byteLength),
@@ -96,5 +97,37 @@ test('StackchanVoice rejects incompatible formats, truncated Koe and invalid nat
     await assert.rejects(invalid.finish(), { code: 'provider_failed' })
   } finally {
     native.invalidCount = false
+  }
+})
+
+test('StackchanVoice yields between bounded batches even without backpressure', async () => {
+  const originalFrames = native.frames
+  const now = Date.now
+  let elapsed = 0
+  Date.now = () => elapsed
+  native.frames = 40 * 1024
+  try {
+    for (const mode of ['no-reader', 'immediate-promise', 'slow-reader']) {
+      const scope = createVoiceScope()
+      const synthesis = await createStackchanVoiceTTS().open({ ...scope, voice: 'normal', format: mono(24000) })
+      if (mode === 'immediate-promise') readSource(synthesis.output, () => Promise.resolve())
+      if (mode === 'slow-reader')
+        readSource(synthesis.output, () => {
+          elapsed += 12
+        })
+      await synthesis.write('声')
+      const before = native.reads
+      const done = synthesis.finish()
+      await new Promise((ok) => setImmediate(ok))
+      assert.equal(native.reads - before, mode === 'slow-reader' ? 1 : 4)
+      scope.abort()
+      await assert.rejects(done, { code: 'cancelled' })
+      const stopped = native.reads
+      timer.advance(10)
+      assert.equal(native.reads, stopped)
+    }
+  } finally {
+    native.frames = originalFrames
+    Date.now = now
   }
 })

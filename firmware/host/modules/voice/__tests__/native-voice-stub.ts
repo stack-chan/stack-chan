@@ -3,6 +3,7 @@ export const native = {
   reads: 0,
   invalidCount: false,
   instances: 0,
+  frames: 1050,
 }
 
 export default class NativeVoice {
@@ -27,7 +28,7 @@ export default class NativeVoice {
   }
   private start(method: string, text: string, speed: number) {
     native.starts.push({ method, text, speed, preset: this.preset })
-    this.#frames = 1050
+    this.#frames = native.frames
   }
   read24(buffer: ArrayBuffer) {
     ++native.reads

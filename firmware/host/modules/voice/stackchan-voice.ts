@@ -46,25 +46,37 @@ export function createStackchanVoiceTTS(
       if (error) result?.reject(error)
       else result?.resolve()
     }
-    function render() {
+    async function render() {
       timer = undefined
-      if (ended || !block || !engine) return
+      let started = Date.now()
+      let blocks = 0
       try {
-        const bytes = block.bytes
-        const samples = engine.read24(block.buffer)
-        if (!Number.isInteger(samples) || samples < 0 || samples > bytes.length / 2)
-          throw voiceError('provider_failed', 'invalid StackchanVoice PCM length')
-        if (!samples) return end()
-        frames += samples
-        const last = samples * 2 < bytes.length
-        const pending = source.offer(last ? bytes.subarray(0, samples * 2) : bytes)
-        const next = () => {
+        while (!ended && block && engine) {
+          const bytes = block.bytes
+          const samples = engine.read24(block.buffer)
+          if (!Number.isInteger(samples) || samples < 0 || samples > bytes.length / 2)
+            throw voiceError('provider_failed', 'invalid StackchanVoice PCM length')
+          if (!samples) return end()
+          frames += samples
+          const last = samples * 2 < bytes.length
+          const pending = source.offer(last ? bytes.subarray(0, samples * 2) : bytes)
+          blocks++
+          if (pending) {
+            const waiting = Date.now()
+            await pending
+            if (ended) return
+            if (Date.now() - waiting >= 8) {
+              started = Date.now()
+              blocks = 0
+            }
+          }
           if (ended) return
-          if (last) end()
-          else timer = Timer.set(render, 0)
+          if (last) return end()
+          if (blocks >= 4 || Date.now() - started >= 8) {
+            timer = Timer.set(render, 0)
+            return
+          }
         }
-        if (pending) void pending.then(next).catch(end)
-        else next()
       } catch (error) {
         end(error)
       }

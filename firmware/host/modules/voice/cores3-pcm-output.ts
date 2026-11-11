@@ -1,11 +1,48 @@
 import AudioOut from 'embedded:io/audio/out'
+import { pcmEnergy } from 'stackchan/voice/media'
 import { deferred, voiceError } from 'stackchan/voice/scope'
 
 // CoreS3 sets I2S_DMA_BUFFER_MAX_SIZE to 2048. The ESP32 ECMA-419 driver exposes five writable descriptors.
 const dmaBlockBytes = 2048
 export const minimumOutputBytes = dmaBlockBytes * 5
 
-export function openOutput(sampleRate: number, volume: number, limit: number) {
+function playbackMeter(onPlayed: (power: number) => void) {
+  const powers: number[] = []
+  let measured = 0
+  let energy = 0
+  let reported = 0
+  return {
+    accept(bytes: Uint8Array, offset: number, size: number) {
+      while (size) {
+        const count = Math.min(size, dmaBlockBytes - (measured % dmaBlockBytes))
+        energy += pcmEnergy(bytes, offset, count)
+        measured += count
+        offset += count
+        size -= count
+        if (!(measured % dmaBlockBytes)) {
+          powers.push(Math.sqrt(energy / (dmaBlockBytes / 2)))
+          energy = 0
+        }
+      }
+    },
+    confirm(confirmed: number, final = false) {
+      while (powers.length && reported + dmaBlockBytes <= confirmed) {
+        reported += dmaBlockBytes
+        const power = powers[0]
+        powers.shift()
+        onPlayed(power)
+      }
+      if (final && measured > reported) {
+        const frames = (measured - reported) / 2
+        reported = measured
+        onPlayed(Math.sqrt(energy / frames))
+      }
+    },
+  }
+}
+
+export function openOutput(sampleRate: number, volume: number, limit: number, onPlayed?: (power: number) => void) {
+  const meter = onPlayed ? playbackMeter(onPlayed) : undefined
   let capacity = 0
   let writable = 0
   let submitted = 0
@@ -34,6 +71,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number) {
       writable = size
       confirmed = Math.max(confirmed, Math.min(audioBytes, submitted - (capacity - writable) - dmaBlockBytes))
       signal()
+      meter?.confirm(confirmed)
     },
   })
   try {
@@ -57,6 +95,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number) {
       writable -= size
       submitted += size
       audioBytes += size
+      meter?.accept(bytes, offset, size)
       onAccepted?.(size)
     }
     return offset + size
@@ -105,6 +144,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number) {
       await wait()
       requireOpen()
       confirmed = audioBytes
+      meter?.confirm(confirmed, true)
     },
     close() {
       if (closed) return

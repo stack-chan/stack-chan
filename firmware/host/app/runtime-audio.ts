@@ -8,11 +8,13 @@ import type {
 } from 'capabilities'
 import type Microphone from 'microphone'
 import type Speaker from 'speaker'
+import type { SpeakerSpeechPlayback, UtterancePlayback } from 'speech-playback-types'
+import type { Speaker as VoiceSpeaker } from 'stackchan/voice/contracts'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
 import { DEFAULT_VOLUME, MAX_MEDIA_VOLUME } from 'volume-model'
 
 export type RuntimeAudioConstructorParam = {
-  speechPlayback: SpeechPlayback
+  speechPlayback: SpeechPlayback | SpeakerSpeechPlayback
   microphone?: Microphone
   speaker?: Speaker
   webRadio?: WebRadioCapability
@@ -22,6 +24,7 @@ export type RuntimeAudioConstructorParam = {
 }
 
 type RuntimeAudioOptions = {
+  getVoiceSpeaker?: () => VoiceSpeaker
   onMouthOpenChanged?: (value: number) => void
 }
 
@@ -29,10 +32,12 @@ export class StackchanRuntimeAudio {
   #microphone: Microphone | undefined
   #options: RuntimeAudioOptions
   #speaker: Speaker | undefined
-  #speechPlayback: SpeechPlayback
+  #speechPlayback: SpeechPlayback | SpeakerSpeechPlayback
   #webRadio: WebRadioCapability | undefined
   #media: MediaCapability | undefined
   #activeOperations = 0
+  #utterance?: UtterancePlayback
+  #closed = false
   #volume: number | undefined
   #onVolumeChanged: RuntimeAudioConstructorParam['onVolumeChanged']
   #exclusive = false
@@ -69,7 +74,8 @@ export class StackchanRuntimeAudio {
 
   /** Reserve I2S for a native conversation after existing short playback finishes. */
   acquireExclusive(): () => void {
-    if (this.#exclusive || this.#activeOperations || this.#microphone?.recording) throw new Error('audio busy')
+    if (this.#closed || this.#exclusive || this.#activeOperations || this.#microphone?.recording)
+      throw new Error('audio busy')
     this.#exclusive = true
     try {
       this.#media?.stop()
@@ -172,64 +178,62 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  useSpeechPlayback(speechPlayback: SpeechPlayback) {
-    if (this.#exclusive || this.#activeOperations) throw new Error('audio busy')
-    if (this.#speechPlayback != null) {
+  useSpeechPlayback(speechPlayback: SpeechPlayback | SpeakerSpeechPlayback) {
+    if (this.#closed || this.#exclusive || this.#activeOperations || this.#utterance) throw new Error('audio busy')
+    if (this.#speechPlayback && 'stream' in this.#speechPlayback) {
       this.#speechPlayback.onDone = noop
       this.#speechPlayback.onPlayed = noop
     }
     this.#speechPlayback = speechPlayback
-    this.#speechPlayback.onPlayed = (volume: number) => {
-      this.#options.onMouthOpenChanged?.(volume === 0 ? 0 : Math.min(volume / 2000, 1.0))
-    }
-    this.#speechPlayback.onDone = () => {
-      this.#options.onMouthOpenChanged?.(0)
+    if ('stream' in speechPlayback) {
+      speechPlayback.onPlayed = this.#onPlayed
+      speechPlayback.onDone = () => this.#onPlayed(0)
     }
   }
 
-  async say(text: string, volume?: number): Promise<Maybe<string>> {
-    if (this.#exclusive) return { success: false, reason: 'audio busy' }
-    this.#activeOperations += 1
-    try {
-      this.#media?.stop()
-      this.#webRadio?.stop()
-      await waitForCompletion((callback) => this.#speechPlayback.stream(text, volume ?? this.#volume, callback))
-      return {
-        success: true,
-        value: text,
-      }
-    } catch (reason) {
-      trace('error\n')
-      return {
-        success: false,
-        reason: String(reason),
-      }
-    } finally {
-      this.#activeOperations -= 1
-    }
+  #onPlayed = (power: number) => {
+    this.#options.onMouthOpenChanged?.(Math.min(power / 2000, 1))
   }
 
-  async sing(koe: string, volume?: number): Promise<Maybe<string>> {
-    if (this.#exclusive) return { success: false, reason: 'audio busy' }
-    this.#activeOperations += 1
+  say(text: string, volume?: number) {
+    return this.#speak('text', text, volume)
+  }
+
+  sing(koe: string, volume?: number) {
+    return this.#speak('koe', koe, volume)
+  }
+
+  async #speak(kind: 'text' | 'koe', text: string, volume?: number): Promise<Maybe<string>> {
+    if (this.#closed || this.#exclusive || this.#utterance) return { success: false, reason: 'audio busy' }
+    const playback = this.#speechPlayback
+    const gain = volume ?? this.#volume
     try {
-      this.#media?.stop()
-      this.#webRadio?.stop()
-      const speechPlayback = this.#speechPlayback
-      if (!speechPlayback.streamKoe) throw new Error('The active speech player does not support singing.')
-      await waitForCompletion((callback) => speechPlayback.streamKoe(koe, volume ?? this.#volume, callback))
-      return {
-        success: true,
-        value: koe,
+      if ('playUtterance' in playback) {
+        const speaker = this.#options.getVoiceSpeaker?.()
+        if (!speaker) throw new Error('speaker unavailable')
+        const utterance = playback.playUtterance(speaker, kind, text, gain, this.#onPlayed)
+        this.#utterance = utterance
+        try {
+          await utterance.done
+        } finally {
+          this.#utterance = undefined
+          this.#onPlayed(0)
+        }
+      } else {
+        this.#activeOperations += 1
+        try {
+          this.#media?.stop()
+          this.#webRadio?.stop()
+          const stream = kind === 'text' ? playback.stream : playback.streamKoe
+          if (!stream) throw new Error('The active speech player does not support singing.')
+          await waitForCompletion((callback) => stream.call(playback, text, gain, callback))
+        } finally {
+          this.#activeOperations -= 1
+        }
       }
+      return { success: true, value: text }
     } catch (reason) {
-      trace('error\n')
-      return {
-        success: false,
-        reason: String(reason),
-      }
-    } finally {
-      this.#activeOperations -= 1
+      return { success: false, reason: String(reason) }
     }
   }
 
@@ -274,7 +278,10 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  close(): void {
+  async close(): Promise<void> {
+    this.#closed = true
+    const utterance = this.#utterance
+    utterance?.cancel()
     try {
       this.#media?.stop()
       this.#webRadio?.stop()
@@ -282,8 +289,11 @@ export class StackchanRuntimeAudio {
       try {
         this.#microphone?.stop()
       } finally {
-        this.#speechPlayback.onPlayed = noop
-        this.#speechPlayback.onDone = noop
+        if ('stream' in this.#speechPlayback) {
+          this.#speechPlayback.onPlayed = noop
+          this.#speechPlayback.onDone = noop
+        }
+        await utterance?.done.catch(() => {})
       }
     }
   }

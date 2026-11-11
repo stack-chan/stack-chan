@@ -1,7 +1,10 @@
 {
   "modules": {
-    "speech-playback-lifecycle": "../../speech-playback-lifecycle",
     "speech-playback-stackchan-voice": "../../stackchan-voice/speech-playback-stackchan-voice",
-    "speech-playback-types": "../../speech-playback-types"
+    "speech-playback-types": "../../speech-playback-types",
+    "stackchan/voice/contracts": "../../../voice/contracts",
+    "stackchan/voice/media": "../../../voice/media",
+    "stackchan/voice/scope": "../../../voice/scope",
+    "stackchan/voice/stackchan-voice": "../../../voice/stackchan-voice"
   }
 }

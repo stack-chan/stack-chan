@@ -1,203 +1,66 @@
-import Resource from 'Resource'
-import AudioOut from 'embedded:io/audio/out'
-import calculatePower from 'calculate-power'
-import StackchanVoice from 'stackchanvoice'
-import { beginSpeechPlayback, type SpeechPlaybackLifecycle } from 'speech-playback-lifecycle'
-import type { SpeechCompletion, SpeechDoneListener, SpeechPlaybackListener } from 'speech-playback-types'
+import type { SpeakerSpeechPlayback, SpeechPlaybackListener } from 'speech-playback-types'
+import type { PlaybackLease, Speaker } from 'stackchan/voice/contracts'
+import { mono } from 'stackchan/voice/media'
+import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import { createStackchanVoiceTTS } from 'stackchan/voice/stackchan-voice'
 
-const OUTPUT_SAMPLE_RATE = 24000
-const BYTES_PER_SAMPLE = 2
-const FIFO_LENGTH = 64
-// ESP32 AudioOut uses 4092-byte DMA descriptors. Matching that size keeps the
-// fixed playback-power FIFO bounded even when synthesis and DMA interrupts
-// overlap, while retaining an approximately 85 ms lip-sync cadence.
-const DMA_CHUNK_SAMPLES = 2046
+type Options = { speed?: number; voice?: 'normal' | 'cute'; volume?: number }
 
-export type SpeechPlaybackOptions = {
-  onPlayed?: SpeechPlaybackListener
-  onDone?: SpeechDoneListener
-  volume?: number
-  speed?: number
-  voice?: 'normal' | 'cute'
-}
+const budget = { maxBufferedMs: 250, maxBufferedBytes: 24576 }
 
-type PCMChunk = {
-  buffer: ArrayBuffer
-  bytes: Uint8Array
-  samples: number
-}
+export class SpeechPlayback implements SpeakerSpeechPlayback {
+  readonly #tts: ReturnType<typeof createStackchanVoiceTTS>
+  readonly #volume: number
 
-export class SpeechPlayback {
-  onPlayed?: SpeechPlaybackListener
-  onDone?: SpeechDoneListener
-  streaming = false
-  readonly volume: number
-  readonly speed: number
-  readonly voice: StackchanVoice
-
-  #output?: AudioOut
-  #lifecycle?: SpeechPlaybackLifecycle
-  #generating = false
-  #draining = false
-  #freeBytes = 0
-  #pendingBytes = 0
-  #fifoHead = 0
-  #fifoTail = 0
-  #fifoCount = 0
-  readonly #fifoBytes = new Uint32Array(FIFO_LENGTH)
-  readonly #fifoPower = new Float64Array(FIFO_LENGTH)
-  readonly #chunks: PCMChunk[]
-
-  constructor(props: SpeechPlaybackOptions = {}) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
-    this.volume = props.volume ?? 0.1
-    this.speed = props.speed ?? 100
-    const preset = props.voice === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
-    this.voice = new StackchanVoice(preset, new Resource('stackchan-ja.aqd'))
-    this.#chunks = [DMA_CHUNK_SAMPLES, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1].map((samples) => {
-      const buffer = new ArrayBuffer(samples * BYTES_PER_SAMPLE)
-      return { buffer, bytes: new Uint8Array(buffer), samples }
-    })
+  constructor(options: Options = {}) {
+    this.#tts = createStackchanVoiceTTS(options)
+    this.#volume = options.volume ?? 0.1
   }
 
-  stream(text: string, volume?: number, callback?: SpeechCompletion): void {
-    this.#stream(text, false, volume, callback)
-  }
-
-  streamKoe(koe: string, volume?: number, callback?: SpeechCompletion): void {
-    this.#stream(koe, true, volume, callback)
-  }
-
-  #stream(source: string, isKoe: boolean, volume?: number, callback?: SpeechCompletion): void {
-    const lifecycle = beginSpeechPlayback(this, callback)
-    if (!lifecycle) return
-
-    try {
-      this.#resetPlayback(lifecycle)
-      if (isKoe) this.voice.koe(source, this.speed)
-      else this.voice.say(source, this.speed)
-      this.#generating = true
-
-      const output = new AudioOut({
-        sampleRate: OUTPUT_SAMPLE_RATE,
-        bitsPerSample: 16,
-        channels: 1,
-        onWritable: (size) => this.#onWritable(size),
-      })
-      output.volume = volume ?? this.volume
-      this.#output = output
-      lifecycle.addCleanup(() => {
+  playUtterance(
+    speaker: Speaker,
+    kind: 'text' | 'koe',
+    text: string,
+    volume: number | undefined,
+    onPlayed: SpeechPlaybackListener,
+  ) {
+    const scope = createVoiceScope()
+    let lease: PlaybackLease | undefined
+    const play = async () => {
+      lease = await speaker.runtime.acquirePlayback(speaker, [mono(24000)], { ...scope, budget, onPlayed })
+      try {
+        requireActive(scope.signal)
+        lease.setVolume(volume ?? this.#volume)
+        const options = { signal: scope.signal, format: lease.output.format, voice: 'default' }
+        const synthesis = kind === 'koe' ? await this.#tts.openKoe(options) : await this.#tts.open(options)
         try {
-          output.stop()
-        } finally {
-          output.close()
-          if (this.#output === output) this.#output = undefined
-          if (this.#lifecycle === lifecycle) this.#lifecycle = undefined
-        }
-      })
-      output.start()
-    } catch (error) {
-      lifecycle.fail(error)
-    }
-  }
-
-  #resetPlayback(lifecycle: SpeechPlaybackLifecycle): void {
-    this.#lifecycle = lifecycle
-    this.#generating = false
-    this.#draining = false
-    this.#freeBytes = 0
-    this.#pendingBytes = 0
-    this.#fifoHead = 0
-    this.#fifoTail = 0
-    this.#fifoCount = 0
-  }
-
-  #onWritable(size: number): void {
-    const lifecycle = this.#lifecycle
-    const output = this.#output
-    if (!lifecycle || !output || !this.streaming) return
-
-    try {
-      const writable = size - (size % BYTES_PER_SAMPLE)
-      const consumed = Math.max(0, writable - this.#freeBytes)
-      this.#reportConsumed(consumed, lifecycle)
-      this.#freeBytes = writable
-
-      if (this.#draining) {
-        if (this.#pendingBytes === 0) lifecycle.onDone()
-        return
-      }
-
-      let remaining = writable
-      while (remaining >= BYTES_PER_SAMPLE) {
-        const chunk = this.#chunkFor(remaining)
-        let power = 0
-
-        if (this.#generating) {
-          const samples = this.voice.read24(chunk.buffer)
-          if (samples === 0) {
-            this.#generating = false
-            chunk.bytes.fill(0)
-          } else {
-            if (samples < chunk.samples) {
-              chunk.bytes.fill(0, samples * BYTES_PER_SAMPLE)
-              this.#generating = false
-            }
-            power = calculatePower(chunk.buffer)
+          requireActive(scope.signal)
+          const sink = lease.output.begin('utterance', 0)
+          const link = await lease.media.connect(synthesis.output, sink, { signal: scope.signal, budget })
+          try {
+            await synthesis.write(text)
+            await synthesis.finish()
+            await link.done
+            const receipt = await lease.output.finish('utterance')
+            if (receipt.state !== 'played')
+              throw voiceError(receipt.state === 'failed' ? 'playback_failed' : 'cancelled')
+          } finally {
+            await link.close()
           }
-        } else {
-          chunk.bytes.fill(0)
+        } finally {
+          await synthesis.close()
         }
-
-        output.write(chunk.bytes)
-        this.#freeBytes -= chunk.buffer.byteLength
-        this.#enqueue(chunk.buffer.byteLength, power)
-        remaining -= chunk.buffer.byteLength
-      }
-
-      // Once synthesis ends, the rest of this writable DMA window has been
-      // zero-filled. Subsequent onWritable calls are therefore hardware
-      // progress notifications; no fixed drain delay is required.
-      if (!this.#generating) this.#draining = true
-    } catch (error) {
-      lifecycle.fail(error)
-    }
-  }
-
-  #chunkFor(byteLength: number): PCMChunk {
-    for (const chunk of this.#chunks) {
-      if (chunk.buffer.byteLength <= byteLength) return chunk
-    }
-    return this.#chunks[this.#chunks.length - 1]
-  }
-
-  #enqueue(bytes: number, power: number): void {
-    if (this.#fifoCount >= FIFO_LENGTH) throw new Error('stackchan-voice playback queue overflow')
-    this.#fifoBytes[this.#fifoTail] = bytes
-    this.#fifoPower[this.#fifoTail] = power
-    this.#fifoTail = (this.#fifoTail + 1) % FIFO_LENGTH
-    this.#fifoCount += 1
-    this.#pendingBytes += bytes
-  }
-
-  #reportConsumed(bytes: number, lifecycle: SpeechPlaybackLifecycle): void {
-    let remaining = bytes
-    let weightedPower = 0
-    let consumed = 0
-    while (remaining > 0 && this.#fifoCount > 0) {
-      const entryBytes = this.#fifoBytes[this.#fifoHead]
-      const take = Math.min(remaining, entryBytes)
-      weightedPower += this.#fifoPower[this.#fifoHead] * take
-      consumed += take
-      remaining -= take
-      this.#pendingBytes -= take
-      this.#fifoBytes[this.#fifoHead] = entryBytes - take
-      if (this.#fifoBytes[this.#fifoHead] === 0) {
-        this.#fifoHead = (this.#fifoHead + 1) % FIFO_LENGTH
-        this.#fifoCount -= 1
+      } finally {
+        await lease.close()
       }
     }
-    if (consumed > 0) lifecycle.onPower(weightedPower / consumed)
+    return {
+      done: play(),
+      cancel() {
+        if (scope.signal.aborted) return
+        scope.abort()
+        void lease?.output.fence(1).catch(() => {})
+      },
+    }
   }
 }

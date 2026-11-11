@@ -13,6 +13,8 @@ export default class StackchanVoice {
     state.constructors.push({ preset, resourceName: resource.name })
   }
 
+  setVoice(_preset: number): void {}
+
   say(text: string, speed: number): void {
     this.#finished = false
     state.says.push({ speed, text })

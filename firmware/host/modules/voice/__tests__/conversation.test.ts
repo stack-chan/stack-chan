@@ -199,7 +199,69 @@ test('device lease bounds pending audio, retains queued samples and fences stale
   await tiny.close()
 })
 
-test('CoreS3 output grants ring credit after write and drains a final partial DMA block', async () => {
+test('speaker-only lease uses the full budget, excludes capture and reports only rendered PCM', async () => {
+  const { createAudioRuntime } = await import('../pcm-device.js')
+  const { resetModules } = await import('../../testing/fakes/modules.js')
+  const { writeSink } = await import('../media.js')
+  let device: Output | undefined
+  class Output {
+    static Volume = 4
+    static Callback = 3
+    static RawSamples = 5
+    callback!: (id: number) => void
+    constructor() {
+      device = this
+    }
+    enqueue() {}
+    start() {}
+    stop() {}
+    close() {}
+  }
+  resetModules({ 'pins/audioout': Output })
+  let releases = 0
+  const runtime = createAudioRuntime({
+    acquireExclusive: () => () => {
+      releases++
+    },
+  })
+  const scope = createVoiceScope()
+  const smallBudget = { maxBufferedMs: 1, maxBufferedBytes: 8 }
+  const powers: number[] = []
+  const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
+    ...scope,
+    budget: smallBudget,
+    onPlayed(power) {
+      powers.push(power)
+    },
+  })
+  assert.equal('input' in lease, false)
+  await assert.rejects(
+    runtime.acquire(
+      runtime.microphone,
+      runtime.speaker,
+      { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
+      { ...scope, budget },
+    ),
+    /device_busy/,
+  )
+  const writer = lease.output.begin('speech', 0)
+  await writeSink(writer, Uint8Array.of(0, 128, 0, 128, 0, 0, 0, 0))
+  assert.deepEqual(powers, [])
+  assert.ok(device)
+  device.callback(1)
+  assert.deepEqual(powers, [32768])
+  const blocked = writeSink(writer, new Uint8Array(8))
+  scope.abort()
+  await assert.rejects(blocked, /cancelled/)
+  await lease.close()
+  device.callback(2)
+  assert.deepEqual(powers, [32768])
+  assert.equal(releases, 1)
+  const again = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], { ...createVoiceScope(), budget })
+  await again.close()
+})
+
+async function coreS3Output() {
   const hook = registerHooks({
     resolve(specifier, context, next) {
       if (specifier === 'embedded:io/audio/out')
@@ -207,8 +269,15 @@ test('CoreS3 output grants ring credit after write and drains a final partial DM
       return next(specifier, context)
     },
   })
-  const driver = await import('../cores3-pcm-output.js')
-  hook.deregister()
+  try {
+    return await import('../cores3-pcm-output.js')
+  } finally {
+    hook.deregister()
+  }
+}
+
+test('CoreS3 output grants ring credit after write and drains a final partial DMA block', async () => {
+  const driver = await coreS3Output()
   const { resetModules } = await import('../../testing/fakes/modules.js')
   const { getAudioOutInstances } = await import('../../testing/fakes/audio-out.js')
   const { createAudioRuntime } = await import('../pcm-device.js')
@@ -283,6 +352,45 @@ test('CoreS3 output grants ring credit after write and drains a final partial DM
     else delete platform.amp
     await lease.close()
   }
+})
+
+test('CoreS3 speaker-only power follows confirmed blocks and the drained tail', async () => {
+  const { resetModules } = await import('../../testing/fakes/modules.js')
+  const { getAudioOutInstances } = await import('../../testing/fakes/audio-out.js')
+  const { createAudioRuntime } = await import('../pcm-device.js')
+  const { writeSink } = await import('../media.js')
+  const driver = await coreS3Output()
+  resetModules({ 'stackchan/voice/cores3-pcm-output': driver })
+  const runtime = createAudioRuntime({ acquireExclusive: () => () => {} })
+  const powers: number[] = []
+  const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
+    ...createVoiceScope(),
+    budget,
+    onPlayed(power) {
+      powers.push(power)
+    },
+  })
+  const writer = lease.output.begin('speech', 0)
+  const credit = getAudioOutInstances().at(-1)?.options.onWritable
+  assert.ok(credit)
+  credit(10240)
+  const pcm = new Int16Array(2049).fill(-10000)
+  pcm[2048] = 32767
+  await writeSink(writer, new Uint8Array(pcm.buffer))
+  pcm.fill(0)
+  assert.deepEqual(powers, [])
+  credit(10240)
+  assert.deepEqual(powers, [10000])
+  const done = lease.output.finish('speech')
+  await tick()
+  credit(10240)
+  await tick()
+  credit(10240)
+  await tick()
+  credit(10240)
+  assert.deepEqual((await done).position, { basis: 'estimate', sampleRate: 24000, renderedFrames: 2049 })
+  assert.deepEqual(powers, [10000, 10000, 32767])
+  await lease.close()
 })
 
 test('button utterance carries pre-roll into STT and plays synthesized PCM through the borrowed sink', async () => {

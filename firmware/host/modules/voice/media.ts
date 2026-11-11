@@ -179,3 +179,13 @@ export const pcmMedia: MediaRuntime = {
     }
   },
 }
+
+export function pcmEnergy(bytes: Uint8Array, offset = 0, size = bytes.byteLength): number {
+  let sum = 0
+  const end = offset + size
+  for (let index = offset; index < end; index += 2) {
+    const sample = ((bytes[index] | (bytes[index + 1] << 8)) << 16) >> 16
+    sum += sample * sample
+  }
+  return sum
+}

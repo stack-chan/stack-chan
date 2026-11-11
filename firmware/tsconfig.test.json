@@ -11,6 +11,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
+      "Resource": ["./host/modules/audio/__tests__/stackchan-voice-device/resource-stub.ts"],
+      "stackchanvoice": ["./typings/stackchanvoice.d.ts"],
       "stackchan-ai-*": ["./host/modules/ai/ai-*.ts"],
       "realtimeConversation/http-core": ["./host/modules/realtime-conversation/http-core.js"],
       "stackchanChatWorkerSession": ["./host/modules/conversation/chat-audioio/worker-session.js"],

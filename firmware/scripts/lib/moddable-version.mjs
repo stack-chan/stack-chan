@@ -9,7 +9,7 @@ export const coreS3SdkconfigSourceDirectory = path.resolve(
   libraryDirectory,
   '../../host/modules/audio/platforms/m5stackchan-cores3/sdkconfig',
 )
-export const STACKCHAN_HOST_API_VERSION = 3
+export const STACKCHAN_HOST_API_VERSION = 4
 
 /**
  * Reads the Moddable SDK version that must be exposed through esp_app_desc.

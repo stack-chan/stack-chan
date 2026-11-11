@@ -6,7 +6,7 @@ PodcastのRSS、アート、一時停止・再開、シークは既存実装を�
 
 ## 設定とビルド
 
-リポジトリ内の `firmware/mods/examples/podcast/config.ts` で番組を、`firmware/mods/examples/web_radio/config.ts` で局を設定します。Galleryの `mod/` はこれらの公開ソースのコピーです。ビルドにはリポジトリのホスト用フォント・型定義とModdable SDK 10.0.2が必要です。
+リポジトリ内の `firmware/mods/examples/podcast/config.ts` で番組を、`firmware/mods/examples/web_radio/config.ts` で局を設定します。Galleryの `mod/` はこれらの公開ソースのコピーです。ビルドにはリポジトリのホスト用フォント・型定義とModdable SDK 10.1.0が必要です。
 
 `firmware/` でビルドします。次のコマンドは実機へ書き込みません。
 
@@ -16,7 +16,7 @@ npm run mod:build -- mods/examples/media_player/manifest.json --mode=release
 node mods/examples/media_player/sync-gallery.mjs
 ```
 
-共有音量の`audio.volume`に対応したホストAPI 2以上（ファームウェア版の末尾が`+stackchan.2`以上）が必要です。GalleryはAPI 0・1のホストへの書き込みを事前に拒否し、更新を案内します。CLIなどで古いホストへ直接書き込んだ場合も、起動時に更新案内を表示します。MOD単体でホストやWi-Fi、認証情報を設定することはありません。
+再生セッションに対応したホストAPI 4以上が必要です。ファームウェア版の末尾は `+stackchan.4` 以上になります。Galleryは `audio.media` の要件から対応を判定し、API 0〜3のホストには更新を案内します。ホストとMODを併せて更新してください。
 
 中国語用ビットマップフォントはNoto Sans CJK SC 2.004由来で、SIL Open Font License 1.1です。Galleryでは `LICENSE.font.txt` を同梱します。ソースと変換方法はリポジトリの `firmware/host/modules/ui/assets/fonts/StackchanCJK-Regular.README.md` に記載しています。
 

@@ -192,7 +192,11 @@ export class StackchanRuntimeAudio {
   }
 
   #onPlayed = (power: number) => {
-    this.#options.onMouthOpenChanged?.(Math.min(power / 2000, 1))
+    try {
+      this.#options.onMouthOpenChanged?.(Math.min(power / 2000, 1))
+    } catch {
+      // Face updates must preserve the speaker's playback result.
+    }
   }
 
   say(text: string, volume?: number) {

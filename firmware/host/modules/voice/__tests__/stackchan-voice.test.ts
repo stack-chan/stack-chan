@@ -82,6 +82,7 @@ test('StackchanVoice buffers one native block until accepted and tracks complete
 })
 
 test('StackchanVoice rejects incompatible formats, truncated Koe and invalid native frame counts', async () => {
+  assert.throws(() => createStackchanVoiceTTS({ speed: 0 }), RangeError)
   const tts = createStackchanVoiceTTS()
   const args = { ...createVoiceScope(), voice: 'normal', format: mono(24000) }
   await assert.rejects(tts.open({ ...args, format: mono(16000) }), { code: 'unsupported_capability' })

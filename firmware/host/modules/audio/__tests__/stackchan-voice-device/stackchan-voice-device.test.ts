@@ -61,6 +61,17 @@ async function run() {
   equal(drains, 2)
   equal(closes, 2)
   equal(levels, 2000)
+  equal(state.constructors[0].preset, 1)
+
+  const savedVoice = new SpeechPlayback({ speed: 0, voice: 'alloy' })
+  await savedVoice.playUtterance(speaker, 'text', 'こんにちは', undefined, onPlayed).done
+  equal(state.constructors[1].preset, 0)
+  equal(state.says[1].speed, 100)
+
+  const emptyVoice = new SpeechPlayback({ speed: 65537.5, voice: '' })
+  await emptyVoice.playUtterance(speaker, 'koe', 'ki', undefined, onPlayed).done
+  equal(state.constructors[2].preset, 0)
+  equal(state.koes[1].speed, 1)
 }
 run().then(
   () => trace('@@STACKCHAN_TEST:PASS@@\n'),

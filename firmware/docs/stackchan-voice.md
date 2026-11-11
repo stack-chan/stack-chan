@@ -14,6 +14,8 @@ result as the conversation's `tts`. Choose `normal` or `cute` as the voice, or
 utterance and exposes 24 kHz, 16-bit mono PCM through `output`. Connect the
 output before calling `finish()`. Standalone MODs can use `audio.say(text)`
 and `audio.sing(koe)`, both of which wait for speaker playback to finish.
+CoreS3 MODs that called the local player's `stream()` or `streamKoe()`
+directly should call `audio.say()` or `audio.sing()` and await the result.
 
 Select it with these preferences:
 

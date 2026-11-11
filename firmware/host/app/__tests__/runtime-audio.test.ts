@@ -596,3 +596,42 @@ test('shutdown waits for standalone speech and propagates a speaker teardown fai
   await assert.rejects(closing, /speaker close failed/)
   assert.equal((await speech).success, false)
 })
+
+test('standalone lip sync preserves playback success and the original speaker error', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const levels: number[] = []
+  const runtime = new StackchanRuntimeAudio(
+    {
+      speechPlayback: {
+        playUtterance(_speaker, kind, _text, _gain, onPlayed) {
+          onPlayed(1000)
+          return {
+            done: kind === 'text' ? Promise.resolve() : Promise.reject(new Error('speaker close failed')),
+            cancel() {},
+          }
+        },
+      },
+    },
+    {
+      getVoiceSpeaker: () => ({
+        id: 'speaker',
+        runtime: {
+          async acquire() {
+            throw new Error('unused')
+          },
+          async acquirePlayback() {
+            throw new Error('unused')
+          },
+        },
+      }),
+      onMouthOpenChanged(level) {
+        levels.push(level)
+        if (level === 0) throw new Error('face update failed')
+      },
+    },
+  )
+  assert.deepEqual(await runtime.say('hello'), { success: true, value: 'hello' })
+  assert.deepEqual(await runtime.sing('a'), { success: false, reason: 'Error: speaker close failed' })
+  assert.deepEqual(levels, [0.5, 0, 0.5, 0])
+})

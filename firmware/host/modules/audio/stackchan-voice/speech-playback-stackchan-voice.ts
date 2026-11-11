@@ -4,7 +4,7 @@ import { mono } from 'stackchan/voice/media'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
 import { createStackchanVoiceTTS } from 'stackchan/voice/stackchan-voice'
 
-type Options = { speed?: number; voice?: 'normal' | 'cute'; volume?: number }
+type Options = { speed?: number; voice?: string; volume?: number }
 
 const budget = { maxBufferedMs: 250, maxBufferedBytes: 24576 }
 
@@ -13,7 +13,9 @@ export class SpeechPlayback implements SpeakerSpeechPlayback {
   readonly #volume: number
 
   constructor(options: Options = {}) {
-    this.#tts = createStackchanVoiceTTS(options)
+    // The native engine read saved speeds as uint16_t and used 100 for zero.
+    const speed = ((options.speed ?? 100) & 0xffff) || 100
+    this.#tts = createStackchanVoiceTTS({ speed, voice: options.voice === 'cute' ? 'cute' : 'normal' })
     this.#volume = options.volume ?? 0.1
   }
 

@@ -107,10 +107,16 @@ test('StackchanVoice yields between bounded batches even without backpressure', 
   Date.now = () => elapsed
   native.frames = 40 * 1024
   try {
-    for (const mode of ['no-reader', 'immediate-promise', 'slow-reader']) {
+    for (const mode of ['no-reader', 'immediate-promise', 'busy-microtask', 'slow-reader']) {
       const scope = createVoiceScope()
       const synthesis = await createStackchanVoiceTTS().open({ ...scope, voice: 'normal', format: mono(24000) })
       if (mode === 'immediate-promise') readSource(synthesis.output, () => Promise.resolve())
+      if (mode === 'busy-microtask')
+        readSource(synthesis.output, () =>
+          Promise.resolve().then(() => {
+            elapsed += 12
+          }),
+        )
       if (mode === 'slow-reader')
         readSource(synthesis.output, () => {
           elapsed += 12

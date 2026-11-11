@@ -65,10 +65,7 @@ export function createStackchanVoiceTTS(
             const waiting = Date.now()
             await pending
             if (ended) return
-            if (Date.now() - waiting >= 8) {
-              started = Date.now()
-              blocks = 0
-            }
+            if (Date.now() - waiting >= 8) started = Date.now()
           }
           if (ended) return
           if (last) return end()

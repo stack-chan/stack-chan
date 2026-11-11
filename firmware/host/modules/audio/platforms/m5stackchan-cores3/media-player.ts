@@ -76,6 +76,7 @@ class StreamSession {
   #volume = MAX_MEDIA_VOLUME
   #stopped = true
   #hasPlayed = false
+  #networkRetrying = false
   #position = 0
   #base = 0
   #duration: number | undefined
@@ -214,6 +215,7 @@ class StreamSession {
     this.#base = this.#position
     const generation = ++this.#generation
     this.#hasPlayed = false
+    this.#networkRetrying = false
     try {
       await this.#closing
       if (!this.#isCurrent(generation)) return
@@ -255,6 +257,11 @@ class StreamSession {
             this.#points = []
             this.#pointSpacing = 5
           }
+          if (this.#networkRetrying) {
+            this.#networkRetrying = false
+            const readyState = this.#stallTimer === undefined ? 'playing' : 'stalled'
+            this.#setState(this.#hasPlayed ? readyState : 'buffering')
+          }
         },
         onCheckpoint: (point) => {
           if (!this.#isCurrent(generation)) return
@@ -284,6 +291,11 @@ class StreamSession {
         onReady: (ready) => this.#onReady(generation, ready),
         onPlayed: () => this.#onPlayed(generation),
         onError: (reason) => this.#fail(generation, String(reason)),
+        onRetry: (reason) => {
+          if (!this.#isCurrent(generation)) return
+          this.#networkRetrying = true
+          this.#setState('retrying', reason)
+        },
         onDone: () => this.#onDone(generation),
       })
       if (this.#isCurrent(generation)) session.streamer = streamer
@@ -322,7 +334,7 @@ class StreamSession {
     this.#clearStallTimer()
     if (ready) {
       this.#backoffIndex = 0
-      this.#setState('buffering')
+      if (!this.#networkRetrying) this.#setState('buffering')
       if (!this.#isCurrent(generation)) return
       try {
         this.#session?.audio.start()
@@ -335,7 +347,7 @@ class StreamSession {
     // The onWritable completion means that a buffer has entered I2S/DMA, not
     // that the speaker has played it. Keep AudioOut running so an underrun does
     // not discard audio that is still resident in DMA.
-    this.#setState(this.#hasPlayed ? 'stalled' : 'buffering')
+    if (!this.#networkRetrying) this.#setState(this.#hasPlayed ? 'stalled' : 'buffering')
     if (!this.#isCurrent(generation)) return
     this.#stallTimer = Timer.set(() => this.#fail(generation, 'stream stalled'), STALL_TIMEOUT_MS)
   }
@@ -343,7 +355,7 @@ class StreamSession {
   #onPlayed(generation: number): void {
     if (!this.#isCurrent(generation)) return
     this.#hasPlayed = true
-    this.#setState('playing')
+    if (!this.#networkRetrying) this.#setState('playing')
   }
 
   #fail(generation: number, reason: string): void {

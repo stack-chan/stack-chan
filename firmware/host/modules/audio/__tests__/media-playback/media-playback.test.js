@@ -532,6 +532,77 @@ async function runTests() {
     equal(replacement.messages[0].seekSeconds, 0, 'live reconnect must not discard previously played time')
     await player.stop()
   }
+  // HTTP retries retain the decoder and both rings while notifying the public session.
+  {
+    const player = new MediaPlayer(getSpeaker)
+    const states = []
+    const session = await player.open(
+      { url: 'http://example.test/live', mode: 'live' },
+      { ...createVoiceScope(), onStateChanged: (state, reason) => states.push({ state, reason }) },
+    )
+    tick()
+    const worker = workers.at(-1)
+    const workerCount = workers.length
+    const config = worker.messages[0]
+    const input = new SharedByteRing(config.input.data, config.input.state)
+    const output = new SharedByteRing(config.output.data, config.output.state)
+    lastClient().headers(503)
+    equal(session.state, 'retrying')
+    assert(states.at(-1).reason.includes('503'))
+    worker.send({ id: 'ready', value: true })
+    equal(session.state, 'retrying', 'decoder readiness cannot hide a pending HTTP retry')
+    Timer.advance(250)
+    const connected = lastClient()
+    connected.headers(200, { 'transfer-encoding': 'chunked' })
+    equal(session.state, 'buffering')
+    put(output, new Uint8Array(4096))
+    worker.send({ id: 'output' })
+    equal(session.state, 'playing')
+    const driver = outputs.at(-1)
+    connected.data(frame())
+    const buffered = input.readableBytes
+    assert(buffered > 0)
+    connected.done(new Error('network lost'))
+    equal(session.state, 'retrying')
+    put(output, new Uint8Array(4096))
+    worker.send({ id: 'output' })
+    equal(session.state, 'retrying', 'buffered audio may play while the transport reconnects')
+    worker.send({ id: 'ready', value: false })
+    equal(session.state, 'retrying')
+    Timer.advance(250)
+    lastClient().headers(200, { 'transfer-encoding': 'chunked' })
+    equal(session.state, 'stalled', 'connection recovery still waits for PCM after underrun')
+    equal(input.readableBytes, buffered, 'HTTP recovery preserves compressed input')
+    equal(workers.length, workerCount, 'HTTP recovery keeps the existing decoder')
+    equal(outputs.at(-1), driver, 'HTTP recovery keeps the speaker')
+    worker.send({ id: 'ready', value: true })
+    put(output, new Uint8Array(1024))
+    worker.send({ id: 'output' })
+    equal(session.state, 'playing')
+    equal(states.filter(({ state }) => state === 'retrying').length, 2)
+    await session.stop()
+    equal(await session.done, 'stopped')
+  }
+  {
+    const player = new MediaPlayer(getSpeaker)
+    let stopping
+    const session = await player.open(
+      { url: 'http://example.test/live', mode: 'live' },
+      {
+        ...createVoiceScope(),
+        onStateChanged: (state) => {
+          if (state === 'retrying') stopping = session.stop()
+        },
+      },
+    )
+    tick()
+    const count = clients.length
+    lastClient().headers(503)
+    await stopping
+    Timer.advance(30000)
+    equal(clients.length, count, 'stop inside retry notification cancels the scheduled connection')
+    equal(await session.done, 'stopped')
+  }
   // Replacing playback from a state callback opens only the replacement session.
   {
     const player = new MediaPlayer(getSpeaker)

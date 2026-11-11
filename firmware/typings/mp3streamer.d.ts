@@ -24,6 +24,7 @@ declare module "mp3streamer" {
     onPlayed?: (buffer: ArrayBuffer) => void
     onReady?: (state: boolean) => void
     onError?: (message: string) => void
+    onRetry?: (reason: string) => void
     onDone?: () => void
   }
   export default class MP3Streamer {

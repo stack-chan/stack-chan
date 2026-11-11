@@ -34,6 +34,7 @@ export default class {
     if (options.onPlayed) this.#callbacks.onPlayed = options.onPlayed
     if (options.onReady) this.#callbacks.onReady = options.onReady
     if (options.onError) this.#callbacks.onError = options.onError
+    if (options.onRetry) this.#callbacks.onRetry = options.onRetry
     if (options.onDone) this.#callbacks.onDone = options.onDone
     for (const name of ['onMetadata', 'onCheckpoint', 'onOutputStart', 'onSource'])
       this.#callbacks[name] = options[name]
@@ -146,6 +147,7 @@ export default class {
             throw new Error('Media changed while seeking')
           const source = { url, totalBytes: info.totalBytes, validator: info.validator }
           this.#callbacks.onSource?.(source, this.#seek.offset > 0 && info.start === 0)
+          if (this.#closed || generation !== this.#networkGeneration) return
           if (this.#finite)
             this.#worker.postMessage({
               id: 'source',
@@ -207,6 +209,7 @@ export default class {
     this.#closeNetwork(false)
     trace(`[web-radio-network] reconnect reason=${reason} delay=${delay}ms buffered=${buffered}\n`)
     this.#networkReconnectTimer = Timer.set(() => this.#openNetwork(), delay)
+    this.#callbacks.onRetry?.call(this, reason)
   }
 
   #closeNetwork(clearReconnect = true) {

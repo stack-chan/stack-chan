@@ -64,6 +64,17 @@ async function run() {
   await train.write('電車')
   await train.finish()
   equal(Native.lastKana, 'でんしゃ')
+  const invalidReader = createSanoTTS({ toKana: () => ({ includes: () => false }) as unknown as string })
+  const invalidReading = await invalidReader.open({ ...args, ...createVoiceScope() })
+  await invalidReading.write('あ')
+  equal(
+    await invalidReading.finish().then(
+      () => false,
+      (cause) => cause instanceof TypeError,
+    ),
+    true,
+  )
+  equal(Native.active, 0)
   for (const action of ['close', 'abort']) {
     const stopping = createVoiceScope()
     const provider = createSanoTTS({

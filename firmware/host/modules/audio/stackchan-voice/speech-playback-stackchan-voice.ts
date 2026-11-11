@@ -14,7 +14,7 @@ export class SpeechPlayback implements SpeakerSpeechPlayback {
 
   constructor(options: Options = {}) {
     // The native engine read saved speeds as uint16_t and used 100 for zero.
-    const speed = ((options.speed ?? 100) & 0xffff) || 100
+    const speed = (options.speed ?? 100) & 0xffff || 100
     this.#tts = createStackchanVoiceTTS({ speed, voice: options.voice === 'cute' ? 'cute' : 'normal' })
     this.#volume = options.volume ?? 0.1
   }

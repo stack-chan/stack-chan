@@ -20,7 +20,7 @@ export type ResponseConnection = {
 export interface ResponsePlatform<T> {
   path: string
   extraHeaders?: Readonly<Record<string, string>>
-  connect(onError: () => void): ResponseConnection
+  connect(onError: (error?: unknown) => void): ResponseConnection
   schedule(task: () => void, ms: number): T
   clear(timer: T): void
 }
@@ -30,7 +30,7 @@ export function streamResponse<T>(
   timeoutMs: number,
   maxPendingBytes: number,
 ): SendResponseRequest {
-  return (body, consume, scope) =>
+  return (body, consume, scope, isComplete) =>
     new Promise((resolve, reject) => {
       checkScope(scope)
       let client: ResponseConnection | undefined
@@ -44,6 +44,8 @@ export function streamResponse<T>(
         queued = 0,
         status = 0
       let drain = Promise.resolve()
+      let bodyReceived = false
+      let connectionError: unknown
       let bytes: Uint8Array = new Uint8Array(0)
       let offset = 0
       const chunks = body.read()[Symbol.iterator]()
@@ -63,9 +65,27 @@ export function streamResponse<T>(
           else resolve()
         }, 0)
       }
+      function end(error?: unknown) {
+        if (finished) return
+        if (error) connectionError = error
+        else bodyReceived = true
+        // SDKがソケットの切断を知らせた時点では、最後のSSEイベントが解析待ちの場合がある。
+        void drain.then(() => {
+          if (bodyReceived || isComplete?.()) finish()
+          else finish(connectionError)
+        })
+      }
       try {
         scope.signal.addEventListener('abort', abort)
-        client = platform.connect(() => finish(failure('provider_failed', 'Responses connection failed')))
+        client = platform.connect((error) => {
+          const reason = error instanceof Error ? error.message : undefined
+          end(
+            failure(
+              'provider_failed',
+              reason ? `Responses connection failed: ${reason}` : 'Responses connection failed',
+            ),
+          )
+        })
         const headers = new Map<string, string>([
           ['content-type', 'application/json'],
           ['accept', 'text/event-stream'],
@@ -112,7 +132,10 @@ export function streamResponse<T>(
               pending += count
               drain = drain
                 .then(async () => {
-                  if (!finished) await consume(new Uint8Array(data))
+                  if (!finished) {
+                    await consume(new Uint8Array(data))
+                    if (isComplete?.()) finish()
+                  }
                   queued--
                   pending -= count
                 })
@@ -122,8 +145,7 @@ export function streamResponse<T>(
             }
           },
           onDone(error) {
-            if (error || !status) finish(failure('provider_failed', 'Responses connection closed early'))
-            else void drain.then(() => finish())
+            end(error || !status ? failure('provider_failed', 'Responses connection closed early') : undefined)
           },
         })
       } catch (error) {

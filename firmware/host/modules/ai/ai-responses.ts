@@ -142,7 +142,7 @@ export function createResponsesLLM(options: {
             )
         }
       })
-      await send(body, receive, scope)
+      await send(body, receive, scope, () => result !== undefined)
       checkScope(scope)
       if (!result) throw failure('provider_failed', 'response ended before completion')
       return result

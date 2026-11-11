@@ -371,10 +371,8 @@ void liveAudioDetach(LiveAudio *a)
 void liveAudioStop(LiveAudio *a)
 {
 	if (!a) return;
-  bool first = !atomic_exchange(&a->stopping, true);
+	atomic_store(&a->stopping, true);
 	atomic_store(&a->reading, false);
-  // A renderer without a decoded frame has no render task to flush.
-  if (first && a->player && atomic_load(&a->rendered)) av_render_flush(a->player);
 }
 void liveAudioClose(LiveAudio *a)
 {

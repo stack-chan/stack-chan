@@ -288,11 +288,13 @@ test('Vision releases the borrowed frame after success and a provider error', as
 
 function httpFixture(maxBytes: number) {
   let handlers!: Parameters<ResponseConnection['request']>[0]
+  let disconnect!: (error?: unknown) => void
   let closes = 0
   const transport = streamResponse(
     {
       path: '/v1/responses',
-      connect() {
+      connect(onError) {
+        disconnect = onError
         return {
           request(options) {
             handlers = options
@@ -311,6 +313,9 @@ function httpFixture(maxBytes: number) {
   )
   return {
     transport,
+    disconnect(error?: unknown) {
+      disconnect(error)
+    },
     get handlers() {
       return handlers
     },
@@ -319,6 +324,24 @@ function httpFixture(maxBytes: number) {
     },
   }
 }
+
+test('Responses drains final SSE on socket close and rejects a stream containing only deltas', async () => {
+  for (const withFinal of [false, true]) {
+    const io = httpFixture(2048)
+    const model = createResponsesLLM({ model: 'test', provider: 'test', send: io.transport })
+    const pending = model.createResponse({ input: [] }, createVoiceScope())
+    const events: object[] = [{ type: 'response.output_text.delta', item_id: 'message', delta: 'はい' }]
+    if (withFinal) events.push({ type: 'response.completed', response: result })
+    const bytes = ArrayBuffer.fromString(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''))
+    io.handlers.onHeaders(200)
+    io.handlers.onReadable.call({ read: () => bytes, write: () => 0 }, bytes.byteLength)
+    io.handlers.onDone(new Error())
+    io.disconnect(new Error('socket reset'))
+    if (withFinal) assert.equal((await pending).status, 'completed')
+    else await assert.rejects(pending, /socket reset/)
+    assert.equal(io.closes, 1)
+  }
+})
 
 test('HTTP drains accepted response callbacks and honors each writable credit returned by the socket', async () => {
   const io = httpFixture(1024)

@@ -1,3 +1,4 @@
+import { createMultipartUpload, type MultipartPart } from 'whisper-multipart'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
@@ -19,64 +20,10 @@ type AudioBufferMetadata = {
   filename?: string
 }
 
-type MultipartPart = ArrayBuffer | HostBuffer | Uint8Array
-
-type MultipartWriteState = {
-  partIndex: number
-  offset: number
-  ended: boolean
-}
-
 type MultipartResponse = {
   status: number
   statusText?: string
   body: ArrayBuffer
-}
-
-function multipartContentLength(parts: MultipartPart[]): number {
-  let length = 0
-  for (const part of parts) {
-    length += part.byteLength
-  }
-  return length
-}
-
-function partView(part: MultipartPart, offset: number, byteLength: number): MultipartPart | DataView {
-  if (offset === 0 && byteLength === part.byteLength) {
-    return part
-  }
-  if (ArrayBuffer.isView(part)) return new DataView(part.buffer, part.byteOffset + offset, byteLength)
-  return new DataView(part as ArrayBuffer, offset, byteLength)
-}
-
-function writeMultipartChunk(
-  writer: { write(chunk?: MultipartPart | DataView): void },
-  parts: MultipartPart[],
-  state: MultipartWriteState,
-  count: number,
-): void {
-  if (state.ended) return
-
-  while (count > 0 && state.partIndex < parts.length) {
-    const part = parts[state.partIndex]
-    const remaining = part.byteLength - state.offset
-    if (remaining <= 0) {
-      state.partIndex += 1
-      state.offset = 0
-      continue
-    }
-
-    const byteLength = count < remaining ? count : remaining
-    writer.write(partView(part, state.offset, byteLength))
-    count -= byteLength
-    state.offset += byteLength
-    if (state.offset >= part.byteLength) {
-      state.partIndex += 1
-      state.offset = 0
-    }
-  }
-
-  state.ended = state.partIndex === parts.length
 }
 
 /** Post multipart audio using the HTTPS provider and collect the transcription response. */
@@ -90,14 +37,14 @@ function postMultipart(
     const endpoint = new URL(url)
     const path = `${endpoint.pathname}${endpoint.search}`
     const uploadHeaders = new Headers(headers)
-    uploadHeaders.set('content-length', String(multipartContentLength(parts)))
+    const upload = createMultipartUpload(parts)
+    uploadHeaders.set('content-length', String(upload.byteLength))
 
     let client: HTTPClient | undefined
     let responseStatus = 0
     let responseStatusText: string | undefined
     let responseBody: ArrayBuffer | undefined
     let settled = false
-    const writeState: MultipartWriteState = { partIndex: 0, offset: 0, ended: false }
 
     let deadline: ReturnType<typeof Timer.set>
     const abort = () => fail(signal?.reason ?? new Error('cancelled'))
@@ -151,7 +98,12 @@ function postMultipart(
           responseStatusText = statusText
         },
         onWritable(count) {
-          writeMultipartChunk(this, parts, writeState, count)
+          if (settled) return
+          try {
+            upload.write(this, count)
+          } catch (error) {
+            fail(error)
+          }
         },
         onReadable(count) {
           if (count === 0 || settled) return
@@ -170,7 +122,10 @@ function postMultipart(
         },
         onDone(error) {
           if (error) {
-            fail(error)
+            // SDKはリクエストのonDoneを呼んだ後に、DNSやTLSの失敗理由をクライアントのonErrorに渡す。
+            void Promise.resolve().then(() =>
+              fail(error.message ? error : new Error('transcription connection closed')),
+            )
           } else {
             succeed()
           }
@@ -223,7 +178,12 @@ export default class STT {
       )
 
       if (response.status !== 200) {
-        return { success: false, reason: `request error: ${response.status}(${response.statusText})` }
+        let reason = response.statusText ?? 'request failed'
+        try {
+          const code = JSON.parse(String.fromArrayBuffer(response.body))?.error?.code
+          if (typeof code === 'string' && /^[a-z0-9_]{1,64}$/.test(code)) reason = code
+        } catch {}
+        return { success: false, reason: `transcription HTTP ${response.status}: ${reason}` }
       }
 
       const obj = JSON.parse(String.fromArrayBuffer(response.body))
@@ -233,7 +193,7 @@ export default class STT {
         value: obj.text,
       }
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
+      const reason = error instanceof Error ? error.message || error.name : String(error)
       return { success: false, reason: `Exception occurred: ${reason}` }
     }
   }

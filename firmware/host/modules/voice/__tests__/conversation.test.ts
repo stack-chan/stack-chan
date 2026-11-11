@@ -145,7 +145,10 @@ test('device lease bounds pending audio, retains queued samples and fences stale
   await writeSink(writer, packet)
   packet[0] = 9
   await writeSink(writer, packet)
-  assert.deepEqual([...output.buffers[0]], [1, 2])
+  assert.equal(output.buffers.length, 0)
+  timer.advance(20)
+  assert.deepEqual([...output.buffers[0]], [1, 2, 9, 2])
+  await writeSink(writer, new Uint8Array(2048))
   let thirdAccepted = false
   const third = writeSink(writer, packet).then(() => {
     thirdAccepted = true
@@ -155,14 +158,34 @@ test('device lease bounds pending audio, retains queued samples and fences stale
   output.callback(1)
   await third
   const pending = lease.output.finish('one')
+  assert.deepEqual([...output.buffers[2]], [9, 2])
   const [cut] = await lease.output.fence(1)
   assert.deepEqual(await pending, cut)
-  assert.deepEqual(cut.position, { basis: 'estimate', sampleRate: 24000, renderedFrames: 1 })
+  assert.deepEqual(cut.position, { basis: 'estimate', sampleRate: 24000, renderedFrames: 2 })
   assert.equal(inputs, 1)
   assert.ok(output.closed)
   await assert.rejects(writeSink(writer, packet))
+  const partial = lease.output.begin('two', 1)
+  await writeSink(partial, packet)
+  const oldOutput = output
+  await lease.output.fence(2)
+  timer.advance(100)
+  assert.equal(oldOutput.buffers.length, 0)
   await lease.close()
   assert.deepEqual([inputs, reserved], [0, false])
+
+  const tiny = await runtime.acquire(
+    runtime.microphone,
+    runtime.speaker,
+    { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
+    { ...createVoiceScope(), budget: { maxBufferedMs: 1, maxBufferedBytes: 48 } },
+  )
+  await writeSink(tiny.output.begin('short', 0), packet)
+  assert.deepEqual([...output.buffers[0]], [...packet])
+  const drained = tiny.output.finish('short')
+  output.callback(1)
+  assert.equal((await drained).state, 'played')
+  await tiny.close()
 })
 
 test('button utterance carries pre-roll into STT and plays synthesized PCM through the borrowed sink', async () => {

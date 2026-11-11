@@ -4,6 +4,7 @@ import type { AudioSink, DuplexLease, PcmFormat, PlaybackReceipt } from 'stackch
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
+import Timer from 'timer'
 
 export function createAudioRuntime(options: RuntimeOptions) {
   return bindAudioRuntime(options, openPcmLease)
@@ -40,6 +41,8 @@ type OutputSegment = {
   generation: number
   frames: number
   lengths: number[]
+  flush(): void
+  flushTimer?: ReturnType<typeof Timer.set>
   wake?: ReturnType<typeof deferred<void>>
   writing: boolean
   sealed: boolean
@@ -76,6 +79,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     generation = 0
   const slotBytes = Math.min(2048, Math.floor(outputLimit / 4) * 2)
   if (slotBytes < 2) throw voiceError('resource_exhausted', 'output requires two PCM slots')
+  const flushDelayMs = Math.min(12, Math.floor((slotBytes * 500) / outputFormat.sampleRate))
   const slotsOut = [new SharedArrayBuffer(slotBytes), new SharedArrayBuffer(slotBytes)]
   let active: OutputSegment | undefined
   function wake(item: OutputSegment) {
@@ -152,6 +156,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     const item = active
     if (!item) return
     active = undefined
+    if (item.flushTimer !== undefined) Timer.clear(item.flushTimer)
     try {
       out?.stop()
     } finally {
@@ -182,11 +187,27 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     try {
       out = new AudioOut({ streams: 1, sampleRate: outputFormat.sampleRate, bitsPerSample: 16, numChannels: 1 })
       const driver = out
+      let stagedSlot = -1
+      let stagedBytes = 0
       const item: OutputSegment = {
         id,
         generation,
         frames: 0,
         lengths: [0, 0],
+        flush() {
+          if (item.flushTimer !== undefined) {
+            Timer.clear(item.flushTimer)
+            item.flushTimer = undefined
+          }
+          if (!stagedBytes) return
+          const slot = stagedSlot
+          const size = stagedBytes
+          stagedSlot = -1
+          stagedBytes = 0
+          item.lengths[slot] = size
+          driver.enqueue(0, AudioOut.RawSamples, slotsOut[slot] as unknown as HostBuffer, 1, 0, size / 2)
+          driver.enqueue(0, AudioOut.Callback, slot + 1)
+        },
         writing: false,
         sealed: false,
       }
@@ -209,18 +230,29 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
           let offset = 0
           while (offset < bytes.length) {
             if (active !== item) throw voiceError('cancelled')
-            const slot = item.lengths.indexOf(0)
+            const slot = stagedSlot < 0 ? item.lengths.indexOf(0) : stagedSlot
             if (slot < 0) {
               await progress(item)
               continue
             }
-            const size = Math.min(slotBytes, bytes.length - offset)
-            // The producer may reuse its ring immediately after write returns; queued DMA data belongs to the sink.
-            new Uint8Array(slotsOut[slot], 0, size).set(bytes.subarray(offset, offset + size))
-            item.lengths[slot] = size
-            driver.enqueue(0, AudioOut.RawSamples, slotsOut[slot] as unknown as HostBuffer, 1, 0, size / 2)
-            driver.enqueue(0, AudioOut.Callback, slot + 1)
+            stagedSlot = slot
+            const size = Math.min(slotBytes - stagedBytes, bytes.length - offset)
+            new Uint8Array(slotsOut[slot], stagedBytes, size).set(bytes.subarray(offset, offset + size))
+            stagedBytes += size
             offset += size
+            if (stagedBytes === slotBytes) item.flush()
+          }
+          if (stagedBytes && flushDelayMs === 0) item.flush()
+          else if (stagedBytes && item.flushTimer === undefined) {
+            item.flushTimer = Timer.set(() => {
+              item.flushTimer = undefined
+              if (active !== item) return
+              try {
+                item.flush()
+              } catch {
+                retire('failed')
+              }
+            }, flushDelayMs)
           }
         } catch (error) {
           if (active === item) retire('failed')
@@ -247,7 +279,15 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
       if (active?.id === id) {
         const item = active
         item.sealed = true
-        while (active === item && (item.writing || item.lengths.some((size) => size > 0))) await progress(item)
+        while (active === item && item.writing) await progress(item)
+        if (active === item) {
+          try {
+            item.flush()
+          } catch {
+            retire('failed')
+          }
+        }
+        while (active === item && item.lengths.some((size) => size > 0)) await progress(item)
         if (active === item) retire('played')
       }
       const result = remembered.get(id)

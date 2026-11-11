@@ -4,7 +4,12 @@ import { checkScope, failure } from 'stackchan-ai-core'
 
 export type Body = { length: number; read(): Iterable<Uint8Array> }
 export type ResponseConsumer = (bytes: Uint8Array) => Promise<void>
-export type SendResponseRequest = (body: Body, consume: ResponseConsumer, scope: Scope) => Promise<void>
+export type SendResponseRequest = (
+  body: Body,
+  consume: ResponseConsumer,
+  scope: Scope,
+  isComplete?: () => boolean,
+) => Promise<void>
 
 export class ImageURL {
   constructor(readonly image: Image) {}

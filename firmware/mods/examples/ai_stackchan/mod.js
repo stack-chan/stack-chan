@@ -68,9 +68,14 @@ export function onContextCreated(robot, option) {
   })
   const pushToTalk = createPushToTalk()
   const localSpeech = option.config.tts?.type === 'sanotts'
-  const tts = localSpeech
-    ? Modules.importNow('stackchan/voice/sanotts', true).createSanoTTS()
-    : createOpenAISpeechTTS({ apiKey: prefs.token })
+  let tts
+  if (localSpeech) {
+    tts = Modules.has('stackchan/voice/sanotts')
+      ? Modules.importNow('stackchan/voice/sanotts', true).createSanoTTS()
+      : Modules.importNow('stackchan/voice/stackchan-voice', true).createStackchanVoiceTTS()
+  } else {
+    tts = createOpenAISpeechTTS({ apiKey: prefs.token })
+  }
   const conversation = createCascadedConversation({
     agent,
     turnDetector: pushToTalk.detector,

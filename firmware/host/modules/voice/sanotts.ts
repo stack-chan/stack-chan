@@ -56,6 +56,7 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
     }
     function start() {
       const input = kana ? text : readText(text)
+      if (ended) throw error ?? voiceError('cancelled')
       if (input.includes('\0')) throw new TypeError('reading contains NUL')
       native = new NativeSanoTTS()
       native.start(input)

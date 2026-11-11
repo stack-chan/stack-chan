@@ -186,7 +186,8 @@ export function createStackchanContext(
 
   // Standalone speech playback
   const ttsPrefs = preferences.tts
-  const ttsKey = ttsPrefs.type ?? 'local'
+  const ttsKey =
+    ttsPrefs.type === 'sanotts' && !speechPlayers.has('sanotts') ? 'stackchan-voice' : (ttsPrefs.type ?? 'local')
   const createSpeechPlayback = speechPlayers.get(ttsKey)
 
   // UI

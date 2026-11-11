@@ -64,6 +64,27 @@ async function run() {
   await train.write('電車')
   await train.finish()
   equal(Native.lastKana, 'でんしゃ')
+  for (const action of ['close', 'abort']) {
+    const stopping = createVoiceScope()
+    const provider = createSanoTTS({
+      toKana() {
+        if (action === 'close') void session.close()
+        else stopping.abort()
+        return 'あ'
+      },
+    })
+    const session = await provider.open({ ...args, signal: stopping.signal })
+    await session.write('あ')
+    equal(
+      await session.finish().then(
+        () => 'played',
+        (cause) => cause.code,
+      ),
+      'cancelled',
+    )
+    await session.close()
+    equal(Native.active, 0)
+  }
 }
 run().then(
   () => trace('@@STACKCHAN_TEST:PASS@@\n'),

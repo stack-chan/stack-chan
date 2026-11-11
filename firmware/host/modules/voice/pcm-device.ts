@@ -10,7 +10,8 @@ import type {
   PlaybackReceipt,
 } from 'stackchan/voice/contracts'
 import type * as CoreS3Output from 'stackchan/voice/cores3-pcm-output'
-import { capacity, createPcmSink, createPcmSource, pcmEnergy, pcmMedia } from 'stackchan/voice/media'
+import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
+import { pcmEnergy } from 'stackchan/voice/pcm-energy'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
@@ -171,7 +172,17 @@ function openPlayback(formats: readonly PcmFormat[], { signal, budget, onPlayed 
   requireActive(signal)
   const format = monoFormat(formats)
   const limit = capacity(budget, format)
-  return createPlayback(format, budget, limit, limit, undefined, onPlayed)
+  const notify = onPlayed
+    ? (power: number) => {
+        if (signal.aborted) return
+        try {
+          onPlayed(power)
+        } catch {
+          // A presentation callback must not interrupt the hardware driver.
+        }
+      }
+    : undefined
+  return createPlayback(format, budget, limit, limit, undefined, notify)
 }
 
 function createPlayback(
@@ -196,6 +207,7 @@ function createPlayback(
   if (slotBytes < 2) throw voiceError('resource_exhausted', 'output requires two PCM slots')
   const flushDelayMs = Math.min(12, Math.floor((slotBytes * 500) / outputFormat.sampleRate))
   const slotsOut = directOutput ? [] : [new SharedArrayBuffer(slotBytes), new SharedArrayBuffer(slotBytes)]
+  const meteredSlots = onPlayed ? slotsOut.map((buffer) => new Uint8Array(buffer)) : undefined
   let active: OutputSegment | undefined
   function wake(item: OutputSegment) {
     item.wake?.resolve()
@@ -326,7 +338,7 @@ function createPlayback(
         if (active !== item || !(item.lengths[slot] > 0)) return
         const frames = item.lengths[slot] / 2
         item.frames += frames
-        const power = onPlayed ? Math.sqrt(pcmEnergy(new Uint8Array(slotsOut[slot], 0, frames * 2)) / frames) : 0
+        const power = meteredSlots ? Math.sqrt(pcmEnergy(meteredSlots[slot], 0, frames * 2) / frames) : 0
         item.lengths[slot] = 0
         wake(item)
         onPlayed?.(power)

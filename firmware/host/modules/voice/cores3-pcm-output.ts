@@ -1,5 +1,5 @@
 import AudioOut from 'embedded:io/audio/out'
-import { pcmEnergy } from 'stackchan/voice/media'
+import { pcmEnergy } from 'stackchan/voice/pcm-energy'
 import { deferred, voiceError } from 'stackchan/voice/scope'
 
 // CoreS3 sets I2S_DMA_BUFFER_MAX_SIZE to 2048. The ESP32 ECMA-419 driver exposes five writable descriptors.
@@ -25,6 +25,10 @@ function playbackMeter(onPlayed: (power: number) => void) {
         }
       }
     },
+    discard() {
+      powers.length = 0
+      reported = measured
+    },
     confirm(confirmed: number, final = false) {
       while (powers.length && reported + dmaBlockBytes <= confirmed) {
         reported += dmaBlockBytes
@@ -32,7 +36,7 @@ function playbackMeter(onPlayed: (power: number) => void) {
         powers.shift()
         onPlayed(power)
       }
-      if (final && measured > reported) {
+      if (final && confirmed >= measured && measured > reported) {
         const frames = (measured - reported) / 2
         reported = measured
         onPlayed(Math.sqrt(energy / frames))
@@ -48,6 +52,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
   let submitted = 0
   let audioBytes = 0
   let confirmed = 0
+  let sealed = false
   let closed = false
   let change: ReturnType<typeof deferred<void>> | undefined
   const signal = () => {
@@ -71,7 +76,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
       writable = size
       confirmed = Math.max(confirmed, Math.min(audioBytes, submitted - (capacity - writable) - dmaBlockBytes))
       signal()
-      meter?.confirm(confirmed)
+      meter?.confirm(confirmed, sealed)
     },
   })
   try {
@@ -125,6 +130,8 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
     async drain() {
       requireOpen()
       if (!audioBytes) return
+      sealed = true
+      meter?.confirm(confirmed, sealed)
       // Flush the partial native block, then replace the DMA ring with silence. Only a subsequent
       // hardware credit confirms the last real descriptor has left the peripheral.
       let padding = capacity + dmaBlockBytes + ((dmaBlockBytes - (audioBytes % dmaBlockBytes)) % dmaBlockBytes)
@@ -149,6 +156,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
     close() {
       if (closed) return
       closed = true
+      meter?.discard()
       signal()
       try {
         audio.stop()

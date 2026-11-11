@@ -293,7 +293,9 @@ export class StackchanRuntimeAudio {
           this.#speechPlayback.onPlayed = noop
           this.#speechPlayback.onDone = noop
         }
-        await utterance?.done.catch(() => {})
+        await utterance?.done.catch((error: unknown) => {
+          if (!(error instanceof Error && 'code' in error && error.code === 'cancelled')) throw error
+        })
       }
     }
   }

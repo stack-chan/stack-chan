@@ -16,10 +16,13 @@ import type {
   TTS,
 } from '../contracts.js'
 
+import './pcm-energy-fake.js'
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const local = resolve(root, 'voice')
 writeAliasPackage(local, 'timer', resolve(root, 'testing/fakes/timer.js'), { hasDefaultExport: true })
 writeAliasPackage(local, 'modules', resolve(root, 'testing/fakes/modules.js'), { hasDefaultExport: true })
+writeAliasPackageSubpath(local, 'stackchan', 'voice/pcm-energy', resolve(local, '__tests__/pcm-energy-fake.js'))
 for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime']) {
   writeAliasPackageSubpath(local, 'stackchan', `voice/${module}`, resolve(local, `${module}.js`))
 }
@@ -232,6 +235,7 @@ test('speaker-only lease uses the full budget, excludes capture and reports only
     budget: smallBudget,
     onPlayed(power) {
       powers.push(power)
+      throw new Error('mouth observer failed')
     },
   })
   assert.equal('input' in lease, false)
@@ -368,6 +372,7 @@ test('CoreS3 speaker-only power follows confirmed blocks and the drained tail', 
     budget,
     onPlayed(power) {
       powers.push(power)
+      throw new Error('mouth observer failed')
     },
   })
   const writer = lease.output.begin('speech', 0)
@@ -381,9 +386,16 @@ test('CoreS3 speaker-only power follows confirmed blocks and the drained tail', 
   assert.deepEqual(powers, [])
   credit(10240)
   assert.deepEqual(powers, [10000])
-  const done = lease.output.finish('speech')
+  let drained = false
+  const done = lease.output.finish('speech').then((receipt) => {
+    drained = true
+    return receipt
+  })
   await tick()
   credit(10240)
+  await tick()
+  assert.deepEqual(powers, [10000, 10000, 32767])
+  assert.equal(drained, false)
   await tick()
   credit(10240)
   await tick()

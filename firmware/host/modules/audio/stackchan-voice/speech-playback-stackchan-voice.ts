@@ -1,5 +1,5 @@
 import type { SpeakerSpeechPlayback, SpeechPlaybackListener } from 'speech-playback-types'
-import type { PlaybackLease, Speaker } from 'stackchan/voice/contracts'
+import type { Speaker } from 'stackchan/voice/contracts'
 import { mono } from 'stackchan/voice/media'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
 import { createStackchanVoiceTTS } from 'stackchan/voice/stackchan-voice'
@@ -25,9 +25,8 @@ export class SpeechPlayback implements SpeakerSpeechPlayback {
     onPlayed: SpeechPlaybackListener,
   ) {
     const scope = createVoiceScope()
-    let lease: PlaybackLease | undefined
     const play = async () => {
-      lease = await speaker.runtime.acquirePlayback(speaker, [mono(24000)], { ...scope, budget, onPlayed })
+      const lease = await speaker.runtime.acquirePlayback(speaker, [mono(24000)], { ...scope, budget, onPlayed })
       try {
         requireActive(scope.signal)
         lease.setVolume(volume ?? this.#volume)
@@ -57,9 +56,7 @@ export class SpeechPlayback implements SpeakerSpeechPlayback {
     return {
       done: play(),
       cancel() {
-        if (scope.signal.aborted) return
         scope.abort()
-        void lease?.output.fence(1).catch(() => {})
       },
     }
   }

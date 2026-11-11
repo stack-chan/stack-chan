@@ -1,5 +1,4 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
-import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../modules/voice/contracts.js'
 import type { RobotCamera } from 'camera'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
@@ -11,10 +10,11 @@ import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
-import type { SpeechPlayback } from 'speech-playback-types'
+import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../modules/voice/contracts.js'
 
 export type {
   JsonValue,
@@ -116,7 +116,7 @@ export type AudioCapability = {
   volume?: number
   speaker: VoiceSpeaker
   microphone?: VoiceMicrophone
-  useSpeechPlayback(playback: SpeechPlayback): void
+  useSpeechPlayback(playback: SpeechPlayback | SpeakerSpeechPlayback): void
   say(text: string, volume?: number): Promise<Maybe<string>>
   /** Sings raw koe notation. Returns a failure when the active player does not support singing. */
   sing(koe: string, volume?: number): Promise<Maybe<string>>

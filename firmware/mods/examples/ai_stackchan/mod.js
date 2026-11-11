@@ -1,4 +1,7 @@
-import { createAgent, createToolSet, createVision, adaptRobotCamera, OpenAIResponsesLLM } from 'stackchan/ai'
+import { Emoticon } from 'effects/emoticon'
+import { Emotion, EmotionNames, emotionFromName } from 'face-state'
+import Modules from 'modules'
+import { adaptRobotCamera, createAgent, createToolSet, createVision, OpenAIResponsesLLM } from 'stackchan/ai'
 import {
   createCascadedConversation,
   createConversationPipeline,
@@ -6,8 +9,6 @@ import {
   createVoiceScope,
 } from 'stackchan/voice'
 import { createOpenAISpeechTTS, createWhisperSTT } from 'stackchan/voice/speech'
-import { Emoticon } from 'effects/emoticon'
-import { Emotion, EmotionNames, emotionFromName } from 'face-state'
 
 let stop
 
@@ -66,12 +67,16 @@ export function onContextCreated(robot, option) {
       'あなたは手のひらサイズのスタックチャンです。絵文字や読み上げ用でない記号を使わず、短い日本語のひとことで話してください。気持ちはset_emotionで顔に表してください。',
   })
   const pushToTalk = createPushToTalk()
+  const localSpeech = option.config.tts?.type === 'sanotts'
+  const tts = localSpeech
+    ? Modules.importNow('stackchan/voice/sanotts', true).createSanoTTS()
+    : createOpenAISpeechTTS({ apiKey: prefs.token })
   const conversation = createCascadedConversation({
     agent,
     turnDetector: pushToTalk.detector,
     stt: createWhisperSTT({ apiKey: prefs.token, maxAudioBytes: 192000 + 2560 }),
-    tts: createOpenAISpeechTTS({ apiKey: prefs.token }),
-    voice: prefs.voice ?? 'alloy',
+    tts,
+    voice: localSpeech ? 'default' : (prefs.voice ?? 'alloy'),
   })
   const scope = createVoiceScope()
   const heart = new Emoticon({ key: 'heart', left: 20, top: 20 })

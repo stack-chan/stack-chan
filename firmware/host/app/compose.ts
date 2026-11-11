@@ -154,6 +154,14 @@ export function createStackchanContext(
       (param) => new StackchanVoicePlayback(param as ConstructorParameters<typeof StackchanVoicePlayback>[0]),
     ],
   ])
+  if (Modules.has('speech-playback-sanotts')) {
+    speechPlayers.set('sanotts', (param) => {
+      const { SpeechPlayback } = Modules.importNow('speech-playback-sanotts', true) as {
+        SpeechPlayback: new (options: unknown) => SpeakerSpeechPlayback
+      }
+      return new SpeechPlayback(param)
+    })
+  }
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
     ['jitome', (param) => createStackchanUI(createJitomeFace().content, asUIOptions(param))],

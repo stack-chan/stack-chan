@@ -9,12 +9,12 @@ import type {
   PlaybackOptions,
   PlaybackReceipt,
 } from 'stackchan/voice/contracts'
-import type * as CoreS3Output from 'stackchan/voice/cores3-pcm-output'
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
 import { pcmEnergy } from 'stackchan/voice/pcm-energy'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
+import type * as CoreS3Output from './cores3-pcm-output.js'
 
 export function createAudioRuntime(options: RuntimeOptions) {
   return bindAudioRuntime(options, openPcmLease, openPlayback)

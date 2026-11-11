@@ -52,7 +52,7 @@ test('exclusive native audio blocks host playback/recording until its idempotent
       setVolume() {},
     },
   })
-  const release = runtime.acquireExclusive()
+  const release = await runtime.acquireExclusive()
   assert.equal(stops, 1)
   assert.throws(() => runtime.acquireExclusive(), /audio busy/)
   assert.equal((await runtime.say('hello')).success, false)
@@ -63,7 +63,7 @@ test('exclusive native audio blocks host playback/recording until its idempotent
   await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/' }), /audio busy/)
   assert.equal(played, 0)
   release()
-  const second = runtime.acquireExclusive()
+  const second = await runtime.acquireExclusive()
   release()
   assert.throws(() => runtime.acquireExclusive(), /audio busy/)
   second()
@@ -102,7 +102,7 @@ test('native ownership never interrupts active SpeechPlayback or a pending recor
   assert.throws(() => runtime.acquireExclusive(), /audio busy/)
   finishRecord?.(new ArrayBuffer(0) as import('../../modules/audio/audio-buffer.js').OwnedAudioBuffer)
   await recording
-  runtime.acquireExclusive()()
+  ;(await runtime.acquireExclusive())()
 })
 
 test('native ownership is visible during media stop callbacks and rolls back a failed stop', async () => {
@@ -112,6 +112,9 @@ test('native ownership is visible during media stop callbacks and rolls back a f
   const runtime = new StackchanRuntimeAudio({
     speechPlayback: fakeSpeechPlayback(),
     media: {
+      async open() {
+        throw new Error('unused')
+      },
       state: 'playing',
       progress: { position: 0, estimated: false, seekable: false },
       start: async () => {},
@@ -127,7 +130,7 @@ test('native ownership is visible during media stop callbacks and rolls back a f
   })
   assert.throws(() => runtime.acquireExclusive(), /stop failed/)
   fail = false
-  const release = runtime.acquireExclusive()
+  const release = await runtime.acquireExclusive()
   await assert.rejects(runtime.media?.start({ url: 'https://example.test/', mode: 'finite' }), /audio busy/)
   await assert.rejects(runtime.media?.resume(), /audio busy/)
   await assert.rejects(runtime.media?.seek(1), /audio busy/)
@@ -386,6 +389,9 @@ test('Media and WebRadio share the owner and reject starts during speech, includ
       },
     },
     media: {
+      async open() {
+        throw new Error('unused')
+      },
       state: 'idle',
       progress: { position: 0, estimated: false, seekable: false },
       pause: () => {},
@@ -442,6 +448,9 @@ test('shared saved volume controls SpeechPlayback, finite/live starts and the cu
     },
     speaker,
     media: {
+      async open() {
+        throw new Error('unused')
+      },
       state: 'idle',
       progress: { position: 0, estimated: false, seekable: false },
       pause() {},
@@ -520,6 +529,9 @@ test('exclusive media ownership preserves shared volume without starting audio u
       },
     },
     media: {
+      async open() {
+        throw new Error('unused')
+      },
       state: 'idle',
       progress: { position: 0, estimated: false, seekable: false },
       pause() {},
@@ -536,7 +548,7 @@ test('exclusive media ownership preserves shared volume without starting audio u
   })
   await runtime.media?.start({ url: 'http://example.test/episode', mode: 'finite' })
   assert.deepEqual(starts, [0.35 * 0.2])
-  const release = runtime.acquireExclusive()
+  const release = await runtime.acquireExclusive()
   runtime.volume = 0.25
   await assert.rejects(runtime.media?.start({ url: 'http://example.test/episode', mode: 'finite' }), /audio busy/)
   await assert.rejects(runtime.webRadio?.start({ url: 'http://example.test/live' }), /audio busy/)

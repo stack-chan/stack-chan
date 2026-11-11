@@ -1,13 +1,26 @@
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import MP3Streamer from 'buffered-mp3streamer'
-import type { MediaCapability, MediaProgress, MediaStartOptions, MediaState } from 'capabilities'
+import type {
+  FiniteMediaSession,
+  FiniteMediaSource,
+  LiveMediaSource,
+  MediaCapability,
+  MediaOpenOptions,
+  MediaProgress,
+  MediaSession,
+  MediaStartOptions,
+  MediaState,
+} from 'capabilities'
+import type { Speaker } from 'stackchan/voice/contracts'
+import { mono } from 'stackchan/voice/media'
+import { createVoiceScope, deferred, requireActive } from 'stackchan/voice/scope'
 import Timer from 'timer'
 import { URL } from 'url'
 import { MAX_MEDIA_VOLUME } from 'volume-model'
 import WebRadioAudioOut from 'web-radio-audio-out'
 
 type NetworkTransport = HTTPClientProvider
-type Session = { audio: WebRadioAudioOut; streamer?: MP3Streamer; generation: number }
+type Session = { audio: WebRadioAudioOut; streamer?: MP3Streamer }
 
 declare const device: {
   network: {
@@ -30,7 +43,29 @@ function checkedVolume(volume: number): number {
   return volume
 }
 
-export default class MediaPlayer implements MediaCapability {
+function validateOptions(options: MediaStartOptions): void {
+  const url = new URL(options.url)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:')
+    throw new Error('WebRadio supports only HTTP and HTTPS URLs')
+  if (url.username || url.password) throw new Error('URL credentials are not supported')
+  if (options.mode !== 'live' && options.mode !== 'finite') throw new Error('Invalid media mode')
+  if (options.mode === 'finite' && options.reconnect) throw new Error('Finite playback cannot reconnect')
+  if (options.duration !== undefined && (!Number.isFinite(options.duration) || options.duration <= 0))
+    throw new Error('Invalid duration')
+  if (options.volume !== undefined) checkedVolume(options.volume)
+}
+
+class StreamSession {
+  readonly result = deferred<'ended' | 'stopped'>()
+  #getSpeaker: () => Speaker
+  #attempt?: ReturnType<typeof createVoiceScope>
+  #opening?: Promise<void>
+  #closing: Promise<void> = Promise.resolve()
+  #terminal = false
+  constructor(getSpeaker: () => Speaker) {
+    this.#getSpeaker = getSpeaker
+    void this.result.promise.catch(() => {})
+  }
   #state: MediaState = 'idle'
   #options: MediaStartOptions | undefined
   #session: Session | undefined
@@ -61,39 +96,46 @@ export default class MediaPlayer implements MediaCapability {
   }
 
   #emitProgress(): void {
-    this.#options?.onProgress?.(this.progress)
+    try {
+      this.#options?.onProgress?.(this.progress)
+    } catch (error) {
+      trace(`[media] progress listener: ${error}\n`)
+    }
   }
 
-  pause(): void {
-    if (this.#options?.mode !== 'finite' || this.#state === 'paused' || this.#state === 'ended') return
+  async pause(): Promise<void> {
+    if (this.#options?.mode !== 'finite' || this.#state === 'paused' || this.#terminal) return this.#closing
     this.#position = this.progress.position
     this.#stopped = true
     this.#generation++
     this.#clearTimers()
-    this.#closeSession()
+    const closing = this.#closeSession()
     this.#setState('paused')
     this.#emitProgress()
+    await closing
   }
 
   async resume(): Promise<void> {
-    if (this.#state !== 'paused' || !this.#options) return
+    if (this.#state !== 'paused' || !this.#options || !this.#stopped || this.#terminal) return
     this.#stopped = false
-    this.#openSession()
+    await this.#openSession()
   }
 
   async seek(seconds: number): Promise<void> {
+    if (this.#terminal) return
     if (this.#options?.mode !== 'finite') throw new Error('Seek requires finite playback')
     if (!Number.isFinite(seconds) || seconds < 0) throw new Error('Invalid seek position')
     const paused = this.#state === 'paused'
     const generation = ++this.#generation
     this.#clearTimers()
-    this.#closeSession()
+    const closing = this.#closeSession()
     this.#position = this.#duration ? Math.min(seconds, this.#duration) : seconds
     this.#base = this.#position
     this.#emitProgress()
+    await closing
     if (paused || generation !== this.#generation) return
     this.#stopped = false
-    this.#openSession()
+    await this.#openSession()
   }
 
   get state(): MediaState {
@@ -101,25 +143,25 @@ export default class MediaPlayer implements MediaCapability {
   }
 
   async start(options: MediaStartOptions): Promise<void> {
-    this.#validateOptions(options)
+    if (this.#terminal) return
     const generation = this.#generation
-    this.stop()
-    if (this.#generation !== generation + 1) return
     this.#options = { ...options, reconnect: options.mode === 'live' && (options.reconnect ?? true) }
     this.#duration = options.duration
     this.#estimated = !!options.duration
     this.#volume = checkedVolume(options.volume ?? MAX_MEDIA_VOLUME)
     this.#stopped = false
     this.#setState('connecting')
-    if (this.#generation !== generation + 1 || this.#stopped) return
-    this.#openSession()
+    if (this.#generation !== generation || this.#stopped) return
+    await this.#openSession()
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
+    if (this.#terminal) return this.#closing
+    this.#terminal = true
     this.#stopped = true
     this.#generation += 1
     this.#clearTimers()
-    this.#closeSession()
+    const closing = this.#closeSession()
     this.#backoffIndex = 0
     this.#hasPlayed = false
     this.#position = this.#base = 0
@@ -128,38 +170,31 @@ export default class MediaPlayer implements MediaCapability {
     this.#points = []
     this.#pointSpacing = 5
     this.#source = undefined
-    const options = this.#options
+    this.#emitProgress()
+    this.#setState('idle')
     this.#options = undefined
-    const changed = this.#state !== 'idle'
-    this.#state = 'idle'
-    const generation = this.#generation
-    options?.onProgress?.(this.progress)
-    if (changed && generation === this.#generation) options?.onStateChanged?.('idle')
-  }
-
-  close(): void {
-    this.stop()
+    try {
+      await closing
+      this.result.resolve('stopped')
+    } catch (error) {
+      this.result.reject(error)
+      throw error
+    }
   }
 
   setVolume(volume: number): void {
     this.#volume = checkedVolume(volume)
-    this.#session?.audio.enqueue(0, WebRadioAudioOut.Volume, Math.round(this.#volume * 256))
-  }
-
-  #validateOptions(options: MediaStartOptions): void {
-    const url = new URL(options.url)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:')
-      throw new Error('WebRadio supports only HTTP and HTTPS URLs')
-    if (url.username || url.password) throw new Error('URL credentials are not supported')
-    if (options.mode !== 'live' && options.mode !== 'finite') throw new Error('Invalid media mode')
-    if (options.mode === 'finite' && options.reconnect) throw new Error('Finite playback cannot reconnect')
-    if (options.duration !== undefined && (!Number.isFinite(options.duration) || options.duration <= 0))
-      throw new Error('Invalid duration')
-    if (options.volume !== undefined) checkedVolume(options.volume)
+    this.#session?.audio.setVolume(this.#volume)
   }
 
   /** Start a new radio playback generation using the URL-appropriate HTTP provider. */
-  #openSession(): void {
+  #openSession(): Promise<void> {
+    const task = this.#connect()
+    this.#opening = task
+    return task
+  }
+
+  async #connect(): Promise<void> {
     const options = this.#options
     if (this.#stopped || !options) return
     const url = new URL(options.url)
@@ -179,20 +214,39 @@ export default class MediaPlayer implements MediaCapability {
     const generation = ++this.#generation
     this.#hasPlayed = false
     try {
-      const audio = new WebRadioAudioOut({
-        streams: 1,
-        bitsPerSample: 16,
-        numChannels: 1,
-        sampleRate: OUTPUT_PCM_SAMPLE_RATE,
+      await this.#closing
+    } catch (error) {
+      if (this.#isCurrent(generation)) {
+        this.#terminal = true
+        this.#setState('error', String(error))
+        this.result.reject(error)
+      }
+      return
+    }
+    try {
+      if (!this.#isCurrent(generation)) return
+      const scope = createVoiceScope()
+      this.#attempt = scope
+      const speaker = this.#getSpeaker()
+      const lease = await speaker.runtime.acquirePlayback(speaker, [mono(OUTPUT_PCM_SAMPLE_RATE)], {
+        ...scope,
+        budget: { maxBufferedMs: 250, maxBufferedBytes: 24576 },
+        interrupt: () => this.stop(),
       })
-      const session: Session = { audio, generation }
+      if (!this.#isCurrent(generation)) {
+        await lease.close()
+        return
+      }
+      const audio = new WebRadioAudioOut(lease, (error) => this.#fail(generation, String(error)))
+      const session: Session = { audio }
       this.#session = session
+      this.#attempt = undefined
       if (options.mode === 'finite') this.#progressTimer = Timer.repeat(() => this.#emitProgress(), 250)
-      audio.enqueue(0, WebRadioAudioOut.Volume, Math.round(this.#volume * 256))
+      audio.setVolume(this.#volume)
       this.#setState(this.#backoffIndex > 0 ? 'retrying' : 'buffering')
       if (!this.#isCurrent(generation)) return
       const path = `${url.pathname}${url.search}` || '/'
-      session.streamer = new MP3Streamer({
+      const streamer = new MP3Streamer({
         protocol: url.protocol === 'https:' ? 'https' : 'http',
         http: url.protocol === 'https:' ? device.network.https.client : device.network.http.client,
         host: url.hostname,
@@ -240,6 +294,8 @@ export default class MediaPlayer implements MediaCapability {
         onError: (reason) => this.#fail(generation, String(reason)),
         onDone: () => this.#onDone(generation),
       })
+      if (this.#isCurrent(generation)) session.streamer = streamer
+      else await streamer.close()
     } catch (error) {
       this.#fail(generation, String(error))
     }
@@ -257,10 +313,12 @@ export default class MediaPlayer implements MediaCapability {
       if (this.#hasPlayed) await this.#session?.audio.drain()
       if (!this.#isCurrent(generation)) return
       this.#position = this.#duration ?? this.progress.position
-      this.#generation += 1
       this.#clearTimers()
-      this.#closeSession()
+      await this.#closeSession()
+      if (!this.#isCurrent(generation)) return
+      this.#terminal = true
       this.#setState('ended')
+      this.result.resolve('ended')
       this.#emitProgress()
     } catch (error) {
       this.#fail(generation, String(error))
@@ -271,10 +329,15 @@ export default class MediaPlayer implements MediaCapability {
     if (!this.#isCurrent(generation)) return
     this.#clearStallTimer()
     if (ready) {
-      this.#session?.audio.start()
-      if (!this.#isCurrent(generation)) return
       this.#backoffIndex = 0
       this.#setState('buffering')
+      if (!this.#isCurrent(generation)) return
+      try {
+        this.#session?.audio.start()
+      } catch (error) {
+        this.#fail(generation, String(error))
+        return
+      }
       return
     }
     // The onWritable completion means that a buffer has entered I2S/DMA, not
@@ -296,8 +359,13 @@ export default class MediaPlayer implements MediaCapability {
     if (this.#options?.mode === 'finite') this.#position = this.progress.position
     this.#generation += 1
     this.#clearTimers()
-    this.#closeSession()
+    const closing = this.#closeSession()
     if (this.#stopped || !this.#options?.reconnect) {
+      this.#terminal = true
+      void closing.then(
+        () => this.result.reject(new Error(reason)),
+        (error) => this.result.reject(error),
+      )
       this.#setState('error', reason)
       return
     }
@@ -313,29 +381,30 @@ export default class MediaPlayer implements MediaCapability {
   }
 
   #isCurrent(generation: number): boolean {
-    return !this.#stopped && this.#generation === generation
+    return !this.#terminal && !this.#stopped && this.#generation === generation
   }
 
-  #closeSession(): void {
+  #closeSession(): Promise<void> {
     const session = this.#session
-    this.#session = undefined
-    if (!session) return
-    try {
-      session.streamer?.close()
-    } catch (error) {
-      trace(`WebRadio streamer close failed: ${String(error)}\n`)
-    }
-    try {
-      session.audio.enqueue(0, WebRadioAudioOut.Flush)
-      session.audio.stop()
-    } catch (error) {
-      trace(`WebRadio audio stop failed: ${String(error)}\n`)
-    }
-    try {
-      session.audio.close()
-    } catch (error) {
-      trace(`WebRadio audio close failed: ${String(error)}\n`)
-    }
+    const opening = this.#opening
+    this.#session = this.#opening = undefined
+    this.#attempt?.abort()
+    this.#attempt = undefined
+    const previous = this.#closing
+    this.#closing = (async () => {
+      try {
+        await session?.streamer?.close()
+      } finally {
+        try {
+          await session?.audio.close()
+        } finally {
+          await opening
+          await previous
+        }
+      }
+    })()
+    void this.#closing.catch(() => {})
+    return this.#closing
   }
 
   #clearStallTimer(): void {
@@ -354,6 +423,111 @@ export default class MediaPlayer implements MediaCapability {
   #setState(state: MediaState, reason?: string): void {
     if (this.#state === state && reason === undefined) return
     this.#state = state
-    this.#options?.onStateChanged?.(state, reason)
+    try {
+      this.#options?.onStateChanged?.(state, reason)
+    } catch (error) {
+      trace(`[media] state listener: ${error}\n`)
+    }
+  }
+}
+
+export default class MediaPlayer implements MediaCapability {
+  #getSpeaker: () => Speaker
+  #current?: StreamSession
+  #retiring: Promise<void> = Promise.resolve()
+
+  constructor(getSpeaker: () => Speaker) {
+    this.#getSpeaker = getSpeaker
+  }
+
+  get state() {
+    return this.#current?.state ?? 'idle'
+  }
+  get progress(): MediaProgress {
+    return this.#current?.progress ?? { position: 0, estimated: false, seekable: false }
+  }
+
+  open(source: LiveMediaSource, options: MediaOpenOptions): Promise<MediaSession>
+  open(source: FiniteMediaSource, options: MediaOpenOptions): Promise<FiniteMediaSession>
+  async open(source: LiveMediaSource | FiniteMediaSource, options: MediaOpenOptions): Promise<MediaSession> {
+    const settings = { ...options, ...source }
+    requireActive(options.signal)
+    validateOptions(settings)
+    const previous = this.#current
+    const stream = new StreamSession(this.#getSpeaker)
+    this.#current = stream
+    const retired = this.#retire(previous)
+    const stop = () => stream.stop()
+    const abort = () => {
+      void stop().catch(() => {})
+    }
+    options.signal.addEventListener('abort', abort)
+    const detach = () => options.signal.removeEventListener('abort', abort)
+    const done = stream.result.promise
+    void done.then(detach, detach)
+    try {
+      await retired
+      requireActive(options.signal)
+      if (this.#current === stream) await stream.start(settings)
+    } catch (error) {
+      await stop()
+      throw error
+    }
+    const session: MediaSession = {
+      get state() {
+        return stream.state
+      },
+      get progress() {
+        return stream.progress
+      },
+      done,
+      stop,
+      setVolume: (volume) => stream.setVolume(volume),
+    }
+    return source.mode === 'live'
+      ? session
+      : Object.assign(session, {
+          pause: () => stream.pause(),
+          resume: () => stream.resume(),
+          seek: (seconds: number) => stream.seek(seconds),
+        })
+  }
+
+  #retire(stream?: StreamSession) {
+    if (stream) {
+      const stopped = deferred<void>()
+      this.#retiring = Promise.all([this.#retiring, stopped.promise]).then(() => {})
+      void stream.stop().then(stopped.resolve, stopped.reject)
+    }
+    return this.#retiring
+  }
+  async start(options: MediaStartOptions) {
+    validateOptions(options)
+    const settings = { ...options, ...createVoiceScope() }
+    if (options.mode === 'live')
+      await this.open({ mode: 'live', url: options.url, reconnect: options.reconnect }, settings)
+    else await this.open({ mode: 'finite', url: options.url, duration: options.duration }, settings)
+  }
+  pause() {
+    return this.#current?.pause()
+  }
+  async resume() {
+    await this.#current?.resume()
+  }
+  async seek(seconds: number) {
+    if (!this.#current) throw new Error('Seek requires finite playback')
+    await this.#current.seek(seconds)
+  }
+  stop() {
+    const stream = this.#current
+    this.#current = undefined
+    return this.#retire(stream)
+  }
+  close() {
+    return this.stop()
+  }
+  setVolume(volume: number) {
+    const gain = checkedVolume(volume)
+    this.#current?.setVolume(gain)
   }
 }

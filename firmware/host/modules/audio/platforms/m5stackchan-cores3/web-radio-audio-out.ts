@@ -1,228 +1,111 @@
-import AudioOut from 'embedded:io/audio/out'
+import type { AudioSink, PlaybackLease } from 'stackchan/voice/contracts'
+import { writeSink } from 'stackchan/voice/media'
 import Timer from 'timer'
-
-const OUTPUT_SAMPLE_RATE = 24000
-const AUDIO_QUEUE_LENGTH = 48
 
 type SharedOutputRing = {
   readableView(maximum?: number): Uint8Array
   advanceRead(count: number): void
 }
-type ECMA419AudioOut = {
-  readonly sampleRate: number
-  volume: number
-  write(buffer: Uint8Array): void
-  start(): void
-  stop(): void
-  close(): void
+type RingSink = AudioSink & {
+  writeBorrowed?(bytes: Uint8Array, accepted: (size: number) => void): void | Promise<void>
 }
 
-type ECMA419AudioOutConstructor = new (options: {
-  bitsPerSample: 16
-  channels: 1
-  sampleRate: number
-  onWritable(size: number): void
-}) => ECMA419AudioOut
-
-type AudioOutOptions = {
-  streams?: number
-  bitsPerSample?: number
-  numChannels?: number
-  sampleRate?: number
-}
-
-/**
- * AudioOut facade dedicated to CoreS3 WebRadio.
- *
- * The Core 1 worker converts decoded MP3 PCM to 24 kHz and writes it to a
- * shared ring. This facade drains that ring into the ECMA-419 AudioOut FIFO.
- */
 export default class WebRadioAudioOut {
-  static readonly Samples = 1
-  static readonly Flush = 2
-  static readonly Callback = 3
-  static readonly Volume = 4
-  static readonly RawSamples = 5
-  static readonly Tone = 6
-  static readonly Silence = 7
-
-  readonly sampleRate = OUTPUT_SAMPLE_RATE
-  readonly numChannels = 1
-  readonly bitsPerSample = 16
-  readonly streams = 1
-
-  #audio: ECMA419AudioOut
-  #sharedOutput: SharedOutputRing | undefined
-  #sharedCompletion: Int32Array | undefined
-  #onSharedOutputWritten: (() => void) | undefined
-  #writableBytes = 0
+  readonly sampleRate = 24000
+  #lease: PlaybackLease
+  #sink?: RingSink
+  #output?: SharedOutputRing
+  #completion?: Int32Array
+  #onWritten?: () => void
+  #onError: (error: unknown) => void
+  #pumping = false
   #closed = false
-  #started = false
-  #capacity = 0
-  #written = 0
-  #submitted = 0
-  #played = 0
-  #padding = 0
-  #silence = new Uint8Array(1024)
-  #drain: { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof Timer.set> } | undefined
 
-  constructor(_options: AudioOutOptions) {
-    const Output = AudioOut as unknown as ECMA419AudioOutConstructor
-    this.#audio = new Output({
-      bitsPerSample: 16,
-      channels: 1,
-      sampleRate: OUTPUT_SAMPLE_RATE,
-      onWritable: (size) => this.#onWritable(size),
-    })
-    // ECMA-419 AudioOut starts at full scale. Keep the output muted until the
-    // WebRadio player applies its validated, host-limited volume.
-    this.#audio.volume = 0
-    const amp = (globalThis as typeof globalThis & { amp?: { sampleRate: number } }).amp
-    if (amp) amp.sampleRate = OUTPUT_SAMPLE_RATE
+  constructor(lease: PlaybackLease, onError: (error: unknown) => void) {
+    this.#lease = lease
+    this.#onError = onError
   }
 
-  /**
-   * Attach the single-producer PCM ring filled by the Core 1 decoder worker.
-   * The completion counter advances after bytes have entered the ECMA-419
-   * AudioOut FIFO, allowing the worker to release decoded MP3 frames without
-   * a message for every PCM batch.
-   */
-  attachSharedOutput(output: SharedOutputRing, completion: Int32Array, onWritten: () => void): void {
-    if (this.#closed) throw new Error('AudioOut is closed')
-    if (completion.length < 1) throw new RangeError('Shared output completion state is too small')
-    this.#sharedOutput = output
-    this.#sharedCompletion = completion
-    this.#onSharedOutputWritten = onWritten
+  attachSharedOutput(output: SharedOutputRing, completion: Int32Array, onWritten: () => void) {
+    this.#output = output
+    this.#completion = completion
+    this.#onWritten = onWritten
     Atomics.store(completion, 0, 0)
-    if (this.#started) this.#drainWritable()
+    this.pumpSharedOutput()
   }
 
-  detachSharedOutput(output: SharedOutputRing): void {
-    if (this.#sharedOutput !== output) return
-    this.#sharedOutput = undefined
-    this.#sharedCompletion = undefined
-    this.#onSharedOutputWritten = undefined
+  detachSharedOutput(output: SharedOutputRing) {
+    if (this.#output !== output) return
+    this.#output = this.#completion = this.#onWritten = undefined
   }
 
-  pumpSharedOutput(): void {
-    if (this.#started) this.#drainWritable()
+  pumpSharedOutput() {
+    if (!this.#sink || !this.#output || this.#pumping || this.#closed) return
+    this.#pumping = true
+    void this.#pump(this.#sink, this.#output)
   }
 
-  /** PCM confirmed consumed by DMA, excluding queued audio and drain padding. */
-  get playedSeconds(): number {
-    return this.#played / (OUTPUT_SAMPLE_RATE * 2)
-  }
-
-  /** Wait for DMA completion, including the driver's partially filled staging block. */
-  drain(): Promise<void> {
-    if (this.#closed || !this.#started || !this.#capacity)
-      return Promise.reject(new Error('Audio output is not running'))
-    if (this.#drain) return Promise.reject(new Error('Audio drain already pending'))
-    return new Promise((resolve, reject) => {
-      // The initial writable capacity is a whole number of DMA blocks. Align
-      // cumulative writes to that capacity and follow audio with one capacity
-      // of silence. This flushes staging without depending on SDK block sizes.
-      this.#padding = this.#capacity + ((this.#capacity - (this.#written % this.#capacity)) % this.#capacity)
-      this.#drain = {
-        resolve,
-        reject,
-        timer: Timer.set(() => this.#cancelDrain(new Error('Audio drain timed out')), 5000),
+  async #pump(sink: RingSink, output: SharedOutputRing) {
+    const accepted = (count: number) => {
+      if (this.#closed || this.#output !== output || !this.#completion) return
+      output.advanceRead(count)
+      Atomics.add(this.#completion, 0, count)
+      this.#onWritten?.()
+    }
+    try {
+      while (!this.#closed && this.#output === output) {
+        // The CoreS3 sink releases each accepted prefix while the rest of the ring remains borrowed.
+        const bytes = output.readableView(sink.writeBorrowed ? undefined : 2048)
+        if (!bytes.length) break
+        if (sink.writeBorrowed) {
+          const pending = sink.writeBorrowed(bytes, accepted)
+          if (pending) await pending
+        } else {
+          await writeSink(sink, bytes)
+          accepted(bytes.byteLength)
+        }
       }
-      this.#drainWritable()
-    })
-  }
-
-  #cancelDrain(error: Error): void {
-    const drain = this.#drain
-    this.#drain = undefined
-    this.#padding = 0
-    if (drain) {
-      Timer.clear(drain.timer)
-      drain.reject(error)
+    } catch (error) {
+      if (!this.#closed && this.#output === output) this.#onError(error)
+    } finally {
+      this.#pumping = false
     }
   }
 
-  enqueue(_stream: number, kind: number, value?: unknown): this {
-    if (kind === WebRadioAudioOut.Flush) return this
-    if (kind === WebRadioAudioOut.Volume) {
-      const volume = Number(value ?? 0) / 256
-      this.#audio.volume = Math.max(0, Math.min(1, volume))
-      return this
-    }
-    throw new Error(`Unsupported CoreS3 WebRadio audio command: ${kind}`)
+  get playedSeconds(): number {
+    const cursor = this.#lease.output.position?.('media')
+    return cursor && cursor.basis !== 'unknown' ? cursor.renderedFrames / cursor.sampleRate : 0
   }
 
-  #onWritable(size: number): void {
-    if (this.#closed) return
-    if (!this.#capacity) this.#capacity = size
-    this.#played = Math.max(this.#played, Math.min(this.#written, this.#submitted - (this.#capacity - size)))
-    this.#writableBytes = size
-    if (this.#drain && !this.#padding && size === this.#capacity) {
-      const drain = this.#drain
-      this.#drain = undefined
-      Timer.clear(drain.timer)
-      drain.resolve()
-      return
-    }
-    if (this.#started) this.#drainWritable()
+  setVolume(volume: number) {
+    this.#lease.setVolume(volume)
   }
 
-  #drainWritable(): void {
-    let sharedWritten = 0
-    while (this.#writableBytes >= 2) {
-      const output = this.#sharedOutput
-      const completion = this.#sharedCompletion
-      if (!output || !completion) break
-      const source = output.readableView(this.#writableBytes)
-      const use = source.byteLength & ~1
-      if (!use) break
-      const samples = use === source.byteLength ? source : source.subarray(0, use)
-      this.#audio.write(samples)
-      output.advanceRead(use)
-      Atomics.add(completion, 0, use)
-      this.#writableBytes -= use
-      sharedWritten += use
-      this.#written += use
-      this.#submitted += use
-    }
-    if (sharedWritten) this.#onSharedOutputWritten?.()
-    while (this.#drain && this.#padding && this.#writableBytes >= 2) {
-      const use = Math.min(this.#padding, this.#writableBytes, this.#silence.length) & ~1
-      this.#audio.write(this.#silence.subarray(0, use))
-      this.#submitted += use
-      this.#padding -= use
-      this.#writableBytes -= use
+  start() {
+    if (this.#closed || this.#sink) return
+    this.#sink = this.#lease.output.begin('media', 0)
+    this.pumpSharedOutput()
+  }
+
+  async drain() {
+    if (!this.#sink) return
+    let timer: ReturnType<typeof Timer.set> | undefined
+    try {
+      const receipt = await Promise.race([
+        this.#lease.output.finish('media'),
+        new Promise<never>((_, reject) => {
+          timer = Timer.set(() => reject(new Error('Audio drain timed out')), 5000)
+        }),
+      ])
+      if (receipt.state !== 'played') throw new Error(`Media playback ${receipt.state}`)
+    } finally {
+      if (timer !== undefined) Timer.clear(timer)
     }
   }
 
-  length(stream: number): number {
-    return stream === 0 ? AUDIO_QUEUE_LENGTH : 0
-  }
-
-  mix(): never {
-    throw new Error('mix is unavailable on CoreS3 WebRadio output')
-  }
-
-  start(): void {
-    this.#started = true
-    this.#audio.start()
-    this.#drainWritable()
-  }
-
-  stop(): void {
-    this.#cancelDrain(new Error('Audio output stopped'))
-    this.#started = false
-    this.#audio.stop()
-    this.#writableBytes = 0
-  }
-
-  close(): void {
-    this.#cancelDrain(new Error('Audio output closed'))
+  close() {
     this.#closed = true
-    this.#audio.close()
-    this.#writableBytes = 0
-    this.#sharedOutput = undefined
-    this.#sharedCompletion = undefined
-    this.#onSharedOutputWritten = undefined
+    this.#output = this.#completion = this.#onWritten = undefined
+    return this.#lease.close()
   }
 }

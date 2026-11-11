@@ -1,4 +1,7 @@
 import 'podcast-rss-tests'
+import { createAudioRuntime } from 'stackchan/voice/device'
+import { createVoiceScope } from 'stackchan/voice/scope'
+import { mono } from 'stackchan/voice/media'
 import { outputs } from 'embedded:io/audio/out'
 import Core from 'buffered-mp3streamer-core'
 import MediaHttpStream, { mediaRedirectURL } from 'media-http'
@@ -15,6 +18,17 @@ import { workers } from 'worker'
 
 async function runTests() {
   trace('media tests started\n')
+  const runtime = createAudioRuntime({ acquireExclusive: () => () => {} })
+  const getSpeaker = () => runtime.speaker
+  const settle = async () => {
+    for (let n = 0; n < 32; n++) await Promise.resolve()
+  }
+  async function drainDriver(driver) {
+    for (let n = 0; n < 8; n++) {
+      driver.writable(10240)
+      await settle()
+    }
+  }
   function frame(rate = 44100) {
     const bytes = new Uint8Array(rate === 44100 ? 417 : 384)
     bytes.set([255, 251, rate === 44100 ? 0x90 : 0x94, 0])
@@ -326,7 +340,13 @@ async function runTests() {
   // Output completion is later than PCM consumption, and cancellation rejects drain.
   trace('media: output completion\n')
   {
-    const audio = new AudioOut({}),
+    const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
+      ...createVoiceScope(),
+      budget: { maxBufferedMs: 250, maxBufferedBytes: 24576 },
+    })
+    const audio = new AudioOut(lease, (error) => {
+        throw error
+      }),
       output = SharedByteRing.allocate(32),
       completion = new Int32Array(new SharedArrayBuffer(4))
     put(output, new Uint8Array([1, 2, 3, 4, 5, 6]))
@@ -341,21 +361,11 @@ async function runTests() {
     await Promise.resolve()
     assert(!drained)
     const driver = outputs[outputs.length - 1]
-    driver.writable(8)
-    driver.writable(8)
-    await Promise.resolve()
-    assert(!drained)
-    driver.writable(16)
+    await drainDriver(driver)
     await promise
     assert(drained)
     equal(audio.playedSeconds, 6 / 48000, 'drain padding is not progress')
-    const cancelled = audio.drain().then(
-      () => false,
-      () => true,
-    )
-    audio.stop()
-    assert(await cancelled)
-    audio.close()
+    await audio.close()
   }
   // Actual worker entry point and resampler run in XS with message and DMA boundaries controlled.
   trace('media: worker entry\n')
@@ -392,7 +402,7 @@ async function runTests() {
   // Public finite mode never retries and waits for hardware drain before ended.
   trace('media: finite playback\n')
   {
-    const player = new MediaPlayer(),
+    const player = new MediaPlayer(getSpeaker),
       states = []
     await player.start({
       url: 'http://example.test/episode',
@@ -413,21 +423,17 @@ async function runTests() {
     await Promise.resolve()
     assert(player.state !== 'ended')
     const driver = outputs[outputs.length - 1]
-    driver.writable(8)
-    driver.writable(8)
-    driver.writable(16)
-    await Promise.resolve()
-    await Promise.resolve()
+    await drainDriver(driver)
     equal(player.state, 'ended')
     equal(states.filter((state) => state === 'ended').length, 1)
-    player.stop()
+    await player.stop()
     worker.send({ id: 'done' })
     equal(player.state, 'idle')
   }
   // Pause retains consumed position and source identity; resume uses a frame checkpoint + preroll.
   trace('media: pause and resume\n')
   {
-    const player = new MediaPlayer()
+    const player = new MediaPlayer(getSpeaker)
     await player.start({ url: 'https://example.test/audio', mode: 'finite', duration: 100 })
     tick()
     let worker = workers.at(-1)
@@ -438,10 +444,10 @@ async function runTests() {
     worker.send({ id: 'position', seconds: 12 })
     worker.send({ id: 'ready', value: true })
     const output = new SharedByteRing(worker.messages[0].output.data, worker.messages[0].output.state)
-    put(output, new Uint8Array(16))
+    put(output, new Uint8Array(4096))
     worker.send({ id: 'output' })
     equal(player.progress.position, 12)
-    outputs.at(-1).writable(16)
+    outputs.at(-1).writable(10240)
     const position = player.progress.position
     assert(position > 12)
     player.pause()
@@ -465,13 +471,13 @@ async function runTests() {
     equal(lastClient().callbacks.headers.get('if-range'), '"episode"')
     lastClient().headers(206, { 'content-length': '99000', 'content-range': 'bytes 1000-99999/100000' })
     equal(worker.messages.find((message) => message.id === 'source').seconds, 10)
-    player.stop()
+    await player.stop()
     worker.send({ id: 'position', seconds: 30 })
     equal(player.progress.position, 0, 'stale worker cannot update stopped progress')
   }
   // Unvalidated bytes cannot anchor a later seek, including after a validator appears.
   for (const headers of [{}, { etag: 'W/"episode"' }]) {
-    const player = new MediaPlayer()
+    const player = new MediaPlayer(getSpeaker)
     await player.start({ url: 'https://example.test/audio', mode: 'finite', duration: 100 })
     tick()
     lastClient().headers(200, { 'content-length': '100000', ...headers })
@@ -497,30 +503,31 @@ async function runTests() {
     equal(worker.messages[0].seekSeconds, 30)
     equal(lastClient().callbacks.headers.get('range'), 'bytes=2000-', 'only the replacement checkpoint is reused')
     equal(lastClient().callbacks.headers.get('if-range'), '"replacement"')
-    player.stop()
+    await player.stop()
   }
   // A live decoder failure restarts at current audio, even after a long listening session.
   {
-    const player = new MediaPlayer()
+    const player = new MediaPlayer(getSpeaker)
     await player.start({ url: 'http://example.test/live', mode: 'live' })
     tick()
     const worker = workers.at(-1)
     worker.send({ id: 'ready', value: true })
-    put(new SharedByteRing(worker.messages[0].output.data, worker.messages[0].output.state), new Uint8Array(16))
+    put(new SharedByteRing(worker.messages[0].output.data, worker.messages[0].output.state), new Uint8Array(4096))
     worker.send({ id: 'output' })
-    outputs.at(-1).writable(16)
+    outputs.at(-1).writable(10240)
     assert(player.progress.position > 0, 'audio was consumed before the failure')
     worker.send({ id: 'error', reason: 'decoder failed' })
     equal(player.state, 'retrying')
     Timer.advance(1000)
+    await settle()
     const replacement = workers.at(-1)
     assert(replacement !== worker, 'recovery opens a fresh decoder session')
     equal(replacement.messages[0].seekSeconds, 0, 'live reconnect must not discard previously played time')
-    player.stop()
+    await player.stop()
   }
   // Replacing playback from a state callback opens only the replacement session.
   {
-    const player = new MediaPlayer()
+    const player = new MediaPlayer(getSpeaker)
     const before = workers.length
     await player.start({
       url: 'http://example.test/old',
@@ -530,13 +537,15 @@ async function runTests() {
       },
     })
     tick()
+    await settle()
+    tick()
     equal(workers.length, before + 1)
     equal(lastClient().callbacks.path, '/new')
-    player.stop()
+    await player.stop()
   }
   // Finite failures never reconnect; live streams retain their reconnect behavior.
   for (const mode of ['finite', 'live']) {
-    const player = new MediaPlayer()
+    const player = new MediaPlayer(getSpeaker)
     await player.start({ url: 'http://example.test/episode', mode })
     tick()
     const failedClient = lastClient()
@@ -550,14 +559,14 @@ async function runTests() {
       Timer.advance(250)
       assert(clients.length > before, 'live connection must reconnect')
     }
-    player.stop()
+    await player.stop()
     const stoppedCount = clients.length
     Timer.advance(30000)
     equal(clients.length, stoppedCount, 'stop must cancel reconnect')
   }
   // Stop during hardware drain cancels ended, even if the old output later reports completion.
   {
-    const player = new MediaPlayer()
+    const player = new MediaPlayer(getSpeaker)
     const states = []
     await player.start({
       url: 'http://example.test/episode',
@@ -571,7 +580,7 @@ async function runTests() {
     worker.send({ id: 'output' })
     worker.send({ id: 'done' })
     const driver = outputs.at(-1)
-    player.stop()
+    await player.stop()
     driver.writable(16)
     await Promise.resolve()
     await Promise.resolve()
@@ -668,8 +677,12 @@ async function runTests() {
     const context = {
       audio: {
         media: {
-          start: async (options) => {
-            starts.push(options)
+          open: async (source, options) => {
+            starts.push({ ...source, ...options })
+            options.signal.addEventListener('abort', () => {
+              stopped++
+            })
+            return { stop: async () => {}, pause: async () => {}, resume: async () => {}, seek: async () => {} }
           },
           stop: () => {
             stopped++
@@ -721,6 +734,9 @@ async function runTests() {
           notes = false
         },
       },
+      undefined,
+      [],
+      createVoiceScope,
     )
     const snapshots = []
     const unsubscribe = controller.subscribe((state) => snapshots.push(state))

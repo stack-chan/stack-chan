@@ -4,6 +4,9 @@ import config from 'mc/config'
 import Preference from 'preference'
 import Timer from 'timer'
 import AudioOut from 'web-radio-audio-out'
+import { createAudioRuntime } from 'stackchan/voice/device'
+import { createVoiceScope } from 'stackchan/voice/scope'
+import { mono } from 'stackchan/voice/media'
 
 const STREAM_HOSTS = ['ice5.somafm.com', 'ice3.somafm.com']
 const STREAM_PATH = '/groovesalad-128-mp3'
@@ -16,12 +19,17 @@ let hostIndex = 0
 let reconnectTimer
 
 /** Open the next radio endpoint and count decoded playback buffers. */
-function startRadio() {
+const runtime = createAudioRuntime({ acquireExclusive: () => () => {} })
+async function startRadio() {
   const host = STREAM_HOSTS[hostIndex]
   hostIndex = (hostIndex + 1) % STREAM_HOSTS.length
   trace(`[web-radio-test] stream=http://${host}${STREAM_PATH}\n`)
-  audio = new AudioOut({ streams: 1, bitsPerSample: 16, numChannels: 1, sampleRate: 24000 })
-  audio.enqueue(0, AudioOut.Volume, QUIET_VOLUME)
+  const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
+    ...createVoiceScope(),
+    budget: { maxBufferedMs: 250, maxBufferedBytes: 24576 },
+  })
+  audio = new AudioOut(lease, () => scheduleReconnect('audio'))
+  audio.setVolume(QUIET_VOLUME / 256)
   streamer = new MP3Streamer({
     http: device.network.http.client,
     host,
@@ -52,12 +60,11 @@ function startRadio() {
 function scheduleReconnect(reason) {
   if (reconnectTimer !== undefined) return
   trace(`[web-radio-test] reconnect reason=${reason} delay=1000ms\n`)
-  reconnectTimer = Timer.set(() => {
+  reconnectTimer = Timer.set(async () => {
     reconnectTimer = undefined
-    streamer?.close()
+    await streamer?.close()
     streamer = undefined
-    audio?.stop()
-    audio?.close()
+    await audio?.close()
     audio = undefined
     startRadio()
   }, 1000)

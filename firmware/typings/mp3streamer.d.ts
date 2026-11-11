@@ -45,11 +45,10 @@ declare module "buffered-mp3streamer" {
     detachSharedOutput(output: { readableView(maximum?: number): Uint8Array; advanceRead(count: number): void }): void
     pumpSharedOutput(): void
     start(): void
-    stop(): void
-    close(): void
+    close(): Promise<void>
   }
   export default class BufferedMP3Streamer {
     constructor(options: MP3StreamerOptions<AudioOut | SharedPCMOutput>);
-    close(): void;
+    close(): Promise<void>;
   }
 }

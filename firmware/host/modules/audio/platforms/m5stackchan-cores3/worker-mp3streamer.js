@@ -14,6 +14,8 @@ export default class {
   #worker
   #callbacks = {}
   #closed = false
+  #closing
+  #onClosed
   #request
   #networkOptions
   #networkGeneration = 0
@@ -45,59 +47,84 @@ export default class {
       if (!this.#closed) this.#callbacks.onPlayed?.call(this)
     })
 
-    this.#worker = new Worker('web-radio-stream-worker', {
-      static: 512 * 1024,
-      chunk: {
-        initial: 96 * 1024,
-        incremental: 16 * 1024,
-      },
-      heap: {
-        initial: 2048,
-        incremental: 256,
-      },
-      stack: 1024,
-      // The measured high-water mark shows about 3.5 KiB maximum use while
-      // decoding this stream. Keep nearly twice that amount as headroom and
-      // return scarce internal RAM to the decoder's hot work buffers.
-      nativeStack: 10 * 1024,
-      core: 1,
-      priority: 1,
-    })
-    this.#worker.onmessage = (message) => this.#onMessage(message)
-    this.#worker.postMessage({
-      id: 'start',
-      mode: options.mode,
-      seekSeconds: this.#seek.target,
-      queueLength: WORKER_AUDIO_QUEUE_LENGTH,
-      sampleRate: options.audio.sampleRate ?? 44100,
-      outputSampleRate: this.#audio.sampleRate,
-      completion: this.#completion,
-      input: this.#input.buffers,
-      output: this.#output.buffers,
-    })
-    this.#networkOptions = {
-      protocol: options.protocol ?? (options.port === 443 ? 'https' : 'http'),
-      host: options.host,
-      port: options.port,
-      path: options.path,
-      request: options.request,
+    try {
+      this.#worker = new Worker('web-radio-stream-worker', {
+        static: 512 * 1024,
+        chunk: {
+          initial: 96 * 1024,
+          incremental: 16 * 1024,
+        },
+        heap: {
+          initial: 2048,
+          incremental: 256,
+        },
+        stack: 1024,
+        // The measured high-water mark shows about 3.5 KiB maximum use while
+        // decoding this stream. Keep nearly twice that amount as headroom and
+        // return scarce internal RAM to the decoder's hot work buffers.
+        nativeStack: 10 * 1024,
+        core: 1,
+        priority: 1,
+      })
+      this.#worker.onmessage = (message) => this.#onMessage(message)
+      this.#worker.postMessage({
+        id: 'start',
+        mode: options.mode,
+        seekSeconds: this.#seek.target,
+        queueLength: WORKER_AUDIO_QUEUE_LENGTH,
+        sampleRate: options.audio.sampleRate ?? 44100,
+        outputSampleRate: this.#audio.sampleRate,
+        completion: this.#completion,
+        input: this.#input.buffers,
+        output: this.#output.buffers,
+      })
+      this.#networkOptions = {
+        protocol: options.protocol ?? (options.port === 443 ? 'https' : 'http'),
+        host: options.host,
+        port: options.port,
+        path: options.path,
+        request: options.request,
+      }
+      this.#openNetwork()
+    } catch (error) {
+      this.#audio.detachSharedOutput(this.#output)
+      this.#closeNetwork()
+      this.#worker?.terminate()
+      throw error
     }
-    this.#openNetwork()
   }
 
   close() {
-    if (this.#closed) return
+    if (this.#closing) return this.#closing
     this.#closed = true
-    Atomics.store(this.#completion, 0, 0)
     this.#audio?.detachSharedOutput(this.#output)
     this.#closeNetwork()
-    try {
-      this.#worker?.postMessage({ id: 'close' })
-    } catch {
-      this.#worker?.terminate()
-      this.#worker = undefined
-    }
+    const worker = this.#worker
+    this.#closing = new Promise((resolve, reject) => {
+      const terminate = (error) => {
+        try {
+          worker.terminate()
+          if (error) reject(error)
+          else resolve()
+        } catch (error) {
+          reject(error)
+        } finally {
+          this.#worker = this.#onClosed = undefined
+        }
+      }
+      const timer = Timer.set(() => terminate(), 5000)
+      this.#onClosed = (reason) => {
+        Timer.clear(timer)
+        terminate(reason && new Error(reason))
+      }
+      try {
+        worker.postMessage({ id: 'close' })
+      } catch {
+        this.#onClosed()
+      }
+    })
     this.#audio = this.#input = this.#output = this.#networkOptions = undefined
+    return this.#closing
   }
 
   #openNetwork() {
@@ -197,7 +224,7 @@ export default class {
 
   #onMessage(message) {
     if (message.id === 'closed') {
-      this.#worker = undefined
+      this.#onClosed?.(message.reason)
       return
     }
     if (this.#closed) return

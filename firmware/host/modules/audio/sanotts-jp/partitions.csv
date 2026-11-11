@@ -1,0 +1,9 @@
+# Dedicated model layout for the optional sanoTTS CoreS3 host only (16 MiB).
+# MOD and storage offsets/capacities match the pre-model layout.
+# Name, Type, SubType, Offset, Size, Flags
+nvs, data, nvs, 0x9000, 0x6000,
+phy_init, data, phy, 0xF000, 0x1000,
+factory, app, factory, 0x10000, 0xEE0000,
+sanotts_model, data, 0x40, 0xEF0000, 0xB0000,
+xs, 0x40, 1, 0xFA0000, 0x40000,
+storage, data, spiffs, 0xFE0000, 0x10000,

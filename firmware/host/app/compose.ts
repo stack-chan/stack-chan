@@ -78,7 +78,7 @@ const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 export type HostDeviceEnvironment = GlobalEnvironment['device']
 
-type MediaPlayerConstructor = new () => MediaCapability
+type MediaPlayerConstructor = new (getSpeaker: () => StackchanContext['audio']['speaker']) => MediaCapability
 
 // Leave room for a multiline balloon and the face in the same dirty region.
 const DEFAULT_UI_DISPLAY_LIST_LENGTH = 8192
@@ -229,7 +229,7 @@ export function createStackchanContext(
   const camera = new Camera()
   const speaker = new Speaker({ volume: ttsPrefs.volume })
   const media = Modules.has('media-player')
-    ? new (Modules.importNow('media-player') as MediaPlayerConstructor)()
+    ? new (Modules.importNow('media-player') as MediaPlayerConstructor)(() => context.audio.speaker)
     : undefined
 
   const configLed = preferences.led
@@ -274,7 +274,7 @@ export function createStackchanContext(
   }
 
   const contextParams = {
-    createVoiceRuntime(acquireExclusive: () => () => void) {
+    createVoiceRuntime(acquireExclusive: RuntimeOptions['acquireExclusive']) {
       const { createAudioRuntime } = Modules.importNow('stackchan/voice/device', true) as {
         createAudioRuntime(options: RuntimeOptions): ReturnType<typeof bindAudioRuntime>
       }

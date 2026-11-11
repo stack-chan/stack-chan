@@ -7,7 +7,7 @@ import { STATIONS } from 'web-radio-config'
 
 let closeLookAround
 export async function onContextCreated(context) {
-  if (typeof context.audio.volume !== 'number') {
+  if (typeof context.audio.volume !== 'number' || typeof context.audio.media?.open !== 'function') {
     context.showBalloon(context.i18n.localize('podcast.hostRequired'))
     return
   }

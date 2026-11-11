@@ -16,6 +16,7 @@ export type FakeMP3StreamerOptions = {
   onReady?: (ready: boolean) => void
   onPlayed?: (buffer?: unknown) => void
   onError?: (reason: string) => void
+  onRetry?: (reason: string) => void
   onDone?: () => void
 }
 

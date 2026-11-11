@@ -1,5 +1,7 @@
 {
   "include": [
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/modules/embedded/io/audio/out/manifest.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json",
     "$(MODDABLE)/modules/files/preference/manifest.json",
@@ -9,6 +11,13 @@
     "$(MODDABLE)/modules/data/url/manifest.json"
   ],
   "modules": {
+    "stackchan/voice/contracts": "../../../voice/contracts",
+    "stackchan/voice/scope": "../../../voice/scope",
+    "stackchan/voice/media": "../../../voice/media",
+    "stackchan/voice/runtime": "../../../voice/runtime",
+    "stackchan/voice/pcm-energy": "../../../voice/pcm-energy",
+    "stackchan/voice/device": "../../../voice/pcm-device",
+    "stackchan/voice/cores3-pcm-output": "../../../voice/cores3-pcm-output",
     "media-http": "../../media-http",
     "mp3-metadata": "../../mp3-metadata",
     "mp3-frames": "../../mp3-frames",

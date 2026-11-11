@@ -1,9 +1,13 @@
 import type { WebRadioCapability, WebRadioStartOptions, WebRadioState } from 'capabilities'
+import type { Speaker } from 'stackchan/voice/contracts'
 import MediaPlayer from 'media-player'
 
 /** Backwards-compatible live-only entry point. The runtime shares its media owner. */
 export default class WebRadioPlayer implements WebRadioCapability {
-  #media = new MediaPlayer()
+  #media: MediaPlayer
+  constructor(getSpeaker: () => Speaker) {
+    this.#media = new MediaPlayer(getSpeaker)
+  }
   get state(): WebRadioState {
     return this.#media.state === 'ended' || this.#media.state === 'paused' ? 'idle' : this.#media.state
   }
@@ -16,11 +20,11 @@ export default class WebRadioPlayer implements WebRadioCapability {
         options.onStateChanged?.(state === 'ended' || state === 'paused' ? 'idle' : state, reason),
     })
   }
-  stop(): void {
-    this.#media.stop()
+  stop() {
+    return this.#media.stop()
   }
-  close(): void {
-    this.#media.close()
+  close() {
+    return this.#media.close()
   }
   setVolume(volume: number): void {
     this.#media.setVolume(volume)

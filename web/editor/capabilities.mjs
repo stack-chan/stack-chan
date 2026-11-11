@@ -10,6 +10,7 @@ export const CAPABILITIES = Object.freeze({
   SPEECH: 'audio.speech',
   SINGING: 'audio.singing',
   TONE: 'audio.tone',
+  MEDIA: 'audio.media',
   VOLUME: 'audio.volume',
   MOTION: 'motion',
   LIGHTING: 'lighting',
@@ -24,6 +25,7 @@ export const CAPABILITIES = Object.freeze({
 })
 
 export const CAPABILITY_HOST_API_VERSIONS = Object.freeze({
+  [CAPABILITIES.MEDIA]: 4,
   [CAPABILITIES.VOLUME]: 2,
   [CAPABILITIES.APPROVAL]: 1,
   [CAPABILITIES.USB_AUDIO]: 1,

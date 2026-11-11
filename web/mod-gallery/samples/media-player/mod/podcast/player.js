@@ -1,3 +1,4 @@
+import { createVoiceScope } from 'stackchan/voice/scope'
 import { MusicNotes } from 'effects/music-notes'
 import { loadArtwork } from 'podcast-artwork'
 import { feeds } from 'podcast-config'
@@ -22,6 +23,7 @@ export function registerPlayers(context, stations = []) {
     },
     loadArtwork,
     stations,
+    createVoiceScope,
   )
   const player = controller
   let started = false

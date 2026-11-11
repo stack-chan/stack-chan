@@ -1,5 +1,6 @@
 {
   "include": [
+    "$(MODDABLE)/modules/base/modules/manifest.json",
     "../../platforms/m5stackchan-cores3/manifest.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
@@ -9,7 +10,15 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
+    "stackchan/voice/contracts": "../../../voice/contracts",
+    "stackchan/voice/scope": "../../../voice/scope",
+    "stackchan/voice/media": "../../../voice/media",
+    "stackchan/voice/runtime": "../../../voice/runtime",
+    "stackchan/voice/pcm-energy": "../../../voice/pcm-energy",
+    "stackchan/voice/device": "../../../voice/pcm-device",
     "~": "$(MODDABLE)/modules/base/timer/timer.js",
+    "stackchan/voice/cores3-pcm-output": "../../../voice/cores3-pcm-output",
+    "pins/audioout": "../../../testing/fakes/audio-out",
     "main": "./media-playback.test",
     "timer": "./timer",
     "capabilities": "../../../testing/fakes/capabilities",

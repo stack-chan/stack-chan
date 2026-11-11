@@ -71,26 +71,30 @@ UI はホストの `context.i18n` と MOD の翻訳リソースを使い、日�
 
 ## 共通プレイヤー API
 
+各回の再生を `open()` で開始し、返されたセッションを画面ごとに保持します。
+
 ```js
-await context.audio.media.start({
-  url: 'https://example.com/episode.mp3',
-  mode: 'finite', // 'live' は従来の再接続動作
-  onProgress({ position, duration, estimated, seekable }) {
-    // 出力側の秒数。約 250 ms ごとに通知
+import { createVoiceScope } from 'stackchan/voice/scope'
+
+const scope = createVoiceScope()
+const episode = await context.audio.media.open(
+  { mode: 'finite', url: 'https://example.com/episode.mp3', duration: 180 },
+  {
+    signal: scope.signal,
+    onProgress({ position, duration }) {
+      trace(`${position} / ${duration} s\n`)
+    },
   },
-  onStateChanged(state, reason) {
-    // idle / connecting / buffering / playing / stalled / retrying / error / paused / ended
-    trace(`${state}: ${reason ?? ''}\n`)
-  },
-})
-context.audio.media.pause()
-await context.audio.media.seek(30) // 秒。一時停止中なら移動後も一時停止を保つ
-await context.audio.media.resume()
-const { position, duration, estimated, seekable } = context.audio.media.progress
-context.audio.media.stop()
+)
+await episode.pause()
+await episode.seek(30)
+await episode.resume()
+const result = await episode.done
 ```
 
-`start()` の完了は再生開始要求の受付を表します。再生完了は `ended` で通知します。`audio.webRadio` は同じプレイヤーを使用するライブ再生用の互換 API です。発話中などは `start()`・`resume()`・`seek()` が `audio busy` で拒否されます。
+`position` と `duration` は秒単位です。`done` は音声の末尾を出力して資源を解放すると `ended`、停止または別の再生に切り替わると `stopped` で完了します。再生に失敗すると reject します。`scope.abort()` で接続中から取り消せます。`await episode.stop()` は、そのエピソードの Worker とスピーカーの解放を待ちます。
+
+ラジオには `{ mode: 'live', url, reconnect: true }` を渡します。ラジオと Podcast の両方で、セッションの `setVolume()`、`state`、`progress` を使えます。一時停止、再開、シークは Podcast などの有限長音声で使えます。`audio.webRadio` と `audio.media.start()` は既存 MOD 向けに残しています。発話・会話を開始すると再生が停止し、音声ランタイムがスピーカーの解放を待って切り替えます。
 
 XML モジュールをホストへ追加しているため、この版への移行ではホストと MOD の両方を更新してください。JPEG のネイティブ連携も必要なため、以前のホストに MOD のみを書き込むことはできません。
 

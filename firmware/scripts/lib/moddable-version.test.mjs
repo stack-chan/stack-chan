@@ -106,7 +106,7 @@ test('the CoreS3 realtime overlay enables Opus while preserving the standalone p
     for (const key of ['CONFIG_SPIRAM_SPEED_40M', 'CONFIG_ESPTOOLPY_FLASHMODE_DIO'])
       assert.equal(values.get(key), boardValues.get(key))
     assert.equal(readFileSync(live.partitionFilePath, 'utf8'), readFileSync(partitionSourcePath, 'utf8'))
-    const performance = prepareCoreS3VersionSdkconfig({ ...options, realtime: true, realtimePerformance: true })
+    const performance = prepareCoreS3VersionSdkconfig({ ...options, realtime: true, memoryPerformance: true })
     const performanceKeys = new Set(
       readFileSync(performance.filePath, 'utf8')
         .split('\n')

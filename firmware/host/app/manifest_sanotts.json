@@ -1,6 +1,7 @@
 {
   "include": [
     "./manifest_m5stackchan_cores3.json",
-    "../modules/audio/sanotts-jp/manifest.json"
+    "../modules/audio/sanotts-jp/manifest.json",
+    "./manifest_sanotts_profile.json"
   ]
 }

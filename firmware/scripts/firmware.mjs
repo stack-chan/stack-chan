@@ -118,7 +118,10 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
       realtime,
-      realtimePerformance: path.basename(manifest) === 'manifest_openai_live.json',
+      memoryPerformance: sanotts || path.basename(manifest) === 'manifest_openai_live.json',
+      ...(sanotts && {
+        sourceDirectory: path.join(process.env.MODDABLE, 'build/devices/esp32/targets/m5stack_cores3/sdkconfig'),
+      }),
     })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {

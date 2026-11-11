@@ -1,10 +1,6 @@
 {
   "platforms": {
     "esp32/m5stackchan_cores3": {
-      "build": {
-        "NAME": "stack-chan-sanotts",
-        "PARTITIONS_FILE": "./partitions.csv"
-      },
       "include": [
         "../../../../vendor/sanotts-jp/manifest.json",
         "../../voice/sanotts-reading/manifest.json"

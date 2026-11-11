@@ -27,6 +27,6 @@ npm run model:flash:sanotts -- --port COM6
 
 ## 音声を選ぶ
 
-端末設定の 	ts.type を sanotts にすると、udio.say() と i_stackchan の返答をこのモデルで読み上げます。音声認識とLLMは会話MODが選んだサービスを使います。歌唱には対応せず、udio.sing() は理由を付けて失敗を返します。
+端末設定の `tts.type` を `sanotts` にすると、`audio.say()` と `ai_stackchan` の返答をこのモデルで読み上げます。音声認識とLLMは会話MODが選んだサービスを使います。歌唱には対応せず、`audio.sing()` は理由を付けて失敗を返します。
 
-読み変換には標準ホストと共通の辞書を使います。未収録の漢字複合語はエラーになるため、MODでは createSanoTTS({ toKana }) に読み変換を渡すか、openKana() にかなを直接渡せます。数字は一桁ずつ読みます。詳しいI/Fは [音声合成の利用ガイド](stackchan-voice.md#offline-sanotts-jp-on-cores3) にあります。
+読み変換には標準ホストと共通の辞書を使います。未収録の漢字複合語はエラーになるため、MODでは `createSanoTTS({ toKana })` に読み変換を渡すか、`openKana()` にかなを直接渡せます。数字は一桁ずつ読みます。詳しいI/Fは [音声合成の利用ガイド](stackchan-voice.md#offline-sanotts-jp-on-cores3) にあります。

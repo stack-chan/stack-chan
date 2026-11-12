@@ -523,9 +523,6 @@ test('a failed agent turn cancels its detached speech consumer before fencing pl
           started.resolve()
           return cancelled.promise
         },
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
         async close() {
           cleanup.push('close')
           signal.removeEventListener('abort', abort)

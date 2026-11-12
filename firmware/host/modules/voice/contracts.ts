@@ -197,15 +197,19 @@ export type AudioRequirements = {
   readonly output: readonly PcmFormat[]
   readonly duplex: 'half' | 'full'
 }
-export interface DuplexLease {
-  readonly input: AudioSource
+export type PlaybackOptions = Scope & { readonly budget: MediaBudget; readonly onPlayed?: (power: number) => void }
+export interface PlaybackLease {
   readonly output: PlaybackSink
   readonly media: MediaRuntime
-  setInputEnabled(enabled: boolean): Promise<void>
   setVolume(gain: number): void
   close(): Promise<void>
 }
+export interface DuplexLease extends PlaybackLease {
+  readonly input: AudioSource
+  setInputEnabled(enabled: boolean): Promise<void>
+}
 export interface AudioRuntime {
+  acquirePlayback(speaker: Speaker, formats: readonly PcmFormat[], options: PlaybackOptions): Promise<PlaybackLease>
   acquire(
     microphone: Microphone,
     speaker: Speaker,

@@ -2,9 +2,20 @@
 
 `stackchan-voice` is an offline Japanese TTS engine bundled with the device
 firmware and the WASM simulator. It synthesizes 8 kHz PCM and converts it to the
-24 kHz mono output used by Stack-chan. Device firmware streams that PCM to
-AudioOut. The WASM simulator renders the same vendored engine into a WAV buffer
-and plays it through the browser Audio bridge. During playback, `SpeechPlayback.onPlayed` reports the audio power that drives the mouth animation.
+24 kHz mono output used by Stack-chan. On CoreS3, standalone speech and singing
+acquire the shared speaker without opening the microphone. The mouth follows the
+power of the PCM consumed by the output driver. The WASM simulator plays
+standalone utterances through its browser Audio bridge.
+
+To use the same engine in a cascaded conversation, import
+`createStackchanVoiceTTS` from `stackchan/voice/stackchan-voice` and pass its
+result as the conversation's `tts`. Choose `normal` or `cute` as the voice, or
+`default` to use the factory preset. Each synthesis session accepts one
+utterance and exposes 24 kHz, 16-bit mono PCM through `output`. Connect the
+output before calling `finish()`. Standalone MODs can use `audio.say(text)`
+and `audio.sing(koe)`, both of which wait for speaker playback to finish.
+CoreS3 MODs that called the local player's `stream()` or `streamKoe()`
+directly should call `audio.say()` or `audio.sing()` and await the result.
 
 Select it with these preferences:
 

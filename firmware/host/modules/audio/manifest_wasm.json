@@ -5,6 +5,10 @@
     "../../../vendor/stackchan-voice/manifest.json"
   ],
   "modules": {
+    "stackchan/voice/contracts": "../voice/contracts",
+    "stackchan/voice/media": "../voice/media",
+    "stackchan/voice/scope": "../voice/scope",
+    "stackchan/voice/stackchan-voice": "../voice/stackchan-voice",
     "audio-buffer": "./audio-buffer",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",

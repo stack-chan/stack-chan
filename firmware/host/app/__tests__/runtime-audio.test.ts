@@ -229,7 +229,7 @@ test('StackchanRuntimeAudio close stops the microphone and detaches SpeechPlayba
     { speechPlayback, microphone },
     { onMouthOpenChanged: (value) => (mouthOpen = value) },
   )
-  runtime.close()
+  await runtime.close()
 
   assert.equal(stopped, true)
   const callbacks = speechPlayback as { onPlayed?: (volume: number) => void; onDone?: () => void }
@@ -259,7 +259,7 @@ test('StackchanRuntimeAudio close detaches SpeechPlayback callbacks even when th
     { onMouthOpenChanged: (value) => (mouthOpen = value) },
   )
 
-  assert.throws(() => runtime.close(), /stop failure/)
+  await assert.rejects(runtime.close(), /stop failure/)
   const callbacks = speechPlayback as { onPlayed?: (volume: number) => void; onDone?: () => void }
   callbacks.onPlayed?.(2000)
   callbacks.onDone?.()
@@ -368,7 +368,7 @@ test('StackchanRuntimeAudio close stops WebRadio', async () => {
       setVolume: () => {},
     },
   })
-  runtime.close()
+  await runtime.close()
   assert.equal(stopped, true)
 })
 
@@ -553,4 +553,85 @@ test('exclusive media ownership preserves shared volume without starting audio u
   await runtime.say('released')
   assert.deepEqual(starts, [0.35 * 0.2, 0.25 * 0.2, 0.25 * 0.2])
   assert.deepEqual(spoken, [0.25])
+})
+test('shutdown waits for standalone speech and propagates a speaker teardown failure', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  let rejectPlayback!: (error: Error) => void
+  let cancelled = false
+  const runtime = new StackchanRuntimeAudio(
+    {
+      speechPlayback: {
+        playUtterance() {
+          return {
+            done: new Promise<void>((_resolve, reject) => {
+              rejectPlayback = reject
+            }),
+            cancel() {
+              cancelled = true
+            },
+          }
+        },
+      },
+    },
+    {
+      getVoiceSpeaker: () => ({
+        id: 'speaker',
+        runtime: {
+          async acquire() {
+            throw new Error('unused')
+          },
+          async acquirePlayback() {
+            throw new Error('unused')
+          },
+        },
+      }),
+    },
+  )
+  const speech = runtime.say('test')
+  const closing = runtime.close()
+  assert.equal(cancelled, true)
+  assert.equal((await runtime.sing('busy')).success, false)
+  rejectPlayback(new Error('speaker close failed'))
+  await assert.rejects(closing, /speaker close failed/)
+  assert.equal((await speech).success, false)
+})
+
+test('standalone lip sync preserves playback success and the original speaker error', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const levels: number[] = []
+  const runtime = new StackchanRuntimeAudio(
+    {
+      speechPlayback: {
+        playUtterance(_speaker, kind, _text, _gain, onPlayed) {
+          onPlayed(1000)
+          return {
+            done: kind === 'text' ? Promise.resolve() : Promise.reject(new Error('speaker close failed')),
+            cancel() {},
+          }
+        },
+      },
+    },
+    {
+      getVoiceSpeaker: () => ({
+        id: 'speaker',
+        runtime: {
+          async acquire() {
+            throw new Error('unused')
+          },
+          async acquirePlayback() {
+            throw new Error('unused')
+          },
+        },
+      }),
+      onMouthOpenChanged(level) {
+        levels.push(level)
+        if (level === 0) throw new Error('face update failed')
+      },
+    },
+  )
+  assert.deepEqual(await runtime.say('hello'), { success: true, value: 'hello' })
+  assert.deepEqual(await runtime.sing('a'), { success: false, reason: 'Error: speaker close failed' })
+  assert.deepEqual(levels, [0.5, 0, 0.5, 0])
 })

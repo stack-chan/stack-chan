@@ -85,6 +85,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       isPaused: () => this.#paused,
     })
     this.#audioRuntime = new StackchanRuntimeAudio(params, {
+      getVoiceSpeaker: () => this.#audioCapability.speaker,
       onMouthOpenChanged: (value) => this.setMouthOpen(value),
     })
     this.#inputRuntime = new StackchanRuntimeInput(params)
@@ -698,7 +699,7 @@ export class StackchanRuntimeContext implements StackchanContext {
         () => this.#lightingRuntime.close(),
       ]) {
         try {
-          closeRuntime()
+          await closeRuntime()
         } catch (error) {
           rememberCloseError(error)
         }

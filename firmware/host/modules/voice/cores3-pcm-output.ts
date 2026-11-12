@@ -1,4 +1,5 @@
 import AudioOut from 'embedded:io/audio/out'
+import { pcmEnergy } from 'stackchan/voice/pcm-energy'
 import { deferred, voiceError } from 'stackchan/voice/scope'
 import type { PcmOutput } from './runtime-types.js'
 
@@ -6,12 +7,58 @@ import type { PcmOutput } from './runtime-types.js'
 const dmaBlockBytes = 2048
 export const minimumOutputBytes = dmaBlockBytes * 5
 
-export function openOutput(sampleRate: number, volume: number, limit: number): PcmOutput {
+function playbackMeter(onPlayed: (power: number) => void) {
+  const powers: number[] = []
+  let measured = 0
+  let energy = 0
+  let reported = 0
+  return {
+    accept(bytes: Uint8Array, offset: number, size: number) {
+      while (size) {
+        const count = Math.min(size, dmaBlockBytes - (measured % dmaBlockBytes))
+        energy += pcmEnergy(bytes, offset, count)
+        measured += count
+        offset += count
+        size -= count
+        if (!(measured % dmaBlockBytes)) {
+          powers.push(Math.sqrt(energy / (dmaBlockBytes / 2)))
+          energy = 0
+        }
+      }
+    },
+    discard() {
+      powers.length = 0
+      reported = measured
+    },
+    confirm(confirmed: number, final = false) {
+      while (powers.length && reported + dmaBlockBytes <= confirmed) {
+        reported += dmaBlockBytes
+        const power = powers[0]
+        powers.shift()
+        onPlayed(power)
+      }
+      if (final && confirmed >= measured && measured > reported) {
+        const frames = (measured - reported) / 2
+        reported = measured
+        onPlayed(Math.sqrt(energy / frames))
+      }
+    },
+  }
+}
+
+export function openOutput(
+  sampleRate: number,
+  volume: number,
+  limit: number,
+  onPlayed?: (power: number) => void,
+): PcmOutput {
+  const meter = onPlayed ? playbackMeter(onPlayed) : undefined
   let capacity = 0
   let writable = 0
   let submitted = 0
   let audioBytes = 0
   let confirmed = 0
+  let sealed = false
   let closed = false
   let change: ReturnType<typeof deferred<void>> | undefined
   const signal = () => {
@@ -35,6 +82,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
       writable = size
       confirmed = Math.max(confirmed, Math.min(audioBytes, submitted - (capacity - writable) - dmaBlockBytes))
       signal()
+      meter?.confirm(confirmed, sealed)
     },
   })
   try {
@@ -58,6 +106,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
       writable -= size
       submitted += size
       audioBytes += size
+      meter?.accept(bytes, offset, size)
       onAccepted?.(size)
     }
     return offset + size
@@ -87,6 +136,8 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
     async drain() {
       requireOpen()
       if (!audioBytes) return
+      sealed = true
+      meter?.confirm(confirmed, sealed)
       // Flush the partial native block, then replace the DMA ring with silence. Only a subsequent
       // hardware credit confirms the last real descriptor has left the peripheral.
       let padding = capacity + dmaBlockBytes + ((dmaBlockBytes - (audioBytes % dmaBlockBytes)) % dmaBlockBytes)
@@ -106,10 +157,12 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
       await wait()
       requireOpen()
       confirmed = audioBytes
+      meter?.confirm(confirmed, true)
     },
     close() {
       if (closed) return
       closed = true
+      meter?.discard()
       signal()
       try {
         audio.stop()

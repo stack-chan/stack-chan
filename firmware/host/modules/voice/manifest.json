@@ -11,13 +11,18 @@
     "stackchan/voice/pipeline": "./pipeline",
     "stackchan/voice/cascaded": "./cascaded",
     "stackchan/voice/runtime": "./runtime",
+    "stackchan/voice/pcm-energy": "./pcm-energy",
     "stackchan/voice/device": "./pcm-device",
     "stackchan/voice/pcm-http": "./pcm-http",
     "stackchan/voice/speech": "./speech"
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {
-      "modules": { "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output" }
+      "include": ["../../../vendor/stackchan-voice/manifest.json"],
+      "modules": {
+        "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output",
+        "stackchan/voice/stackchan-voice": "./stackchan-voice"
+      }
     }
   }
 }

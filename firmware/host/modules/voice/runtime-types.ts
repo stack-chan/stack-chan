@@ -34,5 +34,5 @@ export interface PcmOutput {
 }
 export interface PcmOutputModule {
   readonly minimumOutputBytes: number
-  openOutput(sampleRate: number, volume: number, limit: number): PcmOutput
+  openOutput(sampleRate: number, volume: number, limit: number, onPlayed?: (power: number) => void): PcmOutput
 }

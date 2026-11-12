@@ -1,0 +1,41 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/data/headers/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./memory.test",
+    "stt-whisper": "./whisper-stub",
+    "stackchan/voice/contracts": "../../contracts",
+    "stackchan/voice/media": "../../media",
+    "stackchan/voice/pcm-http": "../../pcm-http",
+    "stackchan/voice/scope": "../../scope",
+    "stackchan/voice/speech": "../../speech",
+    "stackchan/voice/synthesis": "../../synthesis"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 262144,
+      "incremental": 0
+    },
+    "heap": {
+      "initial": 4608,
+      "incremental": 1280
+    },
+    "stack": 768,
+    "keys": {
+      "initial": 32,
+      "incremental": 32
+    }
+  }
+}

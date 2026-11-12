@@ -11,6 +11,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
+      "uuid": ["./node_modules/@moddable/typings/uuid.d.ts"],
+      "whisper-multipart": ["./host/modules/audio/whisper-multipart.ts"],
       "headers": ["./node_modules/@moddable/typings/web/headers.d.ts"],
       "stt-whisper": ["./host/modules/voice/__tests__/whisper-stub.ts"],
       "Resource": ["./host/modules/audio/__tests__/stackchan-voice-device/resource-stub.ts"],

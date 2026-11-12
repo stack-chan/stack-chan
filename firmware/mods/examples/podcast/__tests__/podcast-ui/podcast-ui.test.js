@@ -105,6 +105,17 @@ tap('play')
 equal(plays, 1)
 assert(named('play').active)
 equal(named('time').string, '0:00 / 2:00')
+model.snapshot = { ...model.snapshot, progress: { ...model.snapshot.progress, positionEstimated: true } }
+listener(model.snapshot)
+equal(named('time').string, '約0:00 / 2:00', 'only the approximate position receives a marker')
+model.snapshot = {
+  ...model.snapshot,
+  progress: { ...model.snapshot.progress, positionEstimated: false, estimated: true },
+}
+listener(model.snapshot)
+equal(named('time').string, '0:00 / 約2:00', 'duration estimation remains independent')
+model.snapshot = { ...model.snapshot, progress: { ...model.snapshot.progress, estimated: false } }
+listener(model.snapshot)
 tap('play')
 equal(pauses, 1)
 equal(model.snapshot.state, 'paused')

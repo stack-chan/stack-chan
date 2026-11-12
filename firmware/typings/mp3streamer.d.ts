@@ -1,6 +1,9 @@
 declare module "mp3streamer" {
   import type AudioOut from "pins/audioout"
   import type { HTTPClientProvider } from "embedded:network/http/client";
+  export type CBRSeekInfo = {
+    offset: number; bitRate: number; sampleRate: number; version: number; layer: number
+  }
   export type MP3StreamerOptions<Output = AudioOut> = {
     protocol?: "http" | "https",
     http: HTTPClientProvider
@@ -9,12 +12,14 @@ declare module "mp3streamer" {
     path: string,
     reconnect?: boolean,
     mode?: "live" | "finite",
-    seek?: { offset: number; seconds: number; target: number }
+    seek?: { offset: number; seconds: number; target: number; estimated?: boolean; synchronize?: boolean; cbr?: CBRSeekInfo }
     source?: { url: string; totalBytes?: number; validator?: string }
     onSource?: (source: { url: string; totalBytes?: number; validator?: string }, reset: boolean) => void
     onMetadata?: (metadata: { duration?: number; estimated: boolean }) => void
-    onCheckpoint?: (point: { offset: number; seconds: number }) => void
-    onOutputStart?: (seconds: number) => void
+    onCheckpoint?: (point: { offset: number; seconds: number; estimated?: boolean }) => void
+    onOutputStart?: (seconds: number, estimated?: boolean) => void
+    onSeekInfo?: (info: CBRSeekInfo | null) => void
+    onSeekInvalid?: () => void
     audio: {
       out: Output,
       sampleRate?: number,

@@ -1,3 +1,5 @@
+export type CBRSeekInfo = { offset: number; bitRate: number; sampleRate: number; version: number; layer: number }
+
 export type FakeMP3StreamerOptions = {
   protocol?: 'http' | 'https'
   http: unknown
@@ -9,8 +11,10 @@ export type FakeMP3StreamerOptions = {
   source?: { url: string; totalBytes?: number; validator?: string }
   onSource?: (source: { url: string; totalBytes?: number; validator?: string }, reset: boolean) => void
   onMetadata?: (metadata: { duration?: number; estimated: boolean }) => void
-  onCheckpoint?: (point: { offset: number; seconds: number }) => void
-  onOutputStart?: (seconds: number) => void
+  onCheckpoint?: (point: { offset: number; seconds: number; estimated?: boolean }) => void
+  onOutputStart?: (seconds: number, estimated?: boolean) => void
+  onSeekInfo?: (info: CBRSeekInfo | null) => void
+  onSeekInvalid?: () => void
   reconnect?: boolean
   audio: { out: unknown; stream: number; sampleRate?: number }
   onReady?: (ready: boolean) => void

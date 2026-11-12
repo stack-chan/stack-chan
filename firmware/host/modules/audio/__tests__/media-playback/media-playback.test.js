@@ -337,6 +337,234 @@ async function runTests() {
     )
     core.close()
   }
+  {
+    const input = SharedByteRing.allocate(262144),
+      audio = new Sink(),
+      hints = []
+    for (let n = 0; n < 160; n++) put(input, frame())
+    const variable = new Uint8Array(522)
+    variable.set([255, 251, 0xa0, 0])
+    put(input, variable)
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      audio: { out: audio },
+      onSeekInfo: (value) => hints.push(value),
+    })
+    core.source({ totalBytes: 160 * 417 + variable.length })
+    core.end()
+    for (let n = 0; n < 8; n++) {
+      core.pump()
+      audio.complete()
+    }
+    assert(
+      hints.some((value) => value?.bitRate === 128000),
+      'a constant prefix offers an approximate seek candidate',
+    )
+    equal(hints.at(-1), null, 'later VBR invalidates the candidate')
+    core.close()
+  }
+  {
+    const input = SharedByteRing.allocate(131072),
+      audio = new Sink(),
+      points = [],
+      metadata = []
+    const prefix = new Uint8Array(137)
+    prefix.set(frame().subarray(0, 4), 10)
+    put(input, prefix)
+    for (let n = 0; n < 128; n++) put(input, frame())
+    let outputStart,
+      approximate,
+      rejected = 0
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      seekSeconds: 120,
+      audio: { out: audio },
+      onCheckpoint: (value) => points.push(value),
+      onMetadata: (value) => metadata.push(value),
+      onOutputStart: (seconds, estimated) => {
+        outputStart = seconds
+        approximate = estimated
+      },
+      onSeekInvalid: () => rejected++,
+    })
+    core.source({
+      offset: 1888034,
+      seconds: 118,
+      estimated: true,
+      synchronize: true,
+      cbr: { offset: 34, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 },
+    })
+    core.end()
+    for (let n = 0; n < 8; n++) {
+      core.pump()
+      audio.complete()
+    }
+    equal(rejected, 0)
+    equal(points[0].offset, 1888034 + prefix.length, 'false header must not become the time anchor')
+    assert(
+      points.every((point) => point.estimated),
+      'derived checkpoints retain their approximate clock',
+    )
+    assert(Math.abs(outputStart - 120) < 1 / 44100)
+    assert(approximate, 'preroll cannot establish an absolute exact timestamp')
+    assert(metadata.at(-1).estimated, 'EOF cannot make an approximate timeline exact')
+    core.close()
+  }
+  {
+    const input = SharedByteRing.allocate(32768),
+      audio = new Sink()
+    put(input, new Uint8Array(20000))
+    let invalid = 0
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      seekSeconds: 120,
+      audio: { out: audio },
+      onSeekInvalid: () => invalid++,
+    })
+    core.source({
+      offset: 1000,
+      seconds: 118,
+      estimated: true,
+      synchronize: true,
+      cbr: { offset: 0, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 },
+    })
+    core.pump()
+    core.pump()
+    equal(invalid, 1, 'unusable approximate range requests one exact fallback')
+    equal(audio.frames, 0)
+    core.close()
+  }
+  for (const estimated of [false, true]) {
+    const input = SharedByteRing.allocate(131072),
+      audio = new Sink(),
+      hints = [],
+      metadata = []
+    for (let n = 0; n < 160; n++) put(input, frame())
+    const variable = new Uint8Array(522)
+    variable.set([255, 251, 0xa0, 0])
+    put(input, variable)
+    let invalid = 0
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      seekSeconds: 20,
+      audio: { out: audio },
+      onSeekInfo: (value) => hints.push(value),
+      onSeekInvalid: () => invalid++,
+      onMetadata: (value) => metadata.push(value),
+    })
+    core.source({
+      offset: 100000,
+      seconds: 20,
+      estimated,
+      cbr: { offset: 0, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 },
+    })
+    core.end()
+    for (let n = 0; n < 8; n++) {
+      core.pump()
+      audio.complete()
+    }
+    equal(hints.at(-1), null, 'VBR observed after a checkpoint resume invalidates CBR extrapolation')
+    equal(invalid, 0, 'observed checkpoint playback must not restart after output')
+    equal(metadata.at(-1).estimated, estimated, 'resumed timelines retain their original precision')
+    assert(audio.samples > 0)
+    core.close()
+  }
+  {
+    const input = SharedByteRing.allocate(262144),
+      audio = new Sink()
+    let ready = 0
+    for (let n = 0; n < 90; n++) put(input, frame())
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      seekSeconds: 1,
+      audio: { out: audio },
+      onReady: (value) => {
+        if (value) ready++
+      },
+    })
+    core.source({ offset: 1000, seconds: 0, estimated: true })
+    for (let n = 0; n < 4; n++) core.pump()
+    equal(ready, 0, 'preroll must not discard the approximate resume safety buffer')
+    equal(audio.frames, 0)
+    for (let n = 0; n < 160; n++) put(input, frame())
+    core.pump()
+    equal(ready, 1, 'sufficient compressed data allows playback before EOF')
+    assert(audio.frames > 0)
+    core.close()
+  }
+  {
+    const input = SharedByteRing.allocate(131072),
+      audio = new Sink()
+    for (let n = 0; n < 90; n++) put(input, frame())
+    const variable = new Uint8Array(522)
+    variable.set([255, 251, 0xa0, 0])
+    put(input, variable)
+    for (let n = 0; n < 50; n++) put(input, frame())
+    let invalid = 0
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      seekSeconds: 120,
+      audio: { out: audio },
+      onSeekInvalid: () => invalid++,
+    })
+    core.source({
+      offset: 1000000,
+      seconds: 118,
+      estimated: true,
+      synchronize: true,
+      cbr: { offset: 0, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 },
+    })
+    core.end()
+    for (let n = 0; n < 4; n++) core.pump()
+    equal(invalid, 1, 'CBR mismatch in pending PCM still falls back before playback starts')
+    equal(audio.frames, 0)
+    core.close()
+  }
+  {
+    const input = SharedByteRing.allocate(262144),
+      audio = new Sink(),
+      hints = []
+    for (let n = 0; n < 240; n++) put(input, frame())
+    let invalid = 0
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      audio: { out: audio },
+      onSeekInfo: (value) => hints.push(value),
+      onSeekInvalid: () => invalid++,
+    })
+    core.source({
+      offset: 1000,
+      seconds: 0,
+      estimated: true,
+      synchronize: true,
+      cbr: { offset: 0, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 },
+    })
+    for (let n = 0; n < 4; n++) {
+      core.pump()
+      audio.complete()
+    }
+    const played = audio.samples
+    assert(played > 0, 'approximate playback starts before the format changes')
+    const variable = new Uint8Array(522)
+    variable.set([255, 251, 0xa0, 0])
+    put(input, variable)
+    core.end()
+    for (let n = 0; n < 8; n++) {
+      core.pump()
+      audio.complete()
+    }
+    equal(hints.at(-1), null)
+    equal(invalid, 0, 'an approximate jump must not restart after PCM playback starts')
+    assert(audio.samples > played, 'playback continues through the format change')
+    core.close()
+  }
   // Output completion is later than PCM consumption, and cancellation rejects drain.
   trace('media: output completion\n')
   {
@@ -481,6 +709,113 @@ async function runTests() {
     await player.stop()
     worker.send({ id: 'position', seconds: 30 })
     equal(player.progress.position, 0, 'stale worker cannot update stopped progress')
+  }
+  const cbr = { offset: 34, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 }
+  const totalBytes = 4587136
+  async function approximateSession(accuracy = 'approximate') {
+    const player = new MediaPlayer(getSpeaker)
+    await player.start({
+      url: 'https://example.test/audio',
+      mode: 'finite',
+      duration: 280,
+      ...(accuracy === 'default' ? {} : { seekAccuracy: accuracy }),
+    })
+    tick()
+    const worker = workers.at(-1)
+    lastClient().headers(200, { 'content-length': String(totalBytes), etag: '"episode"' })
+    worker.send({ id: 'seek-info', value: cbr })
+    worker.send({ id: 'checkpoint', value: { offset: 160530, seconds: 10 } })
+    player.pause()
+    await player.seek(120)
+    await player.resume()
+    tick()
+    return player
+  }
+  for (const accuracy of ['default', 'exact', 'approximate']) {
+    const player = await approximateSession(accuracy)
+    const worker = workers.at(-1)
+    const offset = Number(lastClient().callbacks.headers.get('range').slice(6, -1))
+    if (accuracy !== 'approximate') {
+      equal(offset, 160530, 'exact remains the default frame-index path')
+      assert(!player.progress.positionEstimated)
+    } else {
+      assert(offset > 1800000, 'an unvisited distant position avoids downloading the full prefix')
+      assert(offset < (120 * 128000) / 8, 'range includes decoder preroll')
+      assert(player.progress.positionEstimated)
+    }
+    lastClient().headers(206, {
+      'content-length': String(totalBytes - offset),
+      'content-range': `bytes ${offset}-${totalBytes - 1}/${totalBytes}`,
+      etag: '"episode"',
+    })
+    const source = worker.messages.find((message) => message.id === 'source')
+    equal(source.estimated, accuracy === 'approximate')
+    equal(source.synchronize, accuracy === 'approximate')
+    assert(source.cbr, 'exact checkpoint resumes must continue checking the observed CBR candidate')
+    if (accuracy === 'approximate') {
+      const observed = offset + 10000
+      worker.send({ id: 'checkpoint', value: { offset: observed, seconds: 123, estimated: true } })
+      worker.send({ id: 'position', seconds: 125, estimated: true })
+      worker.send({ id: 'seek-info', value: null })
+      player.pause()
+      await player.resume()
+      tick()
+      equal(
+        lastClient().callbacks.headers.get('range'),
+        `bytes=${observed}-`,
+        'resume preserves the observed approximate time domain after CBR rejection',
+      )
+      assert(player.progress.positionEstimated)
+      player.pause()
+      await player.seek(60)
+      await player.resume()
+      tick()
+      equal(
+        lastClient().callbacks.headers.get('range'),
+        'bytes=160530-',
+        'an explicit later seek uses the exact index after rejection',
+      )
+      assert(!player.progress.positionEstimated)
+    }
+    await player.stop()
+  }
+  for (const action of ['fallback', 'stop', 'ignored', 'changed']) {
+    const player = await approximateSession()
+    const worker = workers.at(-1),
+      client = lastClient(),
+      count = workers.length
+    if (action === 'ignored') {
+      client.headers(200, { 'content-length': String(totalBytes), etag: '"episode"' })
+      const source = worker.messages.find((message) => message.id === 'source')
+      equal(source.seconds, 0)
+      equal(source.estimated, false)
+      equal(source.synchronize, false)
+      assert(!player.progress.positionEstimated)
+    } else if (action === 'changed') {
+      const offset = Number(client.callbacks.headers.get('range').slice(6, -1))
+      client.headers(206, {
+        'content-length': String(totalBytes - offset),
+        'content-range': `bytes ${offset}-${totalBytes - 1}/${totalBytes}`,
+        etag: '"replacement"',
+      })
+      equal(player.state, 'error', 'same-sized replacement cannot reuse a seek anchor')
+    } else {
+      worker.send({ id: 'seek-invalid' })
+      if (action === 'stop') await player.stop()
+      await settle()
+      tick()
+      if (action === 'stop') equal(workers.length, count, 'stop cancels a pending exact fallback')
+      else {
+        equal(workers.length, count + 1)
+        equal(
+          lastClient().callbacks.headers.get('range'),
+          'bytes=160530-',
+          'failed synchronization retries from a verified checkpoint',
+        )
+        assert(!player.progress.positionEstimated)
+      }
+    }
+    await player.stop()
   }
   // Unvalidated bytes cannot anchor a later seek, including after a validator appears.
   for (const headers of [{}, { etag: 'W/"episode"' }]) {

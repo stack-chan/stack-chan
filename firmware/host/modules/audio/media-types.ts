@@ -2,11 +2,18 @@ import type { Scope } from '../voice/contracts.js'
 
 export type MediaState = WebRadioState | 'ended' | 'paused'
 
-export type MediaProgress = { position: number; duration?: number; estimated: boolean; seekable: boolean }
+export type MediaProgress = {
+  position: number
+  duration?: number
+  estimated: boolean
+  positionEstimated?: boolean
+  seekable: boolean
+}
 
 export type MediaStartOptions = {
   url: string
   mode: 'live' | 'finite'
+  seekAccuracy?: 'exact' | 'approximate'
   volume?: number
   /** Optional RSS duration hint in seconds. */
   duration?: number
@@ -17,7 +24,12 @@ export type MediaStartOptions = {
 }
 
 export type LiveMediaSource = { mode: 'live'; url: string; reconnect?: boolean }
-export type FiniteMediaSource = { mode: 'finite'; url: string; duration?: number }
+export type FiniteMediaSource = {
+  mode: 'finite'
+  url: string
+  duration?: number
+  seekAccuracy?: 'exact' | 'approximate'
+}
 export type MediaOpenOptions = Scope & Pick<MediaStartOptions, 'volume' | 'onStateChanged' | 'onProgress'>
 export interface MediaSession {
   readonly state: MediaState

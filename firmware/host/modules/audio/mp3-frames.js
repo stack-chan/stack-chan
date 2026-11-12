@@ -80,6 +80,8 @@ function findFrame(buffer, position, end, info) {
     }
 
     if (info) {
+      info.version = version
+      info.layer = layer
       info.length = length
       info.sampleRate = sampleRate
       info.bitRate = bitRate * 1000
@@ -87,5 +89,28 @@ function findFrame(buffer, position, end, info) {
       info.channels = buffer[position + 3] >> 6 === 3 ? 1 : 2
     }
     return position
+  }
+}
+
+export function synchronizedFrame(buffer, start, end, expected) {
+  const matches = (frame) =>
+    frame &&
+    frame.length > 0 &&
+    frame.bitRate === expected.bitRate &&
+    frame.sampleRate === expected.sampleRate &&
+    frame.version === expected.version &&
+    frame.layer === expected.layer
+  let position = start
+  while (position + 4 <= end) {
+    const first = scan(buffer, position, end, {})
+    if (!first) return
+    position = first.position + 1
+    if (!matches(first)) continue
+    let next = first.position + first.length
+    const second = scan(buffer, next, Math.min(next + 4, end), {})
+    if (!matches(second) || second.position !== next) continue
+    next += second.length
+    const third = scan(buffer, next, Math.min(next + 4, end), {})
+    if (matches(third) && third.position === next) return first
   }
 }

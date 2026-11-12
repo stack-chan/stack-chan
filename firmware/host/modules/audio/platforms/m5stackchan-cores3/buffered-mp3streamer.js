@@ -6,6 +6,7 @@
 
 import MP3 from 'esp32-mp3-decoder'
 import { id3Size, mp3Duration } from 'mp3-metadata'
+import { synchronizedFrame } from 'mp3-frames'
 import { SharedByteRing } from 'web-radio-byte-ring'
 
 const MP3_MAX_SAMPLES_PER_FRAME = 1152
@@ -14,6 +15,8 @@ const READ_BUFFER_BYTES = 65536
 const READ_REFILL_THRESHOLD_BYTES = 16 * 1024
 const START_BUFFER_BYTES = 160 * 1024
 const RECOVERY_BUFFER_BYTES = 64 * 1024
+const SEEK_SYNC_BYTES = 16 * 1024
+const CBR_OBSERVATION_FRAMES = 128
 
 function createSharedByteBuffer(byteLength) {
   return new Uint8Array(new SharedArrayBuffer(byteLength))
@@ -54,7 +57,16 @@ export default class {
   #bitRate
   #lastCheckpoint = -Infinity
   #outputStarted = false
+  #playbackStarted = false
   #sourceReady = false
+  #positionEstimated = false
+  #synchronizing = false
+  #seekRejected = false
+  #cbr
+  #cbrFrames = 0
+  #cbrRejected = false
+  #trainCBR = false
+  #allowSeekFallback = false
 
   constructor(options) {
     if (options.onPlayed) this.#callbacks.onPlayed = options.onPlayed
@@ -68,6 +80,8 @@ export default class {
     this.#callbacks.onMetadata = options.onMetadata
     this.#callbacks.onCheckpoint = options.onCheckpoint
     this.#callbacks.onOutputStart = options.onOutputStart
+    this.#callbacks.onSeekInfo = options.onSeekInfo
+    this.#callbacks.onSeekInvalid = options.onSeekInvalid
     this.#input = new SharedByteRing(options.input.data, options.input.state)
     const audio = options.audio.out
     this.#audio = audio
@@ -103,12 +117,18 @@ export default class {
     this.#input = this.#audio = this.#playing = this.#pending = this.#free = this.#readBuffer = this.#mp3 = undefined
   }
 
-  source({ offset = 0, seconds = 0, totalBytes }) {
+  source({ offset = 0, seconds = 0, totalBytes, estimated = false, synchronize = false, cbr }) {
     this.#sourceReady = true
     this.#bytePosition = offset
     this.#seconds = seconds
     this.#totalBytes = totalBytes
     this.#atStart = offset === 0
+    this.#positionEstimated = estimated
+    this.#prebufferBytes = estimated ? RECOVERY_BUFFER_BYTES : START_BUFFER_BYTES
+    this.#synchronizing = synchronize
+    this.#allowSeekFallback = synchronize
+    this.#cbr = cbr
+    this.#trainCBR = offset === 0 && seconds === 0
   }
 
   end(error) {
@@ -133,16 +153,17 @@ export default class {
     if (!this.#decoded && !(this.#seekSeconds > 0 && this.#framesSeen) && !this.#doneError)
       this.#doneError = 'No supported MP3 audio'
     this.#info.done = 2
-    if (this.#finite && !this.#doneError) this.#callbacks.onMetadata?.({ duration: this.#seconds, estimated: false })
+    if (this.#finite && !this.#doneError)
+      this.#callbacks.onMetadata?.({ duration: this.#seconds, estimated: this.#positionEstimated })
     const error = this.#doneError
     this.#doneError = undefined
     if (error) this.#callbacks.onError?.call(this, error)
     else this.#callbacks.onDone?.call(this)
   }
 
-  #fillReadBuffer() {
+  #fillReadBuffer(force = false) {
     const readBuffer = this.#readBuffer
-    if (this.#readLength >= READ_REFILL_THRESHOLD_BYTES) return
+    if (!force && this.#readLength >= READ_REFILL_THRESHOLD_BYTES) return
 
     if (this.#readOffset) {
       readBuffer.copyWithin(0, this.#readOffset, this.#readOffset + this.#readLength)
@@ -169,10 +190,28 @@ export default class {
 
   #fillQueue() {
     const readBuffer = this.#readBuffer
-    if (!readBuffer || !this.#sourceReady) return
+    if (!readBuffer || !this.#sourceReady || this.#seekRejected) return
     let budget = 64
     for (;;) {
-      this.#fillReadBuffer()
+      this.#fillReadBuffer(this.#synchronizing)
+
+      if (this.#synchronizing) {
+        const frame = synchronizedFrame(
+          readBuffer,
+          this.#readOffset,
+          Math.min(this.#readOffset + this.#readLength, this.#readOffset + SEEK_SYNC_BYTES),
+          this.#cbr,
+        )
+        if (!frame) {
+          if (this.#readLength < SEEK_SYNC_BYTES && !this.#info.done) return
+          this.#rejectSeek()
+          return
+        }
+        const skipped = frame.position - this.#readOffset
+        this.#seconds += (skipped * 8) / this.#cbr.bitRate
+        this.#consumeReadBuffer(skipped)
+        this.#synchronizing = false
+      }
 
       if (!this.#readLength) break
       if (this.#skip) {
@@ -191,14 +230,10 @@ export default class {
         }
         this.#atStart = false
       }
-      if (
-        this.#needsPrebuffer &&
-        this.#seconds >= this.#seekSeconds &&
-        this.#compressedBytes < this.#prebufferBytes &&
-        !this.#info.done
-      )
-        break
-      this.#needsPrebuffer = false
+      if (this.#needsPrebuffer && this.#seconds >= this.#seekSeconds) {
+        if (this.#compressedBytes < this.#prebufferBytes && !this.#info.done) break
+        this.#needsPrebuffer = false
+      } else if (!this.#positionEstimated) this.#needsPrebuffer = false
       if (this.#samplesQueued >= this.#targetSamplesQueued) break
       if (this.#audio.length(this.#stream) < 2) break
 
@@ -227,6 +262,31 @@ export default class {
       const offset = this.#bytePosition + found.position - this.#readOffset
       const seconds = this.#seconds
       if (this.#finite) {
+        if (this.#trainCBR && !this.#cbr && found.bitRate > 0)
+          this.#cbr = {
+            offset,
+            bitRate: found.bitRate,
+            sampleRate: found.sampleRate,
+            version: found.version,
+            layer: found.layer,
+          }
+        if (this.#cbr && !this.#cbrRejected) {
+          const cbr = this.#cbr
+          if (
+            found.bitRate !== cbr.bitRate ||
+            found.sampleRate !== cbr.sampleRate ||
+            found.version !== cbr.version ||
+            found.layer !== cbr.layer
+          ) {
+            this.#cbrRejected = true
+            this.#callbacks.onSeekInfo?.(null)
+            if (this.#positionEstimated && this.#allowSeekFallback && !this.#playbackStarted) {
+              this.#rejectSeek()
+              return
+            }
+          } else if (this.#trainCBR && ++this.#cbrFrames === CBR_OBSERVATION_FRAMES)
+            this.#callbacks.onSeekInfo?.({ ...cbr })
+        }
         if (this.#firstFrame) {
           this.#bitRate = found.bitRate
           this.#estimated = seconds !== 0
@@ -244,7 +304,7 @@ export default class {
         }
         if (seconds - this.#lastCheckpoint >= 5 || this.#firstFrame) {
           this.#lastCheckpoint = seconds
-          this.#callbacks.onCheckpoint?.({ offset, seconds })
+          this.#callbacks.onCheckpoint?.({ offset, seconds, estimated: this.#positionEstimated })
         }
       }
       this.#firstFrame = false
@@ -275,7 +335,7 @@ export default class {
         }
         if (slice.samples && !this.#outputStarted) {
           this.#outputStarted = true
-          this.#callbacks.onOutputStart?.(seconds + skipSamples / found.sampleRate)
+          this.#callbacks.onOutputStart?.(seconds + skipSamples / found.sampleRate, this.#positionEstimated)
         }
         if (!slice.samples) this.#free.push(slice)
         else if (this.#pending) this.#pending.push(slice)
@@ -293,6 +353,7 @@ export default class {
     this.#ready = true
     while (this.#pending.length) this.#enqueueDecoded(this.#pending.shift())
     this.#pending = undefined
+    this.#playbackStarted = true
     this.#callbacks.onReady?.call(this, true)
   }
 
@@ -300,5 +361,10 @@ export default class {
     this.#audio.enqueue(this.#stream, this.#audio.constructor.RawSamples, slice, 1, 0, slice.samples)
     this.#audio.enqueue(this.#stream, this.#audio.constructor.Callback, slice.samples)
     this.#playing.push(slice)
+  }
+
+  #rejectSeek() {
+    this.#seekRejected = true
+    this.#callbacks.onSeekInvalid?.()
   }
 }

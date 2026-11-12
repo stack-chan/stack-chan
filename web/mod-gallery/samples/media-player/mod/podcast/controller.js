@@ -47,6 +47,7 @@ export class PodcastController {
       episodeIndex: this.#episodeIndex,
       status: this.#context.i18n?.localize(this.#status) ?? this.#status,
       state: this.#source === 'radio' ? 'idle' : this.#state,
+      canPause: this.#source === 'podcast' && !!this.#session,
       loading: this.#loading,
       feedError: this.#feedError,
       playbackError: this.#playbackError,
@@ -369,6 +370,7 @@ export class PodcastController {
         return
       }
       this.#session = session
+      this.#render()
     } catch (error) {
       if (generation !== this.#playGeneration) return
       scope.abort()

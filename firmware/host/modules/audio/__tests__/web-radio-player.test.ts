@@ -448,3 +448,60 @@ test('seek supersedes a resume waiting for worker release and keeps playback act
   assert.equal(getMP3StreamerInstances()[1].options.seek?.target, 15)
   await media.stop()
 })
+
+for (const cancel of [false, true]) {
+  test(`Podcast controls wait for the previous worker to retire${cancel ? ' and can cancel the pending open' : ''}`, async () => {
+    const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+    const { createVoiceScope, deferred } = await import('../../voice/scope.js')
+    const { PodcastController } = await import(
+      new URL('../../../../../mods/examples/podcast/controller.js', import.meta.url).href
+    )
+    const media = new MediaPlayer(speaker)
+    const controller = new PodcastController(
+      {
+        audio: { media },
+        ui: { application: { distribute() {} }, setFaceMotionEnabled() {} },
+      },
+      [{ title: 'Show', url: 'https://show.test' }],
+      () => ({
+        promise: Promise.resolve({ episodes: [{ title: 'Episode', url: 'https://show.test/one.mp3' }] }),
+        cancel() {},
+      }),
+      { show() {}, hide() {} },
+      undefined,
+      [{ title: 'Radio', url: 'https://radio.test/live' }],
+      createVoiceScope,
+    )
+    let snapshot: { state: string; canPause: boolean } = controller.snapshot
+    controller.subscribe((value: typeof snapshot) => {
+      snapshot = value
+    })
+    await controller.refresh()
+    await controller.playRadio()
+    const retired = deferred<void>()
+    getMP3StreamerInstances()[0].close = () => retired.promise
+    const opening = controller.play()
+    try {
+      await tick()
+      assert.equal(snapshot.state, 'connecting')
+      assert.equal(snapshot.canPause, false, 'the view must not offer pause before a session exists')
+      assert.equal(getMP3StreamerInstances().length, 1, 'the old worker still owns playback')
+      if (cancel) controller.stop()
+      retired.resolve()
+      await opening
+      assert.equal(snapshot.state, cancel ? 'idle' : 'buffering')
+      assert.equal(snapshot.canPause, !cancel, 'session assignment must notify the subscribed view')
+      assert.equal(getMP3StreamerInstances().length, cancel ? 1 : 2)
+      if (!cancel) {
+        controller.pause()
+        await tick()
+        assert.equal(snapshot.state, 'paused', 'pause works once the view enables it')
+      }
+    } finally {
+      retired.resolve()
+      await opening
+      controller.close()
+      await media.stop()
+    }
+  })
+}

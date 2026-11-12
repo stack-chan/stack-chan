@@ -21,6 +21,7 @@ const model = {
     episodeIndex: 0,
     progress: { position: 0, duration: 120, estimated: false, seekable: true },
     state: 'idle',
+    canPause: true,
     status: '停止中',
     loading: false,
   },
@@ -101,6 +102,16 @@ equal(plays, 0, 'selection does not autoplay')
 tap('feed')
 tap('item:1')
 equal(model.snapshot.feedIndex, 1)
+model.snapshot.state = 'connecting'
+model.snapshot.canPause = false
+listener(model.snapshot)
+assert(!named('play').active, 'pause is unavailable while the playback session is opening')
+assert(named('stop').active, 'opening playback can still be cancelled')
+model.snapshot.canPause = true
+listener(model.snapshot)
+assert(named('play').active, 'session availability redraws the controls without a state change')
+model.snapshot.state = 'idle'
+listener(model.snapshot)
 tap('play')
 equal(plays, 1)
 assert(named('play').active)

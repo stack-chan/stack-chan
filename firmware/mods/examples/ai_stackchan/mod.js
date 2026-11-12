@@ -128,7 +128,7 @@ export function onContextCreated(robot, option) {
       },
     })
     pipeline = next
-    next.setVolume(robot.audio.volume)
+    if (robot.audio.volume !== undefined) next.setVolume(robot.audio.volume)
     opening = next.start(scope).catch(async (error) => {
       await closePipeline()
       throw error

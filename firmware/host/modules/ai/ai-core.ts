@@ -8,7 +8,6 @@ import type {
   Failure,
   FunctionCall,
   FunctionDefinition,
-  FunctionOutput,
   InputItem,
   Json,
   ModelResponse,
@@ -38,35 +37,14 @@ export function outputText(response: ModelResponse): string {
 }
 
 export function asDelegateAgent(agent: Agent): DelegateAgent {
-  const sessions = new Map<string, { active: number; retiring: boolean }>()
   return {
-    releaseSession(id) {
-      const session = sessions.get(id)
-      if (session) session.retiring = true
-      else agent.releaseSession?.(id)
-    },
     async run(request, scope) {
       checkScope(scope)
-      const id = request.sessionId
-      if (!sessions.has(id) && sessions.size >= 16)
-        throw failure('resource_exhausted', 'too many active delegation sessions')
-      const session = sessions.get(id) ?? { active: 0, retiring: false }
-      if (session.retiring) throw failure('cancelled', 'delegated session closed')
-      sessions.set(id, session)
-      session.active++
-      try {
-        const result = await agent.run(request, scope)
-        checkScope(scope)
-        if (session.retiring) throw failure('cancelled', 'delegated session closed')
-        if ('error' in result) throw failure(result.error.code, result.error.message)
-        if (result.status !== 'completed') throw failure('provider_failed', 'incomplete delegated response')
-        return result.response.output.filter((item) => item.type === 'message' && item.phase !== 'commentary')
-      } finally {
-        if (--session.active === 0) {
-          sessions.delete(id)
-          if (session.retiring) agent.releaseSession?.(id)
-        }
-      }
+      const result = await agent.run(request, scope)
+      checkScope(scope)
+      if ('error' in result) throw failure(result.error.code, result.error.message)
+      if (result.status !== 'completed') throw failure('provider_failed', 'incomplete delegated response')
+      return result.response.output.filter((item) => item.type === 'message' && item.phase !== 'commentary')
     },
   }
 }
@@ -119,7 +97,6 @@ function validate(value: Json, schema: Json, depth = 0): boolean {
   return true
 }
 
-type Execution = { sessionId: string; invocation: string; retained: number; result: Promise<FunctionOutput> }
 const checkedKeywords = new Set([
   '$schema',
   'title',
@@ -157,33 +134,17 @@ function freezeTree<T>(value: T): T {
   return value
 }
 
-export function createToolSet(
-  tools: readonly Tool[] = [],
-  options: { maxCalls?: number; maxOutputChars?: number; maxLogChars?: number } = {},
-): ToolSet & { releaseSession(id: string): void } {
-  const maxCalls = options.maxCalls ?? 128
+export function createToolSet(tools: readonly Tool[] = [], options: { maxOutputChars?: number } = {}): ToolSet {
   const maxOutput = options.maxOutputChars ?? 4096
-  const maxLog = options.maxLogChars ?? 32768
-  if (!Number.isSafeInteger(maxLog) || maxLog < maxOutput) throw RangeError('invalid tool log budget')
-  if (!Number.isSafeInteger(maxCalls) || maxCalls < 1 || !Number.isSafeInteger(maxOutput) || maxOutput < 1)
-    throw RangeError('invalid tool budget')
+  if (!Number.isSafeInteger(maxOutput) || maxOutput < 1) throw RangeError('invalid tool budget')
   const byName = new Map<string, Tool>()
   for (const tool of tools) {
     checkSchema(tool.definition.parameters, Boolean(tool.validate))
     if (byName.has(tool.definition.name)) throw Error('duplicate tool: ' + tool.definition.name)
     byName.set(tool.definition.name, { ...tool, definition: freezeTree(JSON.parse(JSON.stringify(tool.definition))) })
   }
-  const executions = new Map<string, Execution>()
-  let logSize = 0
   return {
     definitions: Object.freeze([...byName.values()].map((tool) => tool.definition)),
-    releaseSession(id) {
-      for (const [key, entry] of executions)
-        if (entry.sessionId === id) {
-          logSize -= entry.retained
-          executions.delete(key)
-        }
-    },
     async execute(call, context) {
       checkScope(context)
       if (
@@ -193,16 +154,6 @@ export function createToolSet(
         context.callId !== call.call_id
       )
         throw failure('tool_failed', 'invalid tool call identifier or argument size')
-      const key = JSON.stringify([context.sessionId, context.turnId, call.call_id])
-      const invocation = JSON.stringify([call.name, call.arguments])
-      const existing = executions.get(key)
-      if (existing) {
-        if (existing.invocation !== invocation) throw failure('tool_failed', 'call ID reused with different arguments')
-        return existing.result
-      }
-      const retained = key.length + invocation.length + maxOutput
-      if (executions.size >= maxCalls || logSize + retained > maxLog)
-        throw failure('resource_exhausted', 'tool execution log full')
       const tool = byName.get(call.name)
       if (!tool) throw failure('tool_failed', 'invalid tool call: ' + call.name)
       const input = JSON.parse(call.arguments)
@@ -214,22 +165,11 @@ export function createToolSet(
         (tool.validate && !tool.validate(input))
       )
         throw failure('tool_failed', 'invalid arguments: ' + call.name)
-      const result = Promise.resolve().then(async () => {
-        checkScope(context)
-        const value = await tool.execute(input, context)
-        const output = typeof value === 'string' ? value : JSON.stringify(value ?? null)
-        if (output.length > maxOutput) throw failure('resource_exhausted', 'tool result exceeds budget')
-        if (executions.get(key) === entry) {
-          const released = maxOutput - output.length
-          entry.retained -= released
-          logSize -= released
-        }
-        return { type: 'function_call_output' as const, call_id: call.call_id, output }
-      })
-      const entry = { sessionId: context.sessionId, invocation, retained, result }
-      logSize += retained
-      executions.set(key, entry)
-      return result
+      checkScope(context)
+      const value = await tool.execute(input, context)
+      const output = typeof value === 'string' ? value : JSON.stringify(value ?? null)
+      if (output.length > maxOutput) throw failure('resource_exhausted', 'tool result exceeds budget')
+      return { type: 'function_call_output', call_id: call.call_id, output }
     },
   }
 }
@@ -239,9 +179,6 @@ export function createAgent({ llm, tools, instructions, maxToolRounds }: AgentOp
   if (tools.definitions.length && !llm.capabilities.tools)
     throw failure('unsupported_capability', 'model does not accept tools')
   return {
-    releaseSession(id) {
-      tools.releaseSession?.(id)
-    },
     async run(request, options): Promise<AgentResult> {
       const appended: InputItem[] = []
       try {

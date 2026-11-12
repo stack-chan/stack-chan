@@ -1,6 +1,6 @@
 # API
 
-[譌･譛ｬ隱枉(./api_ja.md)
+[日本語](./api_ja.md)
 
 The detailed API document is under construction.
 

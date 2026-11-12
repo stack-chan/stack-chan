@@ -547,7 +547,15 @@ export function onContextCreated(robot) {
     })
 
   const startChat = () => {
-    if (active || closing || !robot.audio.microphone) return
+    if (active) return
+    if (closing) {
+      queueBalloonText('終了を待っています', true)
+      return
+    }
+    if (!robot.audio.microphone) {
+      queueBalloonText('マイクを利用できません', true)
+      return
+    }
     active = true
     startUiTimers()
     robot.ui.drawer.setDrawerButtonState('toggleChat', true)

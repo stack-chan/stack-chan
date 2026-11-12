@@ -18,6 +18,8 @@ node mods/examples/media_player/sync-gallery.mjs
 
 再生セッションに対応したホストAPI 4以上が必要です。ファームウェア版の末尾は `+stackchan.4` 以上になります。Galleryは `audio.media` の要件から対応を判定し、API 0〜3のホストには更新を案内します。ホストとMODを併せて更新してください。
 
+CoreS3では、Podcastの再生開始・再開時のGCに備え、ホストのCスタックを15KiB確保します。10KiBの旧ホストで起きるスタック不足による再起動は、MODだけの更新では直りません。ホストも再ビルドして書き込んでください。[原因と実機での確認手順](../../../../docs/operations/cores3-podcast-native-stack.md)を記録しています。
+
 中国語用ビットマップフォントはNoto Sans CJK SC 2.004由来で、SIL Open Font License 1.1です。Galleryでは `LICENSE.font.txt` を同梱します。ソースと変換方法はリポジトリの `firmware/host/modules/ui/assets/fonts/StackchanCJK-Regular.README.md` に記載しています。
 
 ## 再生セッションAPIへの移行

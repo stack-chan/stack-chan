@@ -80,8 +80,8 @@ function tap(name) {
   assert(node.active, `${name} enabled`)
   const x = node.x + 8,
     y = node.y + 8
-  node.behavior.onTouchBegan(node, 0, x, y)
-  node.behavior.onTouchEnded(node, 0, x, y)
+  screen.context.onTouchBegan(0, x, y, 1)
+  screen.context.onTouchEnded(0, x, y, 2)
 }
 // Force layout through coordinate access, and check relational bounds at the host viewport size.
 assert(named('episode').y + named('episode').height <= named('seek').y, 'episode group must not cover playback')

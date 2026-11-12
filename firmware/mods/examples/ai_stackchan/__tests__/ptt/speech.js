@@ -3,7 +3,6 @@ class Synthesis {
   output = {}
   async write(text) {
     state.writes.push(text)
-    this.text = text
   }
   async flush() {
     state.flushes++
@@ -12,9 +11,6 @@ class Synthesis {
   async finish() {
     state.finishes++
     await state.onFinish?.()
-  }
-  textAt() {
-    return { text: this.text, basis: 'completed-segment' }
   }
   async close() {
     state.closes++

@@ -28,8 +28,6 @@ async function bufferedPlayback() {
   await done
   equal(Native.lastKana, 'こんにちは')
   equal(count, 5007)
-  equal(synthesis.textAt({ basis: 'estimate', renderedFrames: 5006, sampleRate: 24000 }).basis, 'unknown')
-  equal(synthesis.textAt({ basis: 'estimate', renderedFrames: 5007, sampleRate: 24000 }).text, '挨拶')
   equal(Native.active, 0)
   await synthesis.close()
 }
@@ -58,7 +56,6 @@ async function streamedPlayback() {
   await link.done
   equal(streamedFrames, 10014)
   equal(Native.active, 0)
-  equal(continuous.textAt({ basis: 'estimate', renderedFrames: 10014, sampleRate: 24000 }).text, 'かなつづき')
   await continuous.close()
   await link.close()
 }

@@ -249,10 +249,6 @@ export interface STT {
     },
   ): Promise<Transcription>
 }
-export type TextProgress = {
-  readonly text: string
-  readonly basis: 'alignment' | 'completed-segment' | 'unknown'
-}
 export interface Synthesis {
   readonly output: AudioSource
   /** 入力操作は完了を待って順に呼ぶ。音声はfinish前にも出力され得る */
@@ -261,7 +257,6 @@ export interface Synthesis {
   flush(): Promise<void>
   /** 入力を閉じ、残りの合成と音声出力の終了を待つ。再生完了は含まない */
   finish(): Promise<void>
-  textAt(position: PlaybackCursor): TextProgress
   close(): Promise<void>
 }
 export interface TTS {

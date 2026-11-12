@@ -134,9 +134,6 @@ export function onContextCreated(robot, option) {
         finish() {
           return synthesize('finish')
         },
-        textAt(position) {
-          return synthesis.textAt(position)
-        },
         async close() {
           closed = true
           motion?.stop()

@@ -436,9 +436,6 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
         async finish() {
           source.end()
         },
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
         async close() {},
       }
     },
@@ -502,7 +499,6 @@ test('partial STT snapshots remain provisional and only the final replacement re
           source.end()
         },
         async close() {},
-        textAt: () => ({ text: '', basis: 'unknown' }),
       }
     },
   }
@@ -585,9 +581,6 @@ test('only a confirmed final-answer sentence starts early and the completed repl
           source.end()
         },
         async close() {},
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
       }
     },
   }
@@ -725,9 +718,6 @@ test('a failed agent turn cancels its detached speech consumer before fencing pl
         finish() {
           started.resolve()
           return cancelled.promise
-        },
-        textAt() {
-          return { text: '', basis: 'unknown' }
         },
         async close() {
           cleanup.push('close')

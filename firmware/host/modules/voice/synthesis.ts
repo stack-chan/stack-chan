@@ -13,19 +13,16 @@ export async function openStreamingSynthesis(
 ): Promise<Synthesis> {
   const scope = createVoiceScope(options.signal)
   const source = createPcmSource(options.format)
-  const boundaries: { frames: number; characters: number }[] = []
   let current: SegmentSynthesis | undefined
   let subscription: ReturnType<typeof readSource> | undefined
   let active: { kind: 'write' | 'flush'; promise: Promise<void> } | undefined
   let finishing: Promise<void> | undefined
   let closing: Promise<void> | undefined
-  let text = '',
-    segmentText = '',
-    frames = 0,
+  let textCharacters = 0,
+    segmentCharacters = 0,
     segments = 0,
     ended = false,
-    released = false,
-    aligned = true
+    released = false
   let failure: unknown
   let releaseFailure: { error: unknown } | undefined
 
@@ -120,31 +117,20 @@ export async function openStreamingSynthesis(
     return flushPending()
   }
   function flushPending() {
-    if (!segmentText) return Promise.resolve()
+    if (!segmentCharacters) return Promise.resolve()
     if (segments >= 64) return Promise.reject(voiceError('resource_exhausted', 'too many speech segments'))
     return run('flush', async () => {
       const segment = current
-      const startFrames = frames
-      const characters = text.length
       segments++
       try {
         if (!segment) throw voiceError('cancelled')
         subscription = readSource(segment.output, (bytes) => {
           requireActive(scope.signal)
-          const accepted = source.offer(bytes)
-          frames += bytes.length / (options.format.channels * 2)
-          return accepted
+          return source.offer(bytes)
         })
         await segment.finish()
         requireActive(scope.signal)
-        const progress = segment.textAt({
-          basis: 'estimate',
-          renderedFrames: frames - startFrames,
-          sampleRate: options.format.sampleRate,
-        })
-        aligned &&= frames > startFrames && progress.basis !== 'unknown' && progress.text === segmentText
-        if (aligned) boundaries.push({ frames, characters })
-        segmentText = ''
+        segmentCharacters = 0
         await closeSegment()
       } catch (error) {
         failure = error
@@ -172,7 +158,7 @@ export async function openStreamingSynthesis(
     write(part) {
       try {
         requireWritable()
-        if (text.length + part.length > 4096 || segmentText.length + part.length > maxSegmentCharacters)
+        if (textCharacters + part.length > 4096 || segmentCharacters + part.length > maxSegmentCharacters)
           throw voiceError('resource_exhausted', 'speech text too long')
       } catch (error) {
         return Promise.reject(error)
@@ -181,8 +167,8 @@ export async function openStreamingSynthesis(
         const segment = current ?? (await open())
         await segment.write(part)
         requireActive(scope.signal)
-        text += part
-        segmentText += part
+        textCharacters += part.length
+        segmentCharacters += part.length
       })
     },
     flush,
@@ -215,22 +201,6 @@ export async function openStreamingSynthesis(
         }
       })()
       return finishing
-    },
-    textAt(position) {
-      if (
-        position.basis === 'unknown' ||
-        !Number.isFinite(position.sampleRate) ||
-        position.sampleRate <= 0 ||
-        !Number.isFinite(position.renderedFrames) ||
-        position.renderedFrames < 0
-      )
-        return { text: '', basis: 'unknown' }
-      const rendered = (position.renderedFrames / position.sampleRate) * options.format.sampleRate
-      for (let index = boundaries.length - 1; index >= 0; index--) {
-        const boundary = boundaries[index]
-        if (rendered >= boundary.frames) return { text: text.slice(0, boundary.characters), basis: 'completed-segment' }
-      }
-      return { text: '', basis: 'unknown' }
     },
     close,
   }

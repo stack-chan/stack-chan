@@ -23,7 +23,7 @@ const turn = () => new Promise<void>((resolve) => setImmediate(resolve))
 const format = mono(24000)
 const budget = { maxBufferedMs: 100, maxBufferedBytes: 4096 }
 
-function renderer(known = true) {
+function renderer() {
   const segments: { text: string; closed: number; started: boolean; block: Uint8Array }[] = []
   let nextOpen: Promise<void> | undefined
   let nextClose: Promise<void> | undefined
@@ -35,7 +35,6 @@ function renderer(known = true) {
     const closeGate = nextClose
     nextOpen = nextClose = undefined
     let completion: ReturnType<typeof deferred<void>> | undefined
-    let completed = false
     const abort = () => {
       source.end(signal.reason)
       completion?.reject(signal.reason)
@@ -53,15 +52,9 @@ function renderer(known = true) {
         void (async () => {
           await source.offer(state.block)
           if (signal.aborted) throw signal.reason
-          completed = true
           source.end()
         })().then(completion.resolve, completion.reject)
         return completion.promise
-      },
-      textAt(position) {
-        return known && completed && position.basis !== 'unknown' && position.renderedFrames >= 2
-          ? { text: state.text, basis: 'completed-segment' }
-          : { text: '', basis: 'unknown' }
       },
       async close() {
         state.closed++
@@ -117,8 +110,6 @@ test('flush transfers PCM by reference with backpressure and keeps one output op
   await flush
   assert.equal(ended, false)
   assert.equal(native.segments[0].closed, 1)
-  const cursor = { basis: 'device-clock' as const, sampleRate: 48000, renderedFrames: 4 }
-  assert.deepEqual(synthesis.textAt(cursor), { basis: 'completed-segment', text: 'first' })
   await synthesis.write('second')
   await synthesis.finish()
   await link.done
@@ -128,14 +119,6 @@ test('flush transfers PCM by reference with backpressure and keeps one output op
     ['first', 'second'],
   )
   assert.equal(blocks[1], native.segments[1].block)
-  assert.deepEqual(synthesis.textAt({ ...cursor, renderedFrames: 7 }), {
-    basis: 'completed-segment',
-    text: 'first',
-  })
-  assert.deepEqual(synthesis.textAt({ ...cursor, renderedFrames: 8 }), {
-    basis: 'completed-segment',
-    text: 'firstsecond',
-  })
   await synthesis.close()
 })
 
@@ -242,19 +225,6 @@ test('close aborts blocked PCM and awaits a late-opened segment and its resource
   assert.equal(native.segments.at(-1)?.closed, 1)
   accepted.resolve()
   await turn()
-})
-
-test('text progress remains unknown when the renderer cannot establish completed text', async () => {
-  const native = renderer(false)
-  const synthesis = await openStreamingSynthesis({ ...createVoiceScope(), format, voice: '' }, native.open, 512)
-  await synthesis.write('one')
-  await synthesis.flush()
-  await synthesis.write('two')
-  await synthesis.finish()
-  assert.deepEqual(synthesis.textAt({ basis: 'estimate', renderedFrames: 100, sampleRate: 24000 }), {
-    text: '',
-    basis: 'unknown',
-  })
 })
 
 test('bounded text and segment counts reject additional input without queuing synthesis', async () => {

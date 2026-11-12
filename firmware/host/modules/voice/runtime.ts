@@ -1,6 +1,5 @@
 import type {
   AudioRuntime,
-  DuplexLease,
   Microphone,
   PcmFormat,
   PlaybackLease,

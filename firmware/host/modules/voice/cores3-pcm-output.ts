@@ -46,7 +46,12 @@ function playbackMeter(onPlayed: (power: number) => void) {
   }
 }
 
-export function openOutput(sampleRate: number, volume: number, limit: number, onPlayed?: (power: number) => void): PcmOutput {
+export function openOutput(
+  sampleRate: number,
+  volume: number,
+  limit: number,
+  onPlayed?: (power: number) => void,
+): PcmOutput {
   const meter = onPlayed ? playbackMeter(onPlayed) : undefined
   let capacity = 0
   let writable = 0

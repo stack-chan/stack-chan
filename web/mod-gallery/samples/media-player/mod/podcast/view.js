@@ -339,7 +339,10 @@ export function createPodcastView(controller, context, i18n, radio = false) {
           const labelKey = state.playbackError || playbackLabels[state.state]
           const label = labelKey && t(labelKey)
           const duration = state.progress.duration ? time(state.progress.duration) : '--:--'
-          const position = `${time(seconds)} / ${state.progress.estimated ? t('podcast.approximate', { duration }) : duration}`
+          const current = state.progress.positionEstimated
+            ? t('podcast.approximate', { duration: time(seconds) })
+            : time(seconds)
+          const position = `${current} / ${state.progress.estimated ? t('podcast.approximate', { duration }) : duration}`
           clock.string = label ? `${label}  ${position}` : position
         },
       },
@@ -399,6 +402,7 @@ export function createPodcastView(controller, context, i18n, radio = false) {
       state.loading,
       state.progress.duration,
       state.progress.estimated,
+      state.progress.positionEstimated,
       state.progress.seekable,
     ]
     const changed = !renderKey || key.some((value, index) => value !== renderKey[index])

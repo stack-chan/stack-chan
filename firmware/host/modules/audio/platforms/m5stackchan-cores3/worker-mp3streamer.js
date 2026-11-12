@@ -36,7 +36,7 @@ export default class {
     if (options.onError) this.#callbacks.onError = options.onError
     if (options.onRetry) this.#callbacks.onRetry = options.onRetry
     if (options.onDone) this.#callbacks.onDone = options.onDone
-    for (const name of ['onMetadata', 'onCheckpoint', 'onOutputStart', 'onSource'])
+    for (const name of ['onMetadata', 'onCheckpoint', 'onOutputStart', 'onSource', 'onSeekInfo', 'onSeekInvalid'])
       this.#callbacks[name] = options[name]
     this.#seek = options.seek ?? { offset: 0, seconds: 0, target: 0 }
     this.#source = options.source
@@ -145,6 +145,9 @@ export default class {
           this.#networkBackoffIndex = 0
           if (info.start && this.#source?.totalBytes !== undefined && info.totalBytes !== this.#source.totalBytes)
             throw new Error('Media changed while seeking')
+          const expected = this.#source?.validator
+          const returned = expected && _headers.get(expected.startsWith('"') ? 'etag' : 'last-modified')
+          if (info.start && returned && returned !== expected) throw new Error('Media changed while seeking')
           const source = { url, totalBytes: info.totalBytes, validator: info.validator }
           this.#callbacks.onSource?.(source, this.#seek.offset > 0 && info.start === 0)
           if (this.#closed || generation !== this.#networkGeneration) return
@@ -154,6 +157,9 @@ export default class {
               offset: info.start,
               seconds: info.start ? this.#seek.seconds : 0,
               totalBytes: info.totalBytes,
+              estimated: !!info.start && !!this.#seek.estimated,
+              synchronize: !!info.start && !!this.#seek.synchronize,
+              cbr: info.start ? this.#seek.cbr : undefined,
             })
         },
         onReadable: () => this.#drainNetwork(),
@@ -239,7 +245,13 @@ export default class {
         this.#callbacks.onCheckpoint?.(message.value)
         break
       case 'position':
-        this.#callbacks.onOutputStart?.(message.seconds)
+        this.#callbacks.onOutputStart?.(message.seconds, message.estimated)
+        break
+      case 'seek-info':
+        this.#callbacks.onSeekInfo?.(message.value)
+        break
+      case 'seek-invalid':
+        this.#callbacks.onSeekInvalid?.()
         break
       case 'output':
         this.#audio.pumpSharedOutput()

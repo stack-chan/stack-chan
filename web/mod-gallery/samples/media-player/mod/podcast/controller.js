@@ -328,7 +328,7 @@ export class PodcastController {
       const mediaSource =
         source === 'radio'
           ? { url: item.url, mode: 'live' }
-          : { url: item.url, mode: 'finite', duration: item.duration }
+          : { url: item.url, mode: 'finite', duration: item.duration, seekAccuracy: 'approximate' }
       const session = await context.audio.media.open(mediaSource, {
         signal: scope.signal,
         onProgress: (progress) => {

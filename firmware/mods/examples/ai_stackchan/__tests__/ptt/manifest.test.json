@@ -1,0 +1,29 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./ptt.test",
+    "ai-mod": "../../mod",
+    "app-default-behavior": "./default",
+    "effects/emoticon": "./emoticon",
+    "face-state": "./face",
+    "stackchan/ai": "./ai",
+    "stackchan/voice": "./voice",
+    "stackchan/voice/speech": "./speech"
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../../../host/modules/ui/assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../../host/modules/ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  },
+  "defines": { "main": { "async": 1 } }
+}

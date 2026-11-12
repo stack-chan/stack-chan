@@ -40,9 +40,11 @@ export function streamResponse<T>(
         timeoutMs,
       )
       let finished = false,
-        pending = 0,
-        queued = 0,
+        available = 0,
+        reading = false,
+        ended = false,
         status = 0
+      let reader: ResponseWriter | undefined
       let drain = Promise.resolve()
       let bodyReceived = false
       let connectionError: unknown
@@ -52,6 +54,8 @@ export function streamResponse<T>(
       function finish(error?: unknown) {
         if (finished) return
         finished = true
+        reader = undefined
+        available = 0
         platform.clear(timeout)
         scope.signal.removeEventListener('abort', abort)
         // ECMA-419のcallbackを抜けてからTLS socketを閉じる
@@ -67,6 +71,10 @@ export function streamResponse<T>(
       }
       function end(error?: unknown) {
         if (finished) return
+        // SDKはonDone後にrequestを無効にする。解析待ちのデータだけを完了まで待つ
+        ended = true
+        reader = undefined
+        available = 0
         if (error) connectionError = error
         else bodyReceived = true
         // SDKがソケットの切断を知らせた時点では、最後のSSEイベントが解析待ちの場合がある。
@@ -74,6 +82,26 @@ export function streamResponse<T>(
           if (bodyReceived || isComplete?.()) finish()
           else finish(connectionError)
         })
+      }
+      async function pump() {
+        reading = true
+        try {
+          while (available > 0 && !finished) {
+            const count = Math.min(available, maxPendingBytes, 4096)
+            const data = reader?.read(count)
+            if (!data || data.byteLength !== count) throw Error('short HTTP read')
+            available -= count
+            // 最初のreadはcallback内で受け取り、SSE解析はTLSのnativeスタックを抜けてから行う
+            await Promise.resolve()
+            if (finished) return
+            await consume(new Uint8Array(data))
+            if (isComplete?.()) finish()
+          }
+        } catch (error) {
+          finish(error)
+        } finally {
+          reading = false
+        }
       }
       try {
         scope.signal.addEventListener('abort', abort)
@@ -122,27 +150,11 @@ export function streamResponse<T>(
             }
           },
           onReadable(count) {
-            if (finished || !count) return
-            try {
-              if (pending + count > maxPendingBytes || queued >= 16)
-                throw failure('resource_exhausted', 'Responses consumer is too slow')
-              const data = this.read(count)
-              if (!data || data.byteLength !== count) throw Error('short HTTP read')
-              queued++
-              pending += count
-              drain = drain
-                .then(async () => {
-                  if (!finished) {
-                    await consume(new Uint8Array(data))
-                    if (isComplete?.()) finish()
-                  }
-                  queued--
-                  pending -= count
-                })
-                .catch(finish)
-            } catch (error) {
-              finish(error)
-            }
+            if (finished || ended || !count) return
+            reader = this
+            // countは未読バイト数のsnapshot。consumerが止まっている間はTLS側に残す
+            available = count
+            if (!reading) drain = pump()
           },
           onDone(error) {
             end(error || !status ? failure('provider_failed', 'Responses connection closed early') : undefined)

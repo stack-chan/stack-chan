@@ -283,6 +283,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           } catch (error) {
             if (scope.signal.aborted) status = 'interrupted'
             else {
+              scope.abort(error)
               await ports.output.fence(++generation)
               send({ type: 'error', code: (error as { code?: string }).code ?? 'provider_failed', fatal: false })
             }

@@ -3,7 +3,6 @@ class Synthesis {
   output = {}
   async write(text) {
     state.writes.push(text)
-    this.text = text
   }
   async finish() {
     state.finishes++

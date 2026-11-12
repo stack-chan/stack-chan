@@ -57,6 +57,8 @@ const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
+const sanotts = path.resolve(manifest) === path.resolve('host/app/manifest_sanotts.json')
+const applicationName = sanotts ? 'stack-chan-sanotts' : hostApplicationName
 let toolManifest = manifest
 let expectedDescriptorVersion
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
@@ -101,7 +103,7 @@ if (
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
       platformName: deviceName,
-      applicationName: hostApplicationName,
+      applicationName,
       mode: buildMode,
       realtime,
       solutionDirectory,
@@ -116,7 +118,10 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
       realtime,
-      realtimePerformance: path.basename(manifest) === 'manifest_openai_live.json',
+      memoryPerformance: sanotts || path.basename(manifest) === 'manifest_openai_live.json',
+      ...(sanotts && {
+        sourceDirectory: path.join(process.env.MODDABLE, 'build/devices/esp32/targets/m5stack_cores3/sdkconfig'),
+      }),
     })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
@@ -174,7 +179,7 @@ switch (command) {
     ])
     if (expectedDescriptorVersion) {
       validateFirmwareBundleTarget(
-        path.join(buildOutputDirectory, 'bin', 'esp32', deviceName, buildMode, hostApplicationName),
+        path.join(buildOutputDirectory, 'bin', 'esp32', deviceName, buildMode, applicationName),
         expectedDescriptorVersion,
       )
     }

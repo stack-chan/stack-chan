@@ -508,3 +508,83 @@ function assertMainCommand(invocation, command, manifestPath) {
 function count(source, value) {
   return source.split(value).length - 1
 }
+
+test('sanoTTS selects board-derived timings without changing standard or Opus capability settings', () => {
+  const fixture = createFirmwareWrapperFixture()
+  try {
+    const sdkconfig = path.join(
+      fixture.fakeModdable,
+      'build/devices/esp32/targets/m5stack_cores3/sdkconfig/sdkconfig.defaults',
+    )
+    writeFileSync(
+      sdkconfig,
+      [
+        'CONFIG_SPIRAM_SPEED_40M=y',
+        'CONFIG_SPIRAM_SPEED_80M=n',
+        'CONFIG_ESPTOOLPY_FLASHMODE_DIO=y',
+        'CONFIG_AUDIO_DECODER_AAC_SUPPORT=y',
+        'CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=n',
+        'CONFIG_AUDIO_DECODER_OPUS_SUPPORT=n',
+        'CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=32768',
+        '',
+      ].join('\n'),
+    )
+    const manifest = path.join(fixture.firmware, 'host/app/manifest_sanotts.json')
+    writeFileSync(manifest, JSON.stringify({ modules: { realtimeConversation: './conversation' } }))
+    writeFileSync(
+      path.join(fixture.fakeBin, 'mcconfig'),
+      `#!/usr/bin/env node
+const {readFileSync,writeFileSync}=require('node:fs')
+const path=require('node:path')
+writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG,readFileSync(path.join(process.env.SDKCONFIGPATH,'sdkconfig.defaults')))
+`,
+    )
+    const run = (input) => {
+      const result = spawnSync(
+        process.execPath,
+        ['scripts/firmware.mjs', 'build', '--mode=instrument', '--manifest', input],
+        {
+          cwd: fixture.firmware,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            MODDABLE: fixture.fakeModdable,
+            ESP_WEBRTC_SOLUTION: fixture.solutionDirectory,
+            PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+            STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
+          },
+        },
+      )
+      assert.equal(result.status, 0, result.stderr)
+      return readFileSync(fixture.commandLog, 'utf8')
+    }
+    const standard = run(fixture.normalManifest)
+    assert.match(standard, /^CONFIG_SPIRAM_SPEED_40M=y$/m)
+    assert.match(standard, /^CONFIG_ESPTOOLPY_FLASHMODE_DIO=y$/m)
+    const optional = run(manifest)
+    assert.doesNotMatch(optional, /^CONFIG_(SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=/m)
+    assert.match(optional, /^CONFIG_AUDIO_DECODER_AAC_SUPPORT=y$/m)
+    assert.match(optional, /^CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=32768$/m)
+    assert.match(optional, /^CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=y$/m)
+    assert.match(optional, /^CONFIG_AUDIO_DECODER_OPUS_SUPPORT=y$/m)
+    assert.equal(run(fixture.normalManifest), standard)
+    const feature = JSON.parse(
+      readFileSync(path.join(firmwareDirectory, 'host/modules/audio/sanotts-jp/manifest.json'), 'utf8'),
+    )
+    assert.equal(feature.platforms['esp32/m5stackchan_cores3'].build, undefined)
+    const host = JSON.parse(readFileSync(path.join(firmwareDirectory, 'host/app/manifest_sanotts.json'), 'utf8'))
+    assert.equal(host.include.at(-1), './manifest_sanotts_profile.json')
+    const profilePath = path.join(firmwareDirectory, 'host/app/manifest_sanotts_profile.json')
+    const profile = JSON.parse(readFileSync(profilePath, 'utf8'))
+    assert.equal(profile.build.NAME, 'stack-chan-sanotts')
+    assert.equal(
+      path.resolve(path.dirname(profilePath), profile.build.SDKCONFIGPATH),
+      path.join(firmwareDirectory, 'dist/generated/sdkconfig/m5stackchan_cores3'),
+    )
+    assert.equal(profile.esp32Config.CONFIG_SPIRAM_SPEED_80M, 'y')
+    assert.equal(profile.esp32Config.CONFIG_ESPTOOLPY_FLASHMODE_QIO, 'y')
+    assert.equal(profile.esp32Config.CONFIG_ESP32S3_DATA_CACHE_64KB, 'y')
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})

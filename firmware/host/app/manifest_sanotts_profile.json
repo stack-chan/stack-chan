@@ -1,0 +1,19 @@
+{
+  "build": {
+    "NAME": "stack-chan-sanotts",
+    "PARTITIONS_FILE": "./../modules/audio/sanotts-jp/partitions.csv",
+    "SDKCONFIGPATH": "./../../dist/generated/sdkconfig/m5stackchan_cores3"
+  },
+  "esp32Config": {
+    "CONFIG_ESP32S3_INSTRUCTION_CACHE_16KB": "n",
+    "CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB": "y",
+    "CONFIG_ESP32S3_DATA_CACHE_32KB": "n",
+    "CONFIG_ESP32S3_DATA_CACHE_64KB": "y",
+    "CONFIG_ESP32S3_DATA_CACHE_LINE_32B": "n",
+    "CONFIG_ESP32S3_DATA_CACHE_LINE_64B": "y",
+    "CONFIG_SPIRAM_SPEED_40M": "n",
+    "CONFIG_SPIRAM_SPEED_80M": "y",
+    "CONFIG_ESPTOOLPY_FLASHMODE_DIO": "n",
+    "CONFIG_ESPTOOLPY_FLASHMODE_QIO": "y"
+  }
+}

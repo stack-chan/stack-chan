@@ -1,12 +1,9 @@
 import type { SpeakerSpeechPlayback, SpeechPlaybackListener } from 'speech-playback-types'
 import type { Speaker } from 'stackchan/voice/contracts'
-import { mono } from 'stackchan/voice/media'
-import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import { playSpeech } from 'stackchan/voice/play-speech'
 import { createStackchanVoiceTTS } from 'stackchan/voice/stackchan-voice'
 
 type Options = { speed?: number; voice?: string; volume?: number }
-
-const budget = { maxBufferedMs: 250, maxBufferedBytes: 24576 }
 
 export class SpeechPlayback implements SpeakerSpeechPlayback {
   readonly #tts: ReturnType<typeof createStackchanVoiceTTS>
@@ -26,40 +23,7 @@ export class SpeechPlayback implements SpeakerSpeechPlayback {
     volume: number | undefined,
     onPlayed: SpeechPlaybackListener,
   ) {
-    const scope = createVoiceScope()
-    const play = async () => {
-      const lease = await speaker.runtime.acquirePlayback(speaker, [mono(24000)], { ...scope, budget, onPlayed })
-      try {
-        requireActive(scope.signal)
-        lease.setVolume(volume ?? this.#volume)
-        const options = { signal: scope.signal, format: lease.output.format, voice: 'default' }
-        const synthesis = kind === 'koe' ? await this.#tts.openKoe(options) : await this.#tts.open(options)
-        try {
-          requireActive(scope.signal)
-          const sink = lease.output.begin('utterance', 0)
-          const link = await lease.media.connect(synthesis.output, sink, { signal: scope.signal, budget })
-          try {
-            await synthesis.write(text)
-            await synthesis.finish()
-            await link.done
-            const receipt = await lease.output.finish('utterance')
-            if (receipt.state !== 'played')
-              throw voiceError(receipt.state === 'failed' ? 'playback_failed' : 'cancelled')
-          } finally {
-            await link.close()
-          }
-        } finally {
-          await synthesis.close()
-        }
-      } finally {
-        await lease.close()
-      }
-    }
-    return {
-      done: play(),
-      cancel() {
-        scope.abort()
-      },
-    }
+    const open = kind === 'koe' ? this.#tts.openKoe : this.#tts.open
+    return playSpeech(speaker, open, text, volume ?? this.#volume, onPlayed)
   }
 }

@@ -1,0 +1,14 @@
+{
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "include": [
+        "../../../../vendor/sanotts-jp/manifest.json",
+        "../../voice/sanotts-reading/manifest.json"
+      ],
+      "modules": {
+        "stackchan/voice/sanotts": "../../voice/sanotts",
+        "speech-playback-sanotts": "../../voice/sanotts-playback"
+      }
+    }
+  }
+}

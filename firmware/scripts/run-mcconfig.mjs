@@ -54,7 +54,7 @@ if (targetsM5StackChanCoreS3(args)) {
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
       realtime: usesWebRtc,
-      realtimePerformance: path.basename(manifest ?? '') === 'manifest_openai_live.json',
+      memoryPerformance: path.basename(manifest ?? '') === 'manifest_openai_live.json',
     })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {

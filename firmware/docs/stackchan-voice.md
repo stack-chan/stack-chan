@@ -76,3 +76,11 @@ generated helper validates the list, converts beat counts to exact
 milliseconds, romanizes each one-kana-mora lyric, and calls
 `robot.audio.sing(...)`. CoreS3 and the browser simulator therefore play the
 same score without doing text-to-koe conversion inside the voice provider.
+
+## Offline sanoTTS-jp on CoreS3
+
+Install the optional CoreS3 host and its separately licensed model using the [installation guide](./sanotts_ja.md). Set the string preference `tts.type` to `sanotts` and restart. This selects sanoTTS for `context.audio.say()` and the speech output stage of the `ai_stackchan` MOD. In that MOD the STT and LLM still use OpenAI. With any other setting, the MOD retains its OpenAI speech output. To resume standalone StackchanVoice speech and singing, select `stackchan-voice`. The sanoTTS voice supports speech only.
+
+For a custom cascaded conversation, pass `createSanoTTS()` from `stackchan/voice/sanotts` as its `tts` and use `voice: 'default'`. The provider's `open()` converts ordinary text using the local reading dictionary. Its `openKana()` accepts sanoTTS intermediate kana and accent markers directly. Both sessions expose mono 24 kHz signed 16-bit PCM and accept the same cancellation signal. The built-in reading dictionary rejects an unknown kanji compound. Use `openKana()` to specify its pronunciation, or pass a synchronous `toKana(text)` function to `createSanoTTS({ toKana })` to supply domain-specific readings. One utterance accepts up to 512 UTF-8 bytes of intermediate kana and 350 encoded IDs. Split longer text at a sentence boundary before submitting it. Missing or incompatible models, unsupported input and memory exhaustion fail the utterance and release the speaker. The provider makes no cloud retry.
+
+The native inference task runs on the opposite core from XS on dual-core ESP32-S3. A 32 KiB PSRAM ring holds unplayed samples. Its producer waits for space before the next inference pull. An utterance starts feeding the speaker once 12,288 samples are available (512 ms of audio) or synthesis has finished. A reusable 2 KiB buffer passes PCM to the shared speaker with backpressure. Cancellation requests worker shutdown, then waits for the worker to leave its current inference call before releasing memory. For local verification with the installed model, run `bash scripts/test-sanotts-native.sh` from `firmware/` on Linux.

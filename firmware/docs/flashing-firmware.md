@@ -34,10 +34,12 @@ StackChan can change settings such as motor types and pin assignments from the m
 | driver.tiltId     | ID of the serial servo used for tilt axis (vertical rotation of the neck)  | 1~254                                |
 | driver.offsetPan  | Offset of the pan axis                                                     | -90~90                               |
 | driver.offsetTilt | Offset of the tilt axis                                                    | -90~90                               |
-| tts.type          | [TTS](./text-to-speech.md) type                                            | "local", "voicevox", "remote", "voicevox-web", "elevenlabs", "openai"                  |
+| tts.type          | [TTS](./text-to-speech.md) type                                            | "local", "stackchan-voice", "sanotts", "voicevox", "remote", "voicevox-web", "elevenlabs", "openai"                  |
 | tts.host          | Host name when TTS communicates with server                                | "localhost", "ttsserver.local", etc. |
 | tts.port          | Port number when TTS communicates with server                              | 1~65535                              |
 | tts.volume        | Volume when play TTS                                                       | 0~1                                  |
+
+On M5StackChan CoreS3, `stackchan-voice` uses the built-in offline voice. To use `sanotts`, build the opt-in host and install its model separately as described in the [sanoTTS setup guide](./sanotts_ja.md). See [StackchanVoice](./stackchan-voice.md) for the built-in voice.
 
 Additionally, you can specify the paths of other manifest files in a list format under the `"include"` key.
 

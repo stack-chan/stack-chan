@@ -82,7 +82,7 @@ export function prepareVersionSdkconfig({
   sourceDirectory,
   partitionSourcePath,
   realtime = false,
-  realtimePerformance = false,
+  memoryPerformance = false,
 }) {
   if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
@@ -102,8 +102,8 @@ export function prepareVersionSdkconfig({
     source = source
       .replace(/^CONFIG_AUDIO_(ENCODER|DECODER)_OPUS_SUPPORT=.*$/gm, 'CONFIG_AUDIO_$1_OPUS_SUPPORT=y')
       .replace(/^CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=.*\n?/gm, '')
-  // Only the explicitly selected Live performance profile changes bus timing.
-  if (realtimePerformance)
+  // Only explicitly selected performance profiles change memory bus timing.
+  if (memoryPerformance)
     source = source.replace(/^CONFIG_(?:SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=.*\n?/gm, '')
   const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
@@ -131,7 +131,7 @@ export function prepareCoreS3VersionSdkconfig({
   outputDirectory = buildOutputDirectory,
   sourceDirectory = coreS3SdkconfigSourceDirectory,
   realtime = false,
-  realtimePerformance = false,
+  memoryPerformance = false,
   partitionSourcePath = path.join(
     moddableDirectory ?? '',
     'build',
@@ -150,7 +150,7 @@ export function prepareCoreS3VersionSdkconfig({
     sourceDirectory,
     partitionSourcePath,
     realtime,
-    realtimePerformance,
+    memoryPerformance,
   })
 }
 

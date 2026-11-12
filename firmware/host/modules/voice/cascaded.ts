@@ -6,6 +6,7 @@ import type {
   Conversation,
   ConversationEvent,
   ConversationSession,
+  Failure,
   InputItem,
   InputMessage,
   Interruption,
@@ -21,6 +22,23 @@ import Timer from 'timer'
 
 let nextSession = 0
 const historyLimit = 64 * 1024
+
+function errorCode(error: unknown): Failure['code'] {
+  const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
+  switch (code) {
+    case 'unsupported_capability':
+    case 'device_busy':
+    case 'cancelled':
+    case 'deadline_exceeded':
+    case 'input_overrun':
+    case 'provider_failed':
+    case 'resource_exhausted':
+    case 'tool_failed':
+      return code
+    default:
+      return 'provider_failed'
+  }
+}
 
 function owned<T>(item: T, budget: { left: number }): T {
   function take(size: number) {
@@ -267,6 +285,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
                 : []
             appended = result.appended
             requireActive(scope.signal)
+            if (result.status === 'failed') throw voiceError(errorCode(result.error), result.error.message)
             if (result.status !== 'completed') throw voiceError('provider_failed', 'incomplete agent turn')
             for (const item of finalMessages) {
               const text = item.content.map((part) => (part.type === 'output_text' ? part.text : part.refusal)).join('')
@@ -285,7 +304,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
             else {
               scope.abort(error)
               await ports.output.fence(++generation)
-              send({ type: 'error', code: (error as { code?: string }).code ?? 'provider_failed', fatal: false })
+              send({ type: 'error', code: errorCode(error), fatal: false })
             }
           } finally {
             try {
@@ -400,9 +419,9 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           onSignal(event) {
             pending = pending
               .then(() => handle(event))
-              .catch(async () => {
+              .catch(async (error) => {
                 await stopUtterance()
-                send({ type: 'error', code: 'provider_failed', fatal: false })
+                send({ type: 'error', code: errorCode(error), fatal: false })
               })
           },
         })

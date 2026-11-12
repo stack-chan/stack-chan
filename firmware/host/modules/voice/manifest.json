@@ -1,5 +1,9 @@
 {
   "modules": {
+    "realtimeConversation/http-core": [
+      "../realtime-conversation/http-core",
+      "../ai/http-core-types.d.ts"
+    ],
     "stackchan/voice": "./index",
     "stackchan/voice/contracts": "./contracts",
     "stackchan/voice/scope": "./scope",

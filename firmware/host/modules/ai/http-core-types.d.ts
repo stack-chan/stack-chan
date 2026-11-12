@@ -15,5 +15,5 @@ declare module 'realtimeConversation/http-core' {
   export function createClosingClient(
     Client: unknown,
     options: object,
-  ): import('stackchan-ai-http-stream').ResponseConnection
+  ): Pick<import('embedded:network/http/client').default, 'request' | 'close'>
 }

@@ -525,7 +525,7 @@ test('Node unit test tsconfig discovers host tests by glob and excludes Moddable
   }
 })
 
-test('module Moddable test manifests include implementation and testing manifests', () => {
+test('module Moddable tests load production modules and the testing manifest', () => {
   const testingManifestPath = join(MODULE_ROOT, 'testing', 'manifest.json')
   const manifestPaths = walkFiles(MODULE_ROOT).filter((path) => path.endsWith('manifest.test.json'))
 
@@ -536,12 +536,25 @@ test('module Moddable test manifests include implementation and testing manifest
       .map((includePath: string) => join(dirname(manifestPath), includePath))
 
     assert.ok(resolvedIncludes.includes(testingManifestPath), `${manifestPath} should include testing manifest`)
-    assert.ok(
-      resolvedIncludes.some(
-        (includePath: string) => includePath.endsWith('manifest.json') && includePath !== testingManifestPath,
-      ),
-      `${manifestPath} should include the implementation manifest under test`,
+    let includesImplementation = resolvedIncludes.some(
+      (includePath: string) => includePath.endsWith('manifest.json') && includePath !== testingManifestPath,
     )
+    if (!includesImplementation) {
+      const productionManifest = join(manifestPath.replaceAll('\\', '/').split('/__tests__/')[0], 'manifest.json')
+      const modules = existsSync(productionManifest) ? readJson(productionManifest).modules : {}
+      includesImplementation = Object.entries(manifest.modules ?? {}).some(([alias, sources]) =>
+        collectStringValues(sources).some(
+          (source) =>
+            source.startsWith('.') &&
+            collectStringValues(modules?.[alias]).some(
+              (productionSource) =>
+                productionSource.startsWith('.') &&
+                join(dirname(manifestPath), source) === join(dirname(productionManifest), productionSource),
+            ),
+        ),
+      )
+    }
+    assert.ok(includesImplementation, `${manifestPath} should load the production implementation under test`)
   }
 })
 

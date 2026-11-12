@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { inflateSync } from 'node:zlib'
+import { writeAliasPackage } from '../testing/node-alias-package.js'
 import type { FunctionCall, InputItem, LLM, ModelResponse } from '../voice/contracts.js'
 import { createVoiceScope } from '../voice/scope.js'
 import type { ResponseConnection } from './ai-http-stream.js'
-import { writeAliasPackage } from '../testing/node-alias-package.js'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const directory = dirname(fileURLToPath(import.meta.url))
 for (const name of ['ai-core', 'ai-image', 'ai-wire', 'ai-responses']) {
@@ -384,7 +384,7 @@ test('HTTP drains accepted response callbacks and honors each writable credit re
   assert.equal(io.closes, 1)
 })
 
-test('HTTP abort and input overflow close once and stop reading the camera buffer', async () => {
+test('HTTP abort and invalid reads close once and stop reading the camera buffer', async () => {
   for (const abort of [false, true]) {
     const io = httpFixture(4)
     const scope = createVoiceScope()
@@ -412,7 +412,7 @@ test('HTTP abort and input overflow close once and stop reading the camera buffe
     else io.handlers.onReadable.call(source, 8)
     io.handlers.onWritable.call(source, 10)
     io.handlers.onDone()
-    await assert.rejects(task, { code: abort ? 'cancelled' : 'resource_exhausted' })
+    await assert.rejects(task, abort ? { code: 'cancelled' } : /short HTTP read/)
     assert.equal(io.closes, 1)
     assert.equal(reads, 0)
   }

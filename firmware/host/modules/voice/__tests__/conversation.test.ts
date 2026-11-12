@@ -547,6 +547,102 @@ test('only a confirmed final-answer sentence starts early and the completed repl
   await session.close({ mode: 'drain' })
 })
 
+test('a failed agent turn cancels its detached speech consumer before fencing playback', async () => {
+  const device = makeLease()
+  const started = deferred<void>()
+  const cancelled = deferred<void>()
+  const ended = deferred<void>()
+  const events: ConversationEvent[] = []
+  const cleanup: string[] = []
+  let consumer: Promise<unknown> | undefined
+  const fence = device.lease.output.fence
+  device.lease.output.fence = async (generation) => {
+    cleanup.push('fence')
+    return fence(generation)
+  }
+  const agent: Agent = {
+    async run(_request, options) {
+      consumer = Promise.resolve(
+        options.onEvent?.({
+          type: 'response.output_text.delta',
+          item_id: 'reply',
+          phase: 'final_answer',
+          delta: '途中。',
+        }),
+      ).then(
+        () => undefined,
+        (error) => error,
+      )
+      await started.promise
+      return { status: 'failed', error: { code: 'provider_failed', message: 'connection failed' }, appended: [] }
+    },
+  }
+  const tts: TTS = {
+    async open({ signal, format }) {
+      const source = createPcmSource(format)
+      const abort = () => {
+        cleanup.push('cancel')
+        source.end(signal.reason)
+        cancelled.reject(signal.reason)
+      }
+      signal.addEventListener('abort', abort)
+      return {
+        output: source.output,
+        async write() {},
+        finish() {
+          started.resolve()
+          return cancelled.promise
+        },
+        textAt() {
+          return { text: '', basis: 'unknown' }
+        },
+        async close() {
+          cleanup.push('close')
+          signal.removeEventListener('abort', abort)
+          source.end()
+        },
+      }
+    },
+  }
+  const conversation = createCascadedConversation({
+    agent,
+    tts,
+    stt: {
+      async open() {
+        throw Error('unused')
+      },
+    },
+    voice: '',
+    turnDetector: createPushToTalk().detector,
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent(event) {
+      events.push(event)
+      if (event.type === 'turn.ended') ended.resolve()
+    },
+  })
+  try {
+    await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: '話して' }] }, scope)
+    await ended.promise
+    await tick()
+    assert.deepEqual(cleanup, ['cancel', 'fence', 'close'])
+    assert.equal(((await consumer) as { code?: string }).code, 'provider_failed')
+    assert.deepEqual(
+      events.filter((event) => event.type === 'error'),
+      [{ type: 'error', code: 'provider_failed', fatal: false }],
+    )
+    assert.ok(events.some((event) => event.type === 'turn.ended' && event.status === 'failed'))
+  } finally {
+    cancelled.reject(Error('test cleanup'))
+    await consumer
+    await session.close({ mode: 'abort' })
+  }
+})
+
 test('HTTP PCM waits for playback credit, carries a split sample, and rejects a truncated stream', async () => {
   const { createPcmBodyReader } = await import('../pcm-http.js')
   const credit = deferred<void>(),

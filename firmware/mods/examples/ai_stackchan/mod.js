@@ -111,7 +111,6 @@ export function onContextCreated(robot, option) {
   })
   const scope = createVoiceScope()
   const heart = new Emoticon({ key: 'heart', left: 20, top: 20 })
-  const sweat = new Emoticon({ key: 'sweat', left: 20, top: 20 })
   const button = robot.input.button?.a
   const previous = button?.onEvent
   let talkButton
@@ -151,16 +150,44 @@ export function onContextCreated(robot, option) {
     closing,
     ending,
     effect,
+    previousFaceMotion,
+    activeTurn,
+    pendingInputs = 0,
+    awaitingTurn = false,
+    quiet = false,
     inputGeneration = 0,
     held = false,
     recording = false
   function face(nextEffect, emotion) {
+    if (quiet) nextEffect = undefined
     if (effect !== nextEffect) {
       if (effect) robot.ui.removeEffect(effect)
       if (nextEffect) robot.ui.addEffect(nextEffect)
       effect = nextEffect
     }
     robot.face.setEmotion(emotion)
+  }
+  function quietPresentation() {
+    if (!quiet) {
+      previousFaceMotion = robot.ui.faceMotionEnabled
+      quiet = true
+      robot.ui.setFaceMotionEnabled?.(false)
+      robot.face.setMouthOpen(0, true)
+    }
+    robot.ui.hideBalloon()
+    face(undefined, Emotion.DOUBTFUL)
+  }
+  function restorePresentation() {
+    if (quiet) {
+      robot.face.setMouthOpen(0, true)
+      if (typeof previousFaceMotion === 'boolean') robot.ui.setFaceMotionEnabled?.(previousFaceMotion)
+      previousFaceMotion = undefined
+      quiet = false
+    }
+    face(undefined, Emotion.NEUTRAL)
+  }
+  function restoreIfIdle() {
+    if (!recording && !pendingInputs && !awaitingTurn && activeTurn === undefined) restorePresentation()
   }
   function closePipeline() {
     if (closing || !pipeline) return closing
@@ -183,17 +210,34 @@ export function onContextCreated(robot, option) {
       onEvent(value) {
         if (pipeline !== next || scope.signal.aborted) return
         if (value.type === 'error') {
+          const failedInput = activeTurn === undefined && pendingInputs > 0
           if (recording) {
             recording = false
+            if (!value.fatal && (failedInput || activeTurn !== undefined || awaitingTurn)) {
+              pendingInputs++
+              quietPresentation()
+            }
             pushToTalk.release()
           }
-          face(undefined, Emotion.NEUTRAL)
-          robot.ui.showBalloon(value.code === 'input_overrun' ? '6秒以内で話してね' : `音声対話: ${value.code}`)
+          if (value.fatal) pendingInputs = 0
+          else if (failedInput) pendingInputs--
+          awaitingTurn = false
+          activeTurn = undefined
+          restoreIfIdle()
+          if (!quiet)
+            robot.ui.showBalloon(value.code === 'input_overrun' ? '6秒以内で話してね' : `音声対話: ${value.code}`)
           if (value.fatal) void closePipeline()?.catch((error) => trace(String(error)))
-        } else if (value.type === 'input.transcript' && value.value.final && !value.value.text.trim()) {
-          face(undefined, Emotion.NEUTRAL)
-        } else if (value.type === 'turn.ended' && !recording) {
-          face(undefined, Emotion.NEUTRAL)
+        } else if (value.type === 'input.transcript' && value.value.final) {
+          pendingInputs = Math.max(0, pendingInputs - 1)
+          awaitingTurn = !!value.value.text.trim()
+          restoreIfIdle()
+        } else if (value.type === 'turn.started') {
+          awaitingTurn = false
+          activeTurn = value.turnId
+          quietPresentation()
+        } else if (value.type === 'turn.ended') {
+          if (activeTurn === value.turnId) activeTurn = undefined
+          restoreIfIdle()
         }
       },
     })
@@ -212,8 +256,9 @@ export function onContextCreated(robot, option) {
     if (!held) {
       if (recording) {
         recording = false
+        pendingInputs++
+        quietPresentation()
         pushToTalk.release()
-        face(sweat, Emotion.DOUBTFUL)
       }
       return
     }
@@ -238,7 +283,10 @@ export function onContextCreated(robot, option) {
       try {
         await closePipeline()
       } finally {
-        face(undefined, Emotion.NEUTRAL)
+        pendingInputs = 0
+        awaitingTurn = false
+        activeTurn = undefined
+        restorePresentation()
         ending = undefined
       }
     })()
@@ -247,7 +295,10 @@ export function onContextCreated(robot, option) {
   const handleButton = (event) => {
     void onButton(event).catch((error) => {
       if (!scope.signal.aborted) {
-        face(undefined, Emotion.NEUTRAL)
+        pendingInputs = 0
+        awaitingTurn = false
+        activeTurn = undefined
+        restorePresentation()
         robot.ui.showBalloon(String(error))
       }
     })

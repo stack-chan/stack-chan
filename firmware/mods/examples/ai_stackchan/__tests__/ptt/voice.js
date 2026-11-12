@@ -6,6 +6,7 @@ export const createPushToTalk = () => ({
   },
   release() {
     state.releases++
+    state.onRelease?.()
   },
 })
 export const createCascadedConversation = (options) => options
@@ -18,12 +19,16 @@ export const createVoiceScope = () => {
     },
   }
 }
-export const createConversationPipeline = () => ({
-  setVolume() {},
-  async start() {
-    state.starts++
-  },
-  async close() {
-    state.closes++
-  },
-})
+export const createConversationPipeline = (options) => {
+  state.pipeline = options
+  return {
+    setVolume() {},
+    async start() {
+      state.starts++
+    },
+    async close() {
+      state.closes++
+      await state.onClose?.()
+    },
+  }
+}

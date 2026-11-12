@@ -1,3 +1,4 @@
+import { createClosingClient } from 'realtimeConversation/http-core'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
@@ -41,8 +42,9 @@ export function createWhisperSTT(options: {
   return {
     async open({ signal, format, onTranscript, utteranceId }) {
       requireActive(signal)
+      // 録音PCMで固定容量のXS chunk領域を使い切らず、HTTPや応答解析の領域を残す
+      let recording: Uint8Array = new Uint8Array(new SharedArrayBuffer(44 + limit))
       const scope = createVoiceScope(signal)
-      let recording = new Uint8Array(44 + limit)
       let used = 44,
         ended = false
       return {
@@ -82,7 +84,7 @@ function streamSpeech(
   consume: (bytes: Uint8Array) => void | Promise<void>,
 ) {
   return new Promise<void>((resolve, reject) => {
-    let client: HTTPClient,
+    let client: Pick<HTTPClient, 'request' | 'close'>,
       timer: ReturnType<typeof Timer.set>,
       offset = 0,
       closed = false
@@ -102,7 +104,7 @@ function streamSpeech(
       requireActive(signal)
       signal.addEventListener('abort', abort)
       timer = Timer.set(() => finish(voiceError('deadline_exceeded')), 45000)
-      client = new device.network.https.client.io({
+      client = createClosingClient(device.network.https.client.io, {
         ...device.network.https.client,
         host: 'api.openai.com',
         port: 443,

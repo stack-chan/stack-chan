@@ -446,7 +446,7 @@ test('HTTP drains accepted response callbacks and honors each writable credit re
   assert.equal(io.closes, 1)
 })
 
-test('HTTP abort and input overflow close once and stop reading the camera buffer', async () => {
+test('HTTP abort and invalid reads close once and stop reading the camera buffer', async () => {
   for (const abort of [false, true]) {
     const io = httpFixture(4)
     const scope = createVoiceScope()
@@ -474,7 +474,7 @@ test('HTTP abort and input overflow close once and stop reading the camera buffe
     else io.handlers.onReadable.call(source, 8)
     io.handlers.onWritable.call(source, 10)
     io.handlers.onDone()
-    await assert.rejects(task, { code: abort ? 'cancelled' : 'resource_exhausted' })
+    await assert.rejects(task, abort ? { code: 'cancelled' } : /short HTTP read/)
     assert.equal(io.closes, 1)
     assert.equal(reads, 0)
   }

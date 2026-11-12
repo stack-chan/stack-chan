@@ -134,6 +134,27 @@ function freezeTree<T>(value: T): T {
   return value
 }
 
+function copyForJSON(value: object): object {
+  const copies = new Map<object, object>()
+  const pending: object[] = []
+  const allocate = (source: object) => {
+    const target = Array.isArray(source) ? new Array(source.length) : Object.create(null)
+    copies.set(source, target)
+    pending.push(source)
+    return target
+  }
+  const result = allocate(value)
+  for (let index = 0; index < pending.length; index++) {
+    const source = pending[index]
+    const target = copies.get(source) as Record<string, unknown>
+    for (const key of Object.keys(source)) {
+      const child = (source as Record<string, unknown>)[key]
+      target[key] = child && typeof child === 'object' ? (copies.get(child) ?? allocate(child)) : child
+    }
+  }
+  return result
+}
+
 export function createToolSet(tools: readonly Tool[] = [], options: { maxOutputChars?: number } = {}): ToolSet {
   const maxOutput = options.maxOutputChars ?? 4096
   if (!Number.isSafeInteger(maxOutput) || maxOutput < 1) throw RangeError('invalid tool budget')
@@ -141,7 +162,9 @@ export function createToolSet(tools: readonly Tool[] = [], options: { maxOutputC
   for (const tool of tools) {
     checkSchema(tool.definition.parameters, Boolean(tool.validate))
     if (byName.has(tool.definition.name)) throw Error('duplicate tool: ' + tool.definition.name)
-    byName.set(tool.definition.name, { ...tool, definition: freezeTree(JSON.parse(JSON.stringify(tool.definition))) })
+    // XSのJSON.stringifyはpreloadされたROM配列を走査できないため、参照をRAMへ写す
+    const definition = freezeTree(JSON.parse(JSON.stringify(copyForJSON(tool.definition))))
+    byName.set(tool.definition.name, { ...tool, definition })
   }
   return {
     definitions: Object.freeze([...byName.values()].map((tool) => tool.definition)),

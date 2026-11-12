@@ -1,12 +1,12 @@
-import { createMultipartUpload, type MultipartPart } from 'whisper-multipart'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
-import Timer from 'timer'
-import type { VoiceSignal } from '../voice/contracts.js'
 import type { Maybe } from 'stackchan-util'
+import Timer from 'timer'
 import { URL } from 'url'
 import UUID from 'uuid'
+import { createMultipartUpload, type MultipartPart } from 'whisper-multipart'
+import type { VoiceSignal } from '../voice/contracts.js'
 
 declare const device: {
   network: {

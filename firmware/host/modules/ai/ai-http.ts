@@ -1,8 +1,8 @@
+import { createClosingClient, guardSocketCallbacks } from 'realtimeConversation/http-core'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
+import { streamResponse } from 'stackchan-ai-http-stream'
 import Timer from 'timer'
 import { URL } from 'url'
-import { createClosingClient, guardSocketCallbacks } from 'realtimeConversation/http-core'
-import { streamResponse } from 'stackchan-ai-http-stream'
 
 declare const device: { network: { https: { client: HTTPClientProvider }; http: { client: HTTPClientProvider } } }
 

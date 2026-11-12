@@ -1,5 +1,4 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
-import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../modules/voice/contracts.js'
 import type { RobotCamera } from 'camera'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
@@ -11,10 +10,11 @@ import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type { SpeechPlayback } from 'speech-playback-types'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
-import type { SpeechPlayback } from 'speech-playback-types'
+import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../modules/voice/contracts.js'
 
 export type {
   JsonValue,

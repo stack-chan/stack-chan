@@ -1,9 +1,9 @@
 import { BeaconDataPacket } from 'beacon-packet'
 import BLEServer from 'bleserver'
 import { Bytes } from 'btutils'
+import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
 import { speeches } from 'speeches_greeting'
 import { randomBetween } from 'stackchan-util'
-import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
 
 const keys = Object.keys(speeches)
 const hellos = keys.filter((k) => k.startsWith('hello_'))

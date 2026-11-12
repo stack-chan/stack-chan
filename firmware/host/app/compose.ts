@@ -1,5 +1,3 @@
-import type { createAudioRuntime as CreateAudioRuntime } from '../modules/voice/pcm-device.js'
-import type { LeaseFactory } from '../modules/voice/runtime.js'
 import type { PreferenceConfig } from 'loadPreference'
 import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
@@ -10,8 +8,8 @@ import type {
   RemoteConversationSession,
   RobotLed,
   RobotUI,
-  StackchanContext,
   SpeechPlayback,
+  StackchanContext,
 } from 'capabilities'
 import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
 import { DOMAIN } from 'consts'
@@ -36,8 +34,6 @@ import { StackchanRuntimeContext } from 'runtime-context'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import Speaker from 'speaker'
-import Touch, { type TouchOptions } from 'touch'
-import TouchPanel from 'touch-panel'
 import { SpeechPlayback as ElevenLabsPlayback } from 'speech-playback-elevenlabs'
 import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
 import { SpeechPlayback as OpenAIPlayback } from 'speech-playback-openai'
@@ -45,7 +41,11 @@ import { SpeechPlayback as RemotePlayback } from 'speech-playback-remote'
 import { SpeechPlayback as StackchanVoicePlayback } from 'speech-playback-stackchan-voice'
 import { SpeechPlayback as VoiceVoxPlayback } from 'speech-playback-voicevox'
 import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-web'
+import Touch, { type TouchOptions } from 'touch'
+import TouchPanel from 'touch-panel'
 import { canonicalizeVolume } from 'volume-model'
+import type { createAudioRuntime as CreateAudioRuntime } from '../modules/voice/pcm-device.js'
+import type { LeaseFactory } from '../modules/voice/runtime.js'
 
 type DeviceButton = {
   read: () => number

@@ -7,14 +7,14 @@ import { getAxp2101Power } from 'axp2101-power-capture'
 import { createChatConversation, createXiaozhiV1Connection } from 'chat'
 import config from 'mc/config'
 import { NetworkService } from 'network-service'
-import STT from 'stt-whisper'
-import { equal } from 'testing/assert'
 import { SpeechPlayback as ElevenLabsPlayback } from 'speech-playback-elevenlabs'
 import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
 import { SpeechPlayback as OpenAIPlayback } from 'speech-playback-openai'
 import { SpeechPlayback as StackchanVoicePlayback } from 'speech-playback-stackchan-voice'
 import { SpeechPlayback as VoiceVoxPlayback } from 'speech-playback-voicevox'
 import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-web'
+import STT from 'stt-whisper'
+import { equal } from 'testing/assert'
 
 trace('=== module smoke test ===\n')
 

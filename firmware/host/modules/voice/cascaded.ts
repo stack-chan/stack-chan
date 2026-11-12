@@ -1,4 +1,3 @@
-import Timer from 'timer'
 import type {
   AgentResult,
   CascadedOptions,
@@ -18,6 +17,7 @@ import type {
 } from 'stackchan/voice/contracts'
 import { mono } from 'stackchan/voice/media'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import Timer from 'timer'
 
 let nextSession = 0
 const historyLimit = 64 * 1024

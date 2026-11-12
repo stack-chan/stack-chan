@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { inflateSync } from 'node:zlib'
+import { writeAliasPackage } from '../testing/node-alias-package.js'
 import type { FunctionCall, InputItem, LLM, ModelResponse } from '../voice/contracts.js'
 import { createVoiceScope } from '../voice/scope.js'
 import type { ResponseConnection } from './ai-http-stream.js'
-import { writeAliasPackage } from '../testing/node-alias-package.js'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const directory = dirname(fileURLToPath(import.meta.url))
 for (const name of ['ai-core', 'ai-image', 'ai-wire', 'ai-responses']) {

@@ -1,6 +1,7 @@
-import type { LLM, ModelResponse, OutputItem, ResponseEvent, ResponseRequest } from '../voice/contracts.js'
 import { checkScope, failure } from 'stackchan-ai-core'
-import { consumeSSE, jsonBody, ImageURL, type SendResponseRequest, type Body } from 'stackchan-ai-wire'
+import { type Body, consumeSSE, ImageURL, jsonBody, type SendResponseRequest } from 'stackchan-ai-wire'
+import type { LLM, ModelResponse, OutputItem, ResponseEvent, ResponseRequest } from '../voice/contracts.js'
+
 export type { Body, ResponseConsumer, SendResponseRequest } from 'stackchan-ai-wire'
 
 export function prepareBody(request: ResponseRequest, model: string, provider: string, maxBytes: number): Body {

@@ -1,9 +1,9 @@
 import Resource from 'Resource'
 import AudioOut from 'embedded:io/audio/out'
 import calculatePower from 'calculate-power'
-import StackchanVoice from 'stackchanvoice'
 import { beginSpeechPlayback, type SpeechPlaybackLifecycle } from 'speech-playback-lifecycle'
 import type { SpeechCompletion, SpeechDoneListener, SpeechPlaybackListener } from 'speech-playback-types'
+import StackchanVoice from 'stackchanvoice'
 
 const OUTPUT_SAMPLE_RATE = 24000
 const BYTES_PER_SAMPLE = 2

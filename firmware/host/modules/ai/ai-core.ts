@@ -1,7 +1,9 @@
+import type { RobotCamera } from '../camera/camera.js'
 import type {
   Agent,
   AgentOptions,
   AgentResult,
+  Camera,
   DelegateAgent,
   Failure,
   FunctionCall,
@@ -15,9 +17,7 @@ import type {
   ToolSet,
   Vision,
   VisionOptions,
-  Camera,
 } from '../voice/contracts.js'
-import type { RobotCamera } from '../camera/camera.js'
 
 export function failure(code: Failure['code'], message: string): Error & Failure {
   return Object.assign(new Error(message), { code })

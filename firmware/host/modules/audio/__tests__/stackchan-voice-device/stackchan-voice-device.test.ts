@@ -1,6 +1,6 @@
+import { SpeechPlayback } from 'speech-playback-stackchan-voice'
 import { resetState, state } from 'stackchan-voice-test-state'
 import { assert, equal } from 'testing/assert'
-import { SpeechPlayback } from 'speech-playback-stackchan-voice'
 
 resetState()
 

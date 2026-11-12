@@ -13,6 +13,7 @@ const aliases: Record<string, string> = {
   url: 'node:url',
   timer: '../../testing/fakes/timer.js',
   'whisper-multipart': '../whisper-multipart.js',
+  'realtimeConversation/http-core': '../../../../../host/modules/realtime-conversation/http-core.js',
 }
 const hooks = registerHooks({
   resolve(specifier, context, next) {
@@ -34,10 +35,23 @@ type RequestOptions = {
   onDone(error?: Error): void
 }
 
+type Lookup = {
+  host: string
+  onResolved(host: string, address: string): void
+  onError(error: Error): void
+}
+
+class DNS {
+  static lookups: Lookup[] = []
+  resolve(lookup: Lookup) {
+    DNS.lookups.push(lookup)
+  }
+}
+
 class HTTP {
   static clients: HTTP[] = []
   static requestFailure: Error | undefined
-  options: { host: string; port: number; onError(error: Error): void }
+  options: { host: string; port: number; dns: { io: typeof DNS }; onError(error: Error): void }
   requestOptions!: RequestOptions
   closed = 0
   sent: number[] = []
@@ -83,6 +97,21 @@ class HTTP {
   }
 }
 
+class ResolvingHTTP extends HTTP {
+  openedSockets = 0
+  constructor(options: HTTP['options']) {
+    super(options)
+    // SDKのHTTPClient.closeは未完了のDNSを取り消さず、遅れた結果でもsocketを作る
+    new options.dns.io().resolve({
+      host: options.host,
+      onResolved: () => {
+        this.openedSockets++
+      },
+      onError: options.onError,
+    })
+  }
+}
+
 async function turn() {
   await Promise.resolve()
   Timer.advance(0)
@@ -91,8 +120,9 @@ async function turn() {
 beforeEach(() => {
   HTTP.clients = []
   HTTP.requestFailure = undefined
+  DNS.lookups = []
   Timer.reset()
-  Object.assign(globalThis, { device: { network: { https: { client: { io: HTTP } } } } })
+  Object.assign(globalThis, { device: { network: { https: { client: { io: HTTP, dns: { io: DNS } } } } } })
 })
 
 test('Whisper starts HTTP after the caller returns and uploads audio views with writable credit', async () => {
@@ -176,3 +206,38 @@ test('the request deadline remains active after deferred HTTP startup', async ()
   assert.deepEqual(await result, { success: false, reason: 'Exception occurred: speech request timed out' })
   assert.equal(client.closed, 1)
 })
+
+for (const termination of ['abort', 'timeout']) {
+  test(`Whisper ignores DNS resolution after ${termination} and allows the next request to connect`, async () => {
+    Object.assign(globalThis, {
+      device: { network: { https: { client: { io: ResolvingHTTP, dns: { io: DNS } } } } },
+    })
+    const scope = createVoiceScope()
+    const whisper = new Whisper({ apiKey: 'test' })
+    const request = whisper.transcribe(Uint8Array.of(1, 2), scope.signal)
+    await turn()
+    assert.equal(DNS.lookups.length, 1)
+    const client = HTTP.clients[0] as ResolvingHTTP
+    assert.equal(client.openedSockets, 0)
+    if (termination === 'abort') scope.abort(new Error('cancelled during DNS'))
+    else Timer.advance(30000)
+    assert.deepEqual(await request, {
+      success: false,
+      reason: `Exception occurred: ${termination === 'abort' ? 'cancelled during DNS' : 'speech request timed out'}`,
+    })
+    assert.equal(client.closed, 1)
+    DNS.lookups[0].onResolved('api.openai.com', '192.0.2.1')
+    assert.equal(client.openedSockets, 0)
+
+    const next = whisper.transcribe(Uint8Array.of(3, 4))
+    await turn()
+    assert.equal(DNS.lookups.length, 2)
+    const nextClient = HTTP.clients[1] as ResolvingHTTP
+    DNS.lookups[1].onResolved('api.openai.com', '192.0.2.1')
+    assert.equal(nextClient.openedSockets, 1)
+    nextClient.respond(200, { text: 'next utterance' })
+    assert.deepEqual(await next, { success: true, value: 'next utterance' })
+    assert.equal(client.closed, 1)
+    assert.equal(nextClient.closed, 1)
+  })
+}

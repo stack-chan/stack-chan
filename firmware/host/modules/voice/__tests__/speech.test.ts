@@ -13,6 +13,7 @@ const aliases: Record<string, string> = {
   'stackchan/voice/media': '../media.js',
   'stackchan/voice/scope': '../scope.js',
   'stackchan/voice/synthesis': '../synthesis.js',
+  'realtimeConversation/http-core': '../../../../../host/modules/realtime-conversation/http-core.js',
   timer: '../../testing/fakes/timer.js',
 }
 const hooks = registerHooks({
@@ -108,7 +109,7 @@ class SpeechHTTP {
 }
 
 test('OpenAI TTS streams two flushed HTTP responses through one output with playback backpressure', async () => {
-  Object.assign(globalThis, { device: { network: { https: { client: { io: SpeechHTTP } } } } })
+  Object.assign(globalThis, { device: { network: { https: { client: { io: SpeechHTTP, dns: { io: class {} } } } } } })
   SpeechHTTP.requests = []
   const scope = createVoiceScope(),
     credit = deferred<void>()

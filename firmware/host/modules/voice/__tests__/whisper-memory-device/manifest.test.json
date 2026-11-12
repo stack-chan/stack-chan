@@ -6,6 +6,10 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
+    "realtimeConversation/http-core": [
+      "../../../realtime-conversation/http-core",
+      "../../../ai/http-core-types.d.ts"
+    ],
     "main": "./memory.test",
     "stt-whisper": "./whisper-stub",
     "stackchan/voice/contracts": "../../contracts",

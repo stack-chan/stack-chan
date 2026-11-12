@@ -111,6 +111,16 @@ export function onContextCreated(robot, option) {
       const turnId = activeTurn
       let motion,
         closed = false
+      async function synthesize(method) {
+        try {
+          const done = synthesis[method]()
+          if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
+          return await done
+        } catch (error) {
+          motion?.stop()
+          throw error
+        }
+      }
       return {
         get output() {
           return synthesis.output
@@ -118,15 +128,11 @@ export function onContextCreated(robot, option) {
         write(text) {
           return synthesis.write(text)
         },
-        async finish() {
-          try {
-            const done = synthesis.finish()
-            if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
-            return await done
-          } catch (error) {
-            motion?.stop()
-            throw error
-          }
+        flush() {
+          return synthesize('flush')
+        },
+        finish() {
+          return synthesize('finish')
         },
         async close() {
           closed = true

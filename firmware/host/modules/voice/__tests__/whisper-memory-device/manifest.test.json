@@ -16,7 +16,8 @@
     "stackchan/voice/media": "../../media",
     "stackchan/voice/pcm-http": "../../pcm-http",
     "stackchan/voice/scope": "../../scope",
-    "stackchan/voice/speech": "../../speech"
+    "stackchan/voice/speech": "../../speech",
+    "stackchan/voice/synthesis": "../../synthesis"
   },
   "typescript": {
     "tsconfig": {

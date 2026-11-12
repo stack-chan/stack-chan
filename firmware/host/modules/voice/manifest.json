@@ -8,6 +8,7 @@
     "stackchan/voice/contracts": "./contracts",
     "stackchan/voice/scope": "./scope",
     "stackchan/voice/media": "./media",
+    "stackchan/voice/synthesis": "./synthesis",
     "stackchan/voice/pipeline": "./pipeline",
     "stackchan/voice/cascaded": "./cascaded",
     "stackchan/voice/runtime": "./runtime",

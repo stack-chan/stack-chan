@@ -2,6 +2,7 @@ import Resource from 'Resource'
 import type { Synthesis, TTS } from 'stackchan/voice/contracts'
 import { createPcmSource } from 'stackchan/voice/media'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
+import { openStreamingSynthesis } from 'stackchan/voice/synthesis'
 import StackchanVoice from 'stackchanvoice'
 import Timer from 'timer'
 
@@ -13,16 +14,18 @@ export function createStackchanVoiceTTS(
   const speed = options.speed ?? 100
   if (!Number.isInteger(speed) || speed < 1 || speed > 65535) throw new RangeError('invalid synthesis speed')
   let engine: StackchanVoice | undefined
-  let busy = false
+  let reserved = false
 
-  async function open({ signal, format, voice }: Parameters<TTS['open']>[0], koe: boolean): Promise<Synthesis> {
+  async function openSegment(
+    { signal, format, voice }: Parameters<TTS['open']>[0],
+    koe: boolean,
+  ): Promise<Omit<Synthesis, 'flush'>> {
     requireActive(signal)
     if (format.encoding !== 'pcm_s16le' || format.sampleRate !== 24000 || format.channels !== 1)
       throw voiceError('unsupported_capability', 'StackchanVoice renders 24 kHz mono PCM')
     const preset = !voice || voice === 'default' ? (options.voice ?? 'normal') : voice
     if (preset !== 'cute' && preset !== 'normal')
       throw voiceError('unsupported_capability', 'unknown StackchanVoice preset')
-    if (busy) throw voiceError('device_busy', 'StackchanVoice is already synthesizing')
     const source = createPcmSource(format)
     let text = '',
       ended = false
@@ -34,7 +37,6 @@ export function createStackchanVoiceTTS(
     function end(error?: unknown) {
       if (ended) return
       ended = true
-      busy = false
       failure = error
       block = undefined
       if (timer !== undefined) Timer.clear(timer)
@@ -74,7 +76,6 @@ export function createStackchanVoiceTTS(
         end(error)
       }
     }
-    busy = true
     signal.addEventListener('abort', abort)
     return {
       output: source.output,
@@ -112,6 +113,18 @@ export function createStackchanVoiceTTS(
         end(voiceError('cancelled'))
       },
     }
+  }
+  function open(args: Parameters<TTS['open']>[0], koe: boolean): Promise<Synthesis> {
+    if (reserved) return Promise.reject(voiceError('device_busy', 'StackchanVoice is already synthesizing'))
+    reserved = true
+    return openStreamingSynthesis(
+      args,
+      (options) => openSegment(options, koe),
+      2047,
+      () => {
+        reserved = false
+      },
+    )
   }
   return { open: (options) => open(options, false), openKoe: (options) => open(options, true) }
 }

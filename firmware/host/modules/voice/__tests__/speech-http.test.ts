@@ -12,6 +12,7 @@ const aliases: Record<string, string> = {
   'stackchan/voice/media': '../media.js',
   'stackchan/voice/pcm-http': '../pcm-http.js',
   'stackchan/voice/scope': '../scope.js',
+  'stackchan/voice/synthesis': '../synthesis.js',
   'realtimeConversation/http-core': '../../../../../host/modules/realtime-conversation/http-core.js',
 }
 const hooks = registerHooks({
@@ -104,6 +105,7 @@ for (const termination of ['abort', 'deadline'] as const) {
     const outcome = assert.rejects(synthesis.finish(), {
       code: termination === 'abort' ? 'cancelled' : 'deadline_exceeded',
     })
+    await new Promise((resolve) => setImmediate(resolve))
     assert.equal(DNS.pending.length, 1)
     const late = DNS.pending[0]
     if (termination === 'abort') await synthesis.close()
@@ -120,6 +122,7 @@ for (const termination of ['abort', 'deadline'] as const) {
     })
     await next.write('second')
     const finished = next.finish()
+    await new Promise((resolve) => setImmediate(resolve))
     DNS.pending[1].onResolved('api.openai.com', '127.0.0.1')
     late.onError(new Error('stale lookup failed'))
     assert.equal(HTTP.activeSockets, 1, 'stale lookup failure must not close a newer request')

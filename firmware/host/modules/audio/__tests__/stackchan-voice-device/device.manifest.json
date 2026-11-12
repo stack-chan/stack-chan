@@ -5,6 +5,7 @@
     "stackchan/voice/contracts": "../../../voice/contracts",
     "stackchan/voice/play-speech": "../../../voice/play-speech",
     "stackchan/voice/media": "../../../voice/media",
+    "stackchan/voice/synthesis": "../../../voice/synthesis",
     "stackchan/voice/scope": "../../../voice/scope",
     "stackchan/voice/stackchan-voice": "../../../voice/stackchan-voice"
   }

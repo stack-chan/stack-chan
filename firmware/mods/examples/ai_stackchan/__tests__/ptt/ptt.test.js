@@ -264,6 +264,24 @@ equal(synthesis.textAt({}).text, 'hello', 'prototype methods retain their synthe
 let mark = mouthUpdates.length
 await pause(120)
 equal(mouthUpdates.length, mark, 'waiting for synthesis does not animate the mouth')
+let flushSpeech
+speech.onFlush = () => new Promise((resolve) => (flushSpeech = resolve))
+const flushing = synthesis.flush()
+mark = mouthUpdates.length
+await pause(350)
+const flushFrames = mouthUpdates.slice(mark)
+assert(
+  flushFrames.some(({ value }) => value > 0),
+  'flush starts mouth movement during streamed synthesis',
+)
+assert(flushFrames.length >= 1 && flushFrames.length <= 4, 'flush keeps the same ten-fps lip guard')
+equal(speech.flushes, 1, 'the wrapper forwards flush to its synthesis')
+flushSpeech()
+await flushing
+speech.onFlush = undefined
+mark = mouthUpdates.length
+await pause(150)
+assert(mouthUpdates.length > mark, 'flush completion keeps lips moving while playback drains')
 let finishSpeech
 speech.onFinish = () =>
   new Promise((resolve) => {

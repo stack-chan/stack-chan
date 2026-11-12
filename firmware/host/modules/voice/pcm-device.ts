@@ -15,9 +15,9 @@ import { pcmEnergy } from 'stackchan/voice/pcm-energy'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
-import type * as CoreS3Output from './cores3-pcm-output.js'
+import type { PairedAudioRuntime, PcmOutput, PcmOutputModule } from './runtime-types.js'
 
-export function createAudioRuntime(options: RuntimeOptions) {
+export function createAudioRuntime(options: RuntimeOptions): PairedAudioRuntime {
   return bindAudioRuntime(options, openPcmLease, openPlayback)
 }
 
@@ -55,7 +55,7 @@ type OutputSegment = {
   writing: boolean
   sealed: boolean
 } & (
-  | { direct: ReturnType<typeof CoreS3Output.openOutput>; drain?: Promise<void> }
+  | { direct: PcmOutput; drain?: Promise<void> }
   | { lengths: number[]; flush(): void; flushTimer?: ReturnType<typeof Timer.set> }
 )
 
@@ -196,7 +196,7 @@ function createPlayback(
 ): PlaybackLease {
   const AudioOut = Modules.importNow('pins/audioout') as typeof AudioOutput
   const deviceOutput = Modules.has('stackchan/voice/cores3-pcm-output')
-    ? (Modules.importNow('stackchan/voice/cores3-pcm-output', true) as typeof CoreS3Output)
+    ? (Modules.importNow('stackchan/voice/cores3-pcm-output', true) as PcmOutputModule)
     : undefined
   const directOutput = deviceOutput && directLimit >= deviceOutput.minimumOutputBytes ? deviceOutput : undefined
   let out: (InstanceType<typeof AudioOutput> & { callback?: (value: number) => void }) | undefined

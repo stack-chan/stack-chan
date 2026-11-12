@@ -13,6 +13,10 @@
     "paths": {
       "Resource": ["./host/modules/audio/__tests__/stackchan-voice-device/resource-stub.ts"],
       "stackchanvoice": ["./typings/stackchanvoice.d.ts"],
+      "headers": ["./node_modules/@moddable/typings/web/headers.d.ts"],
+      "uuid": ["./node_modules/@moddable/typings/uuid.d.ts"],
+      "whisper-multipart": ["./host/modules/audio/whisper-multipart.ts"],
+      "stt-whisper": ["./host/modules/audio/stt-whisper.ts"],
       "stackchan-ai-*": ["./host/modules/ai/ai-*.ts"],
       "realtimeConversation/http-core": ["./host/modules/realtime-conversation/http-core.js"],
       "stackchanChatWorkerSession": ["./host/modules/conversation/chat-audioio/worker-session.js"],

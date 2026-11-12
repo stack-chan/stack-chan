@@ -1,4 +1,3 @@
-import Timer from 'timer'
 import type {
   AgentResult,
   CascadedOptions,
@@ -7,6 +6,7 @@ import type {
   Conversation,
   ConversationEvent,
   ConversationSession,
+  Failure,
   InputItem,
   InputMessage,
   Interruption,
@@ -18,9 +18,27 @@ import type {
 } from 'stackchan/voice/contracts'
 import { mono } from 'stackchan/voice/media'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import Timer from 'timer'
 
 let nextSession = 0
 const historyLimit = 64 * 1024
+
+function errorCode(error: unknown): Failure['code'] {
+  const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
+  switch (code) {
+    case 'unsupported_capability':
+    case 'device_busy':
+    case 'cancelled':
+    case 'deadline_exceeded':
+    case 'input_overrun':
+    case 'provider_failed':
+    case 'resource_exhausted':
+    case 'tool_failed':
+      return code
+    default:
+      return 'provider_failed'
+  }
+}
 
 function owned<T>(item: T, budget: { left: number }): T {
   function take(size: number) {
@@ -110,9 +128,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
       let interruptTask: Promise<Interruption> | undefined
       const sessionScope = createVoiceScope(signal)
       let mustRestart = false
-      let agentJob: Promise<AgentResult> | undefined
       function completedAgent(job: Promise<AgentResult>, scope: ReturnType<typeof createVoiceScope>) {
-        agentJob = job
         return new Promise<AgentResult>((resolve, reject) => {
           let timer: ReturnType<typeof Timer.set> | undefined
           const abort = () => {
@@ -126,7 +142,6 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           const clear = () => {
             if (timer !== undefined) Timer.clear(timer)
             scope.signal.removeEventListener('abort', abort)
-            if (agentJob === job) agentJob = undefined
           }
           void job.then(
             (value) => {
@@ -270,6 +285,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
                 : []
             appended = result.appended
             requireActive(scope.signal)
+            if (result.status === 'failed') throw voiceError(errorCode(result.error), result.error.message)
             if (result.status !== 'completed') throw voiceError('provider_failed', 'incomplete agent turn')
             for (const item of finalMessages) {
               const text = item.content.map((part) => (part.type === 'output_text' ? part.text : part.refusal)).join('')
@@ -286,8 +302,9 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           } catch (error) {
             if (scope.signal.aborted) status = 'interrupted'
             else {
+              scope.abort(error)
               await ports.output.fence(++generation)
-              send({ type: 'error', code: (error as { code?: string }).code ?? 'provider_failed', fatal: false })
+              send({ type: 'error', code: errorCode(error), fatal: false })
             }
           } finally {
             try {
@@ -402,9 +419,9 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           onSignal(event) {
             pending = pending
               .then(() => handle(event))
-              .catch(async () => {
+              .catch(async (error) => {
                 await stopUtterance()
-                send({ type: 'error', code: 'provider_failed', fatal: false })
+                send({ type: 'error', code: errorCode(error), fatal: false })
               })
           },
         })
@@ -448,12 +465,6 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
               await detector.close()
               await pending
               await stopUtterance()
-              if (agentJob)
-                void agentJob.then(
-                  () => config.agent.releaseSession?.(id),
-                  () => config.agent.releaseSession?.(id),
-                )
-              else config.agent.releaseSession?.(id)
               return { reason, remoteFinalization: mustRestart ? ('unknown' as const) : ('not-required' as const) }
             } finally {
               if (timer !== undefined) Timer.clear(timer)

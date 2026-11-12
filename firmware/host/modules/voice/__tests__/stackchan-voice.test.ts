@@ -24,7 +24,7 @@ const { mono, readSource } = await import('../media.js')
 const { default: timer } = await import('../../testing/fakes/timer.js')
 hooks.deregister()
 
-test('StackchanVoice buffers one native block until accepted and tracks completed playback', async (t) => {
+test('StackchanVoice reuses each native block after acceptance and cancels borrowed output', async (t) => {
   t.mock.method(Date, 'now', () => 0)
   const tts = createStackchanVoiceTTS({ speed: 85, voice: 'cute' })
   const scope = createVoiceScope()
@@ -54,12 +54,6 @@ test('StackchanVoice buffers one native block until accepted and tracks complete
     [2048, 52],
   )
   assert.equal(blocks[0].buffer, blocks[1].buffer)
-  const cursor = { basis: 'device-clock' as const, renderedFrames: 1049, sampleRate: 24000 }
-  assert.equal(session.textAt(cursor).basis, 'unknown')
-  assert.deepEqual(session.textAt({ ...cursor, renderedFrames: 1050 }), {
-    basis: 'completed-segment',
-    text: 'こんにちは',
-  })
   await session.close()
 
   const song = await tts.openKoe({ ...args, voice: 'normal' })
@@ -71,7 +65,6 @@ test('StackchanVoice buffers one native block until accepted and tracks complete
   await assert.rejects(singing, { code: 'cancelled' })
   assert.deepEqual(native.starts.at(-1), { method: 'koe', text: 'a', speed: 85, preset: 0 })
   assert.equal(native.instances, 1)
-  assert.equal(song.textAt({ ...cursor, renderedFrames: 5000 }).basis, 'unknown')
   const next = await tts.open({ ...args, ...createVoiceScope() })
   const reads = native.reads
   neverReleased.resolve()

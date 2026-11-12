@@ -199,7 +199,7 @@ export class NetworkService {
       return
     }
     this.#transition({ type: 'time-sync-started' })
-    this.#startConnectionTimeout()
+    this.#startConnectionTimeout('Failed to get time')
     try {
       const provider = device.network.ntp.client
       const ntp = new provider.io({ ...provider, servers: [sntpHost] })
@@ -237,11 +237,11 @@ export class NetworkService {
     }, this.#reconnectDelayMs)
   }
 
-  #startConnectionTimeout() {
+  #startConnectionTimeout(reason = 'connection timeout') {
     this.#clearConnectionTimeout()
     this.#connectionTimeout = Timer.set(() => {
       this.#connectionTimeout = undefined
-      this.#fail('connection timeout')
+      this.#fail(reason)
     }, this.#connectionTimeoutMs)
   }
 

@@ -19,5 +19,10 @@
       "./http-core-types.d.ts"
     ]
   },
-  "resources": { "ca*": ["$(MODDABLE)/modules/crypt/data/ca*"] }
+  "data": {
+    "*": [
+      "$(MODDABLE)/modules/crypt/data/ca233",
+      "$(MODDABLE)/modules/crypt/data/ca236"
+    ]
+  }
 }

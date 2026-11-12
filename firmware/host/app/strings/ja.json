@@ -31,6 +31,7 @@
   "mods.restart": "再起動",
   "boot.wifiNotFound": "保存済みWi-Fiが見つかりません",
   "boot.wifiFailed": "Wi-Fi接続に失敗しました",
+  "boot.timeSyncFailed": "Wi-Fi接続済み: 時刻同期に失敗しました",
   "settings.title": "設定",
   "settings.scan": "スキャン",
   "settings.scanning": "スキャン中",

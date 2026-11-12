@@ -435,9 +435,6 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
         async finish() {
           source.end()
         },
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
         async close() {},
       }
     },
@@ -512,9 +509,6 @@ test('only a confirmed final-answer sentence starts early and the completed repl
           source.end()
         },
         async close() {},
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
       }
     },
   }
@@ -545,6 +539,263 @@ test('only a confirmed final-answer sentence starts early and the completed repl
   await ended.promise
   assert.deepEqual(speaking, ['一。', '二。'])
   await session.close({ mode: 'drain' })
+})
+
+test('failed agent results preserve recognized error codes without publishing provider messages', async () => {
+  for (const code of ['deadline_exceeded', 'provider_failed'] as const) {
+    const device = makeLease()
+    const scope = createVoiceScope()
+    const ended = deferred<void>()
+    const events: ConversationEvent[] = []
+    let reason: unknown
+    const conversation = createCascadedConversation({
+      agent: {
+        async run(_request, { signal }) {
+          signal.addEventListener('abort', () => {
+            reason = signal.reason
+          })
+          return { status: 'failed', error: { code, message: 'private provider detail' }, appended: [] }
+        },
+      },
+      stt: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      tts: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      voice: '',
+      turnDetector: createPushToTalk().detector,
+    })
+    const session = await conversation.open({
+      ...scope,
+      media: device.lease,
+      history: [],
+      onEvent(event) {
+        events.push(event)
+        if (event.type === 'turn.ended') ended.resolve()
+      },
+    })
+    try {
+      await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] }, scope)
+      await ended.promise
+      assert.deepEqual(
+        events.filter((event) => event.type === 'error'),
+        [{ type: 'error', code, fatal: false }],
+      )
+      const last = events.at(-1)
+      assert.equal(last?.type, 'turn.ended')
+      assert.ok(last?.type === 'turn.ended' && last.status === 'failed')
+      assert.ok(reason instanceof Error)
+      assert.equal(reason.message, 'private provider detail')
+    } finally {
+      await session.close({ mode: 'abort' })
+    }
+  }
+})
+
+test('a failed agent turn cancels its detached speech consumer before fencing playback', async () => {
+  const device = makeLease()
+  const started = deferred<void>()
+  const cancelled = deferred<void>()
+  const ended = deferred<void>()
+  const events: ConversationEvent[] = []
+  const cleanup: string[] = []
+  let consumer: Promise<unknown> | undefined
+  const fence = device.lease.output.fence
+  device.lease.output.fence = async (generation) => {
+    cleanup.push('fence')
+    return fence(generation)
+  }
+  const agent: Agent = {
+    async run(_request, options) {
+      consumer = Promise.resolve(
+        options.onEvent?.({
+          type: 'response.output_text.delta',
+          item_id: 'reply',
+          phase: 'final_answer',
+          delta: '途中。',
+        }),
+      ).then(
+        () => undefined,
+        (error) => error,
+      )
+      await started.promise
+      return { status: 'failed', error: { code: 'provider_failed', message: 'connection failed' }, appended: [] }
+    },
+  }
+  const tts: TTS = {
+    async open({ signal, format }) {
+      const source = createPcmSource(format)
+      const abort = () => {
+        cleanup.push('cancel')
+        source.end(signal.reason)
+        cancelled.reject(signal.reason)
+      }
+      signal.addEventListener('abort', abort)
+      return {
+        output: source.output,
+        async write() {},
+        finish() {
+          started.resolve()
+          return cancelled.promise
+        },
+        async close() {
+          cleanup.push('close')
+          signal.removeEventListener('abort', abort)
+          source.end()
+        },
+      }
+    },
+  }
+  const conversation = createCascadedConversation({
+    agent,
+    tts,
+    stt: {
+      async open() {
+        throw Error('unused')
+      },
+    },
+    voice: '',
+    turnDetector: createPushToTalk().detector,
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent(event) {
+      events.push(event)
+      if (event.type === 'turn.ended') ended.resolve()
+    },
+  })
+  try {
+    await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: '話して' }] }, scope)
+    await ended.promise
+    await tick()
+    assert.deepEqual(cleanup, ['cancel', 'fence', 'close'])
+    assert.equal(((await consumer) as { code?: string }).code, 'provider_failed')
+    assert.deepEqual(
+      events.filter((event) => event.type === 'error'),
+      [{ type: 'error', code: 'provider_failed', fatal: false }],
+    )
+    assert.ok(events.some((event) => event.type === 'turn.ended' && event.status === 'failed'))
+  } finally {
+    cancelled.reject(Error('test cleanup'))
+    await consumer
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('transcription failures preserve recognized codes and normalize provider-specific details', async () => {
+  const failures = [
+    {
+      error: Object.assign(new Error('private timeout detail'), { code: 'deadline_exceeded' }),
+      code: 'deadline_exceeded',
+    },
+    { error: Object.assign(new Error('private HTTP detail'), { code: 'http_429' }), code: 'provider_failed' },
+    { error: new Error('private provider detail'), code: 'provider_failed' },
+  ]
+  for (const stage of ['open', 'finish']) {
+    for (const failure of failures) {
+      const device = makeLease()
+      const talk = createPushToTalk()
+      const failed = deferred<ConversationEvent>()
+      const conversation = createCascadedConversation({
+        agent: successfulAgent(),
+        stt: {
+          async open({ format }) {
+            if (stage === 'open') throw failure.error
+            return {
+              input: createPcmSink(format, () => {}),
+              async finish() {
+                throw failure.error
+              },
+              async close() {},
+            }
+          },
+        },
+        tts: {
+          async open() {
+            throw new Error('unused')
+          },
+        },
+        voice: '',
+        turnDetector: talk.detector,
+      })
+      const session = await conversation.open({
+        ...createVoiceScope(),
+        media: device.lease,
+        history: [],
+        onEvent(event) {
+          if (event.type === 'error') failed.resolve(event)
+        },
+      })
+      try {
+        talk.press()
+        talk.release()
+        assert.deepEqual(await failed.promise, { type: 'error', code: failure.code, fatal: false })
+      } finally {
+        await session.close({ mode: 'abort' })
+      }
+    }
+  }
+})
+
+test('agent rejections normalize unknown provider codes without exposing their details', async () => {
+  for (const failure of [
+    new Error('private provider detail'),
+    { code: 'http_429', message: 'private HTTP detail' },
+    null,
+  ]) {
+    const device = makeLease()
+    const scope = createVoiceScope()
+    const ended = deferred<void>()
+    const events: ConversationEvent[] = []
+    const conversation = createCascadedConversation({
+      agent: {
+        async run() {
+          throw failure
+        },
+      },
+      stt: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      tts: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      voice: '',
+      turnDetector: createPushToTalk().detector,
+    })
+    const session = await conversation.open({
+      ...scope,
+      media: device.lease,
+      history: [],
+      onEvent(event) {
+        events.push(event)
+        if (event.type === 'turn.ended') ended.resolve()
+      },
+    })
+    try {
+      await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] }, scope)
+      await ended.promise
+      assert.deepEqual(
+        events.filter((event) => event.type === 'error'),
+        [{ type: 'error', code: 'provider_failed', fatal: false }],
+      )
+      const last = events.at(-1)
+      assert.ok(last?.type === 'turn.ended' && last.status === 'failed')
+    } finally {
+      await session.close({ mode: 'abort' })
+    }
+  }
 })
 
 test('HTTP PCM waits for playback credit, carries a split sample, and rejects a truncated stream', async () => {
@@ -701,20 +952,17 @@ test('closing while a native lease is opening waits for its release exactly once
   assert.deepEqual([opens, device.closes(), releases], [0, 1, 1])
 })
 
-test('interrupt releases audio independently of a hung agent and forgets tool calls only after retirement', async () => {
+test('interrupt releases audio independently of a hung agent and requires a restart', async () => {
   timer.reset()
   const device = makeLease(),
     hung = deferred<AgentResult>(),
     running = deferred<void>(),
     talk = createPushToTalk()
-  const forgotten: string[] = []
+  const events: ConversationEvent[] = []
   const agent: Agent = {
     run() {
       running.resolve()
       return hung.promise
-    },
-    releaseSession(id) {
-      forgotten.push(id)
     },
   }
   const model = createCascadedConversation({
@@ -733,17 +981,30 @@ test('interrupt releases audio independently of a hung agent and forgets tool ca
     },
   })
   const scope = createVoiceScope()
-  const session = await model.open({ ...scope, media: device.lease, history: [], onEvent() {} })
+  const session = await model.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent: (event) => events.push(event),
+  })
   await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }, scope)
   await running.promise
   const interrupted = session.interrupt()
   timer.advance(500)
   assert.equal((await interrupted).history, 'restart-required')
+  await assert.rejects(
+    session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'again' }] }, scope),
+    { code: 'provider_failed' },
+  )
+  assert.deepEqual(
+    events.filter((event) => event.type === 'error'),
+    [],
+  )
+  const last = events.at(-1)
+  assert.ok(last?.type === 'turn.ended' && last.status === 'interrupted')
   assert.equal((await session.close({ mode: 'abort' })).remoteFinalization, 'unknown')
-  assert.deepEqual(forgotten, [])
   hung.resolve({ status: 'cancelled', error: { code: 'cancelled', message: '' }, appended: [] })
   await tick()
-  assert.deepEqual(forgotten, [session.id])
 })
 
 test('a slow PCM consumer is cancelled while a synchronous sibling continues receiving samples', async () => {

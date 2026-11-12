@@ -1,6 +1,6 @@
-import { createAgent, createToolSet, createVision, outputText, type LLM } from 'stackchan/ai'
-import { createResponsesLLM } from 'stackchan-ai-responses'
+import { createAgent, createToolSet, createVision, type LLM, outputText } from 'stackchan/ai'
 import { createVoiceScope } from 'stackchan/voice/scope'
+import { createResponsesLLM } from 'stackchan-ai-responses'
 
 const llm: LLM = {
   capabilities: { tools: true, image: false },

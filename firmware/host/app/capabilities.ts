@@ -235,6 +235,7 @@ export type ShowBalloonOptions = {
 
 export type RuntimeUICapability = RobotUI & {
   controller: RobotUI
+  readonly faceMotionEnabled?: boolean
   drawer: DrawerCapability
   showBalloon(text: string, option?: ShowBalloonOptions): void
   /** Display pre-wrapped rows with fixed-height Labels; rows are reused. */

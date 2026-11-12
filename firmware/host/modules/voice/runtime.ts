@@ -1,8 +1,5 @@
 import type {
-  AudioRequirements,
   AudioRuntime,
-  DuplexLease,
-  MediaBudget,
   Microphone,
   PcmFormat,
   PlaybackLease,
@@ -11,19 +8,9 @@ import type {
   Speaker,
 } from 'stackchan/voice/contracts'
 import { requireActive, voiceError } from 'stackchan/voice/scope'
+import type { LeaseFactory, RuntimeOptions } from './runtime-types.js'
 
-export type LeaseOptions = Scope & {
-  requirements: AudioRequirements
-  budget: MediaBudget
-  microphone: Microphone
-  speaker: Speaker
-}
-export type LeaseFactory = (options: LeaseOptions) => Promise<DuplexLease> | DuplexLease
-export type RuntimeOptions = {
-  acquireExclusive: (interruptible?: boolean) => (() => void) | Promise<() => void>
-  openNativeLease?: LeaseFactory
-  volume?: number
-}
+export type { LeaseFactory, LeaseOptions, RuntimeOptions } from './runtime-types.js'
 
 export type PlaybackFactory = (formats: readonly PcmFormat[], options: PlaybackOptions) => PlaybackLease
 

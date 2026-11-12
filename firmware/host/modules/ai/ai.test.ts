@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { inflateSync } from 'node:zlib'
+import { writeAliasPackage } from '../testing/node-alias-package.js'
 import type { FunctionCall, InputItem, LLM, ModelResponse } from '../voice/contracts.js'
 import { createVoiceScope } from '../voice/scope.js'
 import type { ResponseConnection } from './ai-http-stream.js'
-import { writeAliasPackage } from '../testing/node-alias-package.js'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const directory = dirname(fileURLToPath(import.meta.url))
 for (const name of ['ai-core', 'ai-image', 'ai-wire', 'ai-responses']) {
@@ -48,6 +48,80 @@ const tool = {
   },
   execute: () => 'moved',
 }
+
+test('ToolSet executes every request across a long session', async () => {
+  let executions = 0
+  const tools = createToolSet([{ ...tool, execute: () => String(++executions) }])
+  for (let i = 0; i < 260; i++) {
+    const callId = 'call-' + i
+    const output = await tools.execute(
+      { ...call, call_id: callId },
+      { ...createVoiceScope(), sessionId: 'long-session', turnId: 'turn-' + i, callId },
+    )
+    assert.equal(output.call_id, callId)
+    assert.equal(output.output, String(i + 1))
+  }
+  assert.equal(executions, 260)
+})
+
+test('ToolSet executes independent requests even when their identifiers and arguments match', async () => {
+  let executions = 0
+  const tools = createToolSet([{ ...tool, execute: () => String(++executions) }])
+  const context = { ...createVoiceScope(), sessionId: 'independent', turnId: 'turn', callId: call.call_id }
+  assert.equal((await tools.execute(call, context)).output, '1')
+  assert.equal((await tools.execute(call, context)).output, '2')
+  assert.equal(executions, 2)
+})
+
+test('ToolSet keeps argument and result budgets and rejects cancelled requests before effects', async () => {
+  let executions = 0
+  const tools = createToolSet(
+    [
+      {
+        ...tool,
+        execute: () => {
+          executions++
+          return 'too long'
+        },
+      },
+    ],
+    { maxOutputChars: 2 },
+  )
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  await assert.rejects(tools.execute({ ...call, arguments: ' '.repeat(8193) }, context), { code: 'tool_failed' })
+  context.abort()
+  await assert.rejects(tools.execute(call, context), { code: 'cancelled' })
+  assert.equal(executions, 0)
+  await assert.rejects(tools.execute(call, { ...context, ...createVoiceScope() }), { code: 'resource_exhausted' })
+  assert.equal(executions, 1)
+})
+
+test('Agent stops tool rounds even when the model ignores tool_choice none', async () => {
+  let executions = 0
+  const choices: unknown[] = []
+  const agent = createAgent({
+    llm: {
+      capabilities: { tools: true, image: false },
+      async createResponse(request) {
+        choices.push(request.tool_choice)
+        return { ...result, output: [call] }
+      },
+    },
+    tools: createToolSet([{ ...tool, execute: () => String(++executions) }]),
+    instructions: '',
+    maxToolRounds: 1,
+  })
+  const response = await agent.run({ input: [], sessionId: 's', turnId: 't' }, createVoiceScope())
+  assert.equal(response.status, 'failed')
+  assert.equal('error' in response && response.error.code, 'resource_exhausted')
+  assert.equal(executions, 1)
+  assert.deepEqual(choices, [undefined, 'none'])
+  assert.deepEqual(response.appended.at(-1), {
+    type: 'function_call_output',
+    call_id: call.call_id,
+    output: '{"status":"not_executed"}',
+  })
+})
 
 test('Responses sends exact PNG colors from both RGB565 byte orders without materializing a base64 image', () => {
   for (const format of ['rgb565le', 'rgb565be'] as const) {
@@ -150,11 +224,6 @@ test('Agent records an already executed tool when barge-in aborts before the nex
   assert.equal(response.status, 'cancelled')
   assert.deepEqual(response.appended, [call, { type: 'function_call_output', call_id: 'call', output: 'moved' }])
   assert.equal(count, 1)
-  assert.equal(
-    (await tools.execute(call, { sessionId: 's', turnId: 't', callId: 'call', ...createVoiceScope() })).output,
-    'moved',
-  )
-  assert.equal(count, 1)
 })
 
 test('incomplete tool call never moves the head; validated tool calls continue with original item order', async () => {
@@ -195,7 +264,7 @@ test('incomplete tool call never moves the head; validated tool calls continue w
   assert.equal(count, 1)
 })
 
-test('client delegation returns the completed final answer and waits for running effects before releasing the journal', async () => {
+test('client delegation returns only the completed final answer and rejects cancelled work', async () => {
   let status: ModelResponse['status'] = 'completed'
   const llm: LLM = {
     capabilities: { image: true, tools: true },
@@ -222,7 +291,6 @@ test('client delegation returns the completed final answer and waits for running
   const wait = new Promise<void>((resolve) => {
     settle = resolve
   })
-  const released: string[] = []
   const scope = createVoiceScope()
   const slow = asDelegateAgent({
     async run(received, options) {
@@ -231,17 +299,11 @@ test('client delegation returns the completed final answer and waits for running
       await wait
       return { status: 'completed', response: result, appended: [message] }
     },
-    releaseSession(id) {
-      released.push(id)
-    },
   })
   const pending = slow.run(request, scope)
   scope.abort()
-  slow.releaseSession?.('s')
-  assert.deepEqual(released, [])
   settle()
   await assert.rejects(pending, { code: 'cancelled' })
-  assert.deepEqual(released, ['s'])
 })
 
 test('Vision releases the borrowed frame after success and a provider error', async () => {
@@ -384,7 +446,7 @@ test('HTTP drains accepted response callbacks and honors each writable credit re
   assert.equal(io.closes, 1)
 })
 
-test('HTTP abort and input overflow close once and stop reading the camera buffer', async () => {
+test('HTTP abort and invalid reads close once and stop reading the camera buffer', async () => {
   for (const abort of [false, true]) {
     const io = httpFixture(4)
     const scope = createVoiceScope()
@@ -412,7 +474,7 @@ test('HTTP abort and input overflow close once and stop reading the camera buffe
     else io.handlers.onReadable.call(source, 8)
     io.handlers.onWritable.call(source, 10)
     io.handlers.onDone()
-    await assert.rejects(task, { code: abort ? 'cancelled' : 'resource_exhausted' })
+    await assert.rejects(task, abort ? { code: 'cancelled' } : /short HTTP read/)
     assert.equal(io.closes, 1)
     assert.equal(reads, 0)
   }

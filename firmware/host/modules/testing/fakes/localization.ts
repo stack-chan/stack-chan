@@ -11,6 +11,7 @@ export type I18nCapability = Readonly<{
 const japanese: Readonly<Record<string, string>> = Object.freeze({
   'boot.wifiNotFound': '保存済みWi-Fiが見つかりません',
   'boot.wifiFailed': 'Wi-Fi接続に失敗しました',
+  'boot.timeSyncFailed': 'Wi-Fi接続済み: 時刻同期に失敗しました',
   'status.notConnected': '未接続',
   'status.connected': '接続済み',
   'status.connecting': '接続中',

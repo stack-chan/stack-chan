@@ -28,6 +28,7 @@ StackChan can change settings such as motor types and pin assignments from the m
 
 | Key               | Description                                                                | Available values                     |
 | ----------------- | -------------------------------------------------------------------------- | ------------------------------------ |
+| sntp              | NTP server used to set the clock before TLS connections                     | Hostname or IP address; default: "pool.ntp.org" |
 | driver.type       | Type of motor driver                                                       | "m5stackchan", "scservo", "rs30x", "pwm", "none", "dynamixel"    |
 | driver.panId      | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                |
 | driver.tiltId     | ID of the serial servo used for tilt axis (vertical rotation of the neck)  | 1~254                                |
@@ -39,6 +40,28 @@ StackChan can change settings such as motor types and pin assignments from the m
 | tts.volume        | Volume when play TTS                                                       | 0~1                                  |
 
 Additionally, you can specify the paths of other manifest files in a list format under the `"include"` key.
+
+### Time synchronization on an isolated network
+
+Wi-Fi association and DHCP can succeed even when the default NTP server is unreachable.
+The host waits for time synchronization before reporting the network ready for TLS.
+If synchronization fails or times out, the boot recovery screen reports a time-sync failure and shows the configured server.
+Retry and offline startup remain available.
+
+For a VLAN without internet access, set the top-level `config.sntp` key in the app manifest used by your build to a reachable LAN NTP server:
+
+```json
+{
+  "config": {
+    "sntp": "192.0.2.123"
+  }
+}
+```
+
+Replace the example address with your server's hostname or IP address and allow NTP traffic (UDP port 123) from the robot.
+For the default `npm run build` / `npm run flash` commands, edit `host/app/manifest_m5stackchan_cores3.json`; for other targets, use the matching app manifest selected by that target's script.
+Rebuild and flash the host after changing the value; this is a build-time setting, not a Wi-Fi preference or MOD setting.
+Time synchronization is skipped if the system clock is already set.
 
 ### Configuration Example: the Stack-chan M5Bottom Kit
 

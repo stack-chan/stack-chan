@@ -14,6 +14,7 @@ export type StackchanDockRuntime = {
   remoteConversationSession?: unknown
 }
 export type BootWiFiStatus = { attempt: number; maxAttempts: number; message: string }
+export type BootWiFiRecoveryStatus = BootWiFiStatus & { reason: string; sntpHost?: string }
 export type PreferenceConfig = Record<string, Record<string, unknown>>
 export type TestState = {
   phase: 'early' | 'launch' | 'network' | 'context' | 'behavior' | 'success'
@@ -95,7 +96,7 @@ export async function onClose() {
 export function startHostBootServices(options: {
   wifi: {
     onStatusChanged(status: BootWiFiStatus): void
-    promptRecoveryChoice(status: BootWiFiStatus & { reason: string }): Promise<'retry' | 'offline'>
+    promptRecoveryChoice(status: BootWiFiRecoveryStatus): Promise<'retry' | 'offline'>
   }
 }) {
   state.status = options.wifi.onStatusChanged

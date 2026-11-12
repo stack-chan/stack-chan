@@ -8,4 +8,4 @@ This is a shared build-time subset of Noto Sans CJK SC 2.004 Regular. It contain
 - Copyright: © 2014-2021 Adobe (<http://www.adobe.com/>), with Reserved Font Name “Source”
 - License: SIL Open Font License 1.1; see `StackchanCJK-Regular.LICENSE.txt`
 
-The host manifest publishes the bitmap resource as `StackchanCJK-12`, using only the host catalog glyphs. Podcast reuses this TTF source to build a separate `PodcastCJK-12` resource, using only the characters in its `assets/PodcastCJK-chars.txt`. Sharing the build-time font does not add Podcast glyphs to the host bitmap resource. The source font's internal family metadata remains `Noto Sans SC`.
+The host manifest publishes the bitmap resource as `StackchanCJK-12` with the host catalog glyphs and the ASCII characters used by NTP hostnames and addresses. Podcast reuses this TTF source to build a separate `PodcastCJK-12` resource, using only the characters in its `assets/PodcastCJK-chars.txt`. Sharing the build-time font does not add Podcast glyphs to the host bitmap resource. The source font's internal family metadata remains `Noto Sans SC`.

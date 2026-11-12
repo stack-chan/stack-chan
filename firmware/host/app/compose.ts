@@ -45,7 +45,7 @@ import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-
 import Touch, { type TouchOptions } from 'touch'
 import TouchPanel from 'touch-panel'
 import { canonicalizeVolume } from 'volume-model'
-import type { CreateAudioRuntime, LeaseFactory } from '../modules/voice/runtime-types.js'
+import type { CreateAudioRuntime, LeaseFactory, RuntimeOptions } from '../modules/voice/runtime-types.js'
 
 type DeviceButton = {
   read: () => number

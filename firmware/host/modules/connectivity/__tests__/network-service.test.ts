@@ -80,7 +80,8 @@ test('NetworkService connects through ECMA-419 Wi-Fi and resolves after IP addre
 })
 
 test('NetworkService synchronizes time after IP when sntp is configured', async () => {
-  const { NetworkService, time } = await setup({ sntp: 'pool.ntp.org' })
+  const sntpHost = `${'Ntp-01'.repeat(10)}.example.`
+  const { NetworkService, time } = await setup({ sntp: sntpHost })
   const service = new NetworkService({ ssid: 'stackchan-ap', password: 'secret' })
   const originalNow = Date.now
   Date.now = () => 0
@@ -89,7 +90,7 @@ test('NetworkService synchronizes time after IP when sntp is configured', async 
     service.connect()
     getFakeWiFiInstances()[0]?.emitGotIP()
 
-    assert.deepEqual(NTP.instances[0].options, { io: NTP, servers: ['pool.ntp.org'], socket: ntpSocket, dns: ntpDNS })
+    assert.deepEqual(NTP.instances[0].options, { io: NTP, servers: [sntpHost], socket: ntpSocket, dns: ntpDNS })
     NTP.instances[0].respond()
     assert.equal(time.ticks, NTP.nextTime / 1000)
     assert.equal(NTP.instances[0].closed, true)
@@ -113,6 +114,68 @@ test('NetworkService scanAndConnect connects when the target access point is fou
   assert.equal(connected, true)
   assert.equal(getFakeWiFiInstances()[0]?.connectOptions?.SSID, 'stackchan-ap')
   service.close()
+})
+
+for (const failure of ['error', 'invalid-time', 'timeout', 'constructor'] as const) {
+  test(`NetworkService reports a time-sync failure after got-IP on NTP ${failure}`, async () => {
+    const { NetworkService, timer } = await setup({ sntp: '192.0.2.123' })
+    if (failure === 'constructor') {
+      ;(globalThis as typeof globalThis & { device: unknown }).device = {
+        network: {
+          ntp: {
+            client: {
+              io: class {
+                constructor() {
+                  throw new Error('NTP unavailable')
+                }
+              },
+            },
+          },
+        },
+      }
+    }
+    const service = new NetworkService({ ssid: 'ap', connectionTimeoutMs: 50 })
+    const failures: string[] = []
+    let connected = false
+    const originalNow = Date.now
+    Date.now = () => 0
+    try {
+      service.connect(
+        () => {
+          connected = true
+        },
+        (reason) => failures.push(reason ?? ''),
+      )
+      getFakeWiFiInstances()[0].emitGotIP()
+      if (failure === 'error') NTP.instances[0].respond(new Error('NTP failed'))
+      else if (failure === 'invalid-time') NTP.instances[0].respond(null, Number.NaN)
+      else if (failure === 'timeout') timer.advance(50)
+      assert.deepEqual(failures, ['Failed to get time'])
+      assert.equal(connected, false)
+      if (failure !== 'constructor') assert.equal(NTP.instances[0].closed, true)
+      timer.advance(50)
+      assert.equal(failures.length, 1)
+    } finally {
+      Date.now = originalNow
+      service.close()
+    }
+  })
+}
+
+test('NetworkService keeps pre-IP timeouts classified as connection failures', async () => {
+  const { NetworkService, timer } = await setup({ sntp: 'pool.ntp.org' })
+  const service = new NetworkService({ ssid: 'ap', connectionTimeoutMs: 50 })
+  let failureReason = ''
+  try {
+    service.connect(undefined, (reason) => {
+      failureReason = reason ?? ''
+    })
+    timer.advance(50)
+    assert.equal(failureReason, 'connection timeout')
+    assert.equal(NTP.instances.length, 0)
+  } finally {
+    service.close()
+  }
 })
 
 test('NetworkService scanAndConnect reports scan exhaustion when the target access point is not found', async () => {

@@ -243,7 +243,6 @@ export function createChatConversation(options: {
       const scope = createVoiceScope(signal),
         ready = deferred<void>(),
         ended = deferred<boolean>()
-      const seen = new Set<string>()
       const callbacks = options.callbacks ?? {}
       const Ctor = options.chatAudioIOCtor ?? (ChatAudioIO as unknown as NonNullable<typeof options.chatAudioIOCtor>)
       const constants = Ctor as unknown as ChatAudioIOStateConstants
@@ -258,9 +257,7 @@ export function createChatConversation(options: {
       const cancel = () => ready.reject(voiceError('cancelled'))
       signal.addEventListener('abort', cancel)
       async function execute(call: string, name: string, args: Record<string, unknown>) {
-        if (seen.has(call) || scope.signal.aborted) return
-        if (seen.size >= 256) throw voiceError('resource_exhausted', 'Session tool call limit')
-        seen.add(call)
+        if (scope.signal.aborted) return
         callbacks.onFunctionCall?.(call, name, args)
         if (!options.tools) throw voiceError('unsupported_capability', 'Tool unavailable')
         const result = await options.tools.execute(
@@ -323,21 +320,13 @@ export function createChatConversation(options: {
           try {
             io?.close()
           } finally {
-            dispose()
+            scope.dispose()
           }
         }
         throw error
       } finally {
         signal.removeEventListener('abort', cancel)
         Timer.clear(deadline)
-      }
-      function dispose() {
-        try {
-          options.tools?.releaseSession?.(id)
-        } finally {
-          seen.clear()
-          scope.dispose()
-        }
       }
       function stop(mode: 'abort' | 'drain', timeoutMs = 3000) {
         if (closing) return closing
@@ -368,7 +357,7 @@ export function createChatConversation(options: {
             try {
               io.close()
             } finally {
-              dispose()
+              scope.dispose()
             }
           }
           return { reason, remoteFinalization: confirmed ? ('confirmed' as const) : ('unknown' as const) }

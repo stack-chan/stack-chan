@@ -6,8 +6,8 @@
       },
       "modules": {
         "sanotts-native": "./moddable/sanotts-native",
-        "sanotts-model": "./moddable/model-storage",
         "*": [
+          "./moddable/model-storage.c",
           "./moddable/pcm-queue.h", "./moddable/resampler.h", "./moddable/model-format.h", "./moddable/model-storage.h",
           "./csrc/*.h", "./csrc/saanotts.c", "./csrc/saanotts_stream.c",
           "./csrc/saanotts_int8.c", "./csrc/fft.c", "./csrc/g2p.c", "./pcm/*"

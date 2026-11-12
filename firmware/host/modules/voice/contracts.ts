@@ -101,7 +101,6 @@ export type ToolContext = Scope & {
   readonly callId: string
 }
 export interface ToolSet {
-  releaseSession?(id: string): void
   readonly definitions: readonly FunctionDefinition[]
   execute(call: FunctionCall, context: ToolContext): Promise<FunctionOutput>
 }
@@ -125,7 +124,6 @@ export type AgentResult =
     }
   | { readonly status: 'cancelled' | 'failed'; readonly error: Failure; readonly appended: readonly InputItem[] }
 export interface Agent {
-  releaseSession?(id: string): void
   run(
     request: {
       readonly input: readonly InputItem[]
@@ -330,7 +328,6 @@ export type Delegation =
   | { readonly kind: 'hosted'; readonly model: string; readonly instructions?: string; readonly tools?: ToolSet }
   | { readonly kind: 'client'; readonly delegate: DelegateAgent }
 export interface DelegateAgent {
-  releaseSession?(id: string): void
   run(
     request: {
       readonly sessionId: string

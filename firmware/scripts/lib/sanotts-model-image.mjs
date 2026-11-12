@@ -15,41 +15,14 @@ export const sanottsModelFormat = Object.freeze({
 
 const MAGIC = Buffer.from('SANOMDL1')
 const COMMIT = Buffer.from('COMMIT01')
-const TENSOR_ENTRY_BYTES = 104
 
 /** Validate the pinned v1.2.0/v4 model, not an arbitrary SAAN-shaped buffer. */
 export function validateSanoModelPayload(bytes) {
   const payload = asBuffer(bytes)
   if (payload.length !== sanottsModelFormat.payloadBytes) throw new Error('Invalid sanoTTS model length')
-  if (!payload.subarray(0, 4).equals(Buffer.from('SAAN')) || payload.readUInt32LE(4) !== 2)
-    throw new Error('Invalid sanoTTS SAAN format/version')
-  const tensors = payload.readUInt32LE(8)
-  const tableEnd = 16 + tensors * TENSOR_ENTRY_BYTES
-  if (tensors !== 183 || tableEnd > payload.length) throw new Error('Invalid sanoTTS tensor table')
-  const names = new Set()
-  for (let index = 0; index < tensors; index++) {
-    const entry = 16 + index * TENSOR_ENTRY_BYTES
-    const rawName = payload.subarray(entry, entry + 64)
-    const nameEnd = rawName.indexOf(0)
-    if (nameEnd <= 0) throw new Error('Invalid sanoTTS tensor name')
-    const name = rawName.subarray(0, nameEnd).toString('ascii')
-    if (names.has(name)) throw new Error('Duplicate sanoTTS tensor name')
-    names.add(name)
-    const dtype = payload.readUInt32LE(entry + 64)
-    const offset = payload.readBigUInt64LE(entry + 88)
-    const length = payload.readBigUInt64LE(entry + 96)
-    if (
-      dtype > 2 ||
-      offset < BigInt((tableEnd + 15) & ~15) ||
-      offset % 16n !== 0n ||
-      length === 0n ||
-      offset + length > BigInt(payload.length)
-    )
-      throw new Error('Invalid sanoTTS tensor bounds/alignment')
-  }
   const sha256 = createHash('sha256').update(payload).digest('hex')
   if (sha256 !== sanottsModelFormat.sha256) throw new Error('sanoTTS model SHA-256 mismatch')
-  return { byteLength: payload.length, sha256, tensors }
+  return { byteLength: payload.length, sha256 }
 }
 
 /** A header is written only after the payload has been verified on flash. */

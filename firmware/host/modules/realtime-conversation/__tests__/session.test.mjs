@@ -116,14 +116,10 @@ test('client delegation snapshots only past transcript and suppresses late resul
   assert.deepEqual(f.messages, [])
 })
 
-test('client delegation publishes the final answer and releases its session ledger on close', async () => {
-  const released = []
+test('client delegation publishes the final answer', async () => {
   const f = fixture({
     kind: 'client',
     delegate: {
-      releaseSession(id) {
-        released.push(id)
-      },
       async run() {
         return [
           {
@@ -150,5 +146,4 @@ test('client delegation publishes the final answer and releases its session ledg
   await new Promise((done) => setImmediate(done))
   assert.deepEqual(f.messages, [{ id: 'd1', text: 'answer declined' }])
   await session.close({ mode: 'abort' })
-  assert.deepEqual(released, [session.id])
 })

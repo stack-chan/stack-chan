@@ -118,38 +118,28 @@ function fixture({ entries = layout(), fail, mutateSource } = {}) {
   }
 }
 
-test('payload validates the pinned format, all tensor ranges and digest', needsModel, () => {
-  const info = validateSanoModelPayload(model)
+test('payload validates the pinned length and digest for a Uint8Array view', needsModel, () => {
+  const backing = new Uint8Array(model.length + 2)
+  backing.set(model, 1)
+  const info = validateSanoModelPayload(backing.subarray(1, -1))
   assert.equal(info.byteLength, model.length)
   assert.equal(info.sha256, format.sha256)
-  assert.equal(info.tensors, 183)
 })
 
-test('rejects empty/truncated and incompatible payloads before accepting metadata', () => {
+test('rejects incompatible input types, incorrect lengths and unrecognized payloads', () => {
+  for (const input of [null, [], new ArrayBuffer(format.payloadBytes)])
+    assert.throws(() => validateSanoModelPayload(input), TypeError)
   assert.throws(() => validateSanoModelPayload(Buffer.alloc(0)), /length/)
   assert.throws(() => validateSanoModelPayload(Buffer.alloc(format.payloadBytes - 1)), /length/)
-  const invalid = Buffer.alloc(format.payloadBytes)
-  assert.throws(() => validateSanoModelPayload(invalid), /format/)
-  invalid.write('SAAN')
-  invalid.writeUInt32LE(1, 4)
-  assert.throws(() => validateSanoModelPayload(invalid), /format/)
-  invalid.writeUInt32LE(2, 4)
-  invalid.writeUInt32LE(0xffffffff, 8)
-  assert.throws(() => validateSanoModelPayload(invalid), /table/)
+  assert.throws(() => validateSanoModelPayload(Buffer.alloc(format.payloadBytes + 1)), /length/)
+  assert.throws(() => validateSanoModelPayload(Buffer.alloc(format.payloadBytes)), /SHA-256 mismatch/)
 })
 
-test('corrupt model data, tensor bounds, alignment and repeated names are rejected', needsModel, () => {
-  for (const change of [
-    (bytes) => {
-      bytes[bytes.length - 1] ^= 1
-    },
-    (bytes) => bytes.writeBigUInt64LE(BigInt(bytes.length + 16), 16 + 88),
-    (bytes) => bytes.writeBigUInt64LE(1n, 16 + 88),
-    (bytes) => bytes.copy(bytes, 16 + 104, 16, 16 + 64),
-  ]) {
+test('modified model bytes are rejected by the pinned digest', needsModel, () => {
+  for (const position of [0, Math.floor(model.length / 2), model.length - 1]) {
     const corrupt = Buffer.from(model)
-    change(corrupt)
-    assert.throws(() => validateSanoModelPayload(corrupt), /mismatch|bounds|Duplicate/)
+    corrupt[position] ^= 1
+    assert.throws(() => validateSanoModelPayload(corrupt), /SHA-256 mismatch/)
   }
 })
 
@@ -362,7 +352,7 @@ test('bad local model and wrong chip never connect to any serial device', () => 
         calls++
       },
     }
-    assert.throws(() => installSanoModel(options), /format/)
+    assert.throws(() => installSanoModel(options), /SHA-256 mismatch/)
     assert.throws(() => installSanoModel({ ...options, chip: 'esp32' }), /ESP32-S3/)
     assert.equal(calls, 0)
   } finally {

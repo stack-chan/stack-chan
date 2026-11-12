@@ -1,5 +1,3 @@
-#include "xsmc.h"
-#include "xsHost.h"
 #include "model-storage.h"
 #include "psa/crypto.h"
 #include <stdio.h>
@@ -50,20 +48,4 @@ int sano_model_open_claimed(SanoModel *model, char *error, size_t errorBytes) {
     model->mapped = 1;
     model->payload = base;
     return 1;
-}
-
-void xs_sano_model_status(xsMachine *the) {
-    if (!sano_model_claim())
-        xsUnknownError("sanoTTS model is in use");
-    SanoModel model = {0};
-    char error[96] = {0};
-    int valid = sano_model_open_claimed(&model, error, sizeof(error));
-    sano_model_release(&model);
-
-    xsmcVars(1);
-    xsmcSetNewObject(xsResult);
-    xsmcSetBoolean(xsVar(0), valid);
-    xsmcSet(xsResult, xsID("valid"), xsVar(0));
-    xsmcSetString(xsVar(0), valid ? "verified" : error);
-    xsmcSet(xsResult, xsID("reason"), xsVar(0));
 }

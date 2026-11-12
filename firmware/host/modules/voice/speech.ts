@@ -1,12 +1,13 @@
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
-import { createPcmBodyReader } from 'stackchan/voice/pcm-http'
-import Timer from 'timer'
-import Whisper from 'stt-whisper'
-import type { PcmFormat, STT, TTS, VoiceSignal } from 'stackchan/voice/contracts'
+import type { PcmFormat, STT, Synthesis, TTS, VoiceSignal } from 'stackchan/voice/contracts'
 import { createPcmSink, createPcmSource } from 'stackchan/voice/media'
-import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import { createPcmBodyReader } from 'stackchan/voice/pcm-http'
+import { createVoiceScope, deferred, requireActive, voiceError } from 'stackchan/voice/scope'
+import { openStreamingSynthesis } from 'stackchan/voice/synthesis'
+import Whisper from 'stt-whisper'
+import Timer from 'timer'
 
 declare const device: { network: { https: { client: HTTPClientProvider } } }
 
@@ -45,6 +46,7 @@ export function createWhisperSTT(options: {
       let recording = new Uint8Array(44 + limit)
       let used = 44,
         ended = false
+      let completion: Promise<void> | undefined
       return {
         input: createPcmSink(format, (bytes) => {
           requireActive(scope.signal)
@@ -52,23 +54,33 @@ export function createWhisperSTT(options: {
           recording.set(bytes, used)
           used += bytes.length
         }),
-        async finish() {
-          if (ended) return
+        finish() {
+          if (completion) return completion
           ended = true
-          requireActive(scope.signal)
-          if (used === 44) {
-            onTranscript({ utteranceId, text: '', final: true })
-            return
-          }
-          waveHeader(recording, format, used - 44)
-          const result = await whisper.transcribe(recording.subarray(0, used), scope.signal)
-          requireActive(scope.signal)
-          if (result.success === false) throw voiceError('provider_failed', result.reason)
-          onTranscript({ utteranceId, text: result.value, final: true })
+          const done = deferred<void>()
+          completion = done.promise
+          void (async () => {
+            try {
+              requireActive(scope.signal)
+              if (used === 44) {
+                onTranscript({ utteranceId, text: '', final: true })
+                return
+              }
+              waveHeader(recording, format, used - 44)
+              const result = await whisper.transcribe(recording.subarray(0, used), scope.signal)
+              requireActive(scope.signal)
+              if (result.success === false) throw voiceError('provider_failed', result.reason)
+              onTranscript({ utteranceId, text: result.value, final: true })
+            } finally {
+              scope.dispose()
+            }
+          })().then(done.resolve, done.reject)
+          return completion
         },
         async close() {
           scope.abort()
           recording = new Uint8Array(0)
+          await completion?.catch(() => {})
         },
       }
     },
@@ -141,45 +153,43 @@ function streamSpeech(
 }
 
 export function createOpenAISpeechTTS(options: { apiKey: string; model?: string }): TTS {
-  return {
-    async open({ signal, format, voice }) {
-      requireActive(signal)
-      if (format.sampleRate !== 24000 || format.channels !== 1)
-        throw voiceError('unsupported_capability', 'OpenAI PCM uses 24 kHz mono')
-      const scope = createVoiceScope(signal),
-        source = createPcmSource(format)
-      let text = '',
-        finished = false
-      return {
-        output: source.output,
-        async write(part) {
-          requireActive(scope.signal)
-          if (finished || text.length + part.length > 4096)
-            throw voiceError('resource_exhausted', 'speech text too long')
-          text += part
-        },
-        async finish() {
-          if (finished) return
-          finished = true
-          try {
-            const body = ArrayBuffer.fromString(
-              JSON.stringify({ model: options.model ?? 'tts-1', voice, input: text, response_format: 'pcm' }),
-            )
-            await streamSpeech(options.apiKey, body, scope.signal, source.offer)
-            source.end()
-          } catch (error) {
-            source.end(error)
-            throw error
-          }
-        },
-        textAt() {
-          return { basis: 'unknown' as const, text: '' }
-        },
-        async close() {
-          scope.abort()
+  async function open({ signal, format, voice }: Parameters<TTS['open']>[0]): Promise<Omit<Synthesis, 'flush'>> {
+    requireActive(signal)
+    if (format.sampleRate !== 24000 || format.channels !== 1)
+      throw voiceError('unsupported_capability', 'OpenAI PCM uses 24 kHz mono')
+    const scope = createVoiceScope(signal),
+      source = createPcmSource(format)
+    let text = '',
+      finished = false
+    return {
+      output: source.output,
+      async write(part) {
+        requireActive(scope.signal)
+        if (finished || text.length + part.length > 4096) throw voiceError('resource_exhausted', 'speech text too long')
+        text += part
+      },
+      async finish() {
+        if (finished) return
+        finished = true
+        try {
+          const body = ArrayBuffer.fromString(
+            JSON.stringify({ model: options.model ?? 'tts-1', voice, input: text, response_format: 'pcm' }),
+          )
+          await streamSpeech(options.apiKey, body, scope.signal, source.offer)
           source.end()
-        },
-      }
-    },
+        } catch (error) {
+          source.end(error)
+          throw error
+        }
+      },
+      textAt() {
+        return { basis: 'unknown' as const, text: '' }
+      },
+      async close() {
+        scope.abort()
+        source.end()
+      },
+    }
   }
+  return { open: (args) => openStreamingSynthesis(args, open, 4096) }
 }

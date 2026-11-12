@@ -1,13 +1,14 @@
 import Native from 'sanotts-native'
-import { mono, readSource } from 'stackchan/voice/media'
+import { createPcmSink, mono, pcmMedia, readSource } from 'stackchan/voice/media'
 import { createSanoTTS } from 'stackchan/voice/sanotts'
 import { createVoiceScope, deferred } from 'stackchan/voice/scope'
 import { equal } from 'testing/assert'
 
-async function run() {
-  const tts = createSanoTTS()
-  const scope = createVoiceScope()
-  const args = { signal: scope.signal, format: mono(24000), voice: 'default' }
+const tts = createSanoTTS()
+const scope = createVoiceScope()
+const args = { signal: scope.signal, format: mono(24000), voice: 'default' }
+
+async function bufferedPlayback() {
   const synthesis = await tts.open(args)
   const gate = deferred<void>()
   let count = 0
@@ -30,6 +31,39 @@ async function run() {
   equal(synthesis.textAt({ basis: 'estimate', renderedFrames: 5006, sampleRate: 24000 }).basis, 'unknown')
   equal(synthesis.textAt({ basis: 'estimate', renderedFrames: 5007, sampleRate: 24000 }).text, '挨拶')
   equal(Native.active, 0)
+  await synthesis.close()
+}
+
+async function streamedPlayback() {
+  const continuous = await tts.openKana(args)
+  let streamedFrames = 0,
+    streamEnded = false
+  const link = await pcmMedia.connect(
+    continuous.output,
+    createPcmSink(args.format, (bytes) => {
+      streamedFrames += bytes.byteLength / 2
+    }),
+    { signal: scope.signal, budget: { maxBufferedBytes: 4096, maxBufferedMs: 100 } },
+  )
+  void link.done.then(() => {
+    streamEnded = true
+  })
+  await continuous.write('かな')
+  await continuous.flush()
+  equal(streamedFrames, 5007)
+  equal(streamEnded, false)
+  equal(Native.active, 0)
+  await continuous.write('つづき')
+  await continuous.finish()
+  await link.done
+  equal(streamedFrames, 10014)
+  equal(Native.active, 0)
+  equal(continuous.textAt({ basis: 'estimate', renderedFrames: 10014, sampleRate: 24000 }).text, 'かなつづき')
+  await continuous.close()
+  await link.close()
+}
+
+async function cancellation() {
   const pending = await tts.openKana(args)
   const held = deferred<void>()
   readSource(pending.output, () => held.promise)
@@ -44,6 +78,9 @@ async function run() {
   equal(Native.lastKana, 'かな')
   equal(Native.active, 0)
   held.resolve()
+}
+
+async function failureAndRetry() {
   const again = await tts.openKana({ ...args, ...createVoiceScope() })
   await again.write('missing-model')
   equal(
@@ -59,6 +96,9 @@ async function run() {
   await retry.finish()
   equal(Native.lastKana, 'あ')
   equal(Native.active, 0)
+}
+
+async function customReadings() {
   const custom = createSanoTTS({ toKana: (text) => (text === '電車' ? 'でんしゃ' : '') })
   const train = await custom.open({ ...args, ...createVoiceScope() })
   await train.write('電車')
@@ -75,28 +115,40 @@ async function run() {
     true,
   )
   equal(Native.active, 0)
-  for (const action of ['close', 'abort']) {
-    const stopping = createVoiceScope()
-    const provider = createSanoTTS({
-      toKana() {
-        if (action === 'close') void session.close()
-        else stopping.abort()
-        return 'あ'
-      },
-    })
-    const session = await provider.open({ ...args, signal: stopping.signal })
-    await session.write('あ')
-    equal(
-      await session.finish().then(
-        () => 'played',
-        (cause) => cause.code,
-      ),
-      'cancelled',
-    )
-    await session.close()
-    equal(Native.active, 0)
-  }
 }
+
+async function reentrantCancellation(action: 'close' | 'abort') {
+  const stopping = createVoiceScope()
+  const provider = createSanoTTS({
+    toKana() {
+      if (action === 'close') void session.close()
+      else stopping.abort()
+      return 'あ'
+    },
+  })
+  const session = await provider.open({ ...args, signal: stopping.signal })
+  await session.write('あ')
+  equal(
+    await session.finish().then(
+      () => 'played',
+      (cause) => cause.code,
+    ),
+    'cancelled',
+  )
+  await session.close()
+  equal(Native.active, 0)
+}
+
+async function run() {
+  await bufferedPlayback()
+  await streamedPlayback()
+  await cancellation()
+  await failureAndRetry()
+  await customReadings()
+  await reentrantCancellation('close')
+  await reentrantCancellation('abort')
+}
+
 run().then(
   () => trace('@@STACKCHAN_TEST:PASS@@\n'),
   (e) => {

@@ -29,6 +29,14 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0) {
   let offset = 0,
     retained = 0,
     ended = false
+  function endReader(reader: Reader, error?: unknown) {
+    readers.delete(reader)
+    try {
+      reader.end(error)
+    } catch {
+      // 通知先の例外でほかの購読者への終了通知や送信側の後処理を止めない
+    }
+  }
   const output = {
     format,
     attach(reader: Reader, replayMs = 0) {
@@ -50,8 +58,7 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0) {
               reader.busy = false
             },
             (error) => {
-              readers.delete(reader)
-              reader.end(error)
+              endReader(reader, error)
             },
           )
         }
@@ -88,16 +95,14 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0) {
               reader.busy = false
             },
             (error) => {
-              readers.delete(reader)
-              reader.end(error)
+              endReader(reader, error)
               throw error
             },
           )
           pending = pending ? Promise.all([pending, completion]).then(() => {}) : completion
         }
       } catch (error) {
-        readers.delete(reader)
-        reader.end(error)
+        endReader(reader, error)
         problem = error
       }
     }
@@ -120,8 +125,7 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0) {
     end(error?: unknown) {
       if (ended) return
       ended = true
-      for (const reader of readers) reader.end(error)
-      readers.clear()
+      for (const reader of readers) endReader(reader, error)
     },
   }
 }

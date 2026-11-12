@@ -3,11 +3,15 @@ import type { Synthesis, TTS } from 'stackchan/voice/contracts'
 import { createPcmSource } from 'stackchan/voice/media'
 import { toKana } from 'stackchan/voice/sanotts-reading'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
+import { openStreamingSynthesis } from 'stackchan/voice/synthesis'
 import Timer from 'timer'
 
 export function createSanoTTS(options: { toKana?: (text: string) => string } = {}): TTS & { openKana: TTS['open'] } {
   const readText = options.toKana ?? toKana
-  async function open({ signal, format, voice }: Parameters<TTS['open']>[0], kana: boolean): Promise<Synthesis> {
+  async function open(
+    { signal, format, voice }: Parameters<TTS['open']>[0],
+    kana: boolean,
+  ): Promise<Omit<Synthesis, 'flush'>> {
     requireActive(signal)
     if (format.channels !== 1 || format.sampleRate !== 24000 || format.encoding !== 'pcm_s16le')
       throw voiceError('unsupported_capability', 'sanoTTS requires mono 24 kHz PCM')
@@ -127,5 +131,8 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
       },
     }
   }
-  return { open: (options) => open(options, false), openKana: (options) => open(options, true) }
+  return {
+    open: (options) => openStreamingSynthesis(options, (args) => open(args, false), 512),
+    openKana: (options) => openStreamingSynthesis(options, (args) => open(args, true), 512),
+  }
 }

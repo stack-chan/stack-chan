@@ -230,7 +230,9 @@ export interface Speaker {
 
 export type Transcript = {
   readonly utteranceId: string
+  /** 同じ発話の全文更新。途中結果は連結せず、前の内容を置き換える */
   readonly text: string
+  /** 音声入力を確定した後の最終結果だけがtrue。同じ発話では一度だけ通知する */
   readonly final: boolean
 }
 export interface Transcription {
@@ -253,7 +255,11 @@ export type TextProgress = {
 }
 export interface Synthesis {
   readonly output: AudioSource
+  /** 入力操作は完了を待って順に呼ぶ。音声はfinish前にも出力され得る */
   write(text: string): Promise<void>
+  /** ここまでの入力のPCMを出力へ渡し終えるまで待ち、入力と出力を開いたままにする。再生完了は含まない */
+  flush(): Promise<void>
+  /** 入力を閉じ、残りの合成と音声出力の終了を待つ。再生完了は含まない */
   finish(): Promise<void>
   textAt(position: PlaybackCursor): TextProgress
   close(): Promise<void>

@@ -1,12 +1,12 @@
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
-import { createPcmBodyReader } from 'stackchan/voice/pcm-http'
-import Timer from 'timer'
-import Whisper from 'stt-whisper'
 import type { PcmFormat, STT, TTS, VoiceSignal } from 'stackchan/voice/contracts'
 import { createPcmSink, createPcmSource } from 'stackchan/voice/media'
+import { createPcmBodyReader } from 'stackchan/voice/pcm-http'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import Whisper from 'stt-whisper'
+import Timer from 'timer'
 
 declare const device: { network: { https: { client: HTTPClientProvider } } }
 
@@ -171,9 +171,6 @@ export function createOpenAISpeechTTS(options: { apiKey: string; model?: string 
             source.end(error)
             throw error
           }
-        },
-        textAt() {
-          return { basis: 'unknown' as const, text: '' }
         },
         async close() {
           scope.abort()

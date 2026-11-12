@@ -1,7 +1,7 @@
 import WebSocket from 'WebSocket'
+import { runTextTurn } from 'example-text-turn'
 import { createAgent, createToolSet, OpenAIResponsesLLM } from 'stackchan/ai'
 import { createVoiceScope } from 'stackchan/voice/scope'
-import { runTextTurn } from 'example-text-turn'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 

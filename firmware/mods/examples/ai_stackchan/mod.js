@@ -1,4 +1,6 @@
-import { createAgent, createToolSet, createVision, adaptRobotCamera, OpenAIResponsesLLM } from 'stackchan/ai'
+import { Emoticon } from 'effects/emoticon'
+import { Emotion, EmotionNames, emotionFromName } from 'face-state'
+import { adaptRobotCamera, createAgent, createToolSet, createVision, OpenAIResponsesLLM } from 'stackchan/ai'
 import {
   createCascadedConversation,
   createConversationPipeline,
@@ -6,8 +8,6 @@ import {
   createVoiceScope,
 } from 'stackchan/voice'
 import { createOpenAISpeechTTS, createWhisperSTT } from 'stackchan/voice/speech'
-import { Emoticon } from 'effects/emoticon'
-import { Emotion, EmotionNames, emotionFromName } from 'face-state'
 
 let stop
 
@@ -128,7 +128,7 @@ export function onContextCreated(robot, option) {
       },
     })
     pipeline = next
-    next.setVolume(robot.audio.volume)
+    if (robot.audio.volume !== undefined) next.setVolume(robot.audio.volume)
     opening = next.start(scope).catch(async (error) => {
       await closePipeline()
       throw error

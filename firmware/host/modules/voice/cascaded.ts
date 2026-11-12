@@ -1,4 +1,3 @@
-import Timer from 'timer'
 import type {
   AgentResult,
   CascadedOptions,
@@ -18,6 +17,7 @@ import type {
 } from 'stackchan/voice/contracts'
 import { mono } from 'stackchan/voice/media'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import Timer from 'timer'
 
 let nextSession = 0
 const historyLimit = 64 * 1024
@@ -110,9 +110,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
       let interruptTask: Promise<Interruption> | undefined
       const sessionScope = createVoiceScope(signal)
       let mustRestart = false
-      let agentJob: Promise<AgentResult> | undefined
       function completedAgent(job: Promise<AgentResult>, scope: ReturnType<typeof createVoiceScope>) {
-        agentJob = job
         return new Promise<AgentResult>((resolve, reject) => {
           let timer: ReturnType<typeof Timer.set> | undefined
           const abort = () => {
@@ -126,7 +124,6 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           const clear = () => {
             if (timer !== undefined) Timer.clear(timer)
             scope.signal.removeEventListener('abort', abort)
-            if (agentJob === job) agentJob = undefined
           }
           void job.then(
             (value) => {
@@ -448,12 +445,6 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
               await detector.close()
               await pending
               await stopUtterance()
-              if (agentJob)
-                void agentJob.then(
-                  () => config.agent.releaseSession?.(id),
-                  () => config.agent.releaseSession?.(id),
-                )
-              else config.agent.releaseSession?.(id)
               return { reason, remoteFinalization: mustRestart ? ('unknown' as const) : ('not-required' as const) }
             } finally {
               if (timer !== undefined) Timer.clear(timer)

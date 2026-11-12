@@ -1,4 +1,4 @@
-import type { Speaker } from 'stackchan/voice/contracts'
+import type { Speaker } from '../voice/contracts.js'
 
 export type SpeechCompletion = (error?: unknown) => void
 export type SpeechPlaybackListener = (power: number) => void

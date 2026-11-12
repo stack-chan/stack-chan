@@ -27,8 +27,6 @@ async function run() {
   await done
   equal(Native.lastKana, 'こんにちは')
   equal(count, 5007)
-  equal(synthesis.textAt({ basis: 'estimate', renderedFrames: 5006, sampleRate: 24000 }).basis, 'unknown')
-  equal(synthesis.textAt({ basis: 'estimate', renderedFrames: 5007, sampleRate: 24000 }).text, '挨拶')
   equal(Native.active, 0)
   const pending = await tts.openKana(args)
   const held = deferred<void>()

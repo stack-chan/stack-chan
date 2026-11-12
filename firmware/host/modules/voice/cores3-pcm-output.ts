@@ -1,6 +1,7 @@
 import AudioOut from 'embedded:io/audio/out'
 import { pcmEnergy } from 'stackchan/voice/pcm-energy'
 import { deferred, voiceError } from 'stackchan/voice/scope'
+import type { PcmOutput } from './runtime-types.js'
 
 // CoreS3 sets I2S_DMA_BUFFER_MAX_SIZE to 2048. The ESP32 ECMA-419 driver exposes five writable descriptors.
 const dmaBlockBytes = 2048
@@ -45,7 +46,12 @@ function playbackMeter(onPlayed: (power: number) => void) {
   }
 }
 
-export function openOutput(sampleRate: number, volume: number, limit: number, onPlayed?: (power: number) => void) {
+export function openOutput(
+  sampleRate: number,
+  volume: number,
+  limit: number,
+  onPlayed?: (power: number) => void,
+): PcmOutput {
   const meter = onPlayed ? playbackMeter(onPlayed) : undefined
   let capacity = 0
   let writable = 0

@@ -1,8 +1,8 @@
 import type {
   CloseOptions,
   CloseResult,
-  ConversationSession,
   ConversationPipeline,
+  ConversationSession,
   DuplexLease,
   InputMessage,
   PipelineOptions,

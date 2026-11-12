@@ -174,9 +174,6 @@ export function createOpenAISpeechTTS(options: { apiKey: string; model?: string 
             throw error
           }
         },
-        textAt() {
-          return { basis: 'unknown' as const, text: '' }
-        },
         async close() {
           scope.abort()
           source.end()

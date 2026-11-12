@@ -25,9 +25,7 @@ export function createStackchanVoiceTTS(
     if (busy) throw voiceError('device_busy', 'StackchanVoice is already synthesizing')
     const source = createPcmSource(format)
     let text = '',
-      frames = 0,
-      ended = false,
-      complete = false
+      ended = false
     let result: ReturnType<typeof deferred<void>> | undefined
     let failure: unknown
     let timer: ReturnType<typeof Timer.set> | undefined
@@ -38,7 +36,6 @@ export function createStackchanVoiceTTS(
       ended = true
       busy = false
       failure = error
-      complete = !error
       block = undefined
       if (timer !== undefined) Timer.clear(timer)
       signal.removeEventListener('abort', abort)
@@ -57,7 +54,6 @@ export function createStackchanVoiceTTS(
           if (!Number.isInteger(samples) || samples < 0 || samples > bytes.length / 2)
             throw voiceError('provider_failed', 'invalid StackchanVoice PCM length')
           if (!samples) return end()
-          frames += samples
           const last = samples * 2 < bytes.length
           const pending = source.offer(last ? bytes.subarray(0, samples * 2) : bytes)
           blocks++
@@ -111,17 +107,6 @@ export function createStackchanVoiceTTS(
           end(error)
         }
         return result.promise
-      },
-      textAt(position) {
-        if (
-          complete &&
-          frames > 0 &&
-          position.basis !== 'unknown' &&
-          position.sampleRate > 0 &&
-          position.renderedFrames / position.sampleRate >= frames / format.sampleRate
-        )
-          return { basis: 'completed-segment', text }
-        return { basis: 'unknown', text: '' }
       },
       async close() {
         end(voiceError('cancelled'))

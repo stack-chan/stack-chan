@@ -1,6 +1,11 @@
 import { localize } from 'localization'
-import type { Application as PiuApplication, Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
-import { Application, Column, Container, Label } from 'piu/MC'
+import type {
+  Application as PiuApplication,
+  Container as PiuContainer,
+  Scroller as PiuScroller,
+  Text as PiuText,
+} from 'piu/MC'
+import { Application, Column, Container, Label, Scroller, Text } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
 import { UI, uiStyles } from 'ui-theme'
 
@@ -17,6 +22,7 @@ export type WiFiConnectionStatusOptions = {
 
 export type WiFiRecoveryChoiceOptions = {
   message: string
+  sntpHost?: string
   onRetry?: () => void
   onOffline?: () => void
 }
@@ -47,7 +53,7 @@ export function showStartupError(options: {
   const styles = uiStyles()
   // Clear detached splash references so late Wi-Fi callbacks cannot replace
   // this failure with a status message or recovery choice.
-  currentMessageLabel = null
+  currentMessageScroller = null
   currentActionArea = null
   let restarting = false
   const root = new Container(null, {
@@ -101,7 +107,12 @@ export function showStartupError(options: {
   return application
 }
 
-let currentMessageLabel: PiuLabel | null = null
+const SPLASH_TOP = 66
+const SPLASH_MESSAGE_HEIGHT = 72
+const RECOVERY_TOP = 12
+const BRAND_HEIGHT = 42
+
+let currentMessageScroller: PiuScroller | null = null
 let currentActionArea: PiuContainer | null = null
 
 function showActions(contents: PiuContainer[]) {
@@ -110,18 +121,75 @@ function showActions(contents: PiuContainer[]) {
   for (const content of contents) currentActionArea.add(content)
 }
 
-function setMessage(message: string) {
-  if (currentMessageLabel) currentMessageLabel.string = message
+function setMessage(message: string, sntpHost?: string) {
+  const scroller = currentMessageScroller
+  if (!scroller || !currentActionArea) return
+  const text = scroller.first as PiuText
+  const column = scroller.container as PiuContainer
+  const brand = column.first as PiuContainer
+  column.y = sntpHost ? RECOVERY_TOP : SPLASH_TOP
+  brand.height = BRAND_HEIGHT
+  brand.visible = true
+  scroller.height = SPLASH_MESSAGE_HEIGHT
+  scroller.active = Boolean(sntpHost)
+  scroller.scrollTo(0, 0)
+  if (!sntpHost) {
+    text.string = message
+    return
+  }
+
+  // Piu Text does not break a long ASCII word at a dot or hyphen.
+  const width = scroller.width
+  const style = text.style ?? uiStyles().bodyMuted
+  const lines = [message]
+  let line = ''
+  for (const character of sntpHost) {
+    if (line && (style.measure(line + character).width ?? 0) > width) {
+      lines.push(line)
+      line = ''
+    }
+    line += character
+  }
+  lines.push(line)
+  text.string = lines.join('\n')
+  const availableHeight = currentActionArea.y - RECOVERY_TOP - UI.space
+  // Use the title's space when needed so a full hostname can fit on devices without touch.
+  if (text.height > availableHeight - BRAND_HEIGHT) {
+    brand.visible = false
+    brand.height = 0
+  }
+  scroller.height = availableHeight - brand.height
 }
 
 export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplication {
   const styles = uiStyles()
-  const messageLabel = new Label(null, {
+  const messageScroller = new Scroller(null, {
     left: 12,
     right: 12,
-    height: 28,
-    string: options.message ?? localize('splash.starting'),
-    style: styles.bodyMuted,
+    height: SPLASH_MESSAGE_HEIGHT,
+    clip: true,
+    Behavior: class extends Behavior {
+      startY = 0
+      offsetY = 0
+
+      onTouchBegan(scroller: PiuScroller, _id: number, _x: number, y: number) {
+        this.startY = y
+        this.offsetY = scroller.scroll.y ?? 0
+      }
+
+      onTouchMoved(scroller: PiuScroller, _id: number, _x: number, y: number) {
+        scroller.scrollTo(0, this.offsetY + this.startY - y)
+      }
+    },
+    contents: [
+      new Text(null, {
+        top: 0,
+        left: 0,
+        right: 0,
+        string: options.message ?? localize('splash.starting'),
+        style: styles.bodyMuted,
+      }),
+    ],
   })
   const actionArea = new Container(null, {
     left: 0,
@@ -129,7 +197,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
     bottom: 12,
     height: UI.touchTarget,
   })
-  currentMessageLabel = messageLabel
+  currentMessageScroller = messageScroller
   currentActionArea = actionArea
 
   const application = new Application(options, {
@@ -142,16 +210,16 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
       new Column(null, {
         left: 0,
         right: 0,
-        top: 66,
+        top: SPLASH_TOP,
         contents: [
           new Label(null, {
             left: 0,
             right: 0,
-            height: 42,
+            height: BRAND_HEIGHT,
             string: 'Stack-chan[・＿・]',
             style: styles.brand,
           }),
-          messageLabel,
+          messageScroller,
         ],
       }),
       actionArea,
@@ -191,7 +259,7 @@ export function showWiFiConnectionStatus(options: WiFiConnectionStatusOptions): 
 }
 
 export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): void {
-  setMessage(options.message)
+  setMessage(options.message, options.sntpHost)
   showActions([
     new ActionButton(
       {

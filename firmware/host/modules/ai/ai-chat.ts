@@ -1,6 +1,6 @@
-import type { LLM, OutputItem, ResponseRequest } from '../voice/contracts.js'
 import { checkScope, failure } from 'stackchan-ai-core'
 import { consumeSSE, ImageURL, jsonBody, type SendResponseRequest } from 'stackchan-ai-wire'
+import type { LLM, OutputItem, ResponseRequest } from '../voice/contracts.js'
 
 type Call = { id: string; type: 'function'; function: { name: string; arguments: string }; extra_content?: unknown }
 type WireMessage = {

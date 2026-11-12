@@ -1,6 +1,6 @@
-import type { Image, Scope } from '../voice/contracts.js'
-import { base64, encodedImage, type ImageBytes } from 'stackchan-ai-image'
 import { checkScope, failure } from 'stackchan-ai-core'
+import { base64, encodedImage, type ImageBytes } from 'stackchan-ai-image'
+import type { Image, Scope } from '../voice/contracts.js'
 
 export type Body = { length: number; read(): Iterable<Uint8Array> }
 export type ResponseConsumer = (bytes: Uint8Array) => Promise<void>

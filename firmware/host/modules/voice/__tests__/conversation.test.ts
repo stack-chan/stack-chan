@@ -435,9 +435,6 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
         async finish() {
           source.end()
         },
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
         async close() {},
       }
     },
@@ -512,9 +509,6 @@ test('only a confirmed final-answer sentence starts early and the completed repl
           source.end()
         },
         async close() {},
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
       }
     },
   }
@@ -648,9 +642,6 @@ test('a failed agent turn cancels its detached speech consumer before fencing pl
         finish() {
           started.resolve()
           return cancelled.promise
-        },
-        textAt() {
-          return { text: '', basis: 'unknown' }
         },
         async close() {
           cleanup.push('close')
@@ -961,21 +952,17 @@ test('closing while a native lease is opening waits for its release exactly once
   assert.deepEqual([opens, device.closes(), releases], [0, 1, 1])
 })
 
-test('interrupt releases audio independently of a hung agent and forgets tool calls only after retirement', async () => {
+test('interrupt releases audio independently of a hung agent and requires a restart', async () => {
   timer.reset()
   const device = makeLease(),
     hung = deferred<AgentResult>(),
     running = deferred<void>(),
     talk = createPushToTalk()
-  const forgotten: string[] = []
   const events: ConversationEvent[] = []
   const agent: Agent = {
     run() {
       running.resolve()
       return hung.promise
-    },
-    releaseSession(id) {
-      forgotten.push(id)
     },
   }
   const model = createCascadedConversation({
@@ -1005,6 +992,10 @@ test('interrupt releases audio independently of a hung agent and forgets tool ca
   const interrupted = session.interrupt()
   timer.advance(500)
   assert.equal((await interrupted).history, 'restart-required')
+  await assert.rejects(
+    session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'again' }] }, scope),
+    { code: 'provider_failed' },
+  )
   assert.deepEqual(
     events.filter((event) => event.type === 'error'),
     [],
@@ -1012,10 +1003,8 @@ test('interrupt releases audio independently of a hung agent and forgets tool ca
   const last = events.at(-1)
   assert.ok(last?.type === 'turn.ended' && last.status === 'interrupted')
   assert.equal((await session.close({ mode: 'abort' })).remoteFinalization, 'unknown')
-  assert.deepEqual(forgotten, [])
   hung.resolve({ status: 'cancelled', error: { code: 'cancelled', message: '' }, appended: [] })
   await tick()
-  assert.deepEqual(forgotten, [session.id])
 })
 
 test('a slow PCM consumer is cancelled while a synchronous sibling continues receiving samples', async () => {

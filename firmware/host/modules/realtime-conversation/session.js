@@ -161,22 +161,12 @@ export function liveConversation(options, platform) {
           try {
             await protocol?.close(1)
           } finally {
-            dispose()
+            scope.dispose()
           }
         }
         throw error
       } finally {
         signal?.removeEventListener('abort', abortStart)
-      }
-      function dispose() {
-        try {
-          if (sessionId) {
-            if (delegation.kind === 'hosted') delegation.tools?.releaseSession?.(sessionId)
-            if (delegation.kind === 'client') delegation.delegate.releaseSession?.(sessionId)
-          }
-        } finally {
-          scope.dispose()
-        }
       }
       function stop(mode, timeoutMs = 15000) {
         if (closing) return closing
@@ -208,7 +198,7 @@ export function liveConversation(options, platform) {
             try {
               remote = await protocol.close(Math.max(1, end - Date.now()))
             } finally {
-              dispose()
+              scope.dispose()
             }
           }
           if (remote.reason === 'cleanup_error') throw new Error('WebRTC media did not stop')

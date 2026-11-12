@@ -66,7 +66,7 @@ assert(menus.has('settings'))
 const touch = app.first
 equal(touch.name, 'ai-push-to-talk')
 await settle()
-assert(touch.y >= 56 && touch.x > 24, 'PTT leaves credit and edge gestures accessible')
+assert(touch.y >= 56 && touch.x > 24, 'PTT leaves edge gestures accessible')
 assert(touch.y + touch.height <= app.height - 32, 'PTT leaves the bottom gesture edge accessible')
 screen.context.onTouchBegan(0, touch.x + 10, touch.y + 10, 0)
 await settle()
@@ -260,7 +260,6 @@ const synthesis = await voice.tts.open({ signal: synthesisScope.signal })
 const output = synthesis.output
 await synthesis.write('hello')
 equal(synthesis.output, output, 'wrapping preserves the synthesis source')
-equal(synthesis.textAt({}).text, 'hello', 'prototype methods retain their synthesis receiver')
 let mark = mouthUpdates.length
 await pause(120)
 equal(mouthUpdates.length, mark, 'waiting for synthesis does not animate the mouth')

@@ -1,8 +1,9 @@
 import { createChatLLM } from 'stackchan-ai-chat'
-import type { LLM, ResponseEvent, ResponseRequest, Scope } from '../voice/contracts.js'
 import { createResponseTransport } from 'stackchan-ai-http'
 import { createResponsesLLM } from 'stackchan-ai-responses'
+import type { LLM, ResponseEvent, ResponseRequest, Scope } from '../voice/contracts.js'
 
+export type { Tool } from 'stackchan-ai-core'
 export {
   adaptRobotCamera,
   asDelegateAgent,
@@ -12,7 +13,6 @@ export {
   outputText,
   toolsFromMCP,
 } from 'stackchan-ai-core'
-export type { Tool } from 'stackchan-ai-core'
 export type { Agent, AgentResult, FunctionDefinition, InputItem, LLM, ToolSet, Vision } from '../voice/contracts.js'
 
 export type OpenAIResponsesOptions = {

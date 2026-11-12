@@ -1,9 +1,9 @@
-import { createAgent, createToolSet, OpenAIResponsesLLM } from 'stackchan/ai'
-import { createVoiceScope } from 'stackchan/voice/scope'
-import { runTextTurn } from 'example-text-turn'
 import { Emoticon } from 'effects/emoticon'
+import { runTextTurn } from 'example-text-turn'
 import { Emotion } from 'face-state'
 import { HttpServerService } from 'http-server-service'
+import { createAgent, createToolSet, OpenAIResponsesLLM } from 'stackchan/ai'
+import { createVoiceScope } from 'stackchan/voice/scope'
 
 //
 // Face parameters

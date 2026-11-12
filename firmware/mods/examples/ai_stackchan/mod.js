@@ -128,9 +128,6 @@ export function onContextCreated(robot, option) {
             throw error
           }
         },
-        textAt(position) {
-          return synthesis.textAt(position)
-        },
         async close() {
           closed = true
           motion?.stop()
@@ -325,7 +322,7 @@ export function onContextCreated(robot, option) {
       },
     })
     pipeline = next
-    next.setVolume(robot.audio.volume)
+    if (robot.audio.volume !== undefined) next.setVolume(robot.audio.volume)
     opening = next.start(scope).catch(async (error) => {
       await closePipeline()
       throw error

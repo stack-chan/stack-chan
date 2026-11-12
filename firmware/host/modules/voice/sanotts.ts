@@ -14,9 +14,7 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
     if (voice && voice !== 'default') throw voiceError('unsupported_capability', 'sanoTTS provides the default voice')
     const source = createPcmSource(format)
     let text = '',
-      frames = 0,
-      ended = false,
-      complete = false
+      ended = false
     let error: unknown
     let native: NativeSanoTTS | undefined
     let completion: ReturnType<typeof deferred<void>> | undefined
@@ -42,7 +40,6 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
         } catch (failure) {
           error ??= failure
         }
-        complete = !error
         try {
           source.end(error)
         } finally {
@@ -78,7 +75,6 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
             if (!samples) break
             if (!Number.isInteger(samples) || samples < 0 || samples * 2 > bytes.length)
               throw voiceError('provider_failed', 'invalid sanoTTS PCM length')
-            frames += samples
             const pending = source.offer(samples * 2 === bytes.length ? bytes : bytes.subarray(0, samples * 2))
             if (pending) await pending
           }
@@ -109,17 +105,6 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
           end(e)
         }
         return completion.promise
-      },
-      textAt(position) {
-        if (
-          complete &&
-          frames &&
-          position.basis !== 'unknown' &&
-          position.sampleRate > 0 &&
-          position.renderedFrames / position.sampleRate >= frames / 24000
-        )
-          return { text, basis: 'completed-segment' }
-        return { text: '', basis: 'unknown' }
       },
       async close() {
         end(voiceError('cancelled'))

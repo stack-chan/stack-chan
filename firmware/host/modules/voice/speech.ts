@@ -41,8 +41,9 @@ export function createWhisperSTT(options: {
   return {
     async open({ signal, format, onTranscript, utteranceId }) {
       requireActive(signal)
+      // 録音PCMで固定容量のXS chunk領域を使い切らず、HTTPや応答解析の領域を残す
+      let recording: Uint8Array = new Uint8Array(new SharedArrayBuffer(44 + limit))
       const scope = createVoiceScope(signal)
-      let recording = new Uint8Array(44 + limit)
       let used = 44,
         ended = false
       return {

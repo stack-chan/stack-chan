@@ -27,12 +27,14 @@ type MultipartResponse = {
 }
 
 /** Post multipart audio using the HTTPS provider and collect the transcription response. */
-function postMultipart(
+async function postMultipart(
   url: string,
   headers: Headers,
   parts: MultipartPart[],
   signal?: VoiceSignal,
 ): Promise<MultipartResponse> {
+  // HTTPSの初期化を呼び出し元のnativeスタックから切り離す
+  await Promise.resolve()
   return new Promise((resolve, reject) => {
     const endpoint = new URL(url)
     const path = `${endpoint.pathname}${endpoint.search}`

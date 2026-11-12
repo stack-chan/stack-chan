@@ -1,13 +1,13 @@
 import Modules from 'modules'
 import type AudioOutput from 'pins/audioout'
 import type { AudioSink, DuplexLease, PcmFormat, PlaybackReceipt } from 'stackchan/voice/contracts'
-import type * as CoreS3Output from 'stackchan/voice/cores3-pcm-output'
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
+import type { PairedAudioRuntime, PcmOutput, PcmOutputModule } from './runtime-types.js'
 
-export function createAudioRuntime(options: RuntimeOptions) {
+export function createAudioRuntime(options: RuntimeOptions): PairedAudioRuntime {
   return bindAudioRuntime(options, openPcmLease)
 }
 
@@ -45,7 +45,7 @@ type OutputSegment = {
   writing: boolean
   sealed: boolean
 } & (
-  | { direct: ReturnType<typeof CoreS3Output.openOutput>; drain?: Promise<void> }
+  | { direct: PcmOutput; drain?: Promise<void> }
   | { lengths: number[]; flush(): void; flushTimer?: ReturnType<typeof Timer.set> }
 )
 
@@ -67,7 +67,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
   const chunkSize = Math.min(2048, Math.floor((inputLimit - preRoll) / 4) * 2)
   const outputLimit = Math.min(outputCapacity, budget.maxBufferedBytes - preRoll - 2 * chunkSize)
   const deviceOutput = Modules.has('stackchan/voice/cores3-pcm-output')
-    ? (Modules.importNow('stackchan/voice/cores3-pcm-output', true) as typeof CoreS3Output)
+    ? (Modules.importNow('stackchan/voice/cores3-pcm-output', true) as PcmOutputModule)
     : undefined
   const directLimit = Math.min(capacity(budget, outputFormat), budget.maxBufferedBytes - preRoll - 2 * chunkSize)
   const directOutput = deviceOutput && directLimit >= deviceOutput.minimumOutputBytes ? deviceOutput : undefined

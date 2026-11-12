@@ -44,8 +44,7 @@ import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-
 import Touch, { type TouchOptions } from 'touch'
 import TouchPanel from 'touch-panel'
 import { canonicalizeVolume } from 'volume-model'
-import type { createAudioRuntime as CreateAudioRuntime } from '../modules/voice/pcm-device.js'
-import type { LeaseFactory } from '../modules/voice/runtime.js'
+import type { CreateAudioRuntime, LeaseFactory } from '../modules/voice/runtime-types.js'
 
 type DeviceButton = {
   read: () => number
@@ -267,7 +266,7 @@ export function createStackchanContext(
   const contextParams = {
     createVoiceRuntime(acquireExclusive: () => () => void) {
       const { createAudioRuntime } = Modules.importNow('stackchan/voice/device', true) as {
-        createAudioRuntime: typeof CreateAudioRuntime
+        createAudioRuntime: CreateAudioRuntime
       }
       return createAudioRuntime({
         acquireExclusive,

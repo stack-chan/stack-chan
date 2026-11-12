@@ -9,13 +9,26 @@ export const createPushToTalk = () => ({
     state.onRelease?.()
   },
 })
-export const createCascadedConversation = (options) => options
+export const createCascadedConversation = (options) => {
+  state.tts = options.tts
+  return options
+}
 export const createVoiceScope = () => {
-  const signal = { aborted: false }
+  const listeners = new Set()
+  const signal = {
+    aborted: false,
+    addEventListener(_type, listener) {
+      listeners.add(listener)
+    },
+    removeEventListener(_type, listener) {
+      listeners.delete(listener)
+    },
+  }
   return {
     signal,
     abort() {
       signal.aborted = true
+      for (const listener of [...listeners]) listener()
     },
   }
 }

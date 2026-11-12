@@ -24,6 +24,7 @@ declare module "mp3streamer" {
     onPlayed?: (buffer: ArrayBuffer) => void
     onReady?: (state: boolean) => void
     onError?: (message: string) => void
+    onRetry?: (reason: string) => void
     onDone?: () => void
   }
   export default class MP3Streamer {
@@ -45,11 +46,10 @@ declare module "buffered-mp3streamer" {
     detachSharedOutput(output: { readableView(maximum?: number): Uint8Array; advanceRead(count: number): void }): void
     pumpSharedOutput(): void
     start(): void
-    stop(): void
-    close(): void
+    close(): Promise<void>
   }
   export default class BufferedMP3Streamer {
     constructor(options: MP3StreamerOptions<AudioOut | SharedPCMOutput>);
-    close(): void;
+    close(): Promise<void>;
   }
 }

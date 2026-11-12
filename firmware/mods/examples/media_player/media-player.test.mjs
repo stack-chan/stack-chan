@@ -12,6 +12,20 @@ function harness() {
     motion = true,
     indicator = false
   const media = {
+    async open(source, options) {
+      const settings = { ...source, ...options }
+      await this.start(settings)
+      const stop = () => {
+        if (active === settings) this.stop()
+      }
+      options.signal.addEventListener('abort', stop)
+      return {
+        stop,
+        seek: (...args) => this.seek(...args),
+        resume: () => this.resume(),
+        pause: async () => this.pause(),
+      }
+    },
     start(options) {
       this.stop()
       active = options
@@ -77,6 +91,7 @@ function harness() {
       { title: 'One', url: 'radio-one' },
       { title: 'Two', url: 'radio-two' },
     ],
+    () => new AbortController(),
   )
   return { player, media, starts, loads, state: () => ({ stops, notes, motion, indicator }) }
 }
@@ -96,7 +111,7 @@ test('both players start manually and retain playback when a view unsubscribes',
   await h.player.playRadio()
   h.starts.at(-1).onStateChanged('playing')
   unsubscribe()
-  assert.deepEqual(h.state(), { stops: 2, notes: true, motion: false, indicator: false })
+  assert.deepEqual(h.state(), { stops: 1, notes: true, motion: false, indicator: false })
   let snapshot
   h.player.subscribe((value) => {
     snapshot = value
@@ -108,7 +123,7 @@ test('both players start manually and retain playback when a view unsubscribes',
   h.player.close()
 })
 
-test('switching playback rejects old callbacks, progress, seek failures and start rejections', async () => {
+test('switching playback ignores callbacks, progress and start failures from a superseded request', async () => {
   const h = harness()
   await episodes(h)
   let rejectStart
@@ -122,20 +137,13 @@ test('switching playback rejects old callbacks, progress, seek failures and star
   const pending = h.player.play()
   const old = h.starts.at(-1)
   h.media.start = start
-  let rejectSeek
-  h.media.seek = () =>
-    new Promise((_resolve, reject) => {
-      rejectSeek = reject
-    })
-  const seek = h.player.seek(30)
   await h.player.playRadio()
   const current = h.starts.at(-1)
   current.onStateChanged('playing')
   old.onStateChanged('playing')
   old.onProgress({ position: 40, duration: 60, seekable: true })
   rejectStart(new Error('old connection failed'))
-  rejectSeek(new Error('old seek failed'))
-  await Promise.all([pending, seek])
+  await pending
   assert.equal(h.player.snapshot.source, 'radio')
   assert.equal(h.player.snapshot.radioState, 'playing')
   assert.equal(h.player.snapshot.state, 'idle')
@@ -148,6 +156,25 @@ test('switching playback rejects old callbacks, progress, seek failures and star
   assert.equal(h.player.snapshot.source, 'podcast')
   assert.equal(h.player.snapshot.radioState, 'idle')
   assert.equal(h.starts.at(-1).mode, 'finite')
+  h.player.close()
+})
+
+test('a late podcast seek failure cannot affect the next radio session', async () => {
+  const h = harness()
+  await episodes(h)
+  await h.player.play()
+  let rejectSeek
+  h.media.seek = () =>
+    new Promise((_resolve, reject) => {
+      rejectSeek = reject
+    })
+  const seeking = h.player.seek(30)
+  await h.player.playRadio()
+  h.starts.at(-1).onStateChanged('playing')
+  rejectSeek(new Error('old seek failed'))
+  await seeking
+  assert.equal(h.player.snapshot.radioState, 'playing')
+  assert.equal(h.player.snapshot.playbackError, undefined)
   h.player.close()
 })
 

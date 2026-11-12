@@ -1,6 +1,9 @@
 /** Podcast selection and shared finite/live playback. Network and UI dependencies are supplied by the MOD. */
 export class PodcastController {
   #context
+  #createScope
+  #playScope
+  #session
   #feeds
   #stations
   #stationIndex = 0
@@ -44,6 +47,7 @@ export class PodcastController {
       episodeIndex: this.#episodeIndex,
       status: this.#context.i18n?.localize(this.#status) ?? this.#status,
       state: this.#source === 'radio' ? 'idle' : this.#state,
+      canPause: this.#source === 'podcast' && !!this.#session,
       loading: this.#loading,
       feedError: this.#feedError,
       playbackError: this.#playbackError,
@@ -88,8 +92,9 @@ export class PodcastController {
     void this.#selectArtwork()
   }
 
-  constructor(context, feeds, loadFeed, effects, loadArtwork, stations = []) {
+  constructor(context, feeds, loadFeed, effects, loadArtwork, stations = [], createScope) {
     this.#context = context
+    this.#createScope = createScope
     this.#feeds = feeds
     this.#stations = stations
     this.#loadFeed = loadFeed
@@ -182,7 +187,8 @@ export class PodcastController {
 
   #stopPlayback() {
     this.#playGeneration += 1
-    this.#context.audio.media?.stop()
+    this.#playScope?.abort()
+    this.#playScope = this.#session = undefined
     this.#source = undefined
     this.#reason = undefined
     this.#restore()
@@ -240,7 +246,10 @@ export class PodcastController {
 
   pause() {
     if (this.#closed || this.#source !== 'podcast') return
-    this.#context.audio.media?.pause()
+    const generation = this.#playGeneration
+    void this.#session?.pause().catch((error) => {
+      if (generation === this.#playGeneration) this.#notice(String(error))
+    })
   }
 
   async seek(seconds) {
@@ -248,7 +257,7 @@ export class PodcastController {
     const generation = this.#playGeneration
     this.#playbackError = undefined
     try {
-      await this.#context.audio.media.seek(seconds)
+      await this.#session?.seek(seconds)
     } catch (error) {
       if (generation === this.#playGeneration) {
         this.#playbackError = 'podcast.seekFailed'
@@ -263,7 +272,7 @@ export class PodcastController {
       const generation = this.#playGeneration
       this.#playbackError = undefined
       try {
-        await this.#context.audio.media.resume()
+        await this.#session?.resume()
       } catch (error) {
         if (generation === this.#playGeneration) {
           this.#playbackError = 'podcast.resumeFailed'
@@ -302,6 +311,10 @@ export class PodcastController {
     this.#playGeneration += 1
     const generation = this.#playGeneration
     const context = this.#context
+    this.#playScope?.abort()
+    this.#session = undefined
+    const scope = this.#createScope()
+    this.#playScope = scope
     this.#source = source
     this.#progress = { position: 0, duration: undefined, estimated: false, seekable: false }
     this.#playbackError = undefined
@@ -313,10 +326,12 @@ export class PodcastController {
     this.#notice(item.title)
     if (generation !== this.#playGeneration || this.#closed) return
     try {
-      await context.audio.media.start({
-        url: item.url,
-        mode: source === 'radio' ? 'live' : 'finite',
-        duration: source === 'podcast' ? item.duration : undefined,
+      const mediaSource =
+        source === 'radio'
+          ? { url: item.url, mode: 'live' }
+          : { url: item.url, mode: 'finite', duration: item.duration }
+      const session = await context.audio.media.open(mediaSource, {
+        signal: scope.signal,
         onProgress: (progress) => {
           if (generation !== this.#playGeneration || this.#closed) return
           this.#progress = progress
@@ -350,10 +365,15 @@ export class PodcastController {
           if (state === 'error') this.#notice(`Playback error: ${reason ?? 'unknown'}`)
         },
       })
+      if (generation !== this.#playGeneration || this.#closed) {
+        await session.stop()
+        return
+      }
+      this.#session = session
+      this.#render()
     } catch (error) {
       if (generation !== this.#playGeneration) return
-      // Validation may reject before the host replaces the previous stream.
-      context.audio.media?.stop()
+      scope.abort()
       this.#state = 'error'
       this.#reason = String(error)
       this.#restore()

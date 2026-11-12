@@ -5,6 +5,7 @@ import type {
   DuplexLease,
   MediaBudget,
   PcmFormat,
+  PlaybackCursor,
   PlaybackLease,
   PlaybackOptions,
   PlaybackReceipt,
@@ -397,6 +398,11 @@ function createPlayback(
       throw new Error('call begin before writing audio')
     }),
     budget,
+    position(id: string): PlaybackCursor {
+      if (active?.id !== id) return remembered.get(id)?.position ?? { basis: 'unknown' }
+      const renderedFrames = 'direct' in active ? active.direct.frames : active.frames
+      return { basis: 'estimate', renderedFrames, sampleRate: outputFormat.sampleRate }
+    },
     begin,
     async finish(id: string) {
       if (active?.id === id) {

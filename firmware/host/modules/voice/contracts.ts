@@ -172,6 +172,7 @@ export type PlaybackReceipt = {
 }
 export interface PlaybackSink extends AudioSink {
   readonly budget: MediaBudget
+  position?(outputId: string): PlaybackCursor
   begin(outputId: string, generation: number): AudioSink
   finish(outputId: string): Promise<PlaybackReceipt>
   fence(nextGeneration: number): Promise<readonly PlaybackReceipt[]>
@@ -197,7 +198,12 @@ export type AudioRequirements = {
   readonly output: readonly PcmFormat[]
   readonly duplex: 'half' | 'full'
 }
-export type PlaybackOptions = Scope & { readonly budget: MediaBudget; readonly onPlayed?: (power: number) => void }
+export type PlaybackOptions = Scope & {
+  readonly budget: MediaBudget
+  readonly onPlayed?: (power: number) => void
+  /** A background stream can yield its device when foreground audio is requested. */
+  readonly interrupt?: () => Promise<void>
+}
 export interface PlaybackLease {
   readonly output: PlaybackSink
   readonly media: MediaRuntime

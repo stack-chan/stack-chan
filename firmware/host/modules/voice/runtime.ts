@@ -15,23 +15,43 @@ export type { LeaseFactory, LeaseOptions, RuntimeOptions } from './runtime-types
 export type PlaybackFactory = (formats: readonly PcmFormat[], options: PlaybackOptions) => PlaybackLease
 
 export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory, openPlayback?: PlaybackFactory) {
-  let reserved = false
-  async function reserve<T extends PlaybackLease>(signal: Scope['signal'], open: () => T | Promise<T>) {
+  let reserved: { interrupt?: () => Promise<void> } | undefined
+  let interrupting = false
+  async function reserve<T extends PlaybackLease>(
+    signal: Scope['signal'],
+    open: () => T | Promise<T>,
+    interrupt?: () => Promise<void>,
+  ) {
     requireActive(signal)
-    if (reserved) throw voiceError('device_busy')
-    let release: () => void
-    try {
-      release = options.acquireExclusive()
-    } catch {
-      throw voiceError('device_busy')
+    if (interrupting) throw voiceError('device_busy')
+    const owner = reserved
+    if (owner) {
+      if (interrupt || !owner.interrupt) throw voiceError('device_busy')
+      interrupting = true
+      try {
+        await owner.interrupt()
+      } finally {
+        interrupting = false
+      }
+      requireActive(signal)
+      if (reserved) throw voiceError('device_busy')
     }
-    reserved = true
+    reserved = { interrupt }
+    let release: (() => void) | undefined
     let lease: T
     try {
+      try {
+        const claim = options.acquireExclusive(!!interrupt)
+        release = typeof claim === 'function' ? claim : await claim
+      } catch (error) {
+        if (error instanceof Error && error.message === 'audio busy') throw voiceError('device_busy')
+        throw error
+      }
+      requireActive(signal)
       lease = await open()
     } catch (error) {
-      release()
-      reserved = false
+      release?.()
+      reserved = undefined
       throw error
     }
     let closing: Promise<void> | undefined
@@ -39,8 +59,8 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory,
       if (!closing)
         closing = Promise.resolve().then(async () => {
           await lease.close()
-          release()
-          reserved = false
+          release?.()
+          reserved = undefined
         })
       return closing
     }
@@ -72,7 +92,7 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory,
     async acquirePlayback(speaker, formats, options) {
       requireActive(options.signal)
       if (speaker !== spk || !openPlayback) throw voiceError('unsupported_capability', 'unavailable speaker')
-      const { lease, close } = await reserve(options.signal, () => openPlayback(formats, options))
+      const { lease, close } = await reserve(options.signal, () => openPlayback(formats, options), options.interrupt)
       const stop = () => {
         void close().catch(() => {})
       }

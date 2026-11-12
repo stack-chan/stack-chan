@@ -23,13 +23,13 @@ const robot = {
     showBalloon(message) {
       throw new Error(message)
     },
-  },
-  drawer: {
-    addDrawerButton(item) {
-      menus.set(item.key, item)
-    },
-    removeDrawerButton(key) {
-      menus.delete(key)
+    drawer: {
+      addDrawerButton(item) {
+        menus.set(item.key, item)
+      },
+      removeDrawerButton(key) {
+        menus.delete(key)
+      },
     },
   },
 }

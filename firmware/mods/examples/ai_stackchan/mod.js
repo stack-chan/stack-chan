@@ -275,7 +275,7 @@ export function onContextCreated(robot, option) {
     })
     robot.ui.addEffect(talkButton)
   }
-  robot.drawer.addDrawerButton({
+  robot.ui.drawer.addDrawerButton({
     key: 'ai-end-conversation',
     label: '会話を終了',
     callback: () => {
@@ -289,7 +289,7 @@ export function onContextCreated(robot, option) {
       talkButton.active = false
       robot.ui.removeEffect(talkButton)
     }
-    robot.drawer.removeDrawerButton('ai-end-conversation')
+    robot.ui.drawer.removeDrawerButton('ai-end-conversation')
     if (credit) robot.ui.removeEffect(credit)
     scope.abort()
     await endConversation()

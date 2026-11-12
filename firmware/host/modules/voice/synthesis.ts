@@ -67,7 +67,7 @@ export async function openStreamingSynthesis(
     scope.abort(failure)
     source.end(failure)
     const operation = active?.promise
-    void (async () => {
+    async function releaseResources() {
       try {
         // abort通知中の同期的な再入でXSのスタックを使い切らないよう、資源の回収は通知が戻ってから始める
         await Promise.resolve()
@@ -80,7 +80,8 @@ export async function openStreamingSynthesis(
       } catch (error) {
         result.reject(error)
       }
-    })()
+    }
+    void releaseResources()
     return closing
   }
   function abort() {
@@ -185,7 +186,7 @@ export async function openStreamingSynthesis(
       } catch (error) {
         pending = Promise.reject(error)
       }
-      void (async () => {
+      async function finishOutput() {
         try {
           await pending
           requireActive(scope.signal)
@@ -199,7 +200,8 @@ export async function openStreamingSynthesis(
           await close().catch(() => {})
           result.reject(error)
         }
-      })()
+      }
+      void finishOutput()
       return finishing
     },
     close,

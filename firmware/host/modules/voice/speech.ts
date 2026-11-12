@@ -61,7 +61,7 @@ export function createWhisperSTT(options: {
           ended = true
           const done = deferred<void>()
           completion = done.promise
-          void (async () => {
+          async function transcribe() {
             try {
               requireActive(scope.signal)
               if (used === 44) {
@@ -76,7 +76,8 @@ export function createWhisperSTT(options: {
             } finally {
               scope.dispose()
             }
-          })().then(done.resolve, done.reject)
+          }
+          void transcribe().then(done.resolve, done.reject)
           return completion
         },
         async close() {

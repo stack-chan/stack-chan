@@ -1,7 +1,8 @@
 import { onClose, onContextCreated } from 'ai-mod'
 import { state as defaults } from 'app-default-behavior'
 import { Application } from 'piu/MC'
-import { state as voice } from 'stackchan/voice'
+import { createVoiceScope, state as voice } from 'stackchan/voice'
+import { state as speech } from 'stackchan/voice/speech'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 
@@ -11,6 +12,7 @@ const menus = new Map()
 const balloons = []
 let visibleBalloon
 let mouth = 1
+const mouthUpdates = []
 const robot = {
   input: {},
   audio: { microphone: {}, speaker: {}, volume: 0.1 },
@@ -18,6 +20,7 @@ const robot = {
     setEmotion() {},
     setMouthOpen(value) {
       mouth = value
+      mouthUpdates.push({ value, time: Date.now() })
     },
   },
   ui: {
@@ -248,4 +251,109 @@ lastPipeline.onEvent({ type: 'turn.started', turnId: 'late' })
 equal(robot.ui.faceMotionEnabled, true, 'late callbacks after shutdown cannot disable animation')
 equal(mouth, 0)
 equal(app.length, 0)
+const pause = (ms) => new Promise((resolve) => Timer.set(resolve, ms))
+onContextCreated(robot, options)
+await utterance()
+startTurn('lips')
+const synthesisScope = createVoiceScope()
+const synthesis = await voice.tts.open({ signal: synthesisScope.signal })
+const output = synthesis.output
+await synthesis.write('hello')
+equal(synthesis.output, output, 'wrapping preserves the synthesis source')
+equal(synthesis.textAt({}).text, 'hello', 'prototype methods retain their synthesis receiver')
+let mark = mouthUpdates.length
+await pause(120)
+equal(mouthUpdates.length, mark, 'waiting for synthesis does not animate the mouth')
+let finishSpeech
+speech.onFinish = () =>
+  new Promise((resolve) => {
+    finishSpeech = resolve
+  })
+const finishing = synthesis.finish()
+mark = mouthUpdates.length
+await pause(350)
+const frames = mouthUpdates.slice(mark)
+assert(
+  frames.some(({ value }) => value > 0),
+  'synthesis moves only the mouth',
+)
+assert(frames.length >= 1 && frames.length <= 4, 'lip movement is limited to about ten frames per second')
+for (let i = 1; i < frames.length; i++)
+  assert(frames[i].time - frames[i - 1].time >= 90, 'lip frames are spaced by 100 ms')
+equal(robot.ui.faceMotionEnabled, false, 'breathing and blinking remain disabled while lips move')
+equal(app.length, 0, 'lip movement does not add decorative effects')
+finishSpeech()
+await finishing
+speech.onFinish = undefined
+mark = mouthUpdates.length
+await pause(150)
+assert(mouthUpdates.length > mark, 'lip movement continues while playback drains')
+await synthesis.close()
+equal(mouth, 0, 'synthesis close shuts the mouth')
+mark = mouthUpdates.length
+await pause(220)
+equal(mouthUpdates.length, mark, 'closed synthesis leaves no mouth timer')
+voice.pipeline.onEvent({ type: 'turn.ended', turnId: 'lips', status: 'completed' })
+equal(robot.ui.faceMotionEnabled, true)
+
+await utterance()
+startTurn('lip-failure')
+const broken = await voice.tts.open({ signal: createVoiceScope().signal })
+speech.onFinish = () => {
+  throw new Error('synthesis failed')
+}
+assert(
+  await broken.finish().then(
+    () => false,
+    () => true,
+  ),
+)
+speech.onFinish = undefined
+equal(mouth, 0)
+mark = mouthUpdates.length
+await pause(220)
+equal(mouthUpdates.length, mark, 'failed synthesis leaves no lip timer')
+await broken.close()
+voice.pipeline.onEvent({ type: 'error', code: 'provider_failed', fatal: false })
+voice.pipeline.onEvent({ type: 'turn.ended', turnId: 'lip-failure', status: 'failed' })
+
+await utterance()
+startTurn('lip-cancel')
+const cancelScope = createVoiceScope()
+const cancelled = await voice.tts.open({ signal: cancelScope.signal })
+await cancelled.finish()
+await pause(120)
+assert(mouth > 0)
+cancelScope.abort()
+equal(mouth, 0, 'scope cancellation immediately closes the mouth')
+mark = mouthUpdates.length
+await pause(220)
+equal(mouthUpdates.length, mark, 'cancelled synthesis leaves no mouth timer')
+voice.pipeline.onEvent({ type: 'turn.ended', turnId: 'lip-cancel', status: 'interrupted' })
+
+await utterance()
+startTurn('lip-end')
+const endingSpeech = await voice.tts.open({ signal: createVoiceScope().signal })
+await endingSpeech.finish()
+await pause(120)
+assert(mouth > 0)
+await menus.get('ai-end-conversation').callback()
+equal(mouth, 0, 'end conversation closes the mouth')
+mark = mouthUpdates.length
+await pause(220)
+equal(mouthUpdates.length, mark, 'end conversation clears its lip timer')
+await utterance()
+startTurn('lip-new')
+const newest = await voice.tts.open({ signal: createVoiceScope().signal })
+await newest.finish()
+await endingSpeech.close()
+await pause(120)
+assert(mouth > 0, 'late close from an old synthesis cannot stop the new mouth timer')
+await onClose()
+equal(mouth, 0)
+mark = mouthUpdates.length
+await pause(220)
+equal(mouthUpdates.length, mark, 'shutdown leaves no delayed mouth update')
+await newest.close()
+await cancelled.close()
 trace('@@STACKCHAN_TEST:PASS@@\n')

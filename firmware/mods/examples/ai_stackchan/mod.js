@@ -11,6 +11,7 @@ import {
   createVoiceScope,
 } from 'stackchan/voice'
 import { createOpenAISpeechTTS, createWhisperSTT } from 'stackchan/voice/speech'
+import Timer from 'timer'
 
 let stop
 
@@ -102,6 +103,42 @@ export function onContextCreated(robot, option) {
   } else {
     tts = createOpenAISpeechTTS({ apiKey: prefs.token })
   }
+  const speech = tts
+  tts = {
+    async open(options) {
+      const synthesis = await speech.open(options)
+      const generation = inputGeneration
+      const turnId = activeTurn
+      let motion,
+        closed = false
+      return {
+        get output() {
+          return synthesis.output
+        },
+        write(text) {
+          return synthesis.write(text)
+        },
+        async finish() {
+          try {
+            const done = synthesis.finish()
+            if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
+            return await done
+          } catch (error) {
+            motion?.stop()
+            throw error
+          }
+        },
+        textAt(position) {
+          return synthesis.textAt(position)
+        },
+        async close() {
+          closed = true
+          motion?.stop()
+          return await synthesis.close()
+        },
+      }
+    },
+  }
   const conversation = createCascadedConversation({
     agent,
     turnDetector: pushToTalk.detector,
@@ -150,6 +187,7 @@ export function onContextCreated(robot, option) {
     closing,
     ending,
     effect,
+    lipMotion,
     previousFaceMotion,
     activeTurn,
     pendingInputs = 0,
@@ -167,6 +205,45 @@ export function onContextCreated(robot, option) {
     }
     robot.face.setEmotion(emotion)
   }
+  function stopLipMotion() {
+    lipMotion?.stop()
+  }
+  function startLipMotion(signal, turnId, generation) {
+    if (
+      scope.signal.aborted ||
+      signal.aborted ||
+      !quiet ||
+      activeTurn !== turnId ||
+      turnId === undefined ||
+      inputGeneration !== generation ||
+      closing ||
+      ending
+    )
+      return
+    stopLipMotion()
+    let open = false
+    const motion = {
+      stop() {
+        if (lipMotion !== motion) return
+        lipMotion = undefined
+        Timer.clear(timer)
+        signal.removeEventListener('abort', abort)
+        robot.face.setMouthOpen(0, true)
+      },
+    }
+    const abort = () => motion.stop()
+    const timer = Timer.repeat(() => {
+      if (signal.aborted || scope.signal.aborted || !quiet || activeTurn !== turnId) {
+        motion.stop()
+        return
+      }
+      open = !open
+      robot.face.setMouthOpen(open ? 0.7 : 0, true)
+    }, 100)
+    lipMotion = motion
+    signal.addEventListener('abort', abort)
+    return motion
+  }
   function quietPresentation() {
     if (!quiet) {
       previousFaceMotion = robot.ui.faceMotionEnabled
@@ -178,6 +255,7 @@ export function onContextCreated(robot, option) {
     face(undefined, Emotion.DOUBTFUL)
   }
   function restorePresentation() {
+    stopLipMotion()
     if (quiet) {
       robot.face.setMouthOpen(0, true)
       if (typeof previousFaceMotion === 'boolean') robot.ui.setFaceMotionEnabled?.(previousFaceMotion)
@@ -190,6 +268,7 @@ export function onContextCreated(robot, option) {
     if (!recording && !pendingInputs && !awaitingTurn && activeTurn === undefined) restorePresentation()
   }
   function closePipeline() {
+    stopLipMotion()
     if (closing || !pipeline) return closing
     const target = pipeline
     closing = target.close({ mode: 'abort' }).then(() => {
@@ -210,6 +289,7 @@ export function onContextCreated(robot, option) {
       onEvent(value) {
         if (pipeline !== next || scope.signal.aborted) return
         if (value.type === 'error') {
+          stopLipMotion()
           const failedInput = activeTurn === undefined && pendingInputs > 0
           if (recording) {
             recording = false
@@ -236,7 +316,10 @@ export function onContextCreated(robot, option) {
           activeTurn = value.turnId
           quietPresentation()
         } else if (value.type === 'turn.ended') {
-          if (activeTurn === value.turnId) activeTurn = undefined
+          if (activeTurn === value.turnId) {
+            stopLipMotion()
+            activeTurn = undefined
+          }
           restoreIfIdle()
         }
       },
@@ -272,6 +355,7 @@ export function onContextCreated(robot, option) {
     }
   }
   function endConversation() {
+    stopLipMotion()
     if (ending) return ending
     inputGeneration++
     held = false

@@ -48,6 +48,7 @@ export type FaceViewCustomFace = PiuContainer & { behavior?: FaceViewCustomFaceB
 type FaceEffectBehavior = {
   onFaceSkin?: (content: PiuContent, palette: FaceSkinPalette) => void
   onFaceState?: (content: PiuContent, face: FaceState) => void
+  setMotionsEnabled?: (content: PiuContent, enabled: boolean) => void
 }
 
 export type FaceViewParams = FaceViewBaseParams &
@@ -288,6 +289,7 @@ class FaceViewBehavior extends CommonViewBehavior {
       behavior?.onFaceSkin?.(effect, this.lastPalette)
     }
     behavior?.onFaceState?.(effect, this.lastFaceState ?? createFaceState())
+    behavior?.setMotionsEnabled?.(effect, this.faceMotionEnabled)
   }
 
   setFace(face: FaceViewCustomFace): void {
@@ -337,6 +339,10 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.faceMotionEnabled = enabled
     const face = this.face
     if (face) faceBehavior(face)?.setMotionsEnabled?.(face, enabled)
+    for (const effect of this.getEffectsSet()) {
+      const behavior = effect.behavior as FaceEffectBehavior | undefined
+      behavior?.setMotionsEnabled?.(effect, enabled)
+    }
   }
 
   /** Restore the face main component (e.g. after a dialog was shown via setMain) and resync its state. */

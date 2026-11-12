@@ -587,6 +587,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       setHandAnimation(animation) {
         context.#uiRuntime.ui.setHandAnimation(animation)
       },
+      get faceMotionEnabled() {
+        return context.#updateFaceHandler !== undefined
+      },
       setFaceMotionEnabled(enabled) {
         if (!enabled && context.#updateFaceHandler !== undefined) {
           Timer.clear(context.#updateFaceHandler)

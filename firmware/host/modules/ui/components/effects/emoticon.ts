@@ -8,6 +8,7 @@ import {
 } from 'face-state'
 import {
   Container,
+  type Container as PiuContainer,
   type Content as PiuContent,
   type Port as PiuPort,
   type Texture as PiuTexture,
@@ -525,6 +526,42 @@ const Sleepy = Port.template((opts: EmoticonOptions) => ({
   },
 }))
 
+class EmoticonBehavior extends Behavior {
+  #enabled = true
+  #visible = true
+  #running = false
+  #displayed = false
+
+  setMotionsEnabled(container: PiuContainer, enabled: boolean) {
+    if (this.#enabled === enabled) return
+    this.#enabled = enabled
+    const child = container.first
+    if (enabled) {
+      container.visible = this.#visible
+      if (this.#running && container.application) child?.start()
+    } else {
+      this.#visible = container.visible
+      // 初回表示前の子もonDisplayingで開始するため、再開の意図を保持する
+      this.#running = !!child?.running || !this.#displayed
+      child?.stop()
+      container.visible = false
+    }
+  }
+
+  onDisplaying(container: PiuContainer) {
+    this.#displayed = true
+    if (!this.#enabled) {
+      // Piuは子のonDisplayingを先に呼ぶため、親の表示時にも停止する
+      container.first?.stop()
+      container.visible = false
+    }
+  }
+
+  onUndisplaying() {
+    this.#displayed = false
+  }
+}
+
 export const Emoticon = Container.template((opts: EmoticonParams) => {
   const data = opts ?? { key: 'heart' }
   const key = data.key
@@ -558,6 +595,7 @@ export const Emoticon = Container.template((opts: EmoticonParams) => {
     bottom: 0,
     clip: false,
     active: false,
+    Behavior: EmoticonBehavior,
     contents: [content],
   }
 })

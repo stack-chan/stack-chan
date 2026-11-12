@@ -1,3 +1,4 @@
+import { createClosingClient } from 'realtimeConversation/http-core'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
@@ -42,7 +43,7 @@ async function postMultipart(
     const upload = createMultipartUpload(parts)
     uploadHeaders.set('content-length', String(upload.byteLength))
 
-    let client: HTTPClient | undefined
+    let client: Pick<HTTPClient, 'request' | 'close'> | undefined
     let responseStatus = 0
     let responseStatusText: string | undefined
     let responseBody: ArrayBuffer | undefined
@@ -82,7 +83,7 @@ async function postMultipart(
     signal?.addEventListener('abort', abort)
     deadline = Timer.set(() => fail(new Error('speech request timed out')), 30000)
     try {
-      client = new device.network.https.client.io({
+      client = createClosingClient(device.network.https.client.io, {
         ...device.network.https.client,
         host: endpoint.hostname,
         port: endpoint.port ? Number(endpoint.port) : 443,

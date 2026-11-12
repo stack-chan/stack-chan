@@ -1,12 +1,13 @@
+import { createClosingClient } from 'realtimeConversation/http-core'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
-import { createPcmBodyReader } from 'stackchan/voice/pcm-http'
-import Timer from 'timer'
-import Whisper from 'stt-whisper'
 import type { PcmFormat, STT, TTS, VoiceSignal } from 'stackchan/voice/contracts'
 import { createPcmSink, createPcmSource } from 'stackchan/voice/media'
+import { createPcmBodyReader } from 'stackchan/voice/pcm-http'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
+import Whisper from 'stt-whisper'
+import Timer from 'timer'
 
 declare const device: { network: { https: { client: HTTPClientProvider } } }
 
@@ -83,7 +84,7 @@ function streamSpeech(
   consume: (bytes: Uint8Array) => void | Promise<void>,
 ) {
   return new Promise<void>((resolve, reject) => {
-    let client: HTTPClient,
+    let client: Pick<HTTPClient, 'request' | 'close'>,
       timer: ReturnType<typeof Timer.set>,
       offset = 0,
       closed = false
@@ -103,7 +104,7 @@ function streamSpeech(
       requireActive(signal)
       signal.addEventListener('abort', abort)
       timer = Timer.set(() => finish(voiceError('deadline_exceeded')), 45000)
-      client = new device.network.https.client.io({
+      client = createClosingClient(device.network.https.client.io, {
         ...device.network.https.client,
         host: 'api.openai.com',
         port: 443,

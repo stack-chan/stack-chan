@@ -17,6 +17,10 @@
     "../../app/manifest_typings.json"
   ],
   "modules": {
+    "realtimeConversation/http-core": [
+      "../realtime-conversation/http-core",
+      "../ai/http-core-types.d.ts"
+    ],
     "*": [
       "./*",
       "$(MODDABLE)/examples/pins/audioout/http-stream/calculatePower",

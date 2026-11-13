@@ -5,7 +5,7 @@
   "description": "Stack-chan browser tools",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node mediapipe/check-runtime-assets.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:legacy && npm run test:react",
@@ -25,6 +25,7 @@
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@fontsource-variable/geist": "^5.3.0",
+    "@mediapipe/tasks-vision": "0.10.35",
     "blockly": "^13.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

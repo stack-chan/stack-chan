@@ -101,6 +101,7 @@ export function useFirmwareInstall(onLog: (message: string, level?: 'info' | 'wa
 
   const resolveConfirmation = useCallback((approved: boolean) => {
     const resolve = confirmation.current
+    if (!resolve) return
     confirmation.current = null
     resolve?.(approved)
     if (!approved) setState({ status: 'cancelled' })

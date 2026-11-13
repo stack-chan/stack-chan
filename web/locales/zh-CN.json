@@ -113,7 +113,7 @@
   "yaw {yaw} / pitch {pitch} / 目 {leftEye}, {rightEye} / 口 {mouth}": "偏航 {yaw} / 俯仰 {pitch} / 眼睛 {leftEye}, {rightEye} / 嘴巴 {mouth}",
   "映像について": "关于视频",
   "カメラ映像は端末内で解析され、ｽﾀｯｸﾁｬﾝへは数値化した追跡結果だけが送られます。": "摄像头画面仅在本设备上分析，只会向Stack-chan发送数值化的追踪结果。",
-  "デモ起動時に、固定バージョンのMediaPipe実行コードと学習済みモデルを外部CDNから取得します。": "演示启动时，会从外部CDN下载固定版本的MediaPipe运行代码和训练模型。",
+  "デモ起動時に、顔と手の学習済みモデルをGoogle Cloud Storageから取得します。": "演示启动时，会从Google Cloud Storage下载训练好的人脸和手部模型。",
   "シミュレーター": "模拟器",
   "WASMと3Dモデルを実行する": "运行WASM固件和3D模型",
   "Webシミュレーター": "Web模拟器",

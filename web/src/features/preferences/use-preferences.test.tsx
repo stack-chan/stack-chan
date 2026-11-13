@@ -5,6 +5,51 @@ import { usePreferences } from '@/features/preferences/use-preferences'
 import { type PreferenceClient, type PreferenceValue } from '@/services/preferences/ble-preference-client'
 
 describe('usePreferences', () => {
+  it.each(['B', 'original'])('keeps a later edit to %s pending while A is sent', async (later) => {
+    let finish!: () => void
+    let notify!: (value: PreferenceValue) => void
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve
+          })
+      )
+      .mockResolvedValue(undefined)
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => true,
+      send,
+    }
+    const { result } = renderHook(() =>
+      usePreferences((onValue) => {
+        notify = onValue
+        return client
+      })
+    )
+    act(() => notify({ prop: 'wifi.ssid', value: 'original' }))
+    act(() => result.current.update('wifi.ssid', 'A'))
+    let saving!: Promise<void>
+    act(() => {
+      saving = result.current.save()
+    })
+    act(() => result.current.update('wifi.ssid', later))
+    act(() => notify({ prop: 'wifi.ssid', value: 'A' }))
+    expect(result.current.values['wifi.ssid']).toBe(later)
+    await act(async () => {
+      finish()
+      await saving
+    })
+    act(() => notify({ prop: 'wifi.ssid', value: 'A' }))
+    expect(result.current.values['wifi.ssid']).toBe(later)
+    await act(() => result.current.save())
+    expect(send).toHaveBeenNthCalledWith(2, { _batch: { 'wifi.ssid': later } })
+    await act(() => result.current.save())
+    expect(send).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps remote values, dirty fields, and batched save in application state', async () => {
     let connected = false
     let notify: (value: PreferenceValue) => void = () => {}

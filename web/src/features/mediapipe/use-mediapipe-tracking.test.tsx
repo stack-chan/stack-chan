@@ -69,11 +69,87 @@ function createDependencies() {
     clearTimer: vi.fn(),
     now: () => 100,
     sendIntervalMs: 100,
+    yieldToBrowser: vi.fn(async () => {}),
   } satisfies MediaPipeTrackingDependencies
   return { cameraTrack, dependencies, faceClose, handsClose, sender, session }
 }
 
 describe('useMediaPipeTracking', () => {
+  it('yields between detectors so Stop prevents further inference and stale restart work', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      clearRect: vi.fn(),
+    } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    vi.spyOn(HTMLMediaElement.prototype, 'readyState', 'get').mockReturnValue(HTMLMediaElement.HAVE_CURRENT_DATA)
+    const { dependencies, cameraTrack } = createDependencies()
+    const runtime = await dependencies.loadRuntime()
+    const face = vi.spyOn(runtime.face, 'detectForVideo')
+    const hands = vi.spyOn(runtime.hands, 'detectForVideo')
+    dependencies.loadRuntime.mockResolvedValue(runtime)
+    let resume!: () => void
+    dependencies.yieldToBrowser.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resume = resolve
+        })
+    )
+    render(<Harness dependencies={dependencies} />)
+    fireEvent.click(screen.getByRole('button', { name: 'start camera' }))
+    await waitFor(() => expect(screen.getByTestId('camera-active')).toHaveTextContent('true'))
+    let detecting: unknown
+    act(() => {
+      detecting = dependencies.requestFrame.mock.calls[0][0](0)
+    })
+    expect(face).toHaveBeenCalledOnce()
+    expect(hands).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'stop camera' }))
+    expect(cameraTrack.stop).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'start camera' }))
+    await waitFor(() => expect(dependencies.getUserMedia).toHaveBeenCalledTimes(2))
+    await act(async () => {
+      resume()
+      await detecting
+    })
+    expect(hands).not.toHaveBeenCalled()
+    expect(dependencies.requestFrame).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips frames until the send interval has elapsed and processes the latest video time', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      clearRect: vi.fn(),
+    } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    vi.spyOn(HTMLMediaElement.prototype, 'readyState', 'get').mockReturnValue(HTMLMediaElement.HAVE_CURRENT_DATA)
+    let clock = 100
+    let videoTime = 1
+    vi.spyOn(HTMLMediaElement.prototype, 'currentTime', 'get').mockImplementation(() => videoTime)
+    const { dependencies } = createDependencies()
+    dependencies.now = () => clock
+    const runtime = await dependencies.loadRuntime()
+    const face = vi.spyOn(runtime.face, 'detectForVideo')
+    const hands = vi.spyOn(runtime.hands, 'detectForVideo')
+    dependencies.loadRuntime.mockResolvedValue(runtime)
+    render(<Harness dependencies={dependencies} />)
+    fireEvent.click(screen.getByRole('button', { name: 'start camera' }))
+    await waitFor(() => expect(screen.getByTestId('camera-active')).toHaveTextContent('true'))
+    const frame = dependencies.requestFrame.mock.calls[0][0]
+    await act(async () => {
+      await frame(clock)
+    })
+    for (clock = 116; clock < 200; clock += 16) {
+      videoTime += 1
+      await act(async () => {
+        await frame(clock)
+      })
+    }
+    expect(face).toHaveBeenCalledOnce()
+    await act(async () => {
+      await frame(clock)
+    })
+    expect(face).toHaveBeenCalledTimes(2)
+    expect(hands).toHaveBeenCalledTimes(2)
+  })
+
   it('owns the camera stream and MediaPipe runtime lifecycle', async () => {
     const context = { clearRect: vi.fn() } as unknown as CanvasRenderingContext2D
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context)
@@ -133,7 +209,9 @@ describe('useMediaPipeTracking', () => {
     await waitFor(() => expect(screen.getByTestId('camera-active')).toHaveTextContent('true'))
     const detectFrame = dependencies.requestFrame.mock.calls[0][0]
 
-    act(() => detectFrame(0))
+    await act(async () => {
+      await detectFrame(0)
+    })
 
     expect(cameraTrack.stop).toHaveBeenCalledOnce()
     expect(dependencies.cancelFrame).toHaveBeenCalledWith(17)

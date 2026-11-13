@@ -7,6 +7,7 @@ import {
   type BlocklyWorkspaceSnapshot,
 } from '@/features/project-editor/blockly-workspace'
 import { type ProjectAnalysis, type ProjectAsset, type VisualProject } from '@/features/project-editor/project-types'
+import { createProjectAutosave } from '@/features/project-editor/project-autosave'
 import { useLogBuffer } from '@/hooks/use-log-buffer'
 import { toAppError } from '@/lib/errors/app-error'
 import { buildVisualProjectMod, type ModBuildResult } from '@/services/mod-builder/mod-build-service'
@@ -94,7 +95,6 @@ function projectFieldChanged(current: unknown, next: unknown) {
 export function useProjectEditor() {
   const { locale, t } = useI18n()
   const storageRef = useRef(createProjectStorage())
-  const saveQueueRef = useRef(Promise.resolve())
   const projectRef = useRef<VisualProject | null>(null)
   const projectsRef = useRef<VisualProject[]>([])
   const workspaceRef = useRef<BlocklyWorkspaceController | null>(null)
@@ -120,6 +120,41 @@ export function useProjectEditor() {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
   const { entries: logs, append: appendLog, clear: clearLogs } = useLogBuffer()
+  const [autosave] = useState(() =>
+    createProjectAutosave(
+      async (state: { currentProject: VisualProject; projects: VisualProject[] }) => {
+        if (storageRef.current.kind === 'memory') {
+          localStorage.setItem(PROJECT_STORAGE_KEY, serializeVisualProject(state.currentProject))
+        }
+        await storageRef.current.saveState(state)
+      },
+      (error) => appendLog(`プロジェクトを自動保存できませんでした: ${String(error)}`, 'error', 'system')
+    )
+  )
+
+  useEffect(() => {
+    const flush = () => {
+      void autosave.flush()
+    }
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!autosave.pending) return
+      flush()
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    const visibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', visibilityChange)
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload)
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', visibilityChange)
+      flush()
+    }
+  }, [autosave])
 
   const invalidateBuild = useCallback(() => {
     buildGenerationRef.current += 1
@@ -134,19 +169,9 @@ export function useProjectEditor() {
       projectsRef.current = library
       setProject(next)
       setProjects(library)
-      try {
-        localStorage.setItem(PROJECT_STORAGE_KEY, serializeVisualProject(next))
-      } catch (error) {
-        appendLog(`ブラウザー保存を更新できませんでした: ${String(error)}`, 'warning', 'system')
-      }
-      const state = structuredClone({ currentProject: next, projects: library })
-      saveQueueRef.current = saveQueueRef.current
-        .then(() => storageRef.current.saveState(state))
-        .catch((error) => {
-          appendLog(`プロジェクトを自動保存できませんでした: ${String(error)}`, 'error', 'system')
-        })
+      autosave.submit({ currentProject: next, projects: library })
     },
-    [appendLog]
+    [autosave]
   )
 
   const recalculate = useCallback(
@@ -295,11 +320,11 @@ export function useProjectEditor() {
     (nextSnapshot: BlocklyWorkspaceSnapshot) => {
       const current = projectRef.current
       if (!current) return
-      const next = makeVisualProject({
+      const next = {
         ...current,
         workspace: nextSnapshot.workspace,
         updatedAt: new Date().toISOString(),
-      }) as VisualProject
+      }
       recalculate(next, nextSnapshot, { invalidateBuild: true })
       persistProject(next)
     },
@@ -713,10 +738,12 @@ export function useProjectEditor() {
         },
       } as Partial<VisualProject>)
     },
-    editSelectedFace: () => {
+    editSelectedFace: async () => {
       const current = projectRef.current
       const asset = current?.assets.find((candidate) => candidate.path === current.settings.faceAsset)
       if (!current || !asset || asset.mediaType !== FACE_ASSET_MEDIA_TYPE) return
+      await autosave.flush()
+      if (autosave.pending) return
       saveFaceEditContext(parseFaceAsset(new TextDecoder().decode(assetBytes(asset))), {
         projectId: current.id,
         assetPath: asset.path,

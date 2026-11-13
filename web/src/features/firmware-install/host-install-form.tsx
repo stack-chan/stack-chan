@@ -1,5 +1,5 @@
 import { Cpu, RotateCcw, TriangleAlert, Usb } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
 import { LogConsole } from '@/components/stackchan/log-console'
@@ -30,6 +30,7 @@ export function HostInstallForm() {
   const { t } = useI18n()
   const [boardId, setBoardId] = useState(FIRMWARE_BOARDS[0].id)
   const [eraseAll, setEraseAll] = useState(false)
+  const installButton = useRef<HTMLButtonElement>(null)
   const { entries, append, clear } = useLogBuffer()
   const onLog = useCallback(
     (message: string, level: 'info' | 'warning' | 'error' = 'info') => append(message, level, 'device'),
@@ -124,6 +125,7 @@ export function HostInstallForm() {
           />
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
+              ref={installButton}
               className="min-h-10 flex-1"
               onClick={() => void install.install(board, { eraseAll })}
               disabled={busy}
@@ -143,8 +145,13 @@ export function HostInstallForm() {
 
       <LogConsole entries={entries} onClear={clear} title={t('書き込みログ')} />
 
-      <AlertDialog open={install.state.status === 'confirming'}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={install.state.status === 'confirming'}
+        onOpenChange={(open) => {
+          if (!open) install.cancel()
+        }}
+      >
+        <AlertDialogContent finalFocus={installButton}>
           <AlertDialogHeader>
             <AlertDialogMedia>
               <Cpu />

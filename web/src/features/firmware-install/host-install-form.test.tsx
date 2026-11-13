@@ -54,6 +54,21 @@ afterEach(() => {
 })
 
 describe.each(['ja', 'en', 'zh-CN'] as const)('HostInstallForm in %s', (locale) => {
+  it('cancels with Escape, releases the connection, restores focus and can retry', async () => {
+    const { adapter, user, t } = setup(locale)
+    const trigger = screen.getByRole('button', { name: t('USBに接続して書き込む') })
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      await user.click(trigger)
+      await screen.findByRole('alertdialog')
+      await user.keyboard('{Escape}')
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledTimes(attempt))
+      await waitFor(() => expect(trigger).toHaveFocus())
+      expect(adapter.write).not.toHaveBeenCalled()
+      expect(adapter.resetToRunApp).toHaveBeenCalledTimes(attempt)
+    }
+  })
+
   it.each([false, true])('confirms the selected mode and passes eraseAll=%s to the writer', async (eraseAll) => {
     const { adapter, user, t } = setup(locale)
     const checkbox = screen.getByRole('checkbox', { name: t('フラッシュ全体を消去してから書き込む') })

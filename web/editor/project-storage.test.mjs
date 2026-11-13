@@ -25,19 +25,23 @@ function createFakeIndexedDB() {
         database = {
           objectStoreNames: { contains: (storeName) => stores.has(storeName) },
           createObjectStore: (storeName) => stores.set(storeName, new Map()),
-          transaction: (storeName) => ({
-            objectStore: () => ({
-              get: (key) => request(stores.get(storeName).get(key)),
-              put: (value, key) => {
-                stores.get(storeName).set(key, structuredClone(value))
-                return request(undefined)
-              },
-              delete: (key) => {
-                stores.get(storeName).delete(key)
-                return request(undefined)
-              },
-            }),
-          }),
+          transaction: (storeName) => {
+            const transaction = {
+              objectStore: () => ({
+                get: (key) => request(stores.get(storeName).get(key)),
+                put: (value, key) => {
+                  stores.get(storeName).set(key, structuredClone(value))
+                  return request(undefined)
+                },
+                delete: (key) => {
+                  stores.get(storeName).delete(key)
+                  return request(undefined)
+                },
+              }),
+            }
+            queueMicrotask(() => queueMicrotask(() => transaction.oncomplete?.()))
+            return transaction
+          },
           close() {},
         }
         databases.set(name, database)

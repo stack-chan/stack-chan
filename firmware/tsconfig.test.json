@@ -24,6 +24,7 @@
       "stackchan/voice/*": ["./host/modules/voice/*.ts"],
       "stackchan/ai": ["./host/modules/ai/index.ts"],
       "stackchan/voice": ["./host/modules/voice/index.ts"],
+      "minimal-voice-workflow": ["./mods/examples/minimal_voice/workflow.ts"],
       "piu/MC": [
         "./node_modules/@moddable/typings/piu/MC.d.ts"
       ],

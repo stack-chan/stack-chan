@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, globSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { test } from 'node:test'
 
 const MODULE_ROOT = 'host/modules'
@@ -37,6 +37,33 @@ function walkFiles(root: string): string[] {
 function readJson(path: string) {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
+
+test('voice API typings map host module names without adding runtime modules to MODs', () => {
+  const hostAliases = new Set<string>()
+  for (const path of walkFiles(MODULE_ROOT).filter(isProductionManifest)) {
+    for (const [name, sources] of Object.entries(readJson(path).modules ?? {})) {
+      if (!name.includes('*')) {
+        hostAliases.add(name)
+        continue
+      }
+      for (const source of collectStringValues(sources).filter((source) => !source.includes('$('))) {
+        for (const file of globSync(join(dirname(path), source))) {
+          if (/\.(ts|js)$/.test(file))
+            hostAliases.add(name.replace('*', basename(file).replace(/(?:\.d)?\.(ts|js)$/, '')))
+        }
+      }
+    }
+  }
+  const path = 'typings/voice-api/manifest.json'
+  const manifest = readJson(path)
+  assert.equal(manifest.typescript?.tsconfig?.compilerOptions?.paths, undefined)
+  for (const [name, source] of Object.entries(manifest.modules)) {
+    assert.ok(hostAliases.has(name), `${name} must name an existing host module`)
+    assert.equal(typeof source, 'string')
+    assert.ok((source as string).endsWith('.d.ts'), `${name} must provide declarations only`)
+    assert.ok(existsSync(join(dirname(path), source as string)), `${name} declaration must exist`)
+  }
+})
 
 function collectStringValues(value: unknown): string[] {
   if (typeof value === 'string') return [value]

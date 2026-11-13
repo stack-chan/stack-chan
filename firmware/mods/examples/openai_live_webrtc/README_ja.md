@@ -1,6 +1,6 @@
 # OpenAI GPT-Live WebRTC 会話 MOD
 
-CoreS3の内蔵マイクとスピーカーでGPT-Liveと会話します。`createLiveConversation`が接続を管理し、`createConversationPipeline`が音声デバイスを予約します。録音と再生はCoreS3のWebRTC処理内で行います。このMODは既存の録音・再生リングとFIFOに合わせて128KiB、1000msのメディア予算を指定します。通信・コーデック・DMAを含む実測メモリ使用量は別途計測が必要です。
+CoreS3の内蔵マイクとスピーカーでGPT-Liveと会話します。`LiveConversation`が接続を管理し、`ConversationPipeline`が音声デバイスを予約します。録音と再生はCoreS3のWebRTC処理内で行います。このMODは既存の録音・再生リングとFIFOに合わせて128KiB、1000msのメディア予算を指定します。通信・コーデック・DMAを含む実測メモリ使用量は別途計測が必要です。
 
 設定例のAPIキーは空です。自動接続しません。ドロワーの「OpenAI 会話」で開始／終了、「マイクミュート」でミュート／解除します。接続失敗後は同じ会話ボタンで新しいセッションを開始できます。課金セッション作成を自動再試行しません。
 

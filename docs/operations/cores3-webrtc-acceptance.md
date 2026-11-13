@@ -1,6 +1,6 @@
 # Standard CoreS3 WebRTC acceptance
 
-Host API 3 exposes `createLiveConversation` through the standard firmware for
+Host API 3 exposes `LiveConversation` through the standard firmware for
 M5Stack CoreS3 and M5StackChan CoreS3. The native transport is available on
 these boards. Earlier measurements below refer to the firmware revisions named
 in each measurement.
@@ -31,8 +31,8 @@ the idle Worker can remain until a later request or caller VM termination.
 A conversation's awaited `close()` releases its native transport/audio; an
 asynchronous hangup can keep the HTTP Worker alive beyond that point.
 
-A MOD passes `createLiveConversation(options)` and the two host audio
-endpoints to `createConversationPipeline`. Starting the pipeline reserves the
+A MOD passes `LiveConversation.create(options)` and the two host audio
+endpoints to `ConversationPipeline`. Starting the pipeline reserves the
 host audio capability. The CoreS3 audio lease configures the amplifier at
 48000 Hz and lends its native ports to the peer. Closing the pipeline waits
 for the peer before closing the ports and restoring the 24000 Hz amplifier

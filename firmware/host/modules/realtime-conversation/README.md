@@ -4,18 +4,18 @@ Stack-chanホスト向けのOpenAI互換会話モジュール。会話プロト�
 
 ## 組み込み
 
-CoreS3とM5StackChan CoreS3では、`realtimeConversation`から`createLiveConversation`を利用できる。ホストのAudioRuntimeが専用のduplex leaseを開き、WebRTC transportはそのleaseのcaptureとrenderを借りる。ファームウェアのビルド・実機での確認方法は[CoreS3 WebRTCの検証手順](../../../../docs/operations/cores3-webrtc-acceptance.md)を参照する。
+CoreS3とM5StackChan CoreS3では、`realtimeConversation`から`LiveConversation`を利用できる。ホストのAudioRuntimeが専用のduplex leaseを開き、WebRTC transportはそのleaseのcaptureとrenderを借りる。ファームウェアのビルド・実機での確認方法は[CoreS3 WebRTCの検証手順](../../../../docs/operations/cores3-webrtc-acceptance.md)を参照する。
 
 ```js
-import { createLiveConversation } from 'realtimeConversation'
-import { createConversationPipeline } from 'stackchan/voice'
+import { LiveConversation } from 'realtimeConversation'
+import { ConversationPipeline } from 'stackchan/voice'
 
-const conversation = createLiveConversation({
+const conversation = LiveConversation.create({
   apiKey,
   instructions: '短く答えてください。',
   delegation: { kind: 'hosted', model: backendModel, tools },
 })
-const pipeline = createConversationPipeline({
+const pipeline = ConversationPipeline.create({
   conversation, microphone: robot.audio.microphone, speaker: robot.audio.speaker,
   mediaBudget: { maxBufferedBytes: 128 * 1024, maxBufferedMs: 1000 },
 })
@@ -33,7 +33,7 @@ try {
 ```ts
 import { asDelegateAgent } from 'stackchan/ai'
 
-const conversation = createLiveConversation({
+const conversation = LiveConversation.create({
   apiKey,
   delegation: { kind: 'client', delegate: asDelegateAgent(agent) },
 })

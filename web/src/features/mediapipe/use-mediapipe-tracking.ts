@@ -112,6 +112,7 @@ export type MediaPipeTrackingDependencies = {
   clearTimer: (handle: number) => void
   now: () => number
   sendIntervalMs: number
+  yieldToBrowser: () => Promise<void>
 }
 
 const DEFAULT_DEPENDENCIES: MediaPipeTrackingDependencies = {
@@ -131,6 +132,7 @@ const DEFAULT_DEPENDENCIES: MediaPipeTrackingDependencies = {
   clearTimer: (handle) => window.clearInterval(handle),
   now: () => performance.now(),
   sendIntervalMs: TRACKING_SEND_INTERVAL_MS,
+  yieldToBrowser: () => new Promise((resolve) => window.setTimeout(resolve, 0)),
 }
 
 const EMPTY_TRACKING_STATE: TrackingState = {
@@ -290,15 +292,27 @@ export function useMediaPipeTracking(
       resources.current.lastVideoTime = -1
       const drawing = new runtime.DrawingUtils(context)
 
-      const detectFrame = () => {
+      let nextDetectionAt = 0
+      const isActive = () =>
+        mounted.current && resources.current.cameraRequest === request && resources.current.stream === stream
+      const detectFrame = async () => {
         const active = resources.current
-        if (!mounted.current || active.stream !== stream || active.runtime !== runtime) return
-        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.currentTime !== active.lastVideoTime) {
+        if (!isActive() || active.runtime !== runtime) return
+        if (
+          dependencies.now() >= nextDetectionAt &&
+          video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+          video.currentTime !== active.lastVideoTime
+        ) {
           active.lastVideoTime = video.currentTime
           try {
             const timestamp = dependencies.now()
             const faceResult = runtime.face.detectForVideo(video, timestamp)
-            const handResult = runtime.hands.detectForVideo(video, timestamp)
+            // 同期推論の間で入力イベントを処理し、停止後に次の推論を開始しない
+            await dependencies.yieldToBrowser()
+            if (!isActive()) return
+            const handResult = runtime.hands.detectForVideo(video, dependencies.now())
+            await dependencies.yieldToBrowser()
+            if (!isActive()) return
             const value = active.stateBuilder.build(faceResult, handResult)
             setTrackingState(value)
             setTrackingStatus(
@@ -319,7 +333,9 @@ export function useMediaPipeTracking(
               drawing.drawLandmarks(landmarks, { color: '#f4f6f7', radius: 2 })
             }
             active.sender?.queue(value)
+            nextDetectionAt = dependencies.now() + dependencies.sendIntervalMs
           } catch (error) {
+            if (!isActive()) return
             releaseCamera({
               state: 'error',
               message: '認識に失敗しました: {error}',

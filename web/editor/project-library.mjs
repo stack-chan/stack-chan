@@ -1,4 +1,4 @@
-import { createVisualProject, parseVisualProject, serializeVisualProject } from './project-format.mjs'
+import { createVisualProject, parseVisualProject } from './project-format.mjs'
 
 export const PROJECT_LIBRARY_VERSION = 1
 export const MAX_RECENT_PROJECTS = 8
@@ -22,8 +22,7 @@ export function parseProjectLibrary(text) {
 }
 
 export function updateProjectLibrary(projects, project, limit = MAX_RECENT_PROJECTS) {
-  const normalized = parseVisualProject(serializeVisualProject(project))
-  return [normalized, ...projects.filter((candidate) => candidate.id !== normalized.id)]
+  return [project, ...projects.filter((candidate) => candidate.id !== project.id)]
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
     .slice(0, limit)
 }

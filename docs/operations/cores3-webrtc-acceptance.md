@@ -150,7 +150,7 @@ targets, XS tests, simulator smoke and web checks:
 [#757 Build](https://github.com/stack-chan/stack-chan/actions/runs/42333948376),
 [#757 Bundle](https://github.com/stack-chan/stack-chan/actions/runs/42333945012).
 These are build/test passes for those source heads, not device acceptance for
-the release candidate. Current source builds use Moddable 10.1.0, unlike the
+the release candidate. Current source builds use Moddable 10.1.1, unlike the
 historical device measurements below.
 
 ### Retained source-head build artifacts

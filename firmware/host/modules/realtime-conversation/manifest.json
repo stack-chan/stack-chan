@@ -6,6 +6,7 @@
   ],
   "modules": {
     "realtimeConversation": "./realtimeConversation",
+    "realtimeConversation/session": "./session",
     "realtimeConversation/core": "./core",
     "realtimeConversation/tools": "./tools",
     "realtimeConversation/http": "./http",

@@ -7,7 +7,7 @@ Chat 機能の検証用テストは、対象 module または MOD の近くに�
 ```sh
 source /home/sskw/.local/share/xs-dev-export.sh
 npm run test:moddable -- ./host/modules/conversation/__tests__/chat-service/manifest.test.json
-npm run test:moddable -- ./host/modules/conversation/__tests__/mcp-chat-tools/manifest.test.json
+npm run test:moddable -- ./host/modules/ai/__tests__/mcp-chat-tools/manifest.test.json
 npm run test:moddable -- ./host/modules/ui/components/status-bar/__tests__/chat-status-bar/manifest.test.json
 npm run test:moddable -- ./host/modules/ui/components/bubble/__tests__/speech-balloon/manifest.test.json
 npm run test:moddable -- ./mods/examples/chat_audioio/__tests__/chat-audioio-config/manifest.test.json

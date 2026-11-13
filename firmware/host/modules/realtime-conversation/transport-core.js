@@ -3,6 +3,7 @@
 
 export function createTransport({ Timer, Base, native: binding, ArrayBuffer: BufferClass }) {
   return class Transport extends Base {
+    #audioLease
     #timer
     #callback
     #closing
@@ -11,9 +12,10 @@ export function createTransport({ Timer, Base, native: binding, ArrayBuffer: Buf
     #finalStats
     #outgoing = []
     #outgoingBytes = 0
-    constructor(callback) {
+    constructor(callback, audioLease) {
       super()
       this.#callback = callback
+      this.#audioLease = audioLease
       binding('xs_live_transport_constructor').call(this)
       try {
         // Schedule from completion: replaying expired polls can monopolize XS when
@@ -34,7 +36,7 @@ export function createTransport({ Timer, Base, native: binding, ArrayBuffer: Buf
       }
     }
     start(options) {
-      binding('xs_live_transport_start').call(this, options?.captureOnly === true)
+      binding('xs_live_transport_start').call(this, options?.captureOnly === true, this.#audioLease)
     }
     acceptAnswer(sdp) {
       binding('xs_live_transport_answer').call(this, sdp)
@@ -48,7 +50,7 @@ export function createTransport({ Timer, Base, native: binding, ArrayBuffer: Buf
       this.#outgoingBytes += bytes
       // Stop local audio promptly on an explicit close, while DTLS/DataChannel
       // remain alive to receive final usage and session.closed.
-      if (data.includes('"session.close"') && JSON.parse(data).type === 'session.close')
+      if (!this.#audioLease && data.includes('"session.close"') && JSON.parse(data).type === 'session.close')
         binding('xs_live_audio_quiesce').call(this)
       this.#flush()
     }

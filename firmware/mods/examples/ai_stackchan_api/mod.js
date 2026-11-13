@@ -1,7 +1,9 @@
-import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { Emoticon } from 'effects/emoticon'
+import { runTextTurn } from 'example-text-turn'
 import { Emotion } from 'face-state'
 import { HttpServerService } from 'http-server-service'
+import { Agent, OpenAIResponsesLLM, ToolSet } from 'stackchan/ai'
+import { VoiceScope } from 'stackchan/voice'
 
 //
 // Face parameters
@@ -49,44 +51,45 @@ const CONTEXT = [
 ]
 
 let chatting = false
-async function chatAndSay(robot, dialogue, message) {
+async function chatAndSay(robot, reply, message, scope) {
   if (chatting) {
     return 'お話中です'
   }
   chatting = true
   robot.ui.showBalloon('Now thinking...')
-  const result = await dialogue.post(message)
-  if (!result.success) {
-    trace(`failed: ${result.reason}`)
-    chatting = false
+  try {
+    const answer = await reply(message)
+    if (scope.signal.aborted) return ''
+    robot.ui.hideBalloon()
+    await robot.audio.say(answer)
+    return answer
+  } catch (error) {
+    if (scope.signal.aborted) return ''
+    trace(String(error))
     robot.ui.hideBalloon()
     await robot.audio.say('わかりません！')
     return '問題が発生しました'
+  } finally {
+    chatting = false
   }
-
-  //const messages = result.value.split(/[。！？]/).filter((m) => m.length > 0)
-  //for (const message of messages) {
-  //  trace(message)
-  //  trace('\n')
-  //  await robot.audio.say(message)
-  //}
-  trace(result.value)
-  trace('\n')
-  robot.ui.hideBalloon()
-  await robot.audio.say(result.value)
-  chatting = false
-  return result.value
 }
 
+let stop
+function onClose() {
+  stop?.()
+  stop = undefined
+}
 function onContextCreated(robot, option) {
   const aiPrefs = option.config.ai
-  trace(`ai.token: ${aiPrefs.token}\n`)
-
-  const dialogue = new ChatGPTDialogue({
-    apiKey: aiPrefs.token,
-    model: MODEL,
-    context: CONTEXT,
+  const scope = VoiceScope.create()
+  const agent = Agent.create({
+    llm: OpenAIResponsesLLM.create({ apiKey: aiPrefs.token, model: aiPrefs.model ?? MODEL }),
+    instructions: CONTEXT.map((item) => item.content).join('\n'),
+    tools: ToolSet.create(),
+    maxToolRounds: 0,
   })
+  const state = { id: 'text-session', nextTurn: 0, history: [] }
+  const reply = (text) => runTextTurn(agent, state, text, scope)
 
   robot.input.button.a.onEvent = (event) => {
     if (event.pressed) {
@@ -102,11 +105,15 @@ function onContextCreated(robot, option) {
   }
   robot.input.button.b.onEvent = (event) => {
     if (event.pressed) {
-      chatAndSay(robot, dialogue, 'おはようございます').catch((error) => trace(`chat failed: ${error}\n`))
+      chatAndSay(robot, reply, 'おはようございます', scope).catch((error) => trace(`chat failed: ${error}\n`))
     }
   }
 
   const server = new HttpServerService()
+  stop = () => {
+    scope.abort()
+    server.close()
+  }
 
   server.post('/speech', async (c) => {
     const formData = await c.req.formData()
@@ -121,7 +128,7 @@ function onContextCreated(robot, option) {
     const formData = await c.req.formData()
     const text = formData.text
     const _lang = formData.lang
-    const response = await chatAndSay(robot, dialogue, text)
+    const response = await chatAndSay(robot, reply, text, scope)
     return c.text(response)
   })
 
@@ -203,4 +210,5 @@ function onContextCreated(robot, option) {
 
 export default {
   onContextCreated,
+  onClose,
 }

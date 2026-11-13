@@ -1,19 +1,21 @@
-// Consolidated constructor smokes for the provider dialogue classes; they
-// share one manifest instead of paying a full mcconfig build per provider.
-import { ClaudeDialogue } from 'dialogue-claude'
-import { GeminiDialogue } from 'dialogue-gemini'
-import config from 'mc/config'
+import { ChatCompletionsLLM, ClaudeLLM, GeminiLLM, OpenAIResponsesLLM } from 'stackchan/ai'
 
-trace('=== provider dialogue smoke test ===\n')
-
-const token = config.token ?? 'test-token'
-
-const claude = new ClaudeDialogue({ apiKey: token })
-claude.clear()
-trace('smoke: dialogue-claude\n')
-
-const gemini = new GeminiDialogue({ apiKey: token })
-gemini.clear()
-trace('smoke: dialogue-gemini\n')
-
+for (const llm of [
+  ClaudeLLM.create({ model: 'fixture' }),
+  GeminiLLM.create({ model: 'fixture' }),
+  OpenAIResponsesLLM.create({ model: 'fixture' }),
+  ChatCompletionsLLM.create({ model: 'fixture', endpoint: 'https://example.invalid/chat/completions' }),
+]) {
+  if (!llm.capabilities.image || !llm.capabilities.tools || typeof llm.createResponse !== 'function')
+    throw Error('invalid LLM')
+}
+for (const create of [OpenAIResponsesLLM.create, ClaudeLLM.create, GeminiLLM.create]) {
+  let rejected = false
+  try {
+    create({ model: 'fixture', timeoutMs: 0 })
+  } catch {
+    rejected = true
+  }
+  if (!rejected) throw Error('invalid transport budget accepted')
+}
 trace('@@STACKCHAN_TEST:PASS@@\n')

@@ -79,7 +79,12 @@ export default class ToolRunner {
       // A bounded session-wide ledger prevents replaying operations.
       if (this.#seen.size >= 256 || response.calls.size >= 16) throw new Error('Tool call limit exceeded')
       this.#seen.add(item.call_id)
-      response.calls.set(item.call_id, { callId: item.call_id, name: item.name, arguments: item.arguments })
+      response.calls.set(item.call_id, {
+        itemId: item.id,
+        callId: item.call_id,
+        name: item.name,
+        arguments: item.arguments,
+      })
     } else if (event.type === 'response.completed') {
       response.terminal = true
       void this.#run(response)
@@ -88,6 +93,7 @@ export default class ToolRunner {
 
   async #execute(response, call) {
     const context = {
+      itemId: call.itemId,
       callId: call.callId,
       responseId: response.id,
       delegationId: response.delegation,

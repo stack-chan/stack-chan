@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, globSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { test } from 'node:test'
 
 const MODULE_ROOT = 'host/modules'
@@ -37,6 +37,33 @@ function walkFiles(root: string): string[] {
 function readJson(path: string) {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
+
+test('voice API typings map host module names without adding runtime modules to MODs', () => {
+  const hostAliases = new Set<string>()
+  for (const path of walkFiles(MODULE_ROOT).filter(isProductionManifest)) {
+    for (const [name, sources] of Object.entries(readJson(path).modules ?? {})) {
+      if (!name.includes('*')) {
+        hostAliases.add(name)
+        continue
+      }
+      for (const source of collectStringValues(sources).filter((source) => !source.includes('$('))) {
+        for (const file of globSync(join(dirname(path), source))) {
+          if (/\.(ts|js)$/.test(file))
+            hostAliases.add(name.replace('*', basename(file).replace(/(?:\.d)?\.(ts|js)$/, '')))
+        }
+      }
+    }
+  }
+  const path = 'typings/voice-api/manifest.json'
+  const manifest = readJson(path)
+  assert.equal(manifest.typescript?.tsconfig?.compilerOptions?.paths, undefined)
+  for (const [name, source] of Object.entries(manifest.modules)) {
+    assert.ok(hostAliases.has(name), `${name} must name an existing host module`)
+    assert.equal(typeof source, 'string')
+    assert.ok((source as string).endsWith('.d.ts'), `${name} must provide declarations only`)
+    assert.ok(existsSync(join(dirname(path), source as string)), `${name} declaration must exist`)
+  }
+})
 
 function collectStringValues(value: unknown): string[] {
   if (typeof value === 'string') return [value]
@@ -422,7 +449,7 @@ test('sample MOD relative manifest includes resolve from examples directories', 
 
 test('sample MODs use namespaced context capabilities', () => {
   const flatApiPattern =
-    /\brobot\.(say|record|tone|playAudio|useTTS|lookAt|lookAway|setPose|setTorque|setEmotion|setColor|showBalloon|hideBalloon|lightOn|lightOff|lightBlink|lightRainbow|button|touch|touchPanel|imu|led|tts|microphone|drawer)\b/
+    /\brobot\.(say|record|tone|playAudio|useTTS|useSpeechPlayback|setSpeechPlayback|lookAt|lookAway|setPose|setTorque|setEmotion|setColor|showBalloon|hideBalloon|lightOn|lightOff|lightBlink|lightRainbow|button|touch|touchPanel|imu|led|tts|microphone|drawer)\b/
 
   const offenders = walkFiles(join('mods', 'examples'))
     .filter((path) => path.endsWith('.js'))
@@ -525,7 +552,7 @@ test('Node unit test tsconfig discovers host tests by glob and excludes Moddable
   }
 })
 
-test('module Moddable test manifests include implementation and testing manifests', () => {
+test('module Moddable tests load production modules and the testing manifest', () => {
   const testingManifestPath = join(MODULE_ROOT, 'testing', 'manifest.json')
   const manifestPaths = walkFiles(MODULE_ROOT).filter((path) => path.endsWith('manifest.test.json'))
 
@@ -536,12 +563,25 @@ test('module Moddable test manifests include implementation and testing manifest
       .map((includePath: string) => join(dirname(manifestPath), includePath))
 
     assert.ok(resolvedIncludes.includes(testingManifestPath), `${manifestPath} should include testing manifest`)
-    assert.ok(
-      resolvedIncludes.some(
-        (includePath: string) => includePath.endsWith('manifest.json') && includePath !== testingManifestPath,
-      ),
-      `${manifestPath} should include the implementation manifest under test`,
+    let includesImplementation = resolvedIncludes.some(
+      (includePath: string) => includePath.endsWith('manifest.json') && includePath !== testingManifestPath,
     )
+    if (!includesImplementation) {
+      const productionManifest = join(manifestPath.replaceAll('\\', '/').split('/__tests__/')[0], 'manifest.json')
+      const modules = existsSync(productionManifest) ? readJson(productionManifest).modules : {}
+      includesImplementation = Object.entries(manifest.modules ?? {}).some(([alias, sources]) =>
+        collectStringValues(sources).some(
+          (source) =>
+            source.startsWith('.') &&
+            collectStringValues(modules?.[alias]).some(
+              (productionSource) =>
+                productionSource.startsWith('.') &&
+                join(dirname(manifestPath), source) === join(dirname(productionManifest), productionSource),
+            ),
+        ),
+      )
+    }
+    assert.ok(includesImplementation, `${manifestPath} should load the production implementation under test`)
   }
 })
 

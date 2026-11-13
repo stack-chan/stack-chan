@@ -11,6 +11,20 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
+      "headers": ["./node_modules/@moddable/typings/web/headers.d.ts"],
+      "uuid": ["./node_modules/@moddable/typings/uuid.d.ts"],
+      "whisper-multipart": ["./host/modules/audio/whisper-multipart.ts"],
+      "stt-whisper": ["./host/modules/audio/stt-whisper.ts"],
+      "stackchan-ai-*": ["./host/modules/ai/ai-*.ts"],
+      "realtimeConversation/http-core": ["./host/modules/realtime-conversation/http-core.js"],
+      "stackchanChatWorkerSession": ["./host/modules/conversation/chat-audioio/worker-session.js"],
+      "stackchanBorrowedChatIO": ["./host/modules/conversation/chat-audioio/borrowed-io"],
+      "stackchanPcmRingWriter": ["./host/modules/conversation/chat-audioio/pcm-ring-writer-native"],
+      "stackchan/voice/device": ["./host/modules/voice/pcm-device.ts"],
+      "stackchan/voice/*": ["./host/modules/voice/*.ts"],
+      "stackchan/ai": ["./host/modules/ai/index.ts"],
+      "stackchan/voice": ["./host/modules/voice/index.ts"],
+      "minimal-voice-workflow": ["./mods/examples/minimal_voice/workflow.ts"],
       "piu/MC": [
         "./node_modules/@moddable/typings/piu/MC.d.ts"
       ],
@@ -29,8 +43,8 @@
       "audio-buffer": [
         "./host/modules/audio/audio-buffer.ts"
       ],
-      "tts-types": [
-        "./host/modules/audio/tts-types.ts"
+      "speech-playback-types": [
+        "./host/modules/audio/speech-playback-types.ts"
       ],
       "audio-in": [
         "./host/modules/testing/fakes/audio-in.ts"

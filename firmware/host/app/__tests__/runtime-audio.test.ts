@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import type { BorrowedAudioBuffer } from '../../modules/audio/audio-buffer.js'
+import type { SpeechPlayback } from '../../modules/audio/speech-playback-types.js'
 import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
 
 type RuntimeAudioModule = typeof import('../runtime-audio.js')
@@ -18,12 +19,50 @@ function installBareSpecifierPackages(): void {
   })
 }
 
-function fakeTTS() {
+function fakeSpeechPlayback() {
   return {
     stream: (_text: string, _volume?: number, callback?: (error?: unknown) => void) => callback?.(),
     streamKoe: (_koe: string, _volume?: number, callback?: (error?: unknown) => void) => callback?.(),
   }
 }
+
+test('replacing speech playback returns the detached player and allows restoring it', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const spoken: string[] = []
+  const original: SpeechPlayback = {
+    ...fakeSpeechPlayback(),
+    stream: (_text: string, _volume?: number, done?: () => void) => {
+      spoken.push('original')
+      done?.()
+    },
+  }
+  const replacement: SpeechPlayback = {
+    ...fakeSpeechPlayback(),
+    stream: (_text: string, _volume?: number, done?: () => void) => {
+      spoken.push('replacement')
+      done?.()
+    },
+  }
+  const mouths: number[] = []
+  const runtime = new StackchanRuntimeAudio(
+    { speechPlayback: original },
+    { onMouthOpenChanged: (value) => mouths.push(value) },
+  )
+  const previous = runtime.setSpeechPlayback(replacement)
+  assert.equal(previous, original)
+  previous.onPlayed?.(2000)
+  previous.onDone?.()
+  assert.deepEqual(mouths, [])
+  await runtime.say('first')
+  assert.equal(runtime.setSpeechPlayback(previous), replacement)
+  await runtime.say('second')
+  assert.deepEqual(spoken, ['replacement', 'original'])
+  const release = runtime.acquireExclusive()
+  assert.throws(() => runtime.setSpeechPlayback(replacement), /audio busy/)
+  release()
+  assert.equal(runtime.setSpeechPlayback(original), original)
+})
 
 test('exclusive native audio blocks host playback/recording until its idempotent release', async () => {
   installBareSpecifierPackages()
@@ -31,7 +70,7 @@ test('exclusive native audio blocks host playback/recording until its idempotent
   let stops = 0,
     played = 0
   const runtime = new StackchanRuntimeAudio({
-    tts: fakeTTS(),
+    speechPlayback: fakeSpeechPlayback(),
     speaker: {
       tone: async () => {
         played++
@@ -71,7 +110,7 @@ test('exclusive native audio blocks host playback/recording until its idempotent
   assert.equal(played, 1)
 })
 
-test('native ownership never interrupts active TTS or a pending recording', async () => {
+test('native ownership never interrupts active SpeechPlayback or a pending recording', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   let finishSpeech: (() => void) | undefined,
@@ -86,7 +125,7 @@ test('native ownership never interrupts active TTS or a pending recording', asyn
       }),
   }
   const runtime = new StackchanRuntimeAudio({
-    tts: {
+    speechPlayback: {
       stream: (_text, _volume, done) => {
         finishSpeech = () => done?.()
       },
@@ -94,6 +133,7 @@ test('native ownership never interrupts active TTS or a pending recording', asyn
     microphone,
   })
   const speech = runtime.say('hello')
+  assert.throws(() => runtime.setSpeechPlayback(fakeSpeechPlayback()), /audio busy/)
   assert.throws(() => runtime.acquireExclusive(), /audio busy/)
   finishSpeech?.()
   await speech
@@ -109,7 +149,7 @@ test('native ownership is visible during media stop callbacks and rolls back a f
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   let fail = true
   const runtime = new StackchanRuntimeAudio({
-    tts: fakeTTS(),
+    speechPlayback: fakeSpeechPlayback(),
     media: {
       state: 'playing',
       progress: { position: 0, estimated: false, seekable: false },
@@ -138,7 +178,7 @@ test('StackchanRuntimeAudio forwards singing koe to providers that support it', 
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   let received: { koe: string; volume?: number } | undefined
   const runtime = new StackchanRuntimeAudio({
-    tts: {
+    speechPlayback: {
       stream: (_text, _volume, callback) => callback?.(),
       streamKoe: (koe, volume, callback) => {
         received = { koe, volume }
@@ -153,13 +193,13 @@ test('StackchanRuntimeAudio forwards singing koe to providers that support it', 
   assert.deepEqual(result, { success: true, value: '#C4,500ki' })
 })
 
-test('StackchanRuntimeAudio reports singing as unsupported for other TTS providers', async () => {
+test('StackchanRuntimeAudio reports singing as unsupported for other SpeechPlayback providers', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   const testGlobal = globalThis as typeof globalThis & { trace?: (message: string) => void }
   testGlobal.trace = () => {}
   const runtime = new StackchanRuntimeAudio({
-    tts: { stream: (_text, _volume, callback) => callback?.() },
+    speechPlayback: { stream: (_text, _volume, callback) => callback?.() },
   })
 
   try {
@@ -184,7 +224,7 @@ test('StackchanRuntimeAudio forwards borrowed buffers to the target player', asy
     },
   }
 
-  const runtime = new StackchanRuntimeAudio({ tts: fakeTTS(), speaker })
+  const runtime = new StackchanRuntimeAudio({ speechPlayback: fakeSpeechPlayback(), speaker })
 
   assert.equal(await runtime.playAudio(buffer), true)
   assert.equal(forwarded, buffer)
@@ -194,9 +234,9 @@ test('StackchanRuntimeAudio reports unsupported playback as false', async () => 
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   const buffer = new ArrayBuffer(4) as BorrowedAudioBuffer
-  const runtimeWithoutSpeaker = new StackchanRuntimeAudio({ tts: fakeTTS() })
+  const runtimeWithoutSpeaker = new StackchanRuntimeAudio({ speechPlayback: fakeSpeechPlayback() })
   const runtimeUnsupported = new StackchanRuntimeAudio({
-    tts: fakeTTS(),
+    speechPlayback: fakeSpeechPlayback(),
     speaker: {
       tone: async () => {},
       play: async () => false,
@@ -207,7 +247,7 @@ test('StackchanRuntimeAudio reports unsupported playback as false', async () => 
   assert.equal(await runtimeUnsupported.playAudio(buffer), false)
 })
 
-test('StackchanRuntimeAudio close stops the microphone and detaches TTS callbacks', async () => {
+test('StackchanRuntimeAudio close stops the microphone and detaches SpeechPlayback callbacks', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   let stopped = false
@@ -221,20 +261,23 @@ test('StackchanRuntimeAudio close stops the microphone and detaches TTS callback
       throw new Error('not used')
     },
   }
-  const tts = fakeTTS()
+  const speechPlayback = fakeSpeechPlayback()
   let mouthOpen = -1
 
-  const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
+  const runtime = new StackchanRuntimeAudio(
+    { speechPlayback, microphone },
+    { onMouthOpenChanged: (value) => (mouthOpen = value) },
+  )
   runtime.close()
 
   assert.equal(stopped, true)
-  const playbackTTS = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
-  playbackTTS.onPlayed?.(2000)
-  playbackTTS.onDone?.()
+  const callbacks = speechPlayback as { onPlayed?: (volume: number) => void; onDone?: () => void }
+  callbacks.onPlayed?.(2000)
+  callbacks.onDone?.()
   assert.equal(mouthOpen, -1)
 })
 
-test('StackchanRuntimeAudio close detaches TTS callbacks even when the microphone stop fails', async () => {
+test('StackchanRuntimeAudio close detaches SpeechPlayback callbacks even when the microphone stop fails', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   const microphone = {
@@ -247,15 +290,18 @@ test('StackchanRuntimeAudio close detaches TTS callbacks even when the microphon
       throw new Error('not used')
     },
   }
-  const tts = fakeTTS()
+  const speechPlayback = fakeSpeechPlayback()
   let mouthOpen = -1
 
-  const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
+  const runtime = new StackchanRuntimeAudio(
+    { speechPlayback, microphone },
+    { onMouthOpenChanged: (value) => (mouthOpen = value) },
+  )
 
   assert.throws(() => runtime.close(), /stop failure/)
-  const ttsCallbacks = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
-  ttsCallbacks.onPlayed?.(2000)
-  ttsCallbacks.onDone?.()
+  const callbacks = speechPlayback as { onPlayed?: (volume: number) => void; onDone?: () => void }
+  callbacks.onPlayed?.(2000)
+  callbacks.onDone?.()
   assert.equal(mouthOpen, -1)
 })
 
@@ -272,7 +318,7 @@ test('StackchanRuntimeAudio stops WebRadio before starting other playback', asyn
     setVolume: () => {},
   }
   const runtime = new StackchanRuntimeAudio({
-    tts: fakeTTS(),
+    speechPlayback: fakeSpeechPlayback(),
     webRadio,
     speaker: { tone: async () => {}, play: async () => true },
   })
@@ -284,13 +330,13 @@ test('StackchanRuntimeAudio stops WebRadio before starting other playback', asyn
   assert.equal(stops, 4)
 })
 
-test('StackchanRuntimeAudio rejects WebRadio start while TTS is busy', async () => {
+test('StackchanRuntimeAudio rejects WebRadio start while SpeechPlayback is busy', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   let complete: ((error?: unknown) => void) | undefined
   let radioStarts = 0
   const runtime = new StackchanRuntimeAudio({
-    tts: { stream: (_text, _volume, callback) => (complete = callback) },
+    speechPlayback: { stream: (_text, _volume, callback) => (complete = callback) },
     webRadio: {
       state: 'idle',
       start: async () => {
@@ -317,7 +363,7 @@ test('StackchanRuntimeAudio stays busy until all overlapping playback completes'
   let finishPlayback: (() => void) | undefined
   let radioStarts = 0
   const runtime = new StackchanRuntimeAudio({
-    tts: fakeTTS(),
+    speechPlayback: fakeSpeechPlayback(),
     webRadio: {
       state: 'idle',
       start: async () => {
@@ -351,7 +397,7 @@ test('StackchanRuntimeAudio close stops WebRadio', async () => {
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   let stopped = false
   const runtime = new StackchanRuntimeAudio({
-    tts: fakeTTS(),
+    speechPlayback: fakeSpeechPlayback(),
     webRadio: {
       state: 'playing',
       start: async () => {},
@@ -373,7 +419,7 @@ test('Media and WebRadio share the owner and reject starts during speech, includ
   let completeSpeech: (() => void) | undefined
   let reentrant: Promise<void> | undefined
   const runtime = new StackchanRuntimeAudio({
-    tts: {
+    speechPlayback: {
       stream: (_text, _volume, callback) => {
         completeSpeech = () => callback?.()
       },
@@ -409,7 +455,7 @@ test('Media and WebRadio share the owner and reject starts during speech, includ
   assert.equal(stopped, 1)
 })
 
-test('shared saved volume controls TTS, finite/live starts and the current stream without restarting it', async () => {
+test('shared saved volume controls SpeechPlayback, finite/live starts and the current stream without restarting it', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   const saved: number[] = [],
@@ -427,7 +473,7 @@ test('shared saved volume controls TTS, finite/live starts and the current strea
   const runtime = new StackchanRuntimeAudio({
     volume: 0.35,
     onVolumeChanged: (volume) => saved.push(volume),
-    tts: {
+    speechPlayback: {
       stream: (_text, volume, done) => {
         speech.push(volume)
         done?.()
@@ -490,7 +536,7 @@ test('shared volume supports a speaker without mutable volume, as used by WASM',
     },
     play: async () => true,
   })
-  const runtime = new StackchanRuntimeAudio({ tts: fakeTTS(), speaker })
+  const runtime = new StackchanRuntimeAudio({ speechPlayback: fakeSpeechPlayback(), speaker })
 
   runtime.volume = 0.25
   assert.equal(runtime.volume, 0.25)
@@ -506,7 +552,7 @@ test('exclusive media ownership preserves shared volume without starting audio u
     spoken: (number | undefined)[] = []
   const runtime = new StackchanRuntimeAudio({
     volume: 0.35,
-    tts: {
+    speechPlayback: {
       stream(_text, volume, done) {
         spoken.push(volume)
         done?.()

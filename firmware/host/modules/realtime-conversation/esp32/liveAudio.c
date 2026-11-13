@@ -71,6 +71,7 @@ static void audioStreamDelete(StreamBufferHandle_t handle) {
 
 static portMUX_TYPE audioLock = portMUX_INITIALIZER_UNLOCKED;
 static LiveAudio *activeAudio;
+static atomic_flag hardwareOwned = ATOMIC_FLAG_INIT;
 static atomic_bool quiesceAudio;
 extern esp_err_t stackchanMediaAdapter(void);
 extern int stackchanInstallOpusPolicy(void);
@@ -94,6 +95,7 @@ struct LiveAudio {
 
 	esp_ae_rate_cvt_handle_t resampler;
 	atomic_bool stopping, done, reading, muted;
+	atomic_uint playbackStop, quietBlocks;
 	atomic_uint volume, captured, rendered, underruns, overruns, sourceSamples;
 	atomic_uint requestedRate, requestedChannels, sourceFrameBytes;
 	atomic_uint micLevel, cleanLevel, referenceLevel;
@@ -163,8 +165,10 @@ static int renderWrite(audio_render_handle_t h, av_render_audio_frame_t *frame)
 {
 	LiveAudio *a = h;
 	int offset = 0;
-	while (offset < frame->size && !atomic_load(&a->stopping))
-		offset += xStreamBufferSend(a->output, frame->data + offset, frame->size - offset, pdMS_TO_TICKS(50));
+	while (offset < frame->size && !atomic_load(&a->stopping)) {
+		if (atomic_load(&a->playbackStop)) return 0;
+		offset += xStreamBufferSend(a->output, frame->data + offset, frame->size - offset, pdMS_TO_TICKS(10));
+	}
 	return offset == frame->size ? 0 : -1;
 }
 static int renderLatency(audio_render_handle_t h, uint32_t *ms)
@@ -194,7 +198,9 @@ static void audioTask(void *ctx)
 	bool gapActive = false;
 	while (!atomic_load(&a->stopping)) {
 		/* Non-blocking dequeue: the clock must keep running between utterances. */
+		unsigned playbackStop = atomic_load(&a->playbackStop);
 		size_t got = xStreamBufferReceive(a->output, tx, BLOCK * 2, 0);
+		if (playbackStop == 2) got = 0;
 		if (got < BLOCK * 2 && idle < 500) {
 			if (!gapActive) atomic_fetch_add(&a->underruns, 1);
 			gapActive = true; gap += 10;
@@ -232,6 +238,8 @@ static void audioTask(void *ctx)
 		err = esp_ae_rate_cvt_process(a->resampler, pair, BLOCK, converted, &count);
 		if (err) { atomic_store(&a->error, err); break; }
 		atomic_fetch_add(&a->rendered, got / 2);
+		if (playbackStop && !got) atomic_fetch_add(&a->quietBlocks, 1);
+		else atomic_store(&a->quietBlocks, 0);
 		for (uint32_t i = 0; i < count; i++) {
 			mic[accumulated] = converted[i * 2];
 			ref[accumulated++] = converted[i * 2 + 1];
@@ -260,13 +268,14 @@ static void audioTask(void *ctx)
 
 int liveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *provider)
 {
+	if (atomic_flag_test_and_set(&hardwareOwned)) return ESP_ERR_INVALID_STATE;
   atomic_store(&quiesceAudio, false);
   int err = stackchanMediaAdapter();
   if (!err) err = stackchanInstallOpusPolicy();
-  if (err) return err;
+  if (err) { atomic_flag_clear(&hardwareOwned); return err; }
   stackchanAudioReset();
 	LiveAudio *a = calloc(1, sizeof(*a));
-	if (!a) return ESP_ERR_NO_MEM;
+	if (!a) { atomic_flag_clear(&hardwareOwned); return ESP_ERR_NO_MEM; }
 	*out = a;
 	atomic_store(&a->volume, 512);
 	a->source = (esp_capture_audio_src_if_t){.open = sourceOpen, .get_support_codecs = sourceCodecs,
@@ -342,13 +351,28 @@ int liveAudioOpen(LiveAudio **out, esp_webrtc_media_provider_t *provider)
   portEXIT_CRITICAL(&audioLock);
 	return 0;
 }
+void liveAudioFence(LiveAudio *a, bool discard)
+{
+	if (discard) atomic_store(&a->playbackStop, 2);
+	else {
+		unsigned open = 0;
+		atomic_compare_exchange_strong(&a->playbackStop, &open, 1);
+	}
+}
+bool liveAudioQuiet(LiveAudio *a)
+{
+	return atomic_load(&a->quietBlocks) > DMA_BLOCKS;
+}
+void liveAudioDetach(LiveAudio *a)
+{
+	atomic_store(&a->reading, false);
+	liveAudioFence(a, false);
+}
 void liveAudioStop(LiveAudio *a)
 {
 	if (!a) return;
-  bool first = !atomic_exchange(&a->stopping, true);
+	atomic_store(&a->stopping, true);
 	atomic_store(&a->reading, false);
-  // A renderer without a decoded frame has no render task to flush.
-  if (first && a->player && atomic_load(&a->rendered)) av_render_flush(a->player);
 }
 void liveAudioClose(LiveAudio *a)
 {
@@ -370,6 +394,7 @@ void liveAudioClose(LiveAudio *a)
 	if (a->output) audioStreamDelete(a->output);
 	free(a->buffers);
 	free(a);
+	atomic_flag_clear(&hardwareOwned);
 }
 void liveAudioMute(LiveAudio *a, bool mute) {
   if (a) atomic_store(&a->muted, mute);

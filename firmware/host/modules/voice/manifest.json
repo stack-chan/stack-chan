@@ -1,0 +1,24 @@
+{
+  "modules": {
+    "realtimeConversation/http-core": [
+      "../realtime-conversation/http-core",
+      "../ai/http-core-types.d.ts"
+    ],
+    "stackchan/voice": "./index",
+    "stackchan/voice/adapters": "./adapters",
+    "stackchan/voice/contracts": "./contracts",
+    "stackchan/voice/scope": "./scope",
+    "stackchan/voice/media": "./media",
+    "stackchan/voice/pipeline": "./pipeline",
+    "stackchan/voice/cascaded": "./cascaded",
+    "stackchan/voice/runtime": "./runtime",
+    "stackchan/voice/device": "./pcm-device",
+    "stackchan/voice/pcm-http": "./pcm-http",
+    "stackchan/voice/speech": "./speech"
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "modules": { "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output" }
+    }
+  }
+}

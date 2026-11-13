@@ -1,12 +1,18 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
-import type { MediaCapability, MediaStartOptions, TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
+import type {
+  MediaCapability,
+  MediaStartOptions,
+  SpeechPlayback,
+  WebRadioCapability,
+  WebRadioStartOptions,
+} from 'capabilities'
 import type Microphone from 'microphone'
 import type Speaker from 'speaker'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
 import { DEFAULT_VOLUME, MAX_MEDIA_VOLUME } from 'volume-model'
 
 export type RuntimeAudioConstructorParam = {
-  tts: TTS
+  speechPlayback: SpeechPlayback
   microphone?: Microphone
   speaker?: Speaker
   webRadio?: WebRadioCapability
@@ -23,7 +29,7 @@ export class StackchanRuntimeAudio {
   #microphone: Microphone | undefined
   #options: RuntimeAudioOptions
   #speaker: Speaker | undefined
-  #tts: TTS
+  #speechPlayback: SpeechPlayback
   #webRadio: WebRadioCapability | undefined
   #media: MediaCapability | undefined
   #activeOperations = 0
@@ -39,7 +45,8 @@ export class StackchanRuntimeAudio {
     this.#media = params.media
     this.#volume = params.volume
     this.#onVolumeChanged = params.onVolumeChanged
-    this.useTTS(params.tts)
+    this.#speechPlayback = params.speechPlayback
+    this.setSpeechPlayback(params.speechPlayback)
   }
 
   get volume(): number {
@@ -57,8 +64,8 @@ export class StackchanRuntimeAudio {
     if (!this.#media) this.#webRadio?.setVolume(volume * MAX_MEDIA_VOLUME)
   }
 
-  get microphone() {
-    return this.#microphone
+  get hasMicrophone() {
+    return this.#microphone !== undefined
   }
 
   /** Reserve I2S for a native conversation after existing short playback finishes. */
@@ -78,10 +85,6 @@ export class StackchanRuntimeAudio {
       released = true
       this.#exclusive = false
     }
-  }
-
-  get tts(): TTS {
-    return this.#tts
   }
 
   get media(): MediaCapability | undefined {
@@ -170,18 +173,19 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  useTTS(tts: TTS) {
-    if (this.#tts != null) {
-      this.#tts.onDone = noop
-      this.#tts.onPlayed = noop
-    }
-    this.#tts = tts
-    this.#tts.onPlayed = (volume: number) => {
+  setSpeechPlayback(speechPlayback: SpeechPlayback): SpeechPlayback {
+    if (this.#exclusive || this.#activeOperations) throw new Error('audio busy')
+    const previous = this.#speechPlayback
+    previous.onDone = noop
+    previous.onPlayed = noop
+    this.#speechPlayback = speechPlayback
+    this.#speechPlayback.onPlayed = (volume: number) => {
       this.#options.onMouthOpenChanged?.(volume === 0 ? 0 : Math.min(volume / 2000, 1.0))
     }
-    this.#tts.onDone = () => {
+    this.#speechPlayback.onDone = () => {
       this.#options.onMouthOpenChanged?.(0)
     }
+    return previous
   }
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
@@ -190,7 +194,7 @@ export class StackchanRuntimeAudio {
     try {
       this.#media?.stop()
       this.#webRadio?.stop()
-      await waitForCompletion((callback) => this.#tts.stream(text, volume ?? this.#volume, callback))
+      await waitForCompletion((callback) => this.#speechPlayback.stream(text, volume ?? this.#volume, callback))
       return {
         success: true,
         value: text,
@@ -212,9 +216,9 @@ export class StackchanRuntimeAudio {
     try {
       this.#media?.stop()
       this.#webRadio?.stop()
-      const tts = this.#tts
-      if (!tts.streamKoe) throw new Error('The active TTS does not support singing.')
-      await waitForCompletion((callback) => tts.streamKoe(koe, volume ?? this.#volume, callback))
+      const speechPlayback = this.#speechPlayback
+      if (!speechPlayback.streamKoe) throw new Error('The active speech player does not support singing.')
+      await waitForCompletion((callback) => speechPlayback.streamKoe(koe, volume ?? this.#volume, callback))
       return {
         success: true,
         value: koe,
@@ -279,8 +283,8 @@ export class StackchanRuntimeAudio {
       try {
         this.#microphone?.stop()
       } finally {
-        this.#tts.onPlayed = noop
-        this.#tts.onDone = noop
+        this.#speechPlayback.onPlayed = noop
+        this.#speechPlayback.onDone = noop
       }
     }
   }

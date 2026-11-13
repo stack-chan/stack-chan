@@ -1,0 +1,10 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "../../../typings/voice-api/manifest.json"
+  ],
+  "modules": {
+    "*": ["./mod"],
+    "minimal-voice-workflow": "./workflow"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "include": [
+    "../../manifest.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./mcp-chat-tools.test",
+    "rom-tool-schema": "./rom-tool-schema"
+  },
+  "preload": ["rom-tool-schema"],
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

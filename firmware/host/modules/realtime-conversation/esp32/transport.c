@@ -27,6 +27,12 @@
 enum { kOffer = 1, kMessage, kError, kDisconnected, kAnswer, kSend };
 typedef struct { int type, size, code; char *data; } LiveMessage;
 typedef struct {
+	LiveAudio *audio;
+	esp_webrtc_media_provider_t provider;
+	atomic_uint owners;
+} AudioLease;
+typedef struct {
+	AudioLease *lease;
 	QueueHandle_t events, commands;
 	atomic_bool stopping, done, muted;
 	atomic_int failure;
@@ -46,6 +52,7 @@ typedef struct {
  * native task has stopped, including constructor and startup failure paths. */
 static _Atomic(LiveTransport *) gOwner;
 static bool gAdapters;
+static _Atomic(AudioLease *) audioOwner;
 extern int stackchanRealtimeMediaInit(void);
 extern int stackchanRealtimeCodecInit(void);
 
@@ -154,7 +161,9 @@ static void worker(void *ctx)
 	LiveAudio *audio = NULL;
 	esp_webrtc_media_provider_t provider = {0};
 	esp_capture_sink_handle_t probeSink = NULL;
-	int err = liveAudioOpen(&audio, &provider);
+	int err = 0;
+	if (t->lease) { audio = t->lease->audio; provider = t->lease->provider; }
+	else err = liveAudioOpen(&audio, &provider);
 	if (err) { t->failureStage = liveAudioStage(audio); goto done; }
 	if (t->captureOnly) {
 		/* Match the RTP drain priority when comparing capture throughput. */
@@ -212,8 +221,10 @@ static void worker(void *ctx)
 			free(msg.data);
 			if (err) break;
 		}
-		liveAudioMute(audio, atomic_load(&t->muted));
-		liveAudioVolume(audio, atomic_load(&t->volume));
+		if (!t->lease) {
+			liveAudioMute(audio, atomic_load(&t->muted));
+			liveAudioVolume(audio, atomic_load(&t->volume));
+		}
 		LiveAudioStats stats = {0};
 		liveAudioStats(audio, &stats);
 		portENTER_CRITICAL(&t->lock);
@@ -224,18 +235,28 @@ static void worker(void *ctx)
 done:
 	if (err) fail(t, err);
 	atomic_store(&t->stopping, true);
-	liveAudioStop(audio);
+	if (t->lease) liveAudioDetach(audio);
+	else liveAudioStop(audio);
 	if (probeSink) esp_capture_stop(provider.capture);
 	if (t->rtc) { esp_webrtc_close(t->rtc); t->rtc = NULL; }
-	liveAudioClose(audio);
+	if (!t->lease) liveAudioClose(audio);
 	atomic_store(&t->done, true);
 	vTaskDelete(NULL);
+}
+static void releaseAudioLease(AudioLease *lease)
+{
+	if (!lease || atomic_fetch_sub(&lease->owners, 1) != 1) return;
+	liveAudioClose(lease->audio);
+	AudioLease *expected = lease;
+	atomic_compare_exchange_strong(&audioOwner, &expected, NULL);
+	free(lease);
 }
 static void dispose(LiveTransport *t)
 {
 	LiveMessage msg;
 	if (t->events) { while (xQueueReceive(t->events, &msg, 0) == pdPASS) free(msg.data); vQueueDelete(t->events); }
 	if (t->commands) { while (xQueueReceive(t->commands, &msg, 0) == pdPASS) free(msg.data); vQueueDelete(t->commands); }
+	releaseAudioLease(t->lease);
 	LiveTransport *expected = t;
 	atomic_compare_exchange_strong(&gOwner, &expected, NULL);
 	free(t);
@@ -264,10 +285,8 @@ void xs_live_transport_constructor(xsMachine *the)
 	atomic_store(&t->volume, 512);
 	xsmcSetHostData(xsThis, t);
 }
-void xs_live_transport_start(xsMachine *the)
+static void initializeMedia(xsMachine *the)
 {
-	LiveTransport *t = xsmcGetHostData(xsThis);
-	if (!t || t->started || atomic_load(&t->stopping)) xsUnknownError("Transport cannot start");
 	if (!gAdapters) {
 		if (stackchanRealtimeMediaInit() != ESP_OK)
 			xsUnknownError("Realtime media initialization failed");
@@ -277,7 +296,73 @@ void xs_live_transport_start(xsMachine *the)
 			xsUnknownError("Realtime codec registration failed");
 		gAdapters = true;
 	}
+}
+
+void xs_live_audio_lease_destructor(void *data) { releaseAudioLease(data); }
+void xs_live_audio_lease_open(xsMachine *the)
+{
+	AudioLease *lease = calloc(1, sizeof(*lease));
+	if (!lease) xsUnknownError("No memory for audio lease");
+	AudioLease *expected = NULL;
+	if (!atomic_compare_exchange_strong(&audioOwner, &expected, lease)) {
+		free(lease); xsUnknownError("Audio device busy");
+	}
+	atomic_store(&lease->owners, 1);
+	xsTry {
+		initializeMedia(the);
+		if (liveAudioOpen(&lease->audio, &lease->provider)) xsUnknownError("Cannot open CoreS3 duplex audio");
+	}
+	xsCatch { releaseAudioLease(lease); xsThrow(xsException); }
+	xsmcSetHostData(xsThis, lease);
+}
+void xs_live_audio_lease_input(xsMachine *the)
+{
+	AudioLease *lease = xsmcGetHostData(xsThis);
+	if (!lease) xsUnknownError("Audio lease closed");
+	liveAudioMute(lease->audio, !xsmcToBoolean(xsArg(0)));
+}
+void xs_live_audio_lease_volume(xsMachine *the)
+{
+	AudioLease *lease = xsmcGetHostData(xsThis);
+	if (!lease) xsUnknownError("Audio lease closed");
+	double volume = xsmcToNumber(xsArg(0));
+	if (!(volume >= 0 && volume <= 1)) xsRangeError("Invalid volume");
+	liveAudioVolume(lease->audio, (unsigned)(volume * 1024));
+}
+void xs_live_audio_lease_fence(xsMachine *the)
+{
+	AudioLease *lease = xsmcGetHostData(xsThis);
+	if (!lease) xsUnknownError("Audio lease closed");
+	liveAudioFence(lease->audio, xsmcToBoolean(xsArg(0)));
+}
+void xs_live_audio_lease_quiet(xsMachine *the)
+{
+	AudioLease *lease = xsmcGetHostData(xsThis);
+	if (!lease || liveAudioError(lease->audio)) xsUnknownError("Audio device failed");
+	xsmcSetBoolean(xsResult, liveAudioQuiet(lease->audio));
+}
+void xs_live_audio_lease_close(xsMachine *the)
+{
+	AudioLease *lease = xsmcGetHostData(xsThis);
+	if (!lease) return;
+	if (atomic_load(&lease->owners) != 1) xsUnknownError("Audio lease still in use");
+	xsmcSetHostData(xsThis, NULL);
+	releaseAudioLease(lease);
+}
+
+void xs_live_transport_start(xsMachine *the)
+{
+	LiveTransport *t = xsmcGetHostData(xsThis);
+	if (!t || t->started || atomic_load(&t->stopping)) xsUnknownError("Transport cannot start");
+	initializeMedia(the);
 	t->captureOnly = xsmcArgc && xsmcToBoolean(xsArg(0));
+	if (xsmcArgc >= 2 && xsmcTypeOf(xsArg(1)) == xsReferenceType) {
+		AudioLease *lease = xsmcGetHostData(xsArg(1));
+		if (!lease || lease != atomic_load(&audioOwner)) xsUnknownError("Invalid audio lease");
+		atomic_fetch_add(&lease->owners, 1);
+		t->lease = lease;
+	} else if (!t->captureOnly) xsUnknownError("WebRTC requires a duplex audio lease");
+	else if (atomic_load(&audioOwner)) xsUnknownError("Audio device busy");
 	t->started = true;
 	if (xTaskCreatePinnedToCore(worker, "live_peer", 12288, t, 10, NULL, 1) != pdPASS) {
 		t->started = false;

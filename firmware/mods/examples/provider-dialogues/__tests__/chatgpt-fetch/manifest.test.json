@@ -2,16 +2,26 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../manifest.json",
+    "$(MODDABLE)/modules/web/fetch/manifest.json",
+    "../../../../../host/modules/ai/manifest.json",
     "../../../../../host/app/manifest_typings.json",
     "../../../../../host/modules/testing/manifest.json"
   ],
   "modules": {
-    "main": "./chatgpt-fetch.test"
+    "main": "./chatgpt-fetch.test",
+    "stackchan/voice/contracts": "../../../../../host/modules/voice/contracts",
+    "stackchan/voice/scope": "../../../../../host/modules/voice/scope"
   },
   "defines": {
     "main": {
       "async": 1
     }
+  },
+  "creation": {
+    "static": 110592,
+    "chunk": { "initial": 1536, "incremental": 512 },
+    "heap": { "initial": 512, "incremental": 64 },
+    "stack": 512,
+    "keys": { "available": 512 }
   }
 }

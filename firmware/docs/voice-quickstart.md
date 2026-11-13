@@ -95,6 +95,8 @@ await pipeline.close()
 
 The press and release calls must surround the time the user actually speaks; calling them back-to-back does not record a useful utterance. The example deliberately leaves UI and physical button binding to the application. Do not attach a client TurnDetector to a provider-controlled Live session as a second turn owner.
 
+Pressing again while the previous utterance is still being transcribed cancels that recognition and starts a new recording. The previous transcript is not queued for a later answer. The cascaded backend closes the previous STT before opening its replacement, keeps at most one STT resource active, and ignores late results from the cancelled utterance. A final transcript received during `finish()` is committed only after that finish succeeds.
+
 ## Add one tool or a camera
 
 To add a tool, replace the empty ToolSet in construction:
@@ -110,6 +112,8 @@ tools: ToolSet.create([{
 ```
 
 Tool handlers run only when the Agent executes a completed model function call. Do not execute irreversible actions from partial ASR text or `output.text` deltas. Apply application authorization inside the handler when needed.
+
+See [tool execution and MCP adapters](ai-tools.md) for custom schema validators, cancellation of pending tool waits, remote side-effect limits, and bounded result serialization.
 
 For camera questions, add the separate Vision facade with the same LLM:
 
@@ -132,6 +136,8 @@ Check camera availability and `llm.capabilities.image` first. This extension nee
 
 ## Provider authors and future extensions
 
-Use [the PCM/STT/TTS adapter guide](stackchan-voice-adapters.md) for Source/Sink construction, buffer ownership, backpressure, `flush`, `endInput`, and audio supply completion. `SpeechPlayback` is a synthesis-through-playback facade for `robot.say()`, while the conversation TTS contract produces an audio Source. A finished Source still needs its playback receipt before sound is considered played.
+Use [the PCM/STT/TTS adapter guide](stackchan-voice-adapters.md) for Source/Sink construction, buffer ownership, backpressure, `flush`, `endInput`, and audio supply completion. `SpeechPlayback` is a synthesis-through-playback facade for `robot.audio.say()`, while the conversation TTS contract produces an audio Source. A finished Source still needs its playback receipt before sound is considered played.
+
+For existing applications, follow [the API migration guide](voice-api-migration.md) for companion constructors, named exports, MOD rebuilding, and restoring a replaced speech provider.
 
 See [conversation boundaries](../../docs/architecture/voice-conversation-boundaries.md) for realtime models, ASR semantics, wake-word handoff, and the current exclusivity limit.

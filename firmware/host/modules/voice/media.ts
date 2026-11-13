@@ -49,8 +49,10 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0): PcmProduce
     }
   }
   function notifyEnd(error?: unknown) {
-    for (const reader of readers) endReader(reader, error)
-    readers.clear()
+    for (const reader of readers) {
+      readers.delete(reader)
+      endReader(reader, error)
+    }
   }
   function track(promise: Promise<void>) {
     inFlight++
@@ -169,7 +171,7 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0): PcmProduce
   }
 }
 export function subscribePcmSource(source: AudioSource, consumer: PcmConsumer) {
-  return (source as PcmReader).attach({ write: consumer.write, end: consumer.end })
+  return (source as PcmReader).attach({ write: (bytes) => consumer.write(bytes), end: (error) => consumer.end(error) })
 }
 export function readSource(source: AudioSource, write: Reader['write'], onError?: (error: unknown) => void) {
   return (source as PcmReader).attach({

@@ -84,6 +84,48 @@ test('one failing end callback cannot strand another PCM subscriber', () => {
   assert.equal(ended, 1)
 })
 
+test('PCM subscriptions preserve the receiver of class consumer methods', async () => {
+  class Consumer {
+    samples: number[] = []
+    ended = false
+    write(bytes: Uint8Array) {
+      this.samples.push(...bytes)
+    }
+    end() {
+      this.ended = true
+    }
+  }
+  const source = createPcmSource(mono(16000))
+  const consumer = new Consumer()
+  subscribePcmSource(source.output, consumer)
+  await source.push(Uint8Array.of(1, 0))
+  source.end()
+  assert.deepEqual(consumer.samples, [1, 0])
+  assert.equal(consumer.ended, true)
+})
+
+test('PCM end callbacks can close their producer without reentrant duplicate notifications', () => {
+  const source = createPcmSource(mono(16000))
+  let first = 0
+  let second = 0
+  subscribePcmSource(source.output, {
+    write() {},
+    end() {
+      first++
+      source.end(new Error('closed by consumer'))
+    },
+  })
+  subscribePcmSource(source.output, {
+    write() {},
+    end() {
+      second++
+    },
+  })
+  source.end()
+  assert.equal(first, 1)
+  assert.equal(second, 1)
+})
+
 for (const failureKind of ['sync', 'async'] as const) {
   test(`PCM ${failureKind} failure waits for every remaining borrower before returning buffer ownership`, async () => {
     const source = createPcmSource(mono(16000))

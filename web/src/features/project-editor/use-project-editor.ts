@@ -744,9 +744,21 @@ export function useProjectEditor() {
       if (!current || !asset || asset.mediaType !== FACE_ASSET_MEDIA_TYPE) return
       await autosave.flush()
       if (autosave.pending) return
-      saveFaceEditContext(parseFaceAsset(new TextDecoder().decode(assetBytes(asset))), {
-        projectId: current.id,
-        assetPath: asset.path,
+      const latest = projectRef.current
+      const selected = latest?.assets.find((candidate) => candidate.path === latest.settings.faceAsset)
+      if (
+        !latest ||
+        latest.id !== current.id ||
+        !selected ||
+        selected.path !== asset.path ||
+        selected.data !== asset.data ||
+        selected.encoding !== asset.encoding ||
+        selected.mediaType !== FACE_ASSET_MEDIA_TYPE
+      )
+        return
+      saveFaceEditContext(parseFaceAsset(new TextDecoder().decode(assetBytes(selected))), {
+        projectId: latest.id,
+        assetPath: selected.path,
       })
       location.href = '../face-editor/?face-edit=project'
     },

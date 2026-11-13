@@ -4,6 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '@/app/i18n-provider'
 import { useProjectEditor } from './use-project-editor'
 import { type VisualProject } from './project-types'
+import { createFaceAsset, FACE_ASSET_MEDIA_TYPE } from '../../../editor/face-assets.mjs'
+import { saveFaceEditContext } from '../../../face-editor/face-editor-storage.mjs'
+
+vi.mock('../../../face-editor/face-editor-storage.mjs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../face-editor/face-editor-storage.mjs')>()),
+  saveFaceEditContext: vi.fn(),
+}))
 
 const storage = vi.hoisted(() => ({
   kind: 'indexedDB',
@@ -22,10 +29,72 @@ beforeEach(() => {
   storage.loadState.mockResolvedValue(null)
   storage.saveState.mockResolvedValue(undefined)
   storage.saveState.mockClear()
+  vi.mocked(saveFaceEditContext).mockClear()
 })
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
 
 describe('project editor persistence', () => {
+  it.each(['switch', 'remove', 'replace', 'unchanged', 'rename'])(
+    'revalidates the selected face after %s during a slow save',
+    async (change) => {
+      const { result } = renderHook(() => useProjectEditor(), { wrapper: Wrapper })
+      await waitFor(() => expect(result.current.project).not.toBeNull())
+      vi.stubGlobal('location', { href: 'http://localhost/editor/', search: '', pathname: '/editor/' })
+      const face = createFaceAsset({ name: 'Face A' })
+      const asset = {
+        path: 'assets/face.json',
+        mediaType: FACE_ASSET_MEDIA_TYPE,
+        encoding: 'utf8' as const,
+        data: JSON.stringify(face),
+      }
+      act(() =>
+        result.current.loadProject({
+          ...result.current.project!,
+          assets: [asset],
+          settings: { ...result.current.project!.settings, faceAsset: asset.path },
+        })
+      )
+      let finish!: () => void
+      storage.saveState.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve
+          })
+      )
+      let editing!: Promise<void>
+      act(() => {
+        editing = result.current.editSelectedFace()
+      })
+      act(() => {
+        if (change === 'switch') result.current.newProject()
+        else if (change === 'remove') result.current.removeAsset(asset.path)
+        else if (change === 'rename') result.current.setName('Renamed')
+        else if (change === 'replace')
+          result.current.loadProject({
+            ...result.current.project!,
+            assets: [{ ...asset, data: JSON.stringify(createFaceAsset({ name: 'Face B' })) }],
+          })
+      })
+      await act(async () => {
+        finish()
+        await editing
+      })
+      if (change === 'unchanged' || change === 'rename') {
+        expect(saveFaceEditContext).toHaveBeenCalledWith(face, {
+          projectId: result.current.project!.id,
+          assetPath: asset.path,
+        })
+        expect(location.href).toBe('../face-editor/?face-edit=project')
+      } else {
+        expect(saveFaceEditContext).not.toHaveBeenCalled()
+        expect(location.href).toBe('http://localhost/editor/')
+      }
+    }
+  )
+
   it('coalesces repeated edits without a localStorage mirror and restores all recent projects', async () => {
     const { result, unmount } = renderHook(() => useProjectEditor(), { wrapper: Wrapper })
     await waitFor(() => expect(result.current.project).not.toBeNull())

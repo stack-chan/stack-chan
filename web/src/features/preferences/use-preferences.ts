@@ -138,6 +138,8 @@ export function usePreferences(
           edits.current[preferenceKey] !== currentValues.current[preferenceKey]
         ) {
           dirty.current.add(preferenceKey)
+        } else {
+          dirty.current.delete(preferenceKey)
         }
       }
       setOperation({ status: 'error', error: toAppError(error, 'preference-save') })
@@ -157,6 +159,10 @@ export function usePreferences(
   }, [savePayload, values])
 
   const clearWifi = useCallback(async () => {
+    if (!client.current?.isConnected()) {
+      setOperation({ status: 'cancelled', message: '接続が切れているため、Wi-Fi設定を消去できません。' })
+      return
+    }
     edits.current['wifi.ssid'] = ''
     edits.current['wifi.password'] = ''
     dirty.current.add('wifi.ssid')

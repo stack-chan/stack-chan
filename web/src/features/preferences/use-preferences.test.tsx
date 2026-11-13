@@ -5,6 +5,73 @@ import { usePreferences } from '@/features/preferences/use-preferences'
 import { type PreferenceClient, type PreferenceValue } from '@/services/preferences/ble-preference-client'
 
 describe('usePreferences', () => {
+  it('accepts remote updates after a failed save of a reverted edit', async () => {
+    let reject!: (error: Error) => void
+    let notify!: (value: PreferenceValue) => void
+    const send = vi.fn(
+      () =>
+        new Promise<void>((_, fail) => {
+          reject = fail
+        })
+    )
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => true,
+      send,
+    }
+    const { result } = renderHook(() =>
+      usePreferences((onValue) => {
+        notify = onValue
+        return client
+      })
+    )
+    act(() => notify({ prop: 'wifi.ssid', value: 'original' }))
+    act(() => result.current.update('wifi.ssid', 'A'))
+    let saving!: Promise<void>
+    act(() => {
+      saving = result.current.save()
+    })
+    act(() => result.current.update('wifi.ssid', 'original'))
+    await act(async () => {
+      reject(new Error('send failed'))
+      await saving
+    })
+    act(() => notify({ prop: 'wifi.ssid', value: 'remote change' }))
+    expect(result.current.values['wifi.ssid']).toBe('remote change')
+    await act(() => result.current.save())
+    expect(send).toHaveBeenCalledOnce()
+  })
+
+  it('does not clear Wi-Fi fields after the connection is lost', async () => {
+    let notify!: (value: PreferenceValue) => void
+    let connected = true
+    const send = vi.fn(async () => {})
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => connected,
+      send,
+    }
+    const { result } = renderHook(() =>
+      usePreferences((onValue) => {
+        notify = onValue
+        return client
+      })
+    )
+    act(() => {
+      notify({ prop: 'wifi.ssid', value: 'network' })
+      notify({ prop: 'wifi.password', value: 'secret' })
+    })
+    connected = false
+    await act(() => result.current.clearWifi())
+    expect(result.current.values).toMatchObject({ 'wifi.ssid': 'network', 'wifi.password': 'secret' })
+    expect(result.current.operation.status).toBe('cancelled')
+    connected = true
+    await act(() => result.current.save())
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it.each([false, true])('protects A-B-A edits from stale notifications, failed send=%s', async (fails) => {
     let finish!: () => void
     let fail!: (error: Error) => void

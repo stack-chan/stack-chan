@@ -4,6 +4,39 @@ import { createProjectAutosave } from './project-autosave'
 afterEach(() => vi.useRealTimers())
 
 describe('project autosave', () => {
+  it('drains a newer edit after an older write fails', async () => {
+    let reject!: (error: Error) => void
+    const save = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_, fail) => {
+            reject = fail
+          })
+      )
+      .mockResolvedValue(undefined)
+    const autosave = createProjectAutosave(save, vi.fn())
+    autosave.submit('A')
+    const saving = autosave.flush()
+    autosave.submit('B')
+    reject(new Error('temporary'))
+    await saving
+    expect(save).toHaveBeenNthCalledWith(2, 'B')
+    expect(autosave.pending).toBe(false)
+  })
+
+  it('schedules an edit submitted while an empty flush is settling', async () => {
+    vi.useFakeTimers()
+    const save = vi.fn().mockResolvedValue(undefined)
+    const autosave = createProjectAutosave(save, vi.fn())
+    const empty = autosave.flush()
+    autosave.submit('C')
+    await empty
+    await vi.runOnlyPendingTimersAsync()
+    expect(save).toHaveBeenCalledExactlyOnceWith('C')
+    expect(autosave.pending).toBe(false)
+  })
+
   it('coalesces a burst before serialization and retains the latest state during a slow save', async () => {
     vi.useFakeTimers()
     let finish!: () => void

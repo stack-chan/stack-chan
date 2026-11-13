@@ -5,6 +5,54 @@ import { usePreferences } from '@/features/preferences/use-preferences'
 import { type PreferenceClient, type PreferenceValue } from '@/services/preferences/ble-preference-client'
 
 describe('usePreferences', () => {
+  it.each([false, true])('protects A-B-A edits from stale notifications, failed send=%s', async (fails) => {
+    let finish!: () => void
+    let fail!: (error: Error) => void
+    let notify!: (value: PreferenceValue) => void
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve, reject) => {
+            finish = resolve
+            fail = reject
+          })
+      )
+      .mockResolvedValue(undefined)
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => true,
+      send,
+    }
+    const { result } = renderHook(() =>
+      usePreferences((onValue) => {
+        notify = onValue
+        return client
+      })
+    )
+    act(() => notify({ prop: 'wifi.ssid', value: 'original' }))
+    act(() => result.current.update('wifi.ssid', 'A'))
+    let saving!: Promise<void>
+    act(() => {
+      saving = result.current.save()
+    })
+    act(() => {
+      result.current.update('wifi.ssid', 'B')
+      result.current.update('wifi.ssid', 'A')
+      notify({ prop: 'wifi.ssid', value: 'original' })
+    })
+    expect(result.current.values['wifi.ssid']).toBe('A')
+    await act(async () => {
+      if (fails) fail(new Error('send failed'))
+      else finish()
+      await saving
+    })
+    await act(() => result.current.save())
+    expect(send).toHaveBeenCalledTimes(fails ? 2 : 1)
+    expect(result.current.values['wifi.ssid']).toBe('A')
+  })
+
   it.each(['B', 'original'])('keeps a later edit to %s pending while A is sent', async (later) => {
     let finish!: () => void
     let notify!: (value: PreferenceValue) => void

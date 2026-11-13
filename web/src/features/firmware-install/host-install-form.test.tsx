@@ -54,6 +54,33 @@ afterEach(() => {
 })
 
 describe.each(['ja', 'en', 'zh-CN'] as const)('HostInstallForm in %s', (locale) => {
+  it('keeps retry disabled until cancellation releases the previous connection', async () => {
+    const { adapter, requestPort, user, t } = setup(locale)
+    let disconnect!: () => void
+    adapter.disconnect.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          disconnect = resolve
+        })
+    )
+    const trigger = screen.getByRole('button', { name: t('USBに接続して書き込む') })
+    await user.click(trigger)
+    await screen.findByRole('alertdialog')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce())
+    expect(trigger).toBeDisabled()
+    await user.keyboard('{Escape}')
+    expect(requestPort).toHaveBeenCalledOnce()
+    disconnect()
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+    await user.click(trigger)
+    const next = await screen.findByRole('alertdialog')
+    await user.click(within(next).getByRole('button', { name: t('キャンセル') }))
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledTimes(2))
+    expect(adapter.write).not.toHaveBeenCalled()
+  })
+
   it('cancels with Escape, releases the connection, restores focus and can retry', async () => {
     const { adapter, user, t } = setup(locale)
     const trigger = screen.getByRole('button', { name: t('USBに接続して書き込む') })

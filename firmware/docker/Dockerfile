@@ -14,7 +14,7 @@ RUN echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 USER node
 
 # xs-dev をセットアップ
-RUN CI=true xs-dev setup --branch 10.1.0
+RUN CI=true xs-dev setup --branch 10.1.1
 RUN . /home/node/.local/share/xs-dev-export.sh && \
     CI=true xs-dev setup --device=esp32
 

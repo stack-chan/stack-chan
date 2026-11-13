@@ -1,0 +1,17 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../../../host/app/manifest_typings.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./chatgpt-fetch.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

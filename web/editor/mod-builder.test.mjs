@@ -71,7 +71,7 @@ test('buildModArchive compiles a mod to a valid XS archive via wasm mcrun', asyn
   assert.equal(inspectDeploymentCompatibility('simulator', {
     xsVersion: version, requireArchive: true,
   }).compatible, true)
-  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1', '10.1.0+stackchan.2']) {
+  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1', '10.1.0+stackchan.2', '10.1.1', '10.1.1+stackchan.2']) {
     const result = inspectDeploymentCompatibility('m5stackchan-cores3', {
       chip: 'ESP32-S3', xsVersion: version, firmwareVersion,
       requireFirmware: true, requireArchive: true,

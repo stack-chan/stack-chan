@@ -39,6 +39,7 @@ function errorCode(error: unknown): Failure['code'] {
     case 'unsupported_capability':
     case 'device_busy':
     case 'cancelled':
+    case 'cancelled_unconfirmed':
     case 'deadline_exceeded':
     case 'input_overrun':
     case 'provider_failed':
@@ -147,12 +148,23 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
       let pending = Promise.resolve()
       let turn: { scope: ReturnType<typeof createVoiceScope>; done: Promise<void> } | undefined
       let utterance:
-        | { id: string; scope: ReturnType<typeof createVoiceScope>; stt: Transcription; link: MediaLink; text: string }
+        | {
+            id: string
+            scope: ReturnType<typeof createVoiceScope>
+            stt: Transcription
+            link: MediaLink
+            text: string
+            finishing: boolean
+            finished: boolean
+            ready: boolean
+            stopping?: Promise<void>
+          }
         | undefined
       let detector: Awaited<ReturnType<TurnDetector['start']>>
       let interruptTask: Promise<Interruption> | undefined
       const sessionScope = createVoiceScope(signal)
       let mustRestart = false
+      let failedCleanup: { error: unknown; stt: Transcription | undefined } | undefined
       function completedAgent(job: Promise<AgentResult>, scope: ReturnType<typeof createVoiceScope>) {
         return new Promise<AgentResult>((resolve, reject) => {
           let timer: ReturnType<typeof Timer.set> | undefined
@@ -184,19 +196,28 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
         if (!closing) onEvent(event)
       }
       async function stopUtterance() {
+        if (failedCleanup) throw failedCleanup.error
         const u = utterance
         if (!u) return
-        utterance = undefined
+        if (u.stopping) return u.stopping
         u.scope.abort()
-        try {
-          await u.link.close()
-        } finally {
+        u.stopping = (async () => {
           try {
-            await u.stt.close()
+            try {
+              await u.link.close()
+            } finally {
+              await u.stt.close()
+            }
+            if (utterance === u) utterance = undefined
+          } catch (error) {
+            mustRestart = true
+            failedCleanup = { error, stt: u.stt }
+            throw error
           } finally {
             u.scope.dispose()
           }
-        }
+        })()
+        return u.stopping
       }
       function reserveTurn(size: number) {
         let used = turns.reduce((n, t) => n + t.size, 0)
@@ -306,6 +327,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
               },
             )
             const result = await completedAgent(job, scope)
+            if ('error' in result && result.error.code === 'cancelled_unconfirmed') mustRestart = true
             const finalMessages =
               result.status === 'completed'
                 ? result.response.output.filter(
@@ -408,8 +430,18 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           })
         return interruptTask
       }
+      function enqueue(task: () => void | Promise<void>) {
+        pending = pending.then(task).catch(async (error) => {
+          try {
+            await stopUtterance()
+          } catch (cleanupError) {
+            error = cleanupError
+          }
+          send({ type: 'error', code: errorCode(error), fatal: !!failedCleanup })
+        })
+      }
       async function handle(event: TurnSignal) {
-        if (closing || !enabled) return
+        if (closing || !enabled || mustRestart) return
         if (event.type === 'speech-start') {
           if (turn && (await interrupt()).history === 'restart-required') {
             send({ type: 'error', code: 'provider_failed', fatal: true })
@@ -424,7 +456,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
               utteranceId: event.utteranceId,
               format: ports.input.format,
               onTranscript(value) {
-                if (utterance?.id !== value.utteranceId || closing || !enabled) return
+                if (utterance?.id !== value.utteranceId || scope.signal.aborted || closing || !enabled) return
                 if (value.final) utterance.text = value.text
                 send({ type: 'input.transcript', value })
                 detector.updateTranscript(value)
@@ -436,7 +468,16 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
               budget: ports.output.budget,
               replayMs: config.turnDetector.preRollMs ?? 0,
             })
-            const current = { id: event.utteranceId, scope, stt, link, text: '' }
+            const current = {
+              id: event.utteranceId,
+              scope,
+              stt,
+              link,
+              text: '',
+              finishing: false,
+              finished: false,
+              ready: false,
+            }
             utterance = current
             void link.done.catch(() => {
               if (utterance === current && !scope.signal.aborted) {
@@ -446,15 +487,45 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
             })
           } catch (error) {
             scope.abort()
-            await stt?.close()
+            try {
+              await stt?.close()
+            } catch (cleanupError) {
+              mustRestart = true
+              failedCleanup = { error: cleanupError, stt }
+              throw cleanupError
+            }
             throw error
           }
         } else if (utterance?.id === event.utteranceId) {
+          const current = utterance
           if (event.type === 'speech-end') {
-            await utterance.link.close()
-            await utterance.stt.finish()
+            if (current.finishing) return
+            current.finishing = true
+            await current.link.close()
+            // 認識結果待ちで次のspeech-startを塞がず、新しい発話から古い認識を取り消せるようにする
+            void Promise.resolve()
+              .then(() => {
+                requireActive(current.scope.signal)
+                return current.stt.finish()
+              })
+              .then(
+                () => {
+                  enqueue(async () => {
+                    if (utterance !== current || current.scope.signal.aborted) return
+                    current.finished = true
+                    if (current.ready) await handle({ type: 'turn-ready', utteranceId: current.id })
+                  })
+                },
+                (error) => {
+                  enqueue(() => {
+                    if (utterance === current && !current.scope.signal.aborted) throw error
+                  })
+                },
+              )
           } else {
-            const text = utterance.text
+            current.ready = true
+            if (current.finishing && !current.finished) return
+            const text = current.text
             await stopUtterance()
             if (text.trim())
               submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text }] }, sessionScope)
@@ -467,12 +538,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           audio: ports.input,
           nextUtteranceId: () => `${id}/u${++sequence}`,
           onSignal(event) {
-            pending = pending
-              .then(() => handle(event))
-              .catch(async (error) => {
-                await stopUtterance()
-                send({ type: 'error', code: errorCode(error), fatal: false })
-              })
+            enqueue(() => handle(event))
           },
         })
       } catch (error) {

@@ -45,7 +45,8 @@ export class StackchanRuntimeAudio {
     this.#media = params.media
     this.#volume = params.volume
     this.#onVolumeChanged = params.onVolumeChanged
-    this.useSpeechPlayback(params.speechPlayback)
+    this.#speechPlayback = params.speechPlayback
+    this.setSpeechPlayback(params.speechPlayback)
   }
 
   get volume(): number {
@@ -172,12 +173,11 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  useSpeechPlayback(speechPlayback: SpeechPlayback) {
+  setSpeechPlayback(speechPlayback: SpeechPlayback): SpeechPlayback {
     if (this.#exclusive || this.#activeOperations) throw new Error('audio busy')
-    if (this.#speechPlayback != null) {
-      this.#speechPlayback.onDone = noop
-      this.#speechPlayback.onPlayed = noop
-    }
+    const previous = this.#speechPlayback
+    previous.onDone = noop
+    previous.onPlayed = noop
     this.#speechPlayback = speechPlayback
     this.#speechPlayback.onPlayed = (volume: number) => {
       this.#options.onMouthOpenChanged?.(volume === 0 ? 0 : Math.min(volume / 2000, 1.0))
@@ -185,6 +185,7 @@ export class StackchanRuntimeAudio {
     this.#speechPlayback.onDone = () => {
       this.#options.onMouthOpenChanged?.(0)
     }
+    return previous
   }
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {

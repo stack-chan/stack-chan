@@ -9,7 +9,16 @@ export function liveConversation(options, platform) {
   if (delegation.kind === 'hosted' && !delegation.model) throw new TypeError('Missing hosted model')
   return {
     audio: platform.audio,
-    capabilities: { interruption: 'local-only', historyRepair: 'restart', textInput: false, imageInput: false },
+    capabilities: {
+      interruption: 'local-only',
+      interruptionReuse: 'restart-required',
+      historyRepair: 'restart',
+      textInput: false,
+      imageInput: false,
+      inputRoles: [],
+      turnControl: 'provider',
+      submitCompletion: 'unavailable',
+    },
     async open({ media, history = [], onEvent = (_event) => {}, signal }) {
       if (history.length) throw unsupported('GPT-Live cannot import a conversation history')
       if (signal?.aborted) throw signal.reason ?? new Error('Cancelled')
@@ -130,7 +139,7 @@ export function liveConversation(options, platform) {
             while (chars > 8192 || fragments.length > 128) chars -= fragments.shift().delta.length
           }
           if (fragment.role === 'user')
-            onEvent({ type: 'input.transcript', value: { utteranceId: id, text: fragment.delta, final: false } })
+            onEvent({ type: 'input.transcript.delta', streamId: sessionId + '/input', delta: fragment.delta })
           else onEvent({ type: 'output.text', outputId, delta: fragment.delta })
         },
         onEvent(event) {

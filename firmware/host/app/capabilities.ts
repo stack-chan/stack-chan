@@ -116,7 +116,8 @@ export type AudioCapability = {
   volume?: number
   speaker: VoiceSpeaker
   microphone?: VoiceMicrophone
-  useSpeechPlayback(playback: SpeechPlayback): void
+  /** Borrows the player while installed and returns the detached previous player for restoration. Audio must be idle. */
+  setSpeechPlayback(playback: SpeechPlayback): SpeechPlayback
   say(text: string, volume?: number): Promise<Maybe<string>>
   /** Sings raw koe notation. Returns a failure when the active player does not support singing. */
   sing(koe: string, volume?: number): Promise<Maybe<string>>
@@ -311,7 +312,7 @@ export type StackchanCapabilityNamespaces = {
 
 export type StackchanLegacyFlatCapability = FaceCapability &
   MotionCapability &
-  Omit<AudioCapability, 'useSpeechPlayback' | 'speaker' | 'microphone'> &
+  Omit<AudioCapability, 'setSpeechPlayback' | 'speaker' | 'microphone'> &
   InputCapability &
   LightingCapability &
   CameraCapability &

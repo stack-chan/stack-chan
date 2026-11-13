@@ -21,8 +21,8 @@ const hooks = registerHooks({
       : next(specifier, context)
   },
 })
-const { createOpenAISpeechTTS } = await import('../speech.js')
-const { mono, readSource } = await import('../media.js')
+const { OpenAISpeechTTS } = await import('../speech.js')
+const { mono, readSource, subscribePcmSource } = await import('../media.js')
 hooks.deregister()
 
 type Lookup = { onResolved(host: string, address: string): void; onError(error: Error): void }
@@ -46,6 +46,7 @@ class HTTP {
   closed = 0
   requestOptions!: Request
   pcm: Uint8Array = new Uint8Array(0)
+  sent = ''
   constructor(options: { dns: { io: typeof DNS }; onError(error: Error): void }) {
     HTTP.clients.push(this)
     new options.dns.io().resolve({
@@ -59,7 +60,8 @@ class HTTP {
   request(options: Request) {
     this.requestOptions = options
   }
-  write(_bytes: DataView) {
+  write(bytes: DataView) {
+    this.sent += new TextDecoder().decode(bytes)
     return 0
   }
   read(target: Uint8Array) {
@@ -85,6 +87,148 @@ class HTTP {
   }
 }
 
+test('speech flush is reusable, seals only at endInput and preserves bounded segment order', async () => {
+  const provider = OpenAISpeechTTS.create({ apiKey: 'test' })
+  assert.deepEqual(provider.capabilities, { input: 'segmented', output: 'streaming' })
+  const synthesis = await provider.open({ ...createVoiceScope(), format: mono(24000), voice: 'alloy' })
+  const heard: number[] = []
+  let ended = false
+  subscribePcmSource(synthesis.output, {
+    write(bytes) {
+      heard.push(...bytes)
+    },
+    end(error) {
+      assert.equal(error, undefined)
+      ended = true
+    },
+  })
+  await synthesis.write('one')
+  const first = synthesis.flush()
+  await synthesis.write('two')
+  await assert.rejects(synthesis.flush(), { code: 'device_busy' })
+  await assert.rejects(synthesis.write('x'.repeat(4096)), { code: 'resource_exhausted' })
+  DNS.pending[0].onResolved('api.openai.com', '127.0.0.1')
+  HTTP.clients[0].respond(Uint8Array.of(1, 0))
+  await first
+  assert.equal(ended, false)
+  const second = synthesis.flush()
+  DNS.pending[1].onResolved('api.openai.com', '127.0.0.1')
+  HTTP.clients[1].respond(Uint8Array.of(2, 0))
+  await second
+  assert.equal(ended, false)
+  await synthesis.write('tail')
+  const end = synthesis.endInput()
+  assert.equal(synthesis.endInput(), end)
+  await assert.rejects(synthesis.write('late'), { code: 'cancelled' })
+  await assert.rejects(synthesis.flush(), { code: 'cancelled' })
+  DNS.pending[2].onResolved('api.openai.com', '127.0.0.1')
+  HTTP.clients[2].respond(Uint8Array.of(3, 0))
+  await end
+  assert.equal(ended, true)
+  assert.deepEqual(heard, [1, 0, 2, 0, 3, 0])
+  assert.deepEqual(
+    HTTP.clients.map((client) => JSON.parse(client.sent).input),
+    ['one', 'two', 'tail'],
+  )
+  await synthesis.close()
+})
+
+test('speech endInput waits for the active flush before synthesizing its tail', async () => {
+  const synthesis = await OpenAISpeechTTS.create({ apiKey: 'test' }).open({
+    ...createVoiceScope(),
+    format: mono(24000),
+    voice: 'alloy',
+  })
+  await synthesis.write('first')
+  const flushed = synthesis.flush()
+  await synthesis.write('tail')
+  const ended = synthesis.endInput()
+  assert.equal(HTTP.clients.length, 1)
+  DNS.pending[0].onResolved('api.openai.com', '127.0.0.1')
+  HTTP.clients[0].respond(Uint8Array.of(1, 0))
+  await flushed
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(HTTP.clients.length, 2)
+  DNS.pending[1].onResolved('api.openai.com', '127.0.0.1')
+  HTTP.clients[1].respond(Uint8Array.of(2, 0))
+  await ended
+  await synthesis.close()
+})
+
+test('speech flush waits for consumer release; close aborts the pending operation and rejects later input', async () => {
+  const synthesis = await OpenAISpeechTTS.create({ apiKey: 'test' }).open({
+    ...createVoiceScope(),
+    format: mono(24000),
+    voice: 'alloy',
+  })
+  let release!: () => void
+  let delivered = false
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  readSource(synthesis.output, () => pending)
+  await synthesis.write('one')
+  const flush = synthesis.flush().then(() => {
+    delivered = true
+  })
+  const rejected = assert.rejects(flush, { code: 'cancelled' })
+  DNS.pending[0].onResolved('api.openai.com', '127.0.0.1')
+  HTTP.clients[0].respond(Uint8Array.of(1, 0))
+  await Promise.resolve()
+  assert.equal(delivered, false)
+  await synthesis.close()
+  await rejected
+  await synthesis.close()
+  release()
+  await assert.rejects(synthesis.write('late'), { code: 'cancelled' })
+  await assert.rejects(synthesis.endInput(), { code: 'cancelled' })
+  assert.equal(HTTP.activeSockets, 0)
+})
+
+test('empty speech closes without issuing HTTP, and failed flush cannot silently drop its segment', async () => {
+  const provider = OpenAISpeechTTS.create({ apiKey: 'test' })
+  const empty = await provider.open({ ...createVoiceScope(), format: mono(24000), voice: 'alloy' })
+  await empty.flush()
+  await empty.endInput()
+  assert.equal(HTTP.clients.length, 0)
+  const broken = await provider.open({ ...createVoiceScope(), format: mono(24000), voice: 'alloy' })
+  await broken.write('fail')
+  const failing = assert.rejects(broken.flush(), { code: 'provider_failed' })
+  HTTP.clients[0].requestOptions.onHeaders(500)
+  await failing
+  await assert.rejects(broken.write('late'), { code: 'provider_failed' })
+  await assert.rejects(broken.endInput(), { code: 'provider_failed' })
+  await broken.close()
+})
+
+test('aborting an idle synthesis ends its source, and closing endInput cannot start a queued request', async () => {
+  const scope = createVoiceScope()
+  const provider = OpenAISpeechTTS.create({ apiKey: 'test' })
+  const idle = await provider.open({ ...scope, format: mono(24000), voice: 'alloy' })
+  let reason: unknown
+  subscribePcmSource(idle.output, {
+    write() {},
+    end(error) {
+      reason = error
+    },
+  })
+  scope.abort()
+  assert.equal((reason as { code: string }).code, 'cancelled')
+  await assert.rejects(idle.endInput(), { code: 'cancelled' })
+  await idle.close()
+
+  const synthesis = await provider.open({ ...createVoiceScope(), format: mono(24000), voice: 'alloy' })
+  await synthesis.write('first')
+  const flushing = assert.rejects(synthesis.flush(), { code: 'cancelled' })
+  await synthesis.write('tail')
+  const ending = assert.rejects(synthesis.endInput(), { code: 'cancelled' })
+  await Promise.all([synthesis.close(), synthesis.close()])
+  await Promise.all([flushing, ending])
+  assert.equal(HTTP.clients.length, 1)
+  DNS.pending[0].onResolved('api.openai.com', '127.0.0.1')
+  assert.equal(HTTP.activeSockets, 0)
+})
+
 beforeEach(() => {
   Timer.reset()
   DNS.pending = []
@@ -97,11 +241,11 @@ beforeEach(() => {
 
 for (const termination of ['abort', 'deadline'] as const) {
   test(`remote speech ignores late DNS after ${termination} and permits the next synthesis`, async () => {
-    const provider = createOpenAISpeechTTS({ apiKey: 'test' })
+    const provider = OpenAISpeechTTS.create({ apiKey: 'test' })
     const scope = createVoiceScope()
     const synthesis = await provider.open({ ...scope, format: mono(24000), voice: 'alloy' })
     await synthesis.write('first')
-    const outcome = assert.rejects(synthesis.finish(), {
+    const outcome = assert.rejects(synthesis.endInput(), {
       code: termination === 'abort' ? 'cancelled' : 'deadline_exceeded',
     })
     assert.equal(DNS.pending.length, 1)
@@ -119,7 +263,7 @@ for (const termination of ['abort', 'deadline'] as const) {
       heard.push(...bytes)
     })
     await next.write('second')
-    const finished = next.finish()
+    const finished = next.endInput()
     DNS.pending[1].onResolved('api.openai.com', '127.0.0.1')
     late.onError(new Error('stale lookup failed'))
     assert.equal(HTTP.activeSockets, 1, 'stale lookup failure must not close a newer request')

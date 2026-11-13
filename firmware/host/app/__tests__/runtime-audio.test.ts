@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import type { BorrowedAudioBuffer } from '../../modules/audio/audio-buffer.js'
+import type { SpeechPlayback } from '../../modules/audio/speech-playback-types.js'
 import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
 
 type RuntimeAudioModule = typeof import('../runtime-audio.js')
@@ -24,6 +25,44 @@ function fakeSpeechPlayback() {
     streamKoe: (_koe: string, _volume?: number, callback?: (error?: unknown) => void) => callback?.(),
   }
 }
+
+test('replacing speech playback returns the detached player and allows restoring it', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const spoken: string[] = []
+  const original: SpeechPlayback = {
+    ...fakeSpeechPlayback(),
+    stream: (_text: string, _volume?: number, done?: () => void) => {
+      spoken.push('original')
+      done?.()
+    },
+  }
+  const replacement: SpeechPlayback = {
+    ...fakeSpeechPlayback(),
+    stream: (_text: string, _volume?: number, done?: () => void) => {
+      spoken.push('replacement')
+      done?.()
+    },
+  }
+  const mouths: number[] = []
+  const runtime = new StackchanRuntimeAudio(
+    { speechPlayback: original },
+    { onMouthOpenChanged: (value) => mouths.push(value) },
+  )
+  const previous = runtime.setSpeechPlayback(replacement)
+  assert.equal(previous, original)
+  previous.onPlayed?.(2000)
+  previous.onDone?.()
+  assert.deepEqual(mouths, [])
+  await runtime.say('first')
+  assert.equal(runtime.setSpeechPlayback(previous), replacement)
+  await runtime.say('second')
+  assert.deepEqual(spoken, ['replacement', 'original'])
+  const release = runtime.acquireExclusive()
+  assert.throws(() => runtime.setSpeechPlayback(replacement), /audio busy/)
+  release()
+  assert.equal(runtime.setSpeechPlayback(original), original)
+})
 
 test('exclusive native audio blocks host playback/recording until its idempotent release', async () => {
   installBareSpecifierPackages()
@@ -94,7 +133,7 @@ test('native ownership never interrupts active SpeechPlayback or a pending recor
     microphone,
   })
   const speech = runtime.say('hello')
-  assert.throws(() => runtime.useSpeechPlayback(fakeSpeechPlayback()), /audio busy/)
+  assert.throws(() => runtime.setSpeechPlayback(fakeSpeechPlayback()), /audio busy/)
   assert.throws(() => runtime.acquireExclusive(), /audio busy/)
   finishSpeech?.()
   await speech

@@ -1,5 +1,5 @@
-export class OpenAIResponsesLLM {}
-export const createToolSet = (tools) => tools
-export const createAgent = (options) => options
+export const OpenAIResponsesLLM = { create: () => ({}) }
+export const ToolSet = { create: (tools) => tools }
+export const Agent = { create: (options) => options }
 export const adaptRobotCamera = (camera) => camera
-export const createVision = () => ({})
+export const Vision = { create: () => ({}) }

@@ -30,12 +30,7 @@ function waveHeader(bytes: Uint8Array, format: PcmFormat, length: number) {
   header.setUint32(40, length, true)
 }
 
-export function createWhisperSTT(options: {
-  apiKey: string
-  model?: string
-  language?: string
-  maxAudioBytes?: number
-}): STT {
+function createWhisperSTT(options: { apiKey: string; model?: string; language?: string; maxAudioBytes?: number }): STT {
   const whisper = new Whisper(options)
   const limit = options.maxAudioBytes ?? 192000
   if (!Number.isSafeInteger(limit) || limit <= 0) throw new RangeError('invalid speech buffer size')
@@ -142,8 +137,9 @@ function streamSpeech(
   })
 }
 
-export function createOpenAISpeechTTS(options: { apiKey: string; model?: string }): TTS {
+function createOpenAISpeechTTS(options: { apiKey: string; model?: string }): TTS {
   return {
+    capabilities: { input: 'segmented', output: 'streaming' },
     async open({ signal, format, voice }) {
       requireActive(signal)
       if (format.sampleRate !== 24000 || format.channels !== 1)
@@ -151,34 +147,84 @@ export function createOpenAISpeechTTS(options: { apiKey: string; model?: string 
       const scope = createVoiceScope(signal),
         source = createPcmSource(format)
       let text = '',
-        finished = false
+        sealed = false
+      let active: Promise<void> | undefined
+      let ending: Promise<void> | undefined
+      let failure: unknown
+      const abort = () => {
+        sealed = true
+        text = ''
+        source.end(scope.signal.reason ?? voiceError('cancelled'))
+      }
+      scope.signal.addEventListener('abort', abort)
+      function requireWritable() {
+        requireActive(scope.signal)
+        if (failure) throw failure
+        if (sealed) throw voiceError('cancelled', 'speech input has ended')
+      }
+      function synthesize() {
+        requireActive(scope.signal)
+        if (failure) throw failure
+        if (active) throw voiceError('device_busy', 'await the previous speech flush')
+        if (!text) return Promise.resolve()
+        const segment = text
+        text = ''
+        const body = ArrayBuffer.fromString(
+          JSON.stringify({ model: options.model ?? 'tts-1', voice, input: segment, response_format: 'pcm' }),
+        )
+        active = streamSpeech(options.apiKey, body, scope.signal, source.offer).then(
+          () => {
+            active = undefined
+          },
+          (error) => {
+            active = undefined
+            failure = error
+            text = ''
+            source.end(error)
+            throw error
+          },
+        )
+        return active
+      }
       return {
         output: source.output,
         async write(part) {
-          requireActive(scope.signal)
-          if (finished || text.length + part.length > 4096)
-            throw voiceError('resource_exhausted', 'speech text too long')
+          requireWritable()
+          if (text.length + part.length > 4096) throw voiceError('resource_exhausted', 'speech text too long')
           text += part
         },
-        async finish() {
-          if (finished) return
-          finished = true
-          try {
-            const body = ArrayBuffer.fromString(
-              JSON.stringify({ model: options.model ?? 'tts-1', voice, input: text, response_format: 'pcm' }),
-            )
-            await streamSpeech(options.apiKey, body, scope.signal, source.offer)
-            source.end()
-          } catch (error) {
-            source.end(error)
-            throw error
-          }
+        async flush() {
+          requireWritable()
+          await synthesize()
+        },
+        endInput() {
+          if (ending) return ending
+          sealed = true
+          ending = (async () => {
+            try {
+              if (active) await active
+              await synthesize()
+              source.end()
+              scope.signal.removeEventListener('abort', abort)
+              scope.dispose()
+            } catch (error) {
+              source.end(error)
+              throw error
+            }
+          })()
+          return ending
         },
         async close() {
+          sealed = true
+          text = ''
           scope.abort()
-          source.end()
+          source.end(voiceError('cancelled'))
+          if (active) await active.catch(() => {})
         },
       }
     },
   }
 }
+
+export const WhisperSTT = { create: createWhisperSTT }
+export const OpenAISpeechTTS = { create: createOpenAISpeechTTS }

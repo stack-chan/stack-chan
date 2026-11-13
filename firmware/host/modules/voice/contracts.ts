@@ -124,6 +124,7 @@ export type AgentResult =
     }
   | { readonly status: 'cancelled' | 'failed'; readonly error: Failure; readonly appended: readonly InputItem[] }
 export interface Agent {
+  readonly capabilities?: { readonly image: boolean }
   run(
     request: {
       readonly input: readonly InputItem[]
@@ -223,6 +224,7 @@ export interface Speaker {
 }
 
 export type Transcript = {
+  /** A provider-defined utterance; text is its complete current snapshot. Final does not commit a conversation turn. */
   readonly utteranceId: string
   readonly text: string
   readonly final: boolean
@@ -244,10 +246,17 @@ export interface STT {
 export interface Synthesis {
   readonly output: AudioSource
   write(text: string): Promise<void>
-  finish(): Promise<void>
+  /** Wait for accepted text to reach the audio consumer; keep text input open. */
+  flush(): Promise<void>
+  /** Seal text input, deliver its tail and end the audio source. Does not wait for device playback. */
+  endInput(): Promise<void>
   close(): Promise<void>
 }
 export interface TTS {
+  readonly capabilities: {
+    readonly input: 'segmented' | 'streaming'
+    readonly output: 'buffered' | 'streaming'
+  }
   open(options: Scope & { readonly voice: string; readonly format: PcmFormat }): Promise<Synthesis>
 }
 export type TurnSignal =
@@ -270,9 +279,14 @@ export type ConversationCapabilities = {
   readonly historyRepair: 'truncate' | 'annotate' | 'restart'
   readonly textInput: boolean
   readonly imageInput: boolean
+  readonly inputRoles: readonly InputMessage['role'][]
+  readonly interruptionReuse: 'reusable' | 'restart-required'
+  readonly turnControl: 'client' | 'provider'
+  readonly submitCompletion: 'playback' | 'unavailable'
 }
 export type ConversationEvent =
   | { readonly type: 'input.transcript'; readonly value: Transcript }
+  | { readonly type: 'input.transcript.delta'; readonly streamId: string; readonly delta: string }
   | { readonly type: 'output.text'; readonly outputId: string; readonly delta: string }
   | { readonly type: 'output.playback'; readonly receipt: PlaybackReceipt }
   | { readonly type: 'turn.started'; readonly turnId: string }
@@ -288,9 +302,16 @@ export type CloseResult = {
   readonly reason: 'drained' | 'aborted' | 'drain-timeout'
   readonly remoteFinalization: 'confirmed' | 'unknown' | 'not-required'
 }
+export type TurnResult = {
+  readonly turnId: string
+  readonly status: 'completed' | 'interrupted' | 'failed'
+}
+export type ConversationSubmission =
+  | { readonly completion: 'playback'; readonly id: string; readonly done: Promise<TurnResult> }
+  | { readonly completion: 'unavailable' }
 export interface ConversationSession {
   readonly id: string
-  submit(message: InputMessage, scope: Scope): Promise<void>
+  submit(message: InputMessage, scope: Scope): Promise<ConversationSubmission>
   setInputEnabled(enabled: boolean): Promise<void>
   interrupt(): Promise<Interruption>
   close(options: CloseOptions): Promise<CloseResult>
@@ -332,14 +353,17 @@ export type PipelineOptions = {
   readonly microphone: Microphone
   readonly speaker: Speaker
   readonly conversation: Conversation
-  readonly mediaBudget: MediaBudget
+  readonly mediaBudget?: MediaBudget
+  readonly microphoneMuted?: boolean
   readonly history?: readonly InputItem[]
   readonly onEvent?: (event: ConversationEvent) => void
 }
 export interface ConversationPipeline {
+  readonly capabilities: ConversationCapabilities
   start(scope?: Scope): Promise<void>
-  submit(message: InputMessage, scope?: Scope): Promise<void>
-  setMuted(muted: boolean): Promise<void>
+  /** Acceptance only. Await the returned done promise when completion is playback. */
+  submit(message: InputMessage, scope?: Scope): Promise<ConversationSubmission>
+  setMicrophoneMuted(muted: boolean): Promise<void>
   setVolume(gain: number): void
   interrupt(): Promise<Interruption>
   close(options?: CloseOptions): Promise<CloseResult>

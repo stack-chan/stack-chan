@@ -1,4 +1,4 @@
-import { createVoiceScope } from 'stackchan/voice'
+import { VoiceScope } from 'stackchan/voice'
 import { mono, readSource } from 'stackchan/voice/media'
 
 let stop
@@ -6,7 +6,7 @@ let stop
 export async function onContextCreated(robot) {
   const { microphone, speaker } = robot.audio
   if (!microphone) return
-  const scope = createVoiceScope()
+  const scope = VoiceScope.create()
   const lease = microphone.runtime.acquire(
     microphone,
     speaker,

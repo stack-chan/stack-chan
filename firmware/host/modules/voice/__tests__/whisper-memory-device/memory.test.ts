@@ -1,13 +1,13 @@
 import type { Transcript } from 'stackchan/voice/contracts'
 import { mono, writeSink } from 'stackchan/voice/media'
 import { createVoiceScope } from 'stackchan/voice/scope'
-import { createWhisperSTT } from 'stackchan/voice/speech'
+import { WhisperSTT } from 'stackchan/voice/speech'
 import { equal } from 'testing/assert'
 
 async function run() {
   const scope = createVoiceScope()
   let transcript: Transcript | undefined
-  const session = await createWhisperSTT({ apiKey: 'test', maxAudioBytes: 194560 }).open({
+  const session = await WhisperSTT.create({ apiKey: 'test', maxAudioBytes: 194560 }).open({
     signal: scope.signal,
     format: mono(16000),
     utteranceId: 'memory-budget',

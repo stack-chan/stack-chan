@@ -1,4 +1,4 @@
-import { createChatConversation, createXiaozhiV1Connection } from 'chat'
+import { ChatConversation, XiaoZhiV1Connection } from 'chat'
 import type { ConversationEvent } from 'stackchan/voice/contracts'
 import { createVoiceScope } from 'stackchan/voice/scope'
 import { assert, equal } from 'testing/assert'
@@ -25,14 +25,14 @@ async function run() {
       closed = true
     }
   }
-  const connection = createXiaozhiV1Connection({
+  const connection = XiaoZhiV1Connection.create({
     endpoint: 'wss://example.test/ws',
     deviceId: 'device-1',
     clientId: 'client-1',
     listeningMode: 'manual',
     helloExtension: { robot: true },
   })
-  const conversation = createChatConversation({
+  const conversation = ChatConversation.create({
     connection,
     chatAudioIOCtor: WorkerIO as never,
     tools: {

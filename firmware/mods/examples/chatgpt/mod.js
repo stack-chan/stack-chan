@@ -1,7 +1,7 @@
 import WebSocket from 'WebSocket'
 import { runTextTurn } from 'example-text-turn'
-import { createAgent, createToolSet, OpenAIResponsesLLM } from 'stackchan/ai'
-import { createVoiceScope } from 'stackchan/voice/scope'
+import { Agent, OpenAIResponsesLLM, ToolSet } from 'stackchan/ai'
+import { VoiceScope } from 'stackchan/voice'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -27,11 +27,11 @@ export function onClose() {
 export function onContextCreated(robot, option) {
   // Integrate ChatGPT
   const aiPrefs = option.config.ai
-  const scope = createVoiceScope()
-  const agent = createAgent({
-    llm: new OpenAIResponsesLLM({ apiKey: aiPrefs.token, model: aiPrefs.model ?? MODEL }),
+  const scope = VoiceScope.create()
+  const agent = Agent.create({
+    llm: OpenAIResponsesLLM.create({ apiKey: aiPrefs.token, model: aiPrefs.model ?? MODEL }),
     instructions: CONTEXT.map((item) => item.content).join('\n'),
-    tools: createToolSet(),
+    tools: ToolSet.create(),
     maxToolRounds: 0,
   })
   const state = { id: 'text-session', nextTurn: 0, history: [] }

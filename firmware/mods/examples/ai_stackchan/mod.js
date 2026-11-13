@@ -2,14 +2,9 @@ import DefaultBehavior from 'app-default-behavior'
 import { Emoticon } from 'effects/emoticon'
 import { Emotion, EmotionNames, emotionFromName } from 'face-state'
 import { Behavior, Container, Label, Skin, Style } from 'piu/MC'
-import { adaptRobotCamera, createAgent, createToolSet, createVision, OpenAIResponsesLLM } from 'stackchan/ai'
-import {
-  createCascadedConversation,
-  createConversationPipeline,
-  createPushToTalk,
-  createVoiceScope,
-} from 'stackchan/voice'
-import { createOpenAISpeechTTS, createWhisperSTT } from 'stackchan/voice/speech'
+import { Agent, adaptRobotCamera, OpenAIResponsesLLM, ToolSet, Vision } from 'stackchan/ai'
+import { CascadedConversation, ConversationPipeline, PushToTalk, VoiceScope } from 'stackchan/voice'
+import { OpenAISpeechTTS, WhisperSTT } from 'stackchan/voice/speech'
 import Timer from 'timer'
 
 let stop
@@ -43,7 +38,7 @@ export function onClose() {
 export function onContextCreated(robot, option) {
   DefaultBehavior.onContextCreated(robot, option)
   const prefs = option.config.ai
-  const llm = new OpenAIResponsesLLM({ apiKey: prefs.token, model: prefs.model ?? 'gpt-4o-mini' })
+  const llm = OpenAIResponsesLLM.create({ apiKey: prefs.token, model: prefs.model ?? 'gpt-4o-mini' })
   /** @type {import('stackchan/ai').Tool[]} */
   const registered = [
     {
@@ -67,7 +62,7 @@ export function onContextCreated(robot, option) {
     },
   ]
   if (robot.camera && robot.camera.available !== false) {
-    const vision = createVision({ camera: adaptRobotCamera(robot.camera), llm })
+    const vision = Vision.create({ camera: adaptRobotCamera(robot.camera), llm })
     registered.push({
       definition: {
         type: 'function',
@@ -83,17 +78,18 @@ export function onContextCreated(robot, option) {
       execute: ({ question }, context) => vision.observe({ question: String(question) }, context),
     })
   }
-  const tools = createToolSet(registered)
-  const agent = createAgent({
+  const tools = ToolSet.create(registered)
+  const agent = Agent.create({
     llm,
     tools,
     maxToolRounds: 4,
     instructions:
       'あなたは手のひらサイズのスタックチャンです。絵文字や読み上げ用でない記号を使わず、短い日本語のひとことで話してください。気持ちはset_emotionで顔に表してください。',
   })
-  const pushToTalk = createPushToTalk()
-  const speech = createOpenAISpeechTTS({ apiKey: prefs.token })
+  const pushToTalk = PushToTalk.create()
+  const speech = OpenAISpeechTTS.create({ apiKey: prefs.token })
   const tts = {
+    capabilities: speech.capabilities,
     async open(options) {
       const synthesis = await speech.open(options)
       const generation = inputGeneration
@@ -107,9 +103,19 @@ export function onContextCreated(robot, option) {
         write(text) {
           return synthesis.write(text)
         },
-        async finish() {
+        async flush() {
           try {
-            const done = synthesis.finish()
+            const done = synthesis.flush()
+            if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
+            return await done
+          } catch (error) {
+            motion?.stop()
+            throw error
+          }
+        },
+        async endInput() {
+          try {
+            const done = synthesis.endInput()
             if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
             return await done
           } catch (error) {
@@ -125,14 +131,14 @@ export function onContextCreated(robot, option) {
       }
     },
   }
-  const conversation = createCascadedConversation({
+  const conversation = CascadedConversation.create({
     agent,
     turnDetector: pushToTalk.detector,
-    stt: createWhisperSTT({ apiKey: prefs.token, maxAudioBytes: 192000 + 2560 }),
+    stt: WhisperSTT.create({ apiKey: prefs.token, maxAudioBytes: 192000 + 2560 }),
     tts,
     voice: prefs.voice ?? 'alloy',
   })
-  const scope = createVoiceScope()
+  const scope = VoiceScope.create()
   const heart = new Emoticon({ key: 'heart', left: 20, top: 20 })
   const button = robot.input.button?.a
   const previous = button?.onEvent
@@ -236,7 +242,7 @@ export function onContextCreated(robot, option) {
     return closing
   }
   function startPipeline() {
-    const next = createConversationPipeline({
+    const next = ConversationPipeline.create({
       microphone: robot.audio.microphone,
       speaker: robot.audio.speaker,
       conversation,

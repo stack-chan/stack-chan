@@ -1,4 +1,4 @@
-import { createAgent, createToolSet, createVision, type LLM, outputText } from 'stackchan/ai'
+import { Agent, type LLM, outputText, ToolSet, Vision } from 'stackchan/ai'
 import { createVoiceScope } from 'stackchan/voice/scope'
 import { createResponsesLLM } from 'stackchan-ai-responses'
 
@@ -17,9 +17,9 @@ const llm: LLM = {
     }
   },
 }
-const agent = createAgent({
+const agent = Agent.create({
   llm,
-  tools: createToolSet([
+  tools: ToolSet.create([
     {
       definition: {
         type: 'function',
@@ -47,7 +47,7 @@ agent
   .then(async (result) => {
     if (result.status !== 'completed' || outputText(result.response) !== '正午です') throw Error('tool loop failed')
     let released = false
-    const vision = createVision({
+    const vision = Vision.create({
       camera: {
         async capture() {
           return {

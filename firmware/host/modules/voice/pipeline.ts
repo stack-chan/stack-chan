@@ -13,11 +13,13 @@ import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/sco
 export function createConversationPipeline(options: PipelineOptions): ConversationPipeline {
   const { microphone, speaker, conversation } = options
   let startTask: Promise<void> | undefined
+  let started = false
   let closeTask: Promise<CloseResult> | undefined
   let lease: DuplexLease | undefined
   let session: ConversationSession | undefined
   let scope: ReturnType<typeof createVoiceScope>
-  let muted = false
+  let muted = options.microphoneMuted ?? false
+  let appliedMute: boolean | undefined
   let volume: number | undefined
   let gate = Promise.resolve()
   const active = () => {
@@ -31,7 +33,7 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
   }
   const close = (args: CloseOptions = { mode: 'abort' }): Promise<CloseResult> => {
     if (closeTask) return closeTask
-    const starting = !session
+    const starting = !started
     closeTask = Promise.resolve()
       .then(async () => {
         if (starting) scope?.abort()
@@ -54,7 +56,7 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
         if (!microphone || !speaker || microphone.runtime !== speaker.runtime)
           throw voiceError('unsupported_capability', 'microphone and speaker must share a runtime')
         lease = await microphone.runtime.acquire(microphone, speaker, conversation.audio, {
-          budget: options.mediaBudget,
+          budget: options.mediaBudget ?? { maxBufferedMs: 250, maxBufferedBytes: 24000 },
           signal: scope.signal,
         })
         requireActive(scope.signal)
@@ -73,7 +75,9 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
           },
         })
         requireActive(scope.signal)
-        if (muted) await session.setInputEnabled(false)
+        await applyMute(muted)
+        requireActive(scope.signal)
+        started = true
       })
       .catch(async (error) => {
         scope.abort(error)
@@ -90,10 +94,31 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
     })
     return startTask
   }
+  async function applyMute(next: boolean) {
+    const current = session
+    const audio = lease
+    if (!current || !audio || closeTask) return
+    if (appliedMute === next) return
+    await audio.setInputEnabled(false)
+    appliedMute = true
+    if (closeTask) return
+    await current.setInputEnabled(!next)
+    if (!next && !closeTask) {
+      await audio.setInputEnabled(true)
+      appliedMute = false
+    }
+  }
   return {
+    capabilities: conversation.capabilities,
     start,
     close,
-    submit(message: InputMessage, subScope?: Scope) {
+    async submit(message: InputMessage, subScope?: Scope) {
+      const caps = conversation.capabilities
+      if (
+        !caps.inputRoles.includes(message.role) ||
+        message.content.some((part) => (part.type === 'input_text' ? !caps.textInput : !caps.imageInput))
+      )
+        throw voiceError('unsupported_capability', 'message is not supported by this conversation')
       return active().submit(message, subScope ?? scope)
     },
     async interrupt() {
@@ -103,24 +128,20 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
     },
     setVolume(gain: number) {
       if (!Number.isFinite(gain) || gain < 0 || gain > 1) throw new RangeError('volume')
+      if (closeTask) throw voiceError('cancelled', 'pipeline is closed')
       volume = gain
       lease?.setVolume(gain)
     },
-    setMuted(next: boolean) {
-      const current = active()
-      const audio = lease
-      if (!audio) throw voiceError('cancelled')
+    setMicrophoneMuted(next: boolean) {
+      if (closeTask) return Promise.reject(voiceError('cancelled', 'pipeline is closed'))
+      muted = next
+      if (!startTask) return Promise.resolve()
       gate = gate
         .catch(() => {})
         .then(async () => {
-          if (muted === next) return
-          await audio.setInputEnabled(false)
-          muted = true
-          await current.setInputEnabled(!next)
-          if (!next && !closeTask) {
-            await audio.setInputEnabled(true)
-            muted = false
-          }
+          await startTask
+          if (closeTask) throw voiceError('cancelled', 'pipeline is closing')
+          await applyMute(next)
         })
       return gate
     },

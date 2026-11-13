@@ -1,6 +1,6 @@
 import Modules from 'modules'
 import { LiveSession } from 'openai-live-session'
-import { createConversationPipeline } from 'stackchan/voice'
+import { ConversationPipeline } from 'stackchan/voice'
 import Timer from 'timer'
 
 const SESSION = 'openai-live:session'
@@ -20,7 +20,7 @@ export function onContextCreated(robot) {
     robot.ui.showBalloon('OpenAI WebRTC 対応ホストが必要です')
     return
   }
-  const { createLiveConversation } = Modules.importNow('realtimeConversation', true)
+  const { LiveConversation } = Modules.importNow('realtimeConversation', true)
   const power = Modules.importNow('network-power')
   const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
   const drawer = robot.ui.drawer
@@ -37,9 +37,9 @@ export function onContextCreated(robot) {
     }
   }
   session = new LiveSession({
-    createConversation: createLiveConversation,
+    createConversation: LiveConversation.create,
     createPipeline: (conversation) =>
-      createConversationPipeline({
+      ConversationPipeline.create({
         conversation,
         microphone: robot.audio.microphone,
         speaker: robot.audio.speaker,
@@ -95,7 +95,7 @@ export function onContextCreated(robot) {
       if (changingMute) return
       changingMute = true
       const muted = !session.active?.muted
-      void session.setMuted(muted).then((value) => {
+      void session.setMicrophoneMuted(muted).then((value) => {
         changingMute = false
         drawer.setDrawerButtonState(MUTE, value)
       })

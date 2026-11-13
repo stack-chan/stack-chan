@@ -422,7 +422,7 @@ test('sample MOD relative manifest includes resolve from examples directories', 
 
 test('sample MODs use namespaced context capabilities', () => {
   const flatApiPattern =
-    /\brobot\.(say|record|tone|playAudio|useTTS|useSpeechPlayback|lookAt|lookAway|setPose|setTorque|setEmotion|setColor|showBalloon|hideBalloon|lightOn|lightOff|lightBlink|lightRainbow|button|touch|touchPanel|imu|led|tts|microphone|drawer)\b/
+    /\brobot\.(say|record|tone|playAudio|useTTS|useSpeechPlayback|setSpeechPlayback|lookAt|lookAway|setPose|setTorque|setEmotion|setColor|showBalloon|hideBalloon|lightOn|lightOff|lightBlink|lightRainbow|button|touch|touchPanel|imu|led|tts|microphone|drawer)\b/
 
   const offenders = walkFiles(join('mods', 'examples'))
     .filter((path) => path.endsWith('.js'))

@@ -9,7 +9,7 @@ import Transport from 'realtimeConversation/transport'
 import { createVoiceScope } from 'stackchan/voice/scope'
 import Timer from 'timer'
 
-export function createLiveConversation(options) {
+function createLiveConversation(options) {
   return liveConversation(options, {
     audio: liveAudioRequirements,
     createVoiceScope,
@@ -25,3 +25,5 @@ export function createLiveConversation(options) {
       }),
   })
 }
+
+export const LiveConversation = { create: createLiveConversation }

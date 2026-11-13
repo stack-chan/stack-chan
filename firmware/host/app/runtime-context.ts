@@ -440,8 +440,8 @@ export class StackchanRuntimeContext implements StackchanContext {
       get speaker() {
         return getEndpoints().speaker
       },
-      useSpeechPlayback(playback) {
-        context.#audioRuntime.useSpeechPlayback(playback)
+      setSpeechPlayback(playback) {
+        return context.#audioRuntime.setSpeechPlayback(playback)
       },
       say(text, volume) {
         return context.say(text, volume)

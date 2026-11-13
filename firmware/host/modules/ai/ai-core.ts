@@ -202,6 +202,7 @@ export function createAgent({ llm, tools, instructions, maxToolRounds }: AgentOp
   if (tools.definitions.length && !llm.capabilities.tools)
     throw failure('unsupported_capability', 'model does not accept tools')
   return {
+    capabilities: { image: llm.capabilities.image },
     async run(request, options): Promise<AgentResult> {
       const appended: InputItem[] = []
       try {

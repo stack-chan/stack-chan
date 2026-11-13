@@ -5,6 +5,7 @@
       "../ai/http-core-types.d.ts"
     ],
     "stackchan/voice": "./index",
+    "stackchan/voice/adapters": "./adapters",
     "stackchan/voice/contracts": "./contracts",
     "stackchan/voice/scope": "./scope",
     "stackchan/voice/media": "./media",

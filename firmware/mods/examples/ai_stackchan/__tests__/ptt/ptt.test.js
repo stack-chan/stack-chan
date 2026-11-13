@@ -1,7 +1,7 @@
 import { onClose, onContextCreated } from 'ai-mod'
 import { state as defaults } from 'app-default-behavior'
 import { Application } from 'piu/MC'
-import { createVoiceScope, state as voice } from 'stackchan/voice'
+import { VoiceScope, state as voice } from 'stackchan/voice'
 import { state as speech } from 'stackchan/voice/speech'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -255,7 +255,7 @@ const pause = (ms) => new Promise((resolve) => Timer.set(resolve, ms))
 onContextCreated(robot, options)
 await utterance()
 startTurn('lips')
-const synthesisScope = createVoiceScope()
+const synthesisScope = VoiceScope.create()
 const synthesis = await voice.tts.open({ signal: synthesisScope.signal })
 const output = synthesis.output
 await synthesis.write('hello')
@@ -268,7 +268,7 @@ speech.onFinish = () =>
   new Promise((resolve) => {
     finishSpeech = resolve
   })
-const finishing = synthesis.finish()
+const finishing = synthesis.endInput()
 mark = mouthUpdates.length
 await pause(350)
 const frames = mouthUpdates.slice(mark)
@@ -297,12 +297,12 @@ equal(robot.ui.faceMotionEnabled, true)
 
 await utterance()
 startTurn('lip-failure')
-const broken = await voice.tts.open({ signal: createVoiceScope().signal })
+const broken = await voice.tts.open({ signal: VoiceScope.create().signal })
 speech.onFinish = () => {
   throw new Error('synthesis failed')
 }
 assert(
-  await broken.finish().then(
+  await broken.endInput().then(
     () => false,
     () => true,
   ),
@@ -318,9 +318,9 @@ voice.pipeline.onEvent({ type: 'turn.ended', turnId: 'lip-failure', status: 'fai
 
 await utterance()
 startTurn('lip-cancel')
-const cancelScope = createVoiceScope()
+const cancelScope = VoiceScope.create()
 const cancelled = await voice.tts.open({ signal: cancelScope.signal })
-await cancelled.finish()
+await cancelled.endInput()
 await pause(120)
 assert(mouth > 0)
 cancelScope.abort()
@@ -332,8 +332,8 @@ voice.pipeline.onEvent({ type: 'turn.ended', turnId: 'lip-cancel', status: 'inte
 
 await utterance()
 startTurn('lip-end')
-const endingSpeech = await voice.tts.open({ signal: createVoiceScope().signal })
-await endingSpeech.finish()
+const endingSpeech = await voice.tts.open({ signal: VoiceScope.create().signal })
+await endingSpeech.endInput()
 await pause(120)
 assert(mouth > 0)
 await menus.get('ai-end-conversation').callback()
@@ -343,8 +343,8 @@ await pause(220)
 equal(mouthUpdates.length, mark, 'end conversation clears its lip timer')
 await utterance()
 startTurn('lip-new')
-const newest = await voice.tts.open({ signal: createVoiceScope().signal })
-await newest.finish()
+const newest = await voice.tts.open({ signal: VoiceScope.create().signal })
+await newest.endInput()
 await endingSpeech.close()
 await pause(120)
 assert(mouth > 0, 'late close from an old synthesis cannot stop the new mouth timer')

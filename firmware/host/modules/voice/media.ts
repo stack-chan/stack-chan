@@ -1,13 +1,22 @@
 import type { AudioSink, AudioSource, MediaBudget, MediaRuntime, PcmFormat } from 'stackchan/voice/contracts'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 
-type Reader = {
+export type PcmConsumer = {
   write(bytes: Uint8Array): void | Promise<void>
   end(error?: unknown): void
+}
+type Reader = PcmConsumer & {
   busy?: boolean
 }
 type PcmReader = AudioSource & { attach(reader: Reader, replayMs?: number): { close(): void } }
 type PcmWriter = AudioSink & { write(bytes: Uint8Array): void | Promise<void> }
+export type PcmProducer = {
+  readonly output: AudioSource
+  offer(bytes: Uint8Array): void | Promise<void>
+  push(bytes: Uint8Array): Promise<void>
+  clearHistory(): void
+  end(error?: unknown): void
+}
 
 export const mono = (sampleRate: number): PcmFormat => ({ encoding: 'pcm_s16le', sampleRate, channels: 1 })
 export function capacity(budget: MediaBudget, format: PcmFormat) {
@@ -23,12 +32,35 @@ export function capacity(budget: MediaBudget, format: PcmFormat) {
   return Math.floor(bytes / frame) * frame
 }
 
-export function createPcmSource(format: PcmFormat, historyBytes = 0) {
+export function createPcmSource(format: PcmFormat, historyBytes = 0): PcmProducer {
+  if (!Number.isSafeInteger(historyBytes) || historyBytes < 0 || historyBytes % (format.channels * 2))
+    throw new RangeError('invalid PCM history size')
   const readers = new Set<Reader>()
+  let inFlight = 0
   const ring = new Uint8Array(historyBytes)
   let offset = 0,
     retained = 0,
     ended = false
+  function endReader(reader: Reader, error?: unknown) {
+    try {
+      reader.end(error)
+    } catch {
+      // 購読者の終了処理に失敗しても、他の購読者へ終了を通知する
+    }
+  }
+  function notifyEnd(error?: unknown) {
+    for (const reader of readers) endReader(reader, error)
+    readers.clear()
+  }
+  function track(promise: Promise<void>) {
+    inFlight++
+    const settled = () => {
+      inFlight--
+      if (ended && inFlight === 0) notifyEnd()
+    }
+    void promise.then(settled, settled)
+    return promise
+  }
   const output = {
     format,
     attach(reader: Reader, replayMs = 0) {
@@ -45,14 +77,16 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0) {
         const pending = reader.write(replay)
         if (pending) {
           reader.busy = true
-          void pending.then(
-            () => {
-              reader.busy = false
-            },
-            (error) => {
-              readers.delete(reader)
-              reader.end(error)
-            },
+          track(
+            pending.then(
+              () => {
+                reader.busy = false
+              },
+              (error) => {
+                readers.delete(reader)
+                endReader(reader, error)
+              },
+            ),
           )
         }
       }
@@ -77,35 +111,42 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0) {
     }
     let pending: Promise<void> | undefined
     let problem: unknown
+    let failed = false
+    function fail(error: unknown) {
+      if (!failed) problem = error
+      failed = true
+    }
     for (const reader of readers) {
       try {
         if (reader.busy) throw voiceError('input_overrun', 'PCM consumer has not released its previous frame')
         const result = reader.write(bytes)
         if (result) {
           reader.busy = true
-          const completion = result.then(
-            () => {
-              reader.busy = false
-            },
-            (error) => {
-              readers.delete(reader)
-              reader.end(error)
-              throw error
-            },
+          const completion = track(
+            result.then(
+              () => {
+                reader.busy = false
+              },
+              (error) => {
+                readers.delete(reader)
+                endReader(reader, error)
+                fail(error)
+              },
+            ),
           )
           pending = pending ? Promise.all([pending, completion]).then(() => {}) : completion
         }
       } catch (error) {
         readers.delete(reader)
-        reader.end(error)
-        problem = error
+        endReader(reader, error)
+        fail(error)
       }
     }
-    if (!problem) return pending
-    if (!pending) throw problem
-    return pending.then(() => {
-      throw problem
-    })
+    if (pending)
+      return pending.then(() => {
+        if (failed) throw problem
+      })
+    if (failed) throw problem
   }
   return {
     output,
@@ -118,12 +159,17 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0) {
       offset = 0
     },
     end(error?: unknown) {
-      if (ended) return
+      if (ended) {
+        if (error) notifyEnd(error)
+        return
+      }
       ended = true
-      for (const reader of readers) reader.end(error)
-      readers.clear()
+      if (error || inFlight === 0) notifyEnd(error)
     },
   }
+}
+export function subscribePcmSource(source: AudioSource, consumer: PcmConsumer) {
+  return (source as PcmReader).attach({ write: consumer.write, end: consumer.end })
 }
 export function readSource(source: AudioSource, write: Reader['write'], onError?: (error: unknown) => void) {
   return (source as PcmReader).attach({

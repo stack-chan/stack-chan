@@ -37,5 +37,5 @@ declare module 'realtimeConversation' {
     onEvent?(event: { type: string; [key: string]: unknown }): void
     onError?(error: Error & { code: string; stage: string; status?: number }): void
   }
-  export function createLiveConversation(options: LiveOptions): Conversation
+  export const LiveConversation: { create(options: LiveOptions): Conversation }
 }

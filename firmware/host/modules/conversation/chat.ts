@@ -64,16 +64,16 @@ export type XiaozhiV1Connection = Readonly<{
 }>
 
 /**
- * Connection descriptors accepted by createChatConversation. Service integrations
+ * Connection descriptors accepted by ChatConversation.create(). Service integrations
  * should construct these through their own factory and a protocol factory such
- * as createXiaozhiV1Connection().
+ * as XiaoZhiV1Connection.create().
  */
 export type ChatConnection = XiaozhiV1Connection
 
 export const XIAOZHI_V1_CONTRACT_VERSION = 1
 
 /** Creates a direct connection to a XiaoZhi WebSocket v1 compatible server. */
-export function createXiaozhiV1Connection(options: XiaozhiV1ConnectionOptions): XiaozhiV1Connection {
+function createXiaozhiV1Connection(options: XiaozhiV1ConnectionOptions): XiaozhiV1Connection {
   if (!options.endpoint) throw new Error('XiaoZhi v1 endpoint is required')
   if (!options.deviceId) throw new Error('XiaoZhi v1 deviceId is required')
   if (!options.clientId) throw new Error('XiaoZhi v1 clientId is required')
@@ -211,7 +211,7 @@ type ChatVoiceIO = ChatAudioIO & {
   drain(): Promise<void>
   fence(): Promise<PlaybackReceipt[]>
 }
-export function createChatConversation(options: {
+function createChatConversation(options: {
   config?: ChatConfig
   connection?: ChatConnection
   tools?: ToolSet
@@ -234,7 +234,16 @@ export function createChatConversation(options: {
   if (!rates) throw voiceError('unsupported_capability', 'Unknown worker audio format')
   const format = (sampleRate: number) => ({ encoding: 'pcm_s16le' as const, channels: 1 as const, sampleRate })
   return {
-    capabilities: { interruption: 'local-only', historyRepair: 'restart', imageInput: false, textInput },
+    capabilities: {
+      interruption: 'local-only',
+      interruptionReuse: 'restart-required',
+      historyRepair: 'restart',
+      imageInput: false,
+      textInput,
+      inputRoles: textInput ? ['user'] : [],
+      turnControl: 'provider',
+      submitCompletion: 'unavailable',
+    },
     audio: { input: [format(rates[0])], output: [format(rates[1])], duplex: 'half' },
     async open({ media, history, signal, onEvent }) {
       requireActive(signal)
@@ -249,6 +258,7 @@ export function createChatConversation(options: {
       let io!: ChatVoiceIO
       let outputId = '',
         utterance = 0,
+        inputText = '',
         settled = false,
         stopping = false
       let closing: Promise<CloseResult>,
@@ -294,8 +304,19 @@ export function createChatConversation(options: {
           onInputTranscript(text: string, more: boolean) {
             if (stopping) return
             callbacks.onInputTranscript?.(text, more)
-            onEvent({ type: 'input.transcript', value: { text, final: !more, utteranceId: 'utterance-' + utterance } })
-            if (!more) utterance++
+            if (inputText.length + text.length > 8192) {
+              onEvent({ type: 'error', code: 'resource_exhausted', fatal: true })
+              return
+            }
+            inputText += text
+            onEvent({
+              type: 'input.transcript',
+              value: { text: inputText, final: !more, utteranceId: id + '/utterance-' + utterance },
+            })
+            if (!more) {
+              utterance++
+              inputText = ''
+            }
           },
           onOutputTranscript(text: string, more: boolean, itemId?: string) {
             if (stopping) return
@@ -374,6 +395,7 @@ export function createChatConversation(options: {
           const text = message.content.map((part) => (part.type === 'input_text' ? part.text : '')).join('')
           if (text.length > 8192) throw voiceError('resource_exhausted')
           io.sendText(text)
+          return { completion: 'unavailable' as const }
         },
         async setInputEnabled(enabled) {
           if (stopping) throw voiceError('cancelled')
@@ -392,3 +414,6 @@ export function createChatConversation(options: {
     },
   }
 }
+
+export const ChatConversation = Object.freeze({ create: createChatConversation })
+export const XiaoZhiV1Connection = Object.freeze({ create: createXiaozhiV1Connection })

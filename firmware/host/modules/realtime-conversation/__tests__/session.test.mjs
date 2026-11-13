@@ -147,3 +147,16 @@ test('client delegation publishes the final answer', async () => {
   assert.deepEqual(f.messages, [{ id: 'd1', text: 'answer declined' }])
   await session.close({ mode: 'abort' })
 })
+
+test('Live transcript deltas preserve one stream without inventing final utterances', async () => {
+  const f = fixture({ kind: 'none' })
+  const session = await f.open()
+  f.transcript({ role: 'user', delta: 'hello ', start_ms: 0, end_ms: 100 })
+  f.transcript({ role: 'user', delta: 'world', start_ms: 100, end_ms: 200 })
+  assert.deepEqual(f.events, [
+    { type: 'input.transcript.delta', streamId: 'session-1/input', delta: 'hello ' },
+    { type: 'input.transcript.delta', streamId: 'session-1/input', delta: 'world' },
+  ])
+  await assert.rejects(session.submit({}), { code: 'unsupported_capability' })
+  await session.close({ mode: 'abort' })
+})

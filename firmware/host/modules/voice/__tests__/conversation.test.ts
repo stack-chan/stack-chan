@@ -89,6 +89,416 @@ function successfulAgent(): Agent {
 }
 const tick = () => new Promise<void>((ok) => setImmediate(ok))
 
+function silentSpeech(spoken: string[]): TTS {
+  return {
+    capabilities: { input: 'segmented', output: 'streaming' },
+    async open({ format }) {
+      const source = createPcmSource(format)
+      return {
+        output: source.output,
+        async write(text) {
+          spoken.push(text)
+        },
+        async flush() {},
+        async endInput() {
+          source.end()
+        },
+        async close() {
+          source.end()
+        },
+      }
+    },
+  }
+}
+
+test('submitted turn receipt waits for playback and permits a second completed turn', async () => {
+  const device = makeLease()
+  const played = deferred<void>()
+  const reachedPlayback = deferred<void>()
+  const finish = device.lease.output.finish
+  device.lease.output.finish = async (id) => {
+    reachedPlayback.resolve()
+    await played.promise
+    return finish(id)
+  }
+  const conversation = createCascadedConversation({
+    agent: successfulAgent(),
+    tts: silentSpeech([]),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  const events: ConversationEvent[] = []
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent: (e) => events.push(e),
+  })
+  const message = {
+    type: 'message' as const,
+    role: 'user' as const,
+    content: [{ type: 'input_text' as const, text: 'hi' }],
+  }
+  try {
+    const first = await session.submit(message, scope)
+    assert.equal(first.completion, 'playback')
+    if (first.completion !== 'playback') throw new Error('missing completion')
+    let completed = false
+    void first.done.then(() => {
+      completed = true
+    })
+    await reachedPlayback.promise
+    assert.equal(completed, false)
+    await assert.rejects(session.submit(message, scope), { code: 'device_busy' })
+    played.resolve()
+    assert.deepEqual(await first.done, { turnId: first.id, status: 'completed' })
+    const second = await session.submit(message, scope)
+    if (second.completion !== 'playback') throw new Error('missing completion')
+    assert.notEqual(second.id, first.id)
+    assert.deepEqual(await second.done, { turnId: second.id, status: 'completed' })
+    assert.deepEqual(
+      events.filter((e) => e.type === 'turn.ended').map((e) => e.turnId),
+      [first.id, second.id],
+    )
+  } finally {
+    played.resolve()
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('speech segmentation bounds punctuation-free chunks and preserves Unicode and the final tail', async () => {
+  const device = makeLease()
+  const spoken: string[] = []
+  const text = 'a'.repeat(239) + '😀' + 'b'.repeat(350) + '。tail'
+  const reply: OutputMessage = {
+    type: 'message',
+    role: 'assistant',
+    id: 'reply',
+    phase: 'final_answer',
+    content: [{ type: 'output_text', text }],
+  }
+  const conversation = createCascadedConversation({
+    agent: {
+      async run(_request, options) {
+        await options.onEvent?.({
+          type: 'response.output_text.delta',
+          item_id: reply.id,
+          phase: 'final_answer',
+          delta: text.slice(0, -4),
+        })
+        return {
+          status: 'completed',
+          response: { id: 'response', status: 'completed', output: [reply] },
+          appended: [reply],
+        }
+      },
+    },
+    tts: silentSpeech(spoken),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({ ...scope, media: device.lease, history: [], onEvent() {} })
+  try {
+    const turn = await session.submit(
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] },
+      scope,
+    )
+    if (turn.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await turn.done).status, 'completed')
+    assert.equal(spoken.join(''), text)
+    assert.ok(spoken.every((part) => part.length <= 240 && !/[\uD800-\uDBFF]$/.test(part)))
+    assert.equal(spoken.at(-1), 'tail')
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('interrupt cancels remaining speech segments and a settled cascaded session accepts another turn', async () => {
+  const device = makeLease()
+  const spoken: string[] = []
+  const reply: OutputMessage = {
+    type: 'message',
+    role: 'assistant',
+    id: 'reply',
+    content: [{ type: 'output_text', text: 'First.Second.tail' }],
+  }
+  const conversation = createCascadedConversation({
+    agent: {
+      async run() {
+        return {
+          status: 'completed',
+          response: { id: 'response', status: 'completed', output: [reply] },
+          appended: [reply],
+        }
+      },
+    },
+    tts: silentSpeech(spoken),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  let interrupted: ReturnType<import('../contracts.js').ConversationSession['interrupt']> | undefined
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent(event) {
+      if (event.type === 'output.playback' && !interrupted) interrupted = session.interrupt()
+    },
+  })
+  const message = {
+    type: 'message' as const,
+    role: 'user' as const,
+    content: [{ type: 'input_text' as const, text: 'hello' }],
+  }
+  try {
+    const first = await session.submit(message, scope)
+    if (first.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await first.done).status, 'interrupted')
+    assert.equal((await interrupted)?.history, 'conservative')
+    assert.deepEqual(spoken, ['First.'])
+    const second = await session.submit(message, scope)
+    if (second.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await second.done).status, 'completed')
+    assert.deepEqual(spoken, ['First.', 'First.', 'Second.', 'tail'])
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('history finalization failure settles the receipt and event as failed', async () => {
+  const device = makeLease()
+  const events: ConversationEvent[] = []
+  const conversation = createCascadedConversation({
+    agent: {
+      async run() {
+        return {
+          status: 'completed',
+          response: { id: 'response', status: 'completed', output: [] },
+          appended: [{ type: 'provider_item', id: 'oversized', provider: 'test', value: 'x'.repeat(40000) }],
+        }
+      },
+    },
+    tts: silentSpeech([]),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent: (event) => events.push(event),
+  })
+  try {
+    const result = await session.submit(
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] },
+      scope,
+    )
+    if (result.completion !== 'playback') throw new Error('missing completion')
+    assert.deepEqual(await result.done, { turnId: result.id, status: 'failed' })
+    assert.ok(events.some((event) => event.type === 'turn.ended' && event.status === 'failed'))
+    assert.ok(events.some((event) => event.type === 'error' && event.fatal && event.code === 'resource_exhausted'))
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('abort close cancels STT startup while microphone muting awaits the pending utterance', async () => {
+  const device = makeLease()
+  const talk = createPushToTalk()
+  const opening = deferred<import('../contracts.js').VoiceSignal>()
+  const muting = deferred<void>()
+  const stopped = deferred<void>()
+  const backend = createCascadedConversation({
+    agent: successfulAgent(),
+    tts: silentSpeech([]),
+    stt: {
+      open({ signal }) {
+        opening.resolve(signal)
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            stopped.resolve()
+            reject(signal.reason)
+          })
+        })
+      },
+    },
+    turnDetector: talk.detector,
+    voice: '',
+  })
+  const conversation: Conversation = {
+    ...backend,
+    async open(options) {
+      const session = await backend.open(options)
+      return {
+        ...session,
+        setInputEnabled(enabled) {
+          if (!enabled) muting.resolve()
+          return session.setInputEnabled(enabled)
+        },
+      }
+    },
+  }
+  const runtime = bindAudioRuntime({ acquireExclusive: () => () => {} }, () => device.lease)
+  const pipeline = createConversationPipeline({
+    microphone: runtime.microphone,
+    speaker: runtime.speaker,
+    conversation,
+    mediaBudget: budget,
+  })
+  await pipeline.start()
+  talk.press()
+  const signal = await opening.promise
+  const muted = pipeline.setMicrophoneMuted(true)
+  await muting.promise
+  assert.equal(signal.aborted, false)
+  assert.equal(device.closes(), 0)
+  const closing = pipeline.close({ mode: 'abort' })
+  await stopped.promise
+  await muted
+  assert.equal((await closing).reason, 'aborted')
+  assert.equal(signal.aborted, true)
+  assert.equal(device.closes(), 1)
+  await pipeline.close({ mode: 'abort' })
+  assert.equal(device.closes(), 1)
+})
+
+test('text-only agents reject images before retaining input and accept the next text turn', async () => {
+  for (const capabilities of [undefined, { image: false }]) {
+    const device = makeLease()
+    const received: import('../contracts.js').InputItem[][] = []
+    const conversation = createCascadedConversation({
+      agent: {
+        capabilities,
+        async run({ input }) {
+          received.push([...input])
+          return { status: 'completed', response: { id: 'text', status: 'completed', output: [] }, appended: [] }
+        },
+      },
+      tts: silentSpeech([]),
+      stt: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      turnDetector: createPushToTalk().detector,
+      voice: '',
+    })
+    assert.equal(conversation.capabilities.imageInput, false)
+    const scope = createVoiceScope()
+    const image: import('../contracts.js').InputMessage = {
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_image', image_url: 'https://example.test/image.png' }],
+    }
+    await assert.rejects(conversation.open({ ...scope, media: device.lease, history: [image], onEvent() {} }), {
+      code: 'unsupported_capability',
+    })
+    const session = await conversation.open({ ...scope, media: device.lease, history: [], onEvent() {} })
+    try {
+      await assert.rejects(session.submit(image, scope), { code: 'unsupported_capability' })
+      await assert.rejects(
+        session.submit(
+          { ...image, content: [{ type: 'input_image', image: { format: 'jpeg', data: new Uint8Array(65536) } }] },
+          scope,
+        ),
+        { code: 'unsupported_capability' },
+      )
+      assert.equal(received.length, 0)
+      const text: import('../contracts.js').InputMessage = {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'hello' }],
+      }
+      const submitted = await session.submit(text, scope)
+      if (submitted.completion !== 'playback') throw new Error('missing completion')
+      assert.equal((await submitted.done).status, 'completed')
+      assert.deepEqual(JSON.parse(JSON.stringify(received)), [[text]])
+    } finally {
+      await session.close({ mode: 'abort' })
+    }
+  }
+})
+
+test('image-capable agents opt in while image ownership and history budgets remain enforced', async () => {
+  const device = makeLease()
+  let received: readonly import('../contracts.js').InputItem[] = []
+  const conversation = createCascadedConversation({
+    agent: {
+      capabilities: { image: true },
+      async run({ input }) {
+        received = input
+        return { status: 'completed', response: { id: 'image', status: 'completed', output: [] }, appended: [] }
+      },
+    },
+    tts: silentSpeech([]),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  assert.equal(conversation.capabilities.imageInput, true)
+  const scope = createVoiceScope()
+  const seed: import('../contracts.js').InputMessage = {
+    type: 'message',
+    role: 'user',
+    content: [{ type: 'input_image', image_url: 'https://example.test/seed.png' }],
+  }
+  const session = await conversation.open({ ...scope, media: device.lease, history: [seed], onEvent() {} })
+  try {
+    await assert.rejects(
+      session.submit(
+        { ...seed, content: [{ type: 'input_image', image: { format: 'jpeg', data: new Uint8Array(65536) } }] },
+        scope,
+      ),
+      { code: 'resource_exhausted' },
+    )
+    const pixels = Uint8Array.of(1, 2)
+    const submitted = session.submit(
+      { ...seed, content: [{ type: 'input_image', image: { format: 'jpeg', data: pixels } }] },
+      scope,
+    )
+    pixels[0] = 9
+    const turn = await submitted
+    if (turn.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await turn.done).status, 'completed')
+    assert.equal(received.length, 2)
+    const message = received[1]
+    assert.ok(message.type === 'message' && message.role === 'user')
+    const part = message.content[0]
+    assert.ok(part.type === 'input_image' && 'image' in part)
+    assert.deepEqual([...part.image.data], [1, 2])
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
 test('device lease bounds pending audio, retains queued samples and fences stale producers', async () => {
   const { createAudioRuntime } = await import('../pcm-device.js')
   const { resetModules } = await import('../../testing/fakes/modules.js')
@@ -304,6 +714,7 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
     },
   }
   const tts: TTS = {
+    capabilities: { input: 'segmented', output: 'streaming' },
     async open({ format }) {
       const source = createPcmSource(format)
       return {
@@ -312,7 +723,8 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
           assert.equal(text, 'はい。')
           await source.push(Uint8Array.of(4, 5))
         },
-        async finish() {
+        async flush() {},
+        async endInput() {
           source.end()
         },
         async close() {},
@@ -377,6 +789,7 @@ test('only a confirmed final-answer sentence starts early and the completed repl
     },
   }
   const tts: TTS = {
+    capabilities: { input: 'segmented', output: 'streaming' },
     async open({ format }) {
       const source = createPcmSource(format)
       return {
@@ -385,7 +798,8 @@ test('only a confirmed final-answer sentence starts early and the completed repl
           speaking.push(s)
           await source.push(Uint8Array.of(0, 0))
         },
-        async finish() {
+        async flush() {},
+        async endInput() {
           source.end()
         },
         async close() {},
@@ -443,6 +857,7 @@ test('failed agent results preserve recognized error codes without publishing pr
         },
       },
       tts: {
+        capabilities: { input: 'segmented', output: 'streaming' },
         async open() {
           throw new Error('unused')
         },
@@ -508,6 +923,7 @@ test('a failed agent turn cancels its detached speech consumer before fencing pl
     },
   }
   const tts: TTS = {
+    capabilities: { input: 'segmented', output: 'streaming' },
     async open({ signal, format }) {
       const source = createPcmSource(format)
       const abort = () => {
@@ -519,7 +935,8 @@ test('a failed agent turn cancels its detached speech consumer before fencing pl
       return {
         output: source.output,
         async write() {},
-        finish() {
+        async flush() {},
+        endInput() {
           started.resolve()
           return cancelled.promise
         },
@@ -599,6 +1016,7 @@ test('transcription failures preserve recognized codes and normalize provider-sp
           },
         },
         tts: {
+          capabilities: { input: 'segmented', output: 'streaming' },
           async open() {
             throw new Error('unused')
           },
@@ -647,6 +1065,7 @@ test('agent rejections normalize unknown provider codes without exposing their d
         },
       },
       tts: {
+        capabilities: { input: 'segmented', output: 'streaming' },
         async open() {
           throw new Error('unused')
         },
@@ -762,12 +1181,23 @@ test('a restart-required interrupt releases the device before a replacement pipe
     () => makeLease().lease,
   )
   const conversation: Conversation = {
-    capabilities: { textInput: true, imageInput: false, interruption: 'local-only', historyRepair: 'restart' },
+    capabilities: {
+      textInput: true,
+      imageInput: false,
+      interruption: 'local-only',
+      historyRepair: 'restart',
+      interruptionReuse: 'restart-required',
+      inputRoles: ['user'],
+      turnControl: 'provider',
+      submitCompletion: 'unavailable',
+    },
     audio: { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
     async open() {
       return {
         id: 'backend',
-        async submit() {},
+        async submit() {
+          return { completion: 'unavailable' as const }
+        },
         async setInputEnabled() {},
         async interrupt() {
           return { playback: [], remote: 'unknown', history: 'restart-required' }
@@ -807,7 +1237,16 @@ test('closing while a native lease is opening waits for its release exactly once
     },
   )
   const conversation: Conversation = {
-    capabilities: { textInput: true, imageInput: false, historyRepair: 'restart', interruption: 'local-only' },
+    capabilities: {
+      textInput: true,
+      imageInput: false,
+      interruption: 'local-only',
+      historyRepair: 'restart',
+      interruptionReuse: 'restart-required',
+      inputRoles: ['user'],
+      turnControl: 'provider',
+      submitCompletion: 'unavailable',
+    },
     audio: { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
     async open() {
       opens++
@@ -855,6 +1294,7 @@ test('interrupt releases audio independently of a hung agent and requires a rest
       },
     },
     tts: {
+      capabilities: { input: 'segmented', output: 'streaming' },
       async open() {
         throw Error('unused')
       },
@@ -867,11 +1307,16 @@ test('interrupt releases audio independently of a hung agent and requires a rest
     history: [],
     onEvent: (event) => events.push(event),
   })
-  await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }, scope)
+  const submitted = await session.submit(
+    { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
+    scope,
+  )
+  if (submitted.completion !== 'playback') throw new Error('missing completion')
   await running.promise
   const interrupted = session.interrupt()
   timer.advance(500)
   assert.equal((await interrupted).history, 'restart-required')
+  assert.deepEqual(await submitted.done, { turnId: submitted.id, status: 'interrupted' })
   await assert.rejects(
     session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'again' }] }, scope),
     { code: 'provider_failed' },

@@ -123,6 +123,23 @@ test('Agent stops tool rounds even when the model ignores tool_choice none', asy
   })
 })
 
+test('Agent exposes its LLM image capability to conversation strategies', () => {
+  for (const image of [false, true]) {
+    const agent = createAgent({
+      llm: {
+        capabilities: { image, tools: false },
+        async createResponse() {
+          return result
+        },
+      },
+      tools: createToolSet([]),
+      instructions: '',
+      maxToolRounds: 0,
+    })
+    assert.equal(agent.capabilities?.image, image)
+  }
+})
+
 test('Responses sends exact PNG colors from both RGB565 byte orders without materializing a base64 image', () => {
   for (const format of ['rgb565le', 'rgb565be'] as const) {
     const image = {

@@ -12,7 +12,9 @@ const directory = dirname(fileURLToPath(import.meta.url))
 for (const name of ['ai-core', 'ai-image', 'ai-wire', 'ai-responses']) {
   writeAliasPackage(resolve(directory, '../../..'), 'stackchan-' + name, resolve(directory, name + '.js'))
 }
-const { asDelegateAgent, createAgent, createToolSet, createVision, outputText } = await import('./ai-core.js')
+const { asDelegateAgent, createAgent, createToolSet, createVision, outputText, toolsFromMCP } = await import(
+  './ai-core.js'
+)
 const { createResponsesLLM, prepareBody } = await import('./ai-responses.js')
 const { streamResponse } = await import('./ai-http-stream.js')
 const { createChatLLM } = await import('./ai-chat.js')
@@ -94,6 +96,192 @@ test('ToolSet keeps argument and result budgets and rejects cancelled requests b
   assert.equal(executions, 0)
   await assert.rejects(tools.execute(call, { ...context, ...createVoiceScope() }), { code: 'resource_exhausted' })
   assert.equal(executions, 1)
+})
+
+test('MCP schemas need explicit validators for unsupported keywords and forward the call scope', async () => {
+  const calls: string[] = []
+  let receivedScope: unknown
+  const client = {
+    async listTools() {
+      return {
+        tools: [
+          { name: 'simple', inputSchema: tool.definition.parameters },
+          {
+            name: 'formatted',
+            inputSchema: { type: 'object', properties: { email: { type: 'string', format: 'email' } } },
+          },
+          {
+            name: 'choice',
+            inputSchema: { type: 'object', oneOf: [{ required: ['angle'] }, { required: ['email'] }] },
+          },
+        ],
+      }
+    },
+    async callTool(name: string, _input: unknown, scope?: unknown) {
+      calls.push(name)
+      receivedScope = scope
+      return 'ok'
+    },
+  }
+  await assert.rejects(toolsFromMCP(client), { code: 'unsupported_capability', message: /formatted/ })
+  const adapted = await toolsFromMCP(client, {
+    validators: {
+      formatted: (input) => typeof input.email === 'string' && input.email.includes('@'),
+      choice: (input) => Object.hasOwn(input, 'angle') !== Object.hasOwn(input, 'email'),
+    },
+  })
+  const tools = createToolSet(adapted)
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  assert.equal((await tools.execute({ ...call, name: 'simple' }, context)).output, 'ok')
+  await assert.rejects(tools.execute({ ...call, name: 'formatted', arguments: '{"email":"invalid"}' }, context), {
+    code: 'tool_failed',
+  })
+  await assert.rejects(tools.execute({ ...call, name: 'choice', arguments: '{"angle":1,"email":"a@b"}' }, context), {
+    code: 'tool_failed',
+  })
+  assert.equal(
+    (await tools.execute({ ...call, name: 'formatted', arguments: '{"email":"a@b"}' }, context)).output,
+    'ok',
+  )
+  assert.equal((receivedScope as { signal: unknown }).signal, context.signal)
+  assert.deepEqual(calls, ['simple', 'formatted'])
+})
+
+test('ToolSet releases a cancelled wait and handles a late provider rejection', async () => {
+  const scope = createVoiceScope()
+  let rejectPending!: (error: unknown) => void
+  let listeners = 0
+  const signal = {
+    get aborted() {
+      return scope.signal.aborted
+    },
+    addEventListener(type: 'abort', listener: () => void) {
+      listeners++
+      scope.signal.addEventListener(type, listener)
+    },
+    removeEventListener(type: 'abort', listener: () => void) {
+      listeners--
+      scope.signal.removeEventListener(type, listener)
+    },
+  }
+  let executions = 0
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute: () =>
+        ++executions === 1
+          ? new Promise((_resolve, reject) => {
+              rejectPending = reject
+            })
+          : 'reused',
+    },
+  ])
+  const waiting = tools.execute(call, { signal, sessionId: 's', turnId: 't', callId: call.call_id })
+  assert.equal(listeners, 1)
+  scope.abort()
+  await assert.rejects(waiting, { code: 'cancelled_unconfirmed' })
+  assert.equal(listeners, 0)
+  const fresh = { ...createVoiceScope(), sessionId: 's', turnId: 'next', callId: call.call_id }
+  await assert.rejects(tools.execute(call, fresh), { code: 'cancelled_unconfirmed' })
+  assert.equal(executions, 1)
+  rejectPending(new Error('late provider failure'))
+  await Promise.resolve()
+  assert.equal((await tools.execute(call, fresh)).output, 'reused')
+})
+
+test('Agent preserves uncertainty when an asynchronous tool is still running after cancellation', async () => {
+  const scope = createVoiceScope()
+  let started!: () => void
+  const entered = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  let finish!: (value: unknown) => void
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute: () => {
+        started()
+        return new Promise((resolve) => {
+          finish = resolve
+        })
+      },
+    },
+  ])
+  const agent = createAgent({
+    llm: {
+      capabilities: { tools: true, image: false },
+      async createResponse() {
+        return { ...result, output: [call] }
+      },
+    },
+    tools,
+    instructions: '',
+    maxToolRounds: 1,
+  })
+  const run = agent.run({ input: [], sessionId: 's', turnId: 't' }, scope)
+  await entered
+  scope.abort()
+  const cancelled = await run
+  assert.equal(cancelled.status, 'cancelled')
+  assert.equal('error' in cancelled && cancelled.error.code, 'cancelled_unconfirmed')
+  assert.equal(cancelled.appended.at(-1)?.type, 'function_call_output')
+  finish('done')
+})
+
+test('tool output preserves ordinary JSON values with an exact escaped-character budget', async () => {
+  const shared = { x: 1 }
+  const value = {
+    quotes: '"\\\b\f\n\r\t\u0000',
+    unicode: '\ud800\udc00\ud800x\udc00',
+    items: [undefined, () => {}, Symbol('x'), NaN, Infinity, -0, Object(2)],
+    sparse: new Array(2),
+    omit: undefined,
+    hidden: () => {},
+    date: new Date('2026-01-01T00:00:00.000Z'),
+    custom: {
+      toJSON(key: string) {
+        return { key }
+      },
+    },
+    first: shared,
+    second: shared,
+  }
+  const expected = JSON.stringify(value)
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  const tools = createToolSet([{ ...tool, execute: () => value }], { maxOutputChars: expected.length })
+  assert.equal((await tools.execute(call, context)).output, expected)
+  const short = createToolSet([{ ...tool, execute: () => value }], { maxOutputChars: expected.length - 1 })
+  await assert.rejects(short.execute(call, context), { code: 'resource_exhausted' })
+})
+
+test('tool output stops before traversing oversized objects, arrays, keys, cycles, and deep results', async () => {
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  const execute = (value: unknown, maxOutputChars = 32) =>
+    createToolSet([{ ...tool, execute: () => value }], { maxOutputChars }).execute(call, context)
+  let visited = 0
+  const huge: Record<string, unknown> = {}
+  for (let i = 0; i < 1000; i++)
+    Object.defineProperty(huge, String(i), {
+      enumerable: true,
+      get() {
+        visited++
+        return i
+      },
+    })
+  await assert.rejects(execute(huge), { code: 'resource_exhausted' })
+  assert.ok(visited < 20)
+  await assert.rejects(execute(new Array(1000000)), { code: 'resource_exhausted' })
+  await assert.rejects(execute({ value: '\\'.repeat(100000) }), { code: 'resource_exhausted' })
+  await assert.rejects(execute({ ['x'.repeat(100000)]: 1 }), { code: 'resource_exhausted' })
+  const circular: { self?: unknown } = {}
+  circular.self = circular
+  await assert.rejects(execute(circular), { code: 'tool_failed' })
+  let deep: unknown = 1
+  for (let i = 0; i < 100; i++) deep = [deep]
+  await assert.rejects(execute(deep, 4096), { code: 'resource_exhausted' })
+  assert.equal((await execute({ omitted: undefined, kept: 1 })).output, '{"kept":1}')
+  await assert.rejects(execute(1n), { code: 'tool_failed' })
+  await assert.rejects(execute(Object(1n)), { code: 'tool_failed' })
 })
 
 test('Agent stops tool rounds even when the model ignores tool_choice none', async () => {

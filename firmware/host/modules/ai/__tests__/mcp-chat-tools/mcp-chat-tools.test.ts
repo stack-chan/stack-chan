@@ -94,8 +94,16 @@ async function runTest() {
   if (!remoteEcho?.execute) {
     throw new Error('MCP remoteEcho tool should exist')
   }
-  const result = (await remoteEcho.execute({ value: 'ok' }, {} as never)) as { content: { text: string }[] }
-  equal(result.content[0].text, 'remoteEcho:ok', 'MCP tool preserves the remote response')
+  const result = await ToolSet.create(mcpTools).execute(
+    { type: 'function_call', id: 'item', call_id: 'call', name: 'remoteEcho', arguments: '{"value":"ok"}' },
+    {
+      signal: { aborted: false, addEventListener() {}, removeEventListener() {} },
+      sessionId: 'session',
+      turnId: 'turn',
+      callId: 'call',
+    },
+  )
+  equal(JSON.parse(result.output).content[0].text, 'remoteEcho:ok', 'MCP result survives bounded JSON serialization')
 
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }

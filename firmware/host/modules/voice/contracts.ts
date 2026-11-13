@@ -109,6 +109,7 @@ export type Failure = {
     | 'unsupported_capability'
     | 'device_busy'
     | 'cancelled'
+    | 'cancelled_unconfirmed'
     | 'deadline_exceeded'
     | 'input_overrun'
     | 'provider_failed'

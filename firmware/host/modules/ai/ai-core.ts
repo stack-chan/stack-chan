@@ -55,16 +55,28 @@ export type Tool = {
   validate?(input: Record<string, Json>): boolean
 }
 
-export async function toolsFromMCP(client: {
-  listTools(): Promise<{
-    tools: readonly { name: string; description?: string; inputSchema: FunctionDefinition['parameters'] }[]
-  }>
-  callTool(name: string, input: Record<string, Json>): Promise<unknown>
-}): Promise<Tool[]> {
-  return (await client.listTools()).tools.map(({ name, description, inputSchema }) => ({
-    definition: { type: 'function', name, description: description ?? name, parameters: inputSchema, strict: false },
-    execute: (input) => client.callTool(name, input),
-  }))
+export async function toolsFromMCP(
+  client: {
+    listTools(): Promise<{
+      tools: readonly { name: string; description?: string; inputSchema: FunctionDefinition['parameters'] }[]
+    }>
+    callTool(name: string, input: Record<string, Json>, scope?: Scope): Promise<unknown>
+  },
+  options: { validators?: Readonly<Record<string, NonNullable<Tool['validate']>>> } = {},
+): Promise<Tool[]> {
+  return (await client.listTools()).tools.map(({ name, description, inputSchema }) => {
+    const validator = Object.hasOwn(options.validators ?? {}, name) ? options.validators?.[name] : undefined
+    try {
+      checkSchema(inputSchema, Boolean(validator))
+    } catch (error) {
+      throw failure('unsupported_capability', `MCP tool ${name}: ${String(error)}`)
+    }
+    return {
+      definition: { type: 'function', name, description: description ?? name, parameters: inputSchema, strict: false },
+      validate: validator,
+      execute: (input, context) => client.callTool(name, input, { signal: context.signal }),
+    }
+  })
 }
 
 function validate(value: Json, schema: Json, depth = 0): boolean {
@@ -155,10 +167,96 @@ function copyForJSON(value: object): object {
   return result
 }
 
+function toolOutput(value: unknown, maxChars: number): string {
+  const exceeded = () => failure('resource_exhausted', 'tool result exceeds budget')
+  if (typeof value === 'string') {
+    if (value.length > maxChars) throw exceeded()
+    return value
+  }
+  let output = '',
+    visits = 0
+  const ancestors = new Set<object>()
+  const append = (text: string) => {
+    if (text.length > maxChars - output.length) throw exceeded()
+    output += text
+  }
+  const quote = (text: string) => {
+    const available = maxChars - output.length
+    if (text.length + 2 > available) throw exceeded()
+    let length = 2
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i)
+      if (code === 34 || code === 92 || code === 8 || code === 9 || code === 10 || code === 12 || code === 13)
+        length += 2
+      else if (code < 32) length += 6
+      else if (
+        code >= 0xd800 &&
+        code <= 0xdbff &&
+        text.charCodeAt(i + 1) >= 0xdc00 &&
+        text.charCodeAt(i + 1) <= 0xdfff
+      ) {
+        length += 2
+        i++
+      } else if (code >= 0xd800 && code <= 0xdfff) length += 6
+      else length++
+      if (length > available) throw exceeded()
+    }
+    append(JSON.stringify(text))
+  }
+  const prepare = (item: unknown, key: string): unknown => {
+    if (++visits > maxChars) throw exceeded()
+    if (item && (typeof item === 'object' || typeof item === 'bigint')) {
+      const toJSON = (item as { toJSON?: unknown }).toJSON
+      if (typeof toJSON === 'function') item = toJSON.call(item, key)
+    }
+    if (item instanceof Number || item instanceof String || item instanceof Boolean || item instanceof BigInt)
+      item = item.valueOf()
+    return item
+  }
+  const omitted = (item: unknown) => item === undefined || typeof item === 'function' || typeof item === 'symbol'
+  const write = (item: unknown, depth: number) => {
+    if (depth > 40) throw exceeded()
+    if (typeof item === 'string') quote(item)
+    else if (item === null || typeof item === 'number' || typeof item === 'boolean') append(JSON.stringify(item))
+    else if (item && typeof item === 'object') {
+      if (ancestors.has(item)) throw failure('tool_failed', 'circular tool result')
+      ancestors.add(item)
+      if (Array.isArray(item)) {
+        append('[')
+        const length = item.length
+        for (let i = 0; i < length; i++) {
+          if (i) append(',')
+          const child = prepare(item[i], String(i))
+          write(omitted(child) ? null : child, depth + 1)
+        }
+        append(']')
+      } else {
+        append('{')
+        let first = true
+        for (const key in item) {
+          if (!Object.hasOwn(item, key)) continue
+          const child = prepare((item as Record<string, unknown>)[key], key)
+          if (omitted(child)) continue
+          if (!first) append(',')
+          first = false
+          quote(key)
+          append(':')
+          write(child, depth + 1)
+        }
+        append('}')
+      }
+      ancestors.delete(item)
+    } else throw failure('tool_failed', 'tool result is not JSON serializable')
+  }
+  write(prepare(value ?? null, ''), 0)
+  return output
+}
+
 export function createToolSet(tools: readonly Tool[] = [], options: { maxOutputChars?: number } = {}): ToolSet {
   const maxOutput = options.maxOutputChars ?? 4096
   if (!Number.isSafeInteger(maxOutput) || maxOutput < 1) throw RangeError('invalid tool budget')
   const byName = new Map<string, Tool>()
+  let unconfirmed = 0
   for (const tool of tools) {
     checkSchema(tool.definition.parameters, Boolean(tool.validate))
     if (byName.has(tool.definition.name)) throw Error('duplicate tool: ' + tool.definition.name)
@@ -170,6 +268,7 @@ export function createToolSet(tools: readonly Tool[] = [], options: { maxOutputC
     definitions: Object.freeze([...byName.values()].map((tool) => tool.definition)),
     async execute(call, context) {
       checkScope(context)
+      if (unconfirmed) throw failure('cancelled_unconfirmed', 'previous tool effect is still pending')
       if (
         call.arguments.length > 8192 ||
         call.name.length > 128 ||
@@ -189,9 +288,38 @@ export function createToolSet(tools: readonly Tool[] = [], options: { maxOutputC
       )
         throw failure('tool_failed', 'invalid arguments: ' + call.name)
       checkScope(context)
-      const value = await tool.execute(input, context)
-      const output = typeof value === 'string' ? value : JSON.stringify(value ?? null)
-      if (output.length > maxOutput) throw failure('resource_exhausted', 'tool result exceeds budget')
+      let value = tool.execute(input, context)
+      if (value && typeof (value as PromiseLike<unknown>).then === 'function') {
+        const pending = value
+        let settled = false,
+          abandoned = false
+        let onAbort = () => {}
+        value = await new Promise<unknown>((resolve, reject) => {
+          onAbort = () => {
+            if (settled || abandoned) return
+            abandoned = true
+            unconfirmed++
+            reject(failure('cancelled_unconfirmed', 'tool wait cancelled; effect may continue'))
+          }
+          context.signal.addEventListener('abort', onAbort)
+          const finish = () => {
+            settled = true
+            if (abandoned) unconfirmed--
+          }
+          Promise.resolve(pending).then(
+            (result) => {
+              finish()
+              resolve(result)
+            },
+            (error) => {
+              finish()
+              reject(error)
+            },
+          )
+          if (context.signal.aborted) onAbort()
+        }).finally(() => context.signal.removeEventListener('abort', onAbort))
+      }
+      const output = toolOutput(value, maxOutput)
       return { type: 'function_call_output', call_id: call.call_id, output }
     },
   }
@@ -253,9 +381,15 @@ export function createAgent({ llm, tools, instructions, maxToolRounds }: AgentOp
           if (problem) throw problem
         }
       } catch (error) {
-        const code = options.signal.aborted ? 'cancelled' : ((error as Partial<Failure>)?.code ?? 'provider_failed')
+        const reason = (error as Partial<Failure>)?.code
+        const code =
+          reason === 'cancelled_unconfirmed'
+            ? reason
+            : options.signal.aborted
+              ? 'cancelled'
+              : (reason ?? 'provider_failed')
         return {
-          status: code === 'cancelled' ? 'cancelled' : 'failed',
+          status: code === 'cancelled' || code === 'cancelled_unconfirmed' ? 'cancelled' : 'failed',
           error: { code, message: String(error) },
           appended,
         }

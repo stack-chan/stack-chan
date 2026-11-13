@@ -212,7 +212,7 @@ export function MediaPipePage({ dependencies }: MediaPipePageProps) {
             <AlertTitle>{t('映像について')}</AlertTitle>
             <AlertDescription className="grid gap-2">
               <p>{t('カメラ映像は端末内で解析され、ｽﾀｯｸﾁｬﾝへは数値化した追跡結果だけが送られます。')}</p>
-              <p>{t('デモ起動時に、固定バージョンのMediaPipe実行コードと学習済みモデルを外部CDNから取得します。')}</p>
+              <p>{t('デモ起動時に、顔と手の学習済みモデルをGoogle Cloud Storageから取得します。')}</p>
             </AlertDescription>
           </Alert>
         </aside>

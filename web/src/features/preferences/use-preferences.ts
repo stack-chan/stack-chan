@@ -26,6 +26,8 @@ export function usePreferences(
   const [operation, setOperation] = useState<OperationState>({ status: 'idle' })
   const currentValues = useRef<Partial<PreferenceValues>>({})
   const dirty = useRef(new Set<PreferenceKey>())
+  const edits = useRef<Partial<PreferenceValues>>({})
+  const sending = useRef<Partial<PreferenceValues> | null>(null)
   const readOnlyRef = useRef(new Set<PreferenceKey>())
   const valueHandler = useRef<(value: PreferenceValue) => void>(() => {})
   const client = useRef<PreferenceClient | undefined>(undefined)
@@ -99,31 +101,50 @@ export function usePreferences(
 
   const update = useCallback((key: PreferenceKey, value: string) => {
     if (readOnlyRef.current.has(key)) return
-    if (currentValues.current[key] === value) dirty.current.delete(key)
+    edits.current[key] = value
+    if (!(sending.current && key in sending.current) && currentValues.current[key] === value) dirty.current.delete(key)
     else dirty.current.add(key)
     setValues((current) => ({ ...current, [key]: value }))
   }, [])
 
   const savePayload = useCallback(async (payload: Partial<PreferenceValues>, successMessage: string) => {
     const activeClient = client.current
-    if (!activeClient?.isConnected()) return
+    if (!activeClient?.isConnected() || sending.current) return
     const entries = Object.entries(payload).filter(([key]) => !readOnlyRef.current.has(key as PreferenceKey))
     if (entries.length === 0) {
       setOperation({ status: 'cancelled', message: '変更する項目がありません。' })
       return
     }
     const batch = Object.fromEntries(entries)
+    sending.current = batch
     setOperation({ status: 'pending', message: '設定を保存しています' })
     try {
       await activeClient.send({ _batch: batch })
       for (const [key, value] of entries) {
         const preferenceKey = key as PreferenceKey
         currentValues.current[preferenceKey] = value
-        dirty.current.delete(preferenceKey)
+        if (edits.current[preferenceKey] === value || readOnlyRef.current.has(preferenceKey)) {
+          dirty.current.delete(preferenceKey)
+        } else {
+          dirty.current.add(preferenceKey)
+        }
       }
       setOperation({ status: 'success', result: undefined, message: successMessage })
     } catch (error) {
+      for (const [key] of entries) {
+        const preferenceKey = key as PreferenceKey
+        if (
+          !readOnlyRef.current.has(preferenceKey) &&
+          edits.current[preferenceKey] !== currentValues.current[preferenceKey]
+        ) {
+          dirty.current.add(preferenceKey)
+        } else {
+          dirty.current.delete(preferenceKey)
+        }
+      }
       setOperation({ status: 'error', error: toAppError(error, 'preference-save') })
+    } finally {
+      sending.current = null
     }
   }, [])
 
@@ -138,6 +159,12 @@ export function usePreferences(
   }, [savePayload, values])
 
   const clearWifi = useCallback(async () => {
+    if (!client.current?.isConnected()) {
+      setOperation({ status: 'cancelled', message: '接続が切れているため、Wi-Fi設定を消去できません。' })
+      return
+    }
+    edits.current['wifi.ssid'] = ''
+    edits.current['wifi.password'] = ''
     dirty.current.add('wifi.ssid')
     dirty.current.add('wifi.password')
     setValues((current) => ({ ...current, 'wifi.ssid': '', 'wifi.password': '' }))

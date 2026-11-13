@@ -94,7 +94,13 @@ export function createProjectStorage({
     const database = await openDatabase({ indexedDB, databaseName, storeName })
     try {
       const transaction = database.transaction(storeName, mode)
-      return await action(transaction.objectStore(storeName))
+      const committed = new Promise((resolve, reject) => {
+        transaction.oncomplete = resolve
+        transaction.onabort = () => reject(transaction.error ?? new Error('Project storage transaction aborted'))
+        transaction.onerror = () => reject(transaction.error ?? new Error('Project storage transaction failed'))
+      })
+      const [result] = await Promise.all([action(transaction.objectStore(storeName)), committed])
+      return result
     } finally {
       database.close?.()
     }

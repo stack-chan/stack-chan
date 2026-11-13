@@ -29,7 +29,7 @@ export IDF_PATH=/path/to/esp-idf-6.1
 export ESP_WEBRTC_SOLUTION=/path/to/esp-webrtc-solution
 
 npm ci
-npm run build -- --mode=release
+npm run build:m5stackchan_cores3 -- --mode=release
 
 # 空キーの例をコンパイルするだけ。APIへの接続は行わない。
 npm run mod:build -- --mode=release mods/examples/openai_live_webrtc/manifest.json
@@ -44,7 +44,7 @@ npm run mod:build -- --mode=release mods/examples/openai_live_webrtc/manifest.js
 ホスト書込みとMOD書込みはCPUビルドとは別です。必要な端末を接続し、ホストを入れ替えてよいことを確認してから実行してください。
 
 ```sh
-npm run flash -- --mode=release
+npm run flash:m5stackchan_cores3 -- --mode=release
 npm run mod -- --mode=release mods/examples/openai_live_webrtc/manifest.local.json
 ```
 

@@ -38,6 +38,7 @@ const createConversationPipeline = (options) => {
     setVolume() {},
     async start() {
       state.starts++
+      await state.onStart?.()
     },
     async close() {
       state.closes++

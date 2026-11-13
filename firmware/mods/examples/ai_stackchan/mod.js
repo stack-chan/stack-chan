@@ -232,13 +232,19 @@ export function onContextCreated(robot, option) {
     stopLipMotion()
     if (closing || !pipeline) return closing
     const target = pipeline
-    closing = target.close({ mode: 'abort' }).then(() => {
-      if (pipeline === target) {
-        pipeline = undefined
-        opening = undefined
-      }
-      closing = undefined
-    })
+    closing = target
+      .close({ mode: 'abort' })
+      .catch((error) => {
+        if (!scope.signal.aborted) robot.ui.showBalloon(String(error))
+        throw error
+      })
+      .finally(() => {
+        if (pipeline === target) {
+          pipeline = undefined
+          opening = undefined
+        }
+        closing = undefined
+      })
     return closing
   }
   function startPipeline() {

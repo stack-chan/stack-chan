@@ -355,4 +355,38 @@ await pause(220)
 equal(mouthUpdates.length, mark, 'shutdown leaves no delayed mouth update')
 await newest.close()
 await cancelled.close()
+
+onContextCreated(robot, options)
+await utterance()
+const quarantined = voice.pipeline
+const startsBeforeCloseFailure = voice.starts
+const pressesBeforeCloseFailure = voice.presses
+voice.onClose = () => {
+  throw new Error('cleanup failed')
+}
+assert(
+  await menus
+    .get('ai-end-conversation')
+    .callback()
+    .then(
+      () => false,
+      () => true,
+    ),
+  'failed cleanup remains observable to the caller',
+)
+equal(visibleBalloon, 'Error: cleanup failed', 'failed cleanup is reported to the user')
+voice.onClose = undefined
+voice.onStart = () => {
+  throw new Error('device_busy')
+}
+robot.input.button.a.onEvent({ pressed: true })
+await settle()
+equal(voice.starts, startsBeforeCloseFailure + 1, 'a later request reaches a fresh pipeline after cleanup failure')
+equal(voice.presses, pressesBeforeCloseFailure, 'the quarantined device does not start recording')
+equal(visibleBalloon, 'Error: device_busy', 'the new reservation failure replaces the old close error')
+quarantined.onEvent({ type: 'turn.started', turnId: 'quarantined-stale' })
+equal(robot.ui.faceMotionEnabled, true, 'callbacks from failed cleanup cannot change the next presentation')
+robot.input.button.a.onEvent({ pressed: false })
+voice.onStart = undefined
+await onClose()
 trace('@@STACKCHAN_TEST:PASS@@\n')

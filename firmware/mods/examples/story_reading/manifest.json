@@ -1,0 +1,47 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../host/app/manifest_typings.json"
+  ],
+  "modules": {
+    "podcast-view": "../../../mods/examples/podcast/view",
+    "podcast-config": "./config",
+    "podcast-controller": "../../../mods/examples/podcast/controller",
+    "podcast-feed": "../../../mods/examples/podcast/feed",
+    "podcast-rss-parser": "../../../mods/examples/podcast/rss-parser",
+    "podcast-feed-core": "../../../mods/examples/podcast/feed-core",
+    "podcast-feed-worker": "../../../mods/examples/podcast/feed-worker",
+    "podcast-artwork": "../../../mods/examples/podcast/artwork",
+    "podcast-artwork-ring": "../../../mods/examples/podcast/artwork-ring",
+    "podcast-artwork-download-worker": "../../../mods/examples/podcast/artwork-download-worker",
+    "podcast-artwork-decode-worker": "../../../mods/examples/podcast/artwork-decode-worker",
+    "media-apps": "./player",
+    "*": "./mod",
+    "media-volume": "../../../mods/examples/media_player/volume",
+    "web-radio-config": "../../../mods/examples/web_radio/config",
+    "reading-presentation": "./presentation",
+    "reading-book": "./book-effect",
+    "reading-book-geometry": "./book-geometry",
+    "reading-choreography": "./choreography",
+    "reading-face-renderer": "./face-renderer",
+    "reading-face-observer": "./face-observer",
+    "reading-page-effect": "./page-effect"
+  },
+  "resources": {
+    "*": ["../../../mods/examples/podcast/strings/*"],
+    "*-alpha": [
+      {
+        "source": "./assets/PublicStorySans-Regular",
+        "name": "PodcastCJK",
+        "size": 12,
+        "monochrome": true,
+        "characterFiles": "./assets/PublicStoryCJK-chars.txt"
+      }
+    ],
+    "*-alpha-monochrome": [
+      "./assets/reading-page-outer",
+      "./assets/reading-page-inner"
+    ]
+  }
+}

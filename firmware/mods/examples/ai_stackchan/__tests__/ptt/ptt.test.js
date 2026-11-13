@@ -11,6 +11,7 @@ const settle = () => new Promise((resolve) => Timer.set(resolve, 1))
 const menus = new Map()
 const balloons = []
 let visibleBalloon
+let onBalloon
 let mouth = 1
 const mouthUpdates = []
 const robot = {
@@ -38,6 +39,7 @@ const robot = {
     showBalloon(message) {
       balloons.push(message)
       visibleBalloon = message
+      onBalloon?.(message)
     },
     hideBalloon() {
       visibleBalloon = undefined
@@ -379,8 +381,16 @@ voice.onClose = undefined
 voice.onStart = () => {
   throw new Error('device_busy')
 }
+const retryMessage = new Promise((resolve, reject) => {
+  const timeout = Timer.set(() => reject(new Error('retry must report its reservation failure')), 5000)
+  onBalloon = (message) => {
+    Timer.clear(timeout)
+    onBalloon = undefined
+    resolve(message)
+  }
+})
 robot.input.button.a.onEvent({ pressed: true })
-await settle()
+equal(await retryMessage, 'Error: device_busy', 'the retry reports its own reservation failure')
 equal(voice.starts, startsBeforeCloseFailure + 1, 'a later request reaches a fresh pipeline after cleanup failure')
 equal(voice.presses, pressesBeforeCloseFailure, 'the quarantined device does not start recording')
 equal(visibleBalloon, 'Error: device_busy', 'the new reservation failure replaces the old close error')

@@ -43,6 +43,8 @@ Checking unresolved PR comments identified further issues outside the initial AP
 
 At `1cd30081`, all six release targets and the web bundle passed [Bundle CI](https://github.com/stack-chan/stack-chan/actions/runs/43474551552). [Build CI](https://github.com/stack-chan/stack-chan/actions/runs/43474551725) passed static, Node, browser, smoke, and one XS shard; the other shard failed only the newly introduced old-dialogue fixture described above. These are intermediate results, not validation of later fixes.
 
+At `b6fa0515`, [Bundle CI](https://github.com/stack-chan/stack-chan/actions/runs/43477778619) again passed all six release targets and web artifacts with SDK 10.1.1. The migrated network fixture passed. [Build CI](https://github.com/stack-chan/stack-chan/actions/runs/43477778204) exposed a PTT regression-test synchronization error: its 1 ms timer ran before the retry's asynchronous error presentation. The test now awaits the next presentation event with a deadline and still asserts the exact error, a fresh start, no recording, and ignored stale callbacks. Production behavior is unchanged by this test correction.
+
 After runtime freeze, the new Astra reviewer reran four independent production-code regressions and 18 current-source session tests, with no remaining concrete P2-or-higher finding in the reviewed API scope. This reviewer discovered the cancellation and both PCM issues independently, but encountered earlier review summaries in this checked-in document; it was therefore an independent review, not a strictly blind review. The separate first-use exercises below were conducted without those summaries.
 
 ## First-use exercises
@@ -67,6 +69,7 @@ The environment used Node 24, TypeScript 7.0.2, Moddable SDK 10.1.0 at `2d54ac43
 - Static checks: `biome ci . --error-on-warnings` passed; informational legacy-style suggestions remain.
 - XS: the AI PTT, dialogue-chatgpt, and dialogue-smoke manifests passed using the SDK above. The ambient SDK 10.0.2 failed a missing HTTPS manifest preflight and was not used as passing evidence.
 - Manifest preflight: all six supported targets passed.
+- After SDK integration: six-target preflight and the typed `minimal_voice` MOD build passed with SDK 10.1.1. The first preflight invocation omitted the ESP-IDF environment and was rerun after sourcing it; no missing-header failure is counted as passing evidence.
 - Initial release builds: CoreS3 host, `ai_stackchan`, and `minimal_voice` passed. The host binary is 8,127,232 bytes with SHA-256 `128f6ccddb87d06a5ea3e0af444df7310bec8eb3df850f93eec05a1b549d28cf`; the minimal MOD archive is 3,087 bytes. These hashes precede follow-up runtime fixes. Build artifacts were not flashed.
 
 Hardware flashing, device restart, microphone recording, actual sound, long-running device reuse, and paid API calls were not performed. Fake-device ownership tests do not establish DMA timing, physical silence, memory fragmentation, sound quality, or remote-service reliability. Wake-word detection, simultaneous microphone sharing, and wake-to-conversation handoff remain future design boundaries described in [the architecture note](../architecture/voice-conversation-boundaries.md).

@@ -25,7 +25,6 @@ export function prepareBody(request: ResponseRequest, model: string, provider: s
       model,
       stream: true,
       store: false,
-      include: ['reasoning.encrypted_content'],
       instructions: request.instructions,
       tools: request.tools,
       tool_choice: request.tool_choice,

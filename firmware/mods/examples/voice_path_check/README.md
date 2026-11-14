@@ -49,4 +49,3 @@ node --test mods/examples/voice_path_check/__tests__/check.test.mjs
 ```
 
 These tests do not prove hardware audio, provider compatibility, latency, AEC, interruption semantics or billing finalization. This new MOD has not yet been run against a real provider or flashed to hardware. Existing stack-chan-ai hardware results must not be counted as validation of every row above.
-

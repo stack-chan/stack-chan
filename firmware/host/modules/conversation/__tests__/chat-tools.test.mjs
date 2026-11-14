@@ -55,6 +55,9 @@ test('Chat executes and replies to more than 256 distinct tool requests in one s
     }
     assert.equal(executions, 300)
     assert.equal(replies.length, 300)
+    io.emitFunctionCall('mcp:number:0', 'echo', {})
+    await new Promise(setImmediate)
+    assert.equal(executions, 301, 'XiaoZhi may reuse completed JSON-RPC IDs')
   } finally {
     await session.close({ mode: 'abort' })
   }
@@ -106,6 +109,95 @@ test('Chat exposes accepted text without inventing correlated turn completion an
     assert.notEqual(transcripts[1].utteranceId, transcripts[2].utteranceId)
     assert.equal((await session.interrupt()).history, 'restart-required')
     await assert.rejects(session.submit(message, scope), { code: 'cancelled' })
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('Chat coalesces repeated callbacks while the same tool call is pending', async () => {
+  let executions = 0,
+    release
+  const pending = new Promise((resolve) => {
+    release = resolve
+  })
+  class WorkerIO extends FakeIO {
+    connect() {
+      this.emitState(FakeIO.CONNECTED)
+    }
+    async fence() {
+      return []
+    }
+  }
+  const conversation = ChatConversation.create({
+    config: { type: 'openAIRealtime' },
+    chatAudioIOCtor: WorkerIO,
+    tools: {
+      definitions: [],
+      async execute(call) {
+        executions++
+        await pending
+        return { type: 'function_call_output', call_id: call.call_id, output: 'ok' }
+      },
+    },
+  })
+  const session = await conversation.open({ ...createVoiceScope(), media: {}, history: [], onEvent() {} })
+  try {
+    const io = FakeIO.instances.at(-1)
+    io.emitFunctionCall('call-1', 'write', {})
+    io.emitFunctionCall('call-1', 'write', {})
+    assert.equal(executions, 1)
+    release()
+    await new Promise(setImmediate)
+    assert.equal(io.lastFunctionResult.result, 'ok')
+    io.emitFunctionCall('call-1', 'write', {})
+    await new Promise(setImmediate)
+    assert.equal(executions, 2, 'completed IDs are not permanently blocked')
+  } finally {
+    release()
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('Chat releases a failed pending tool ID and never forwards a result after close', async () => {
+  let executions = 0,
+    reject
+  class WorkerIO extends FakeIO {
+    connect() {
+      this.emitState(FakeIO.CONNECTED)
+    }
+    async fence() {
+      return []
+    }
+  }
+  const conversation = ChatConversation.create({
+    config: { type: 'openAIRealtime' },
+    chatAudioIOCtor: WorkerIO,
+    tools: {
+      definitions: [],
+      execute() {
+        executions++
+        return new Promise((_, fail) => {
+          reject = fail
+        })
+      },
+    },
+  })
+  const session = await conversation.open({ ...createVoiceScope(), media: {}, history: [], onEvent() {} })
+  const io = FakeIO.instances.at(-1)
+  try {
+    io.emitFunctionCall('call-1', 'write', {})
+    io.emitFunctionCall('call-1', 'write', {})
+    assert.equal(executions, 1)
+    reject(new Error('failure'))
+    await new Promise(setImmediate)
+    assert.deepEqual(io.lastFunctionResult.result, { error: 'tool_failed' })
+    io.emitFunctionCall('call-1', 'write', {})
+    assert.equal(executions, 2)
+    const lastReply = io.lastFunctionResult
+    await session.close({ mode: 'abort' })
+    reject(new Error('failure after close'))
+    await new Promise(setImmediate)
+    assert.equal(io.lastFunctionResult, lastReply)
   } finally {
     await session.close({ mode: 'abort' })
   }

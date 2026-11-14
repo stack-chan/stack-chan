@@ -1,6 +1,11 @@
 export class PathCheck {
   constructor({ createRoute, createPipeline, networkReady, schedule, clear, notify, maxMs = 90000 }) {
-    Object.assign(this, { createRoute, createPipeline, networkReady, schedule, clear, notify })
+    this.createRoute = createRoute
+    this.createPipeline = createPipeline
+    this.networkReady = networkReady
+    this.schedule = schedule
+    this.clear = clear
+    this.notify = notify
     this.maxMs = Number.isFinite(maxMs) ? Math.max(1000, Math.min(300000, maxMs)) : 90000
   }
   start() {
@@ -70,3 +75,4 @@ export class PathCheck {
     return entry.closing
   }
 }
+

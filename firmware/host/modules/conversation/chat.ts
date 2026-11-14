@@ -253,7 +253,6 @@ function createChatConversation(options: {
         ready = deferred<void>(),
         ended = deferred<boolean>()
       const callbacks = options.callbacks ?? {}
-      const pendingCalls = new Set<string>()
       const Ctor = options.chatAudioIOCtor ?? (ChatAudioIO as unknown as NonNullable<typeof options.chatAudioIOCtor>)
       const constants = Ctor as unknown as ChatAudioIOStateConstants
       let io!: ChatVoiceIO
@@ -269,21 +268,13 @@ function createChatConversation(options: {
       signal.addEventListener('abort', cancel)
       async function execute(call: string, name: string, args: Record<string, unknown>) {
         if (scope.signal.aborted) return
-        // XiaoZhi may reuse a JSON-RPC ID after a new hello within the same worker lifetime.
-        const deduplicate = connection.specifier !== 'xiaozhiV1'
-        if (deduplicate && pendingCalls.has(call)) return
-        if (deduplicate) pendingCalls.add(call)
-        try {
-          callbacks.onFunctionCall?.(call, name, args)
-          if (!options.tools) throw voiceError('unsupported_capability', 'Tool unavailable')
-          const result = await options.tools.execute(
-            { type: 'function_call', id: call, call_id: call, name, arguments: JSON.stringify(args) },
-            { sessionId: id, turnId: 'utterance-' + utterance, callId: call, signal: scope.signal },
-          )
-          if (!scope.signal.aborted) io.sendFunctionResult(call, name, result.output)
-        } finally {
-          pendingCalls.delete(call)
-        }
+        callbacks.onFunctionCall?.(call, name, args)
+        if (!options.tools) throw voiceError('unsupported_capability', 'Tool unavailable')
+        const result = await options.tools.execute(
+          { type: 'function_call', id: call, call_id: call, name, arguments: JSON.stringify(args) },
+          { sessionId: id, turnId: 'utterance-' + utterance, callId: call, signal: scope.signal },
+        )
+        if (!scope.signal.aborted) io.sendFunctionResult(call, name, result.output)
       }
       try {
         io = new Ctor({

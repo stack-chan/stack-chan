@@ -20,7 +20,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const local = resolve(root, 'voice')
 writeAliasPackage(local, 'timer', resolve(root, 'testing/fakes/timer.js'), { hasDefaultExport: true })
 writeAliasPackage(local, 'modules', resolve(root, 'testing/fakes/modules.js'), { hasDefaultExport: true })
-for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime']) {
+for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime', 'levels']) {
   writeAliasPackageSubpath(local, 'stackchan', `voice/${module}`, resolve(local, `${module}.js`))
 }
 const { createPcmSink, createPcmSource, mono, pcmMedia } = await import('../media.js')

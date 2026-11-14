@@ -75,4 +75,3 @@ export class PathCheck {
     return entry.closing
   }
 }
-

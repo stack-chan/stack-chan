@@ -1,0 +1,16 @@
+{
+  "include": ["./manifest.json"],
+  "config": {
+    "voicePathCheck": {
+      "route": "cascade",
+      "llm": { "apiKey": "", "model": "" },
+      "speech": { "apiKey": "", "voice": "alloy" },
+      "live": { "apiKey": "", "model": "", "voice": "marin" },
+      "delegation": "none",
+      "chat": { "type": "openAIRealtime", "apiKey": "" },
+      "xiaozhi": { "endpoint": "", "deviceId": "", "clientId": "" },
+      "maxMs": 90000,
+      "volume": 0.25
+    }
+  }
+}

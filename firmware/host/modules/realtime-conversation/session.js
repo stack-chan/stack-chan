@@ -6,7 +6,8 @@ export function liveConversation(options, platform) {
   if (options.tools) throw unsupported('GPT-Live tools belong to the delegated agent')
   if (delegation.kind === 'client' && typeof delegation.delegate?.run !== 'function')
     throw new TypeError('Missing delegate')
-  if (delegation.kind === 'hosted' && !delegation.model) throw new TypeError('Missing hosted model')
+  if (delegation.kind === 'hosted' && !delegation.model && !options.signaling)
+    throw new TypeError('Missing hosted model')
   return {
     audio: platform.audio,
     capabilities: {
@@ -152,7 +153,13 @@ export function liveConversation(options, platform) {
                       name: definition.name,
                       arguments: JSON.stringify(args),
                     },
-                    { sessionId, turnId: ctx.responseId, callId: ctx.callId, signal: scope.signal },
+                    {
+                      sessionId,
+                      turnId: ctx.responseId,
+                      callId: ctx.callId,
+                      delegationId: ctx.delegationId,
+                      signal: scope.signal,
+                    },
                   )
                   if (scope.signal.aborted || ctx.isCancelled()) throw new Error('Tool execution cancelled')
                   return output.output

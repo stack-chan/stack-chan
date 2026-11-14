@@ -1,4 +1,5 @@
 import AudioOut from 'embedded:io/audio/out'
+import { pcmLevel } from 'stackchan/voice/levels'
 import { deferred, voiceError } from 'stackchan/voice/scope'
 import type { PcmOutput } from './runtime-types.js'
 
@@ -6,7 +7,13 @@ import type { PcmOutput } from './runtime-types.js'
 const dmaBlockBytes = 2048
 export const minimumOutputBytes = dmaBlockBytes * 5
 
-export function openOutput(sampleRate: number, volume: number, limit: number): PcmOutput {
+export function openOutput(
+  sampleRate: number,
+  volume: number,
+  limit: number,
+  onLevel?: (value: number) => void,
+): PcmOutput {
+  const levels: { end: number; sum: number; count: number }[] = []
   let capacity = 0
   let writable = 0
   let submitted = 0
@@ -34,6 +41,11 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
       if (!capacity) capacity = size
       writable = size
       confirmed = Math.max(confirmed, Math.min(audioBytes, submitted - (capacity - writable) - dmaBlockBytes))
+      while (levels.length && levels[0].end <= confirmed) {
+        const level = levels[0]
+        levels.shift()
+        onLevel?.(level.sum / level.count)
+      }
       signal()
     },
   })
@@ -58,6 +70,22 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
       writable -= size
       submitted += size
       audioBytes += size
+      if (onLevel) {
+        let start = audioBytes - size
+        while (start < audioBytes) {
+          const end = Math.min(audioBytes, (Math.floor(start / dmaBlockBytes) + 1) * dmaBlockBytes)
+          const count = end - start
+          const from = offset + start - (audioBytes - size)
+          const sum = pcmLevel(bytes.subarray(from, from + count)) * volume * count
+          const previous = levels[levels.length - 1]
+          if (previous && Math.floor((previous.end - 1) / dmaBlockBytes) === Math.floor(start / dmaBlockBytes)) {
+            previous.end = end
+            previous.sum += sum
+            previous.count += count
+          } else levels.push({ end, sum, count })
+          start = end
+        }
+      }
       onAccepted?.(size)
     }
     return offset + size
@@ -82,6 +110,7 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
       return confirmed / 2
     },
     setVolume(gain: number) {
+      volume = gain
       audio.volume = gain
     },
     async drain() {
@@ -106,10 +135,14 @@ export function openOutput(sampleRate: number, volume: number, limit: number): P
       await wait()
       requireOpen()
       confirmed = audioBytes
+      levels.length = 0
+      onLevel?.(0)
     },
     close() {
       if (closed) return
       closed = true
+      levels.length = 0
+      onLevel?.(0)
       signal()
       try {
         audio.stop()

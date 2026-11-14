@@ -58,3 +58,11 @@ A MOD opts in by calling `pipeline.start()`; no extra host profile or eager allo
 `npm run test:unit`で会話・HTTP・トランスポートの回帰テストを実行する。ネイティブ部分はCoreS3のビルドと実機プローブで検証する。UIの行単位吹き出しは独立した追加APIで、会話モジュールは依存しない。
 
 本モジュールはmeganetaaan名義で開発したSDK forkの新規追加モジュールを移したもの。移植元コミットと原本のハッシュは`source-provenance.json`に記録する。独自実装のSDK用テンプレートヘッダーを整理し、Apache-2.0を適用する。Moddable・ESP-IDF・Espressifのコード自体を再ライセンスするものではない。依存物の条件は[ライセンス記録](LICENSES.md)を参照。
+
+## Custom signaling
+
+Pass either `apiKey` or `signaling`, never both. Direct OpenAI requests default the Live model to `gpt-live-1`; direct hosted delegation requires an explicit delegate model. A custom signaling adapter can own both models on its server: omitted models stay omitted, while explicitly supplied models are configuration hints for the adapter. This exception lives in the Live provider's options, not the shared Conversation or Delegation contracts.
+
+The adapter's `createSession({sdp, session, canStart, starting})` must check `canStart()` immediately before sending and call `starting()` when creation begins. It returns the provider response; `hangup({sessionId})` must finalize that same session, including a late response after local cancellation.
+
+Hosted tool execution exposes `ToolContext.delegationId` as local optional correlation metadata. It does not add an ID field to OpenAI function definitions or function-call output payloads.

@@ -36,7 +36,7 @@ export function borrowLiveAudio(input, output) {
   return entry.native
 }
 
-export function openRealtimeAudioLease({ budget, signal }) {
+export function openRealtimeAudioLease({ budget, signal, onLevel }) {
   if (signal?.aborted) throw signal.reason ?? new Error('Audio acquisition cancelled')
   if (!(budget.maxBufferedBytes >= 131072 && budget.maxBufferedMs >= 1000))
     throw new RangeError('CoreS3 WebRTC requires a 128 KiB, 1000 ms media budget')
@@ -56,6 +56,20 @@ export function openRealtimeAudioLease({ budget, signal }) {
     settlement,
     fenced = false,
     discarded = false
+  let levelTimer
+  try {
+    if (onLevel)
+      levelTimer = Timer.repeat(() => {
+        if (closed || signal?.aborted) return
+        const levels = native('xs_io_audio_levels')()
+        onLevel({ direction: 'input', value: levels.micLevel / 32768 })
+        onLevel({ direction: 'output', value: levels.outputIdleMs < 100 ? levels.referenceLevel / 32768 : 0 })
+      }, 50)
+  } catch (error) {
+    device.close()
+    amp.sampleRate = 24000
+    throw error
+  }
   const input = Object.freeze({ format: liveAudioRequirements.input[0] })
   function settle(discard) {
     if (closed) return Promise.reject(new Error('Audio lease closed'))
@@ -111,6 +125,7 @@ export function openRealtimeAudioLease({ budget, signal }) {
     },
     async close() {
       if (closed) return
+      if (levelTimer !== undefined) Timer.clear(levelTimer)
       device.close()
       amp.sampleRate = 24000
       closed = true

@@ -1,6 +1,7 @@
 import Modules from 'modules'
 import type AudioOutput from 'pins/audioout'
 import type { AudioSink, DuplexLease, PcmFormat, PlaybackReceipt } from 'stackchan/voice/contracts'
+import { pcmLevel } from 'stackchan/voice/levels'
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
@@ -49,7 +50,7 @@ type OutputSegment = {
   | { lengths: number[]; flush(): void; flushTimer?: ReturnType<typeof Timer.set> }
 )
 
-function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLease {
+function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions): DuplexLease {
   requireActive(signal)
   if (requirements.duplex === 'full') throw voiceError('unsupported_capability', 'generic device supports half duplex')
   const inputFormat = monoFormat(requirements.input)
@@ -102,6 +103,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     mic?.close()
     mic = undefined
     input.clearHistory()
+    onLevel?.({ direction: 'input', value: 0 })
   }
   function closeOutput() {
     try {
@@ -133,6 +135,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
           const bytes = count === chunkSize ? slots[slot] : slots[slot].subarray(0, count)
           if (!this.read(bytes)) break
           remaining -= count
+          if (onLevel) onLevel({ direction: 'input', value: pcmLevel(bytes) })
           try {
             const writing = input.offer(bytes)
             if (writing) {
@@ -162,6 +165,7 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     const item = active
     if (!item) return
     active = undefined
+    onLevel?.({ direction: 'output', value: 0 })
     if (!('direct' in item) && item.flushTimer !== undefined) Timer.clear(item.flushTimer)
     try {
       if ('direct' in item) {
@@ -200,7 +204,12 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
     stopMic()
     try {
       if (directOutput) {
-        const direct = directOutput.openOutput(outputFormat.sampleRate, volume, directLimit)
+        const direct = directOutput.openOutput(
+          outputFormat.sampleRate,
+          volume,
+          directLimit,
+          onLevel && ((value) => onLevel({ direction: 'output', value })),
+        )
         const item: OutputSegment = {
           id,
           generation,
@@ -265,6 +274,11 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
       out.callback = (callbackId: number) => {
         const slot = callbackId - 1
         if (active !== item || !(item.lengths[slot] > 0)) return
+        if (onLevel)
+          onLevel({
+            direction: 'output',
+            value: pcmLevel(new Uint8Array(slotsOut[slot], 0, item.lengths[slot])) * volume,
+          })
         item.frames += item.lengths[slot] / 2
         item.lengths[slot] = 0
         wake(item)

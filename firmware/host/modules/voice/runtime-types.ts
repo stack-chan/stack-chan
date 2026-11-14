@@ -1,5 +1,6 @@
 // Keep host composition types independent of optional platform implementations.
 import type {
+  AudioLevel,
   AudioRequirements,
   AudioRuntime,
   DuplexLease,
@@ -10,6 +11,7 @@ import type {
 } from './contracts.js'
 
 export type LeaseOptions = Scope & {
+  onLevel?: (level: AudioLevel) => void
   requirements: AudioRequirements
   budget: MediaBudget
   microphone: Microphone
@@ -34,5 +36,5 @@ export interface PcmOutput {
 }
 export interface PcmOutputModule {
   readonly minimumOutputBytes: number
-  openOutput(sampleRate: number, volume: number, limit: number): PcmOutput
+  openOutput(sampleRate: number, volume: number, limit: number, onLevel?: (value: number) => void): PcmOutput
 }

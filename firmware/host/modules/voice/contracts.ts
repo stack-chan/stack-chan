@@ -99,6 +99,7 @@ export type ToolContext = Scope & {
   readonly sessionId: string
   readonly turnId: string
   readonly callId: string
+  readonly delegationId?: string
 }
 export interface ToolSet {
   readonly definitions: readonly FunctionDefinition[]
@@ -207,12 +208,17 @@ export interface DuplexLease {
   setVolume(gain: number): void
   close(): Promise<void>
 }
+export type AudioLevel = {
+  readonly direction: 'input' | 'output'
+  /** Mean absolute PCM amplitude / 32768, after output gain. Output follows device playback, with driver latency. */
+  readonly value: number
+}
 export interface AudioRuntime {
   acquire(
     microphone: Microphone,
     speaker: Speaker,
     requirements: AudioRequirements,
-    options: Scope & { readonly budget: MediaBudget },
+    options: Scope & { readonly budget: MediaBudget; readonly onLevel?: (level: AudioLevel) => void },
   ): Promise<DuplexLease>
 }
 export interface Microphone {
@@ -286,6 +292,7 @@ export type ConversationCapabilities = {
   readonly submitCompletion: 'playback' | 'unavailable'
 }
 export type ConversationEvent =
+  | { readonly type: 'input.level' | 'output.level'; readonly value: number }
   | { readonly type: 'input.transcript'; readonly value: Transcript }
   | { readonly type: 'input.transcript.delta'; readonly streamId: string; readonly delta: string }
   | { readonly type: 'output.text'; readonly outputId: string; readonly delta: string }

@@ -36,6 +36,11 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
     const starting = !started
     closeTask = Promise.resolve()
       .then(async () => {
+        for (const type of ['input.level', 'output.level'] as const) {
+          try {
+            options.onEvent?.({ type, value: 0 })
+          } catch {}
+        }
         if (starting) scope?.abort()
         await startTask?.catch(() => {})
         const result = await session?.close(args)
@@ -58,6 +63,15 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
         lease = await microphone.runtime.acquire(microphone, speaker, conversation.audio, {
           budget: options.mediaBudget ?? { maxBufferedMs: 250, maxBufferedBytes: 24000 },
           signal: scope.signal,
+          onLevel:
+            options.onEvent &&
+            ((level) => {
+              if (closeTask || scope.signal.aborted) return
+              options.onEvent?.({
+                type: level.direction === 'input' ? 'input.level' : 'output.level',
+                value: muted && level.direction === 'input' ? 0 : level.value,
+              })
+            }),
         })
         requireActive(scope.signal)
         if (volume !== undefined) lease.setVolume(volume)

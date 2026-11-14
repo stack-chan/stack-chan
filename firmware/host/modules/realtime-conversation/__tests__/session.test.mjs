@@ -67,6 +67,7 @@ function fixture(delegation, clock = { setTimer: setTimeout, clearTimer: clearTi
         onEvent: (e) => events.push(e),
       })
     },
+    executeTool: (args, context) => settings.tools[0].execute(args, context),
     receive: (event) => settings.onEvent(event),
     transcript: (value) => settings.onTranscript(value),
   }
@@ -307,4 +308,50 @@ test('Live transcript deltas preserve one stream without inventing final utteran
   ])
   await assert.rejects(session.submit({}), { code: 'unsupported_capability' })
   await session.close({ mode: 'abort' })
+})
+
+test('hosted tool execution retains provider evidence identity and fences late calls', async () => {
+  const calls = []
+  const f = fixture({
+    kind: 'hosted',
+    model: 'test-model',
+    tools: {
+      definitions: [{ type: 'function', name: 'lookup', description: '', parameters: { type: 'object' } }],
+      async execute(call, context) {
+        calls.push({ call, context })
+        return { type: 'function_call_output', call_id: call.call_id, output: 'result' }
+      },
+    },
+  })
+  const session = await f.open()
+  const providerContext = {
+    callId: 'call-1',
+    responseId: 'response-1',
+    delegationId: 'delegation-1',
+    itemId: 'item-1',
+    isCancelled: () => false,
+  }
+  assert.equal(await f.executeTool({ query: 'example' }, providerContext), 'result')
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].context.sessionId, 'session-1')
+  assert.equal(calls[0].context.turnId, 'response-1')
+  assert.equal(calls[0].context.callId, 'call-1')
+  assert.equal(calls[0].context.delegationId, 'delegation-1')
+  assert.equal(calls[0].call.id, 'item-1')
+  assert.equal(calls[0].call.arguments, '{"query":"example"}')
+  await session.close({ mode: 'abort' })
+  assert.equal(calls[0].context.signal.aborted, true)
+  await assert.rejects(f.executeTool({}, providerContext), /cancelled/)
+  assert.equal(calls.length, 1)
+})
+
+test('only authoritative custom signaling can omit a hosted model', () => {
+  assert.throws(
+    () => liveConversation({ apiKey: 'test-key', delegation: { kind: 'hosted' } }, {}),
+    /Missing hosted model/,
+  )
+  assert.throws(() => liveConversation({ delegation: { kind: 'hosted' } }, {}), /Missing hosted model/)
+  assert.doesNotThrow(() =>
+    liveConversation({ signaling: { createSession() {}, hangup() {} }, delegation: { kind: 'hosted' } }, {}),
+  )
 })

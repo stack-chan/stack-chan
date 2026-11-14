@@ -79,12 +79,12 @@ test('NetworkService connects through ECMA-419 Wi-Fi and resolves after IP addre
   service.close()
 })
 
-test('NetworkService synchronizes time after IP when sntp is configured', async () => {
+test('NetworkService synchronizes time even when the retained clock has a plausible date', async () => {
   const sntpHost = `${'Ntp-01'.repeat(10)}.example.`
   const { NetworkService, time } = await setup({ sntp: sntpHost })
   const service = new NetworkService({ ssid: 'stackchan-ap', password: 'secret' })
   const originalNow = Date.now
-  Date.now = () => 0
+  Date.now = () => 1794636364965
 
   try {
     service.connect()

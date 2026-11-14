@@ -3,15 +3,24 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
-import type { AudioRuntime, Conversation, DuplexLease, VoiceSignal } from '../contracts.js'
+import type {
+  AudioLevel,
+  AudioRuntime,
+  Conversation,
+  ConversationEvent,
+  DuplexLease,
+  VoiceSignal,
+} from '../contracts.js'
 
 const local = dirname(dirname(fileURLToPath(import.meta.url)))
 writeAliasPackageSubpath(local, 'stackchan', 'voice/scope', resolve(local, 'scope.js'))
 const { createConversationPipeline } = await import('../pipeline.js')
 const { deferred } = await import('../scope.js')
 
-function fixture() {
+function fixture(onEvent?: (event: ConversationEvent) => void) {
   const calls: string[] = []
+  const events: ConversationEvent[] = []
+  let onLevel: ((level: AudioLevel) => void) | undefined
   let inputWait: Promise<void> | undefined
   let openWait: Promise<void> | undefined
   let closeError: Error | undefined
@@ -31,7 +40,8 @@ function fixture() {
     },
   } as unknown as DuplexLease
   const runtime: AudioRuntime = {
-    async acquire() {
+    async acquire(_mic, _spk, _req, options) {
+      onLevel = options.onLevel
       calls.push('acquire')
       return lease
     },
@@ -77,10 +87,18 @@ function fixture() {
     microphone: { id: 'mic', runtime },
     speaker: { id: 'speaker', runtime },
     conversation,
+    onEvent(event) {
+      events.push(event)
+      onEvent?.(event)
+    },
   })
   return {
     pipeline,
     calls,
+    events,
+    emitLevel(level: AudioLevel) {
+      onLevel?.(level)
+    },
     waitInput(value?: Promise<void>) {
       inputWait = value
     },
@@ -184,4 +202,35 @@ test('close cancels startup while the initial microphone command is pending', as
   await rejected
   assert.equal(f.signal.aborted, true)
   assert.equal(f.calls.filter((value) => value === 'release').length, 1)
+})
+
+test('pipeline exposes symmetric levels, masks startup mute and drops late callbacks', async () => {
+  const f = fixture()
+  await f.pipeline.setMicrophoneMuted(true)
+  await f.pipeline.start()
+  f.emitLevel({ direction: 'input', value: 0.5 })
+  f.emitLevel({ direction: 'output', value: 0.75 })
+  assert.deepEqual(f.events.slice(-2), [
+    { type: 'input.level', value: 0 },
+    { type: 'output.level', value: 0.75 },
+  ])
+  await f.pipeline.close()
+  assert.deepEqual(f.events.slice(-2), [
+    { type: 'input.level', value: 0 },
+    { type: 'output.level', value: 0 },
+  ])
+  const count = f.events.length
+  f.emitLevel({ direction: 'output', value: 1 })
+  assert.equal(f.events.length, count)
+})
+
+test('level observers can reenter close without recursive release', async () => {
+  let pipeline: ReturnType<typeof createConversationPipeline> | undefined
+  const f = fixture((event) => {
+    if (event.type === 'input.level' && event.value === 0) void pipeline?.close()
+  })
+  pipeline = f.pipeline
+  await pipeline.start()
+  await pipeline.close()
+  assert.equal(f.calls.filter((call) => call === 'release').length, 1)
 })

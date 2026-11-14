@@ -11,6 +11,30 @@ import type Speaker from 'speaker'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
 import { DEFAULT_VOLUME, MAX_MEDIA_VOLUME } from 'volume-model'
 
+export function lazySpeechPlayback(create: () => SpeechPlayback): SpeechPlayback {
+  let playback: SpeechPlayback | undefined
+  function getPlayback() {
+    if (!playback) {
+      const created = create()
+      created.onPlayed = (power) => lazy.onPlayed?.(power)
+      created.onDone = () => lazy.onDone?.()
+      playback = created
+    }
+    return playback
+  }
+  const lazy: SpeechPlayback = {
+    stream(text, volume, callback) {
+      getPlayback().stream(text, volume, callback)
+    },
+    streamKoe(koe, volume, callback) {
+      const player = getPlayback()
+      if (!player.streamKoe) throw new Error('The active speech player does not support singing.')
+      player.streamKoe(koe, volume, callback)
+    },
+  }
+  return lazy
+}
+
 export type RuntimeAudioConstructorParam = {
   speechPlayback: SpeechPlayback
   microphone?: Microphone

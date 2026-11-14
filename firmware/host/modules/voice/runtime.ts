@@ -7,7 +7,7 @@ export type { LeaseFactory, LeaseOptions, RuntimeOptions } from './runtime-types
 export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory) {
   let reserved = false
   const runtime: AudioRuntime = {
-    async acquire(microphone, speaker, requirements, { budget, signal }) {
+    async acquire(microphone, speaker, requirements, { budget, signal, onLevel }) {
       requireActive(signal)
       if (microphone !== mic || speaker !== spk) throw voiceError('unsupported_capability', 'unpaired audio ports')
       if (reserved) throw voiceError('device_busy')
@@ -20,10 +20,35 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory)
         throw voiceError('device_busy')
       }
       reserved = true
+      let observing = true
+      let inputEnabled = true
+      const last = { input: -Infinity, output: -Infinity }
+      const values = { input: -1, output: -1 }
+      const observe: typeof onLevel =
+        onLevel &&
+        ((level) => {
+          if (!observing || signal.aborted) return
+          const value = level.direction === 'input' && !inputEnabled ? 0 : Math.min(1, Math.max(0, level.value))
+          const now = Date.now()
+          if (
+            !Number.isFinite(value) ||
+            (value === 0 && values[level.direction] === 0) ||
+            (value !== 0 && now - last[level.direction] < 50)
+          )
+            return
+          values[level.direction] = value
+          last[level.direction] = now
+          try {
+            onLevel({ direction: level.direction, value })
+          } catch {
+            /* UI must not interrupt audio. */
+          }
+        })
       let lease: DuplexLease
       try {
-        lease = await open({ requirements, budget, signal, microphone, speaker })
+        lease = await open({ requirements, budget, signal, microphone, speaker, onLevel: observe })
       } catch (error) {
+        observing = false
         release()
         reserved = false
         throw error
@@ -32,6 +57,12 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory)
       function close() {
         if (!closing)
           closing = Promise.resolve().then(async () => {
+            observing = false
+            for (const direction of ['input', 'output'] as const) {
+              try {
+                onLevel?.({ direction, value: 0 })
+              } catch {}
+            }
             await lease.close()
             release()
             reserved = false
@@ -49,7 +80,11 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory)
         input: lease.input,
         output: lease.output,
         media: lease.media,
-        setInputEnabled: (enable) => lease.setInputEnabled(enable),
+        async setInputEnabled(enable) {
+          inputEnabled = enable
+          if (!enable) observe?.({ direction: 'input', value: 0 })
+          await lease.setInputEnabled(enable)
+        },
         setVolume: (value) => lease.setVolume(value),
         close,
       }

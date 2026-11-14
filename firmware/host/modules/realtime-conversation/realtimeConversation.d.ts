@@ -2,7 +2,7 @@ declare module 'realtimeConversation' {
   import type { Conversation, Delegation } from 'stackchan/voice/contracts'
   export type Transcript = { role: 'user' | 'assistant'; delta: string; start_ms: number; end_ms: number }
   export type LiveSessionSettings = {
-    model: string
+    model?: string
     instructions: string
     audio: { output: { voice: string } }
     delegation?: object
@@ -18,11 +18,14 @@ declare module 'realtimeConversation' {
     acceptSession?(result: { session: { id: string }; [key: string]: unknown }): void
     hangup(input: { sessionId: string }): Promise<void>
   }
-  export type LiveOptions = ({ apiKey: string; signaling?: never } | { signaling: Signaling; apiKey?: never }) & {
+  type SignaledDelegation = Omit<Extract<Delegation, { kind: 'hosted' }>, 'model'> & { model?: string }
+  export type LiveOptions = (
+    | { apiKey: string; signaling?: never; delegation?: Delegation }
+    | { signaling: Signaling; apiKey?: never; delegation?: Delegation | SignaledDelegation }
+  ) & {
     model?: string
     voice?: string
     instructions?: string
-    delegation?: Delegation
     toolTimeout?: number
     onToolResult?(result: {
       callId: string

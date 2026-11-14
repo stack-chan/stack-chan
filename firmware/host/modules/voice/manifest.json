@@ -12,6 +12,7 @@
     "stackchan/voice/pipeline": "./pipeline",
     "stackchan/voice/cascaded": "./cascaded",
     "stackchan/voice/runtime": "./runtime",
+    "stackchan/voice/levels": "./levels",
     "stackchan/voice/device": "./pcm-device",
     "stackchan/voice/pcm-http": "./pcm-http",
     "stackchan/voice/speech": "./speech"

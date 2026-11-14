@@ -593,3 +593,61 @@ test('exclusive media ownership preserves shared volume without starting audio u
   assert.deepEqual(starts, [0.35 * 0.2, 0.25 * 0.2, 0.25 * 0.2])
   assert.deepEqual(spoken, [0.25])
 })
+
+test('lazy TTS is not initialized by exclusive conversations or replacement', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio, lazySpeechPlayback } = await import('../runtime-audio.js')
+  let attempts = 0
+  const lazy = lazySpeechPlayback(() => {
+    attempts++
+    throw new Error('unavailable TTS')
+  })
+  const runtime = new StackchanRuntimeAudio({ speechPlayback: lazy })
+  runtime.acquireExclusive()()
+  assert.equal(runtime.setSpeechPlayback(fakeSpeechPlayback()), lazy)
+  assert.equal((await runtime.say('explicit')).success, true)
+  runtime.close()
+  assert.equal(attempts, 0)
+})
+
+test('lazy TTS initializes once and forwards current listeners', async () => {
+  installBareSpecifierPackages()
+  const { lazySpeechPlayback } = await import('../runtime-audio.js')
+  let attempts = 0
+  const player: SpeechPlayback = fakeSpeechPlayback()
+  const lazy = lazySpeechPlayback(() => {
+    attempts++
+    return player
+  })
+  const levels: number[] = []
+  let done = 0
+  lazy.onPlayed = (power) => levels.push(power)
+  lazy.onDone = () => done++
+  lazy.stream('first')
+  player.onPlayed?.(100)
+  player.onDone?.()
+  lazy.onPlayed = (power) => levels.push(power * 2)
+  lazy.streamKoe?.('second')
+  player.onPlayed?.(100)
+  assert.equal(attempts, 1)
+  assert.deepEqual(levels, [100, 200])
+  assert.equal(done, 1)
+})
+
+test('lazy TTS reports initialization failure on use and supports retry', async () => {
+  installBareSpecifierPackages()
+  const { lazySpeechPlayback } = await import('../runtime-audio.js')
+  let attempts = 0
+  const lazy = lazySpeechPlayback(() => {
+    if (++attempts === 1) throw new Error('unavailable TTS')
+    return { stream: (_text, _volume, callback) => callback?.() }
+  })
+  assert.throws(() => lazy.stream('first'), /unavailable TTS/)
+  let completed = false
+  lazy.stream('retry', 0.5, () => {
+    completed = true
+  })
+  assert.equal(completed, true)
+  assert.equal(attempts, 2)
+  assert.throws(() => lazy.streamKoe?.('song'), /does not support singing/)
+})

@@ -63,7 +63,7 @@ export default class Conversation {
       if (typeof adapter.createSession !== 'function' || typeof adapter.hangup !== 'function')
         throw new TypeError('Invalid signaling adapter')
       this.#signaling = {
-        create: (sdp, canStart, starting) => adapter.createSession({ sdp, canStart, starting }),
+        create: (sdp, session, canStart, starting) => adapter.createSession({ sdp, session, canStart, starting }),
         accept: (result) => adapter.acceptSession?.(result),
         hangup: (sessionId) => adapter.hangup({ sessionId }),
       }
@@ -73,7 +73,7 @@ export default class Conversation {
         throw new TypeError(`${name} must be a function`)
     this.#key = options.apiKey
     this.#options = {
-      model: options.model ?? 'gpt-live-1',
+      model: options.model ?? (this.#signaling ? undefined : 'gpt-live-1'),
       instructions: options.instructions ?? '',
       voice: options.voice ?? 'marin',
       delegation: options.delegation === undefined ? undefined : JSON.parse(JSON.stringify(options.delegation)),
@@ -84,7 +84,11 @@ export default class Conversation {
       onToolResult: options.onToolResult,
     }
     for (const name of ['model', 'instructions', 'voice'])
-      if (typeof this.#options[name] !== 'string') throw new TypeError(`invalid ${name}`)
+      if (
+        !(name === 'model' && this.#signaling && this.#options[name] === undefined) &&
+        typeof this.#options[name] !== 'string'
+      )
+        throw new TypeError(`invalid ${name}`)
     this.#platform = platform
     this.#toolTimeout = options.toolTimeout
     if (options.tools !== undefined && !Array.isArray(options.tools)) throw new TypeError('Invalid tools')
@@ -163,7 +167,10 @@ export default class Conversation {
     return promise
   }
 
-  close() {
+  stopTools() {
+    this.#tools?.close()
+  }
+  close(timeoutMs = 15000) {
     if (this.#closing) return this.#closing.promise
     this.#closing = deferred()
     if (this.#result) {
@@ -177,7 +184,7 @@ export default class Conversation {
     if (!this.#signaled) {
       void this.#finish({ finalized: true, reason: 'not_started' })
     } else {
-      this.#after(15000, () => {
+      this.#after(timeoutMs, () => {
         const error = new ConversationError('No session.closed event received', 'close_timeout', 'close')
         this.#notify('onError', error)
         void this.#finish({ finalized: false, reason: 'close_timeout', usage: this.#usage })
@@ -185,6 +192,16 @@ export default class Conversation {
       if (this.#ready) this.#sendClose()
     }
     return this.#closing.promise
+  }
+
+  appendDelegationResult(delegationId, content) {
+    if (this.#state !== 'connected') throw new ConversationError('Session ended', 'closed', 'delegation')
+    this.#send({
+      type: 'session.commentary.append',
+      event_id: `result_${++this.#eventID}`,
+      delegation_id: delegationId,
+      content,
+    })
   }
 
   setVolume(value) {
@@ -224,10 +241,18 @@ export default class Conversation {
     const key = this.#key
     try {
       const options = this.#options
+      const session = {
+        ...(options.model === undefined ? {} : { model: options.model }),
+        instructions: options.instructions,
+        audio: { output: { voice: options.voice } },
+        delegation: options.delegation,
+        store: false,
+      }
       let response
       if (this.#signaling) {
         response = await this.#signaling.create(
           sdp,
+          session,
           () => this.#state === 'connecting' && !this.#finishing && !this.#result,
           () => {
             this.#signaled = true
@@ -240,13 +265,7 @@ export default class Conversation {
           method: 'POST',
           headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            session: {
-              model: options.model,
-              instructions: options.instructions,
-              audio: { output: { voice: options.voice } },
-              delegation: options.delegation,
-              store: false,
-            },
+            session,
             transport: { type: 'webrtc', sdp },
           }),
         })

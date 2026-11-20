@@ -4,6 +4,8 @@
 
 The detailed API document is under construction.
 
+For voice conversations, start with the [tested minimal example](voice-quickstart.md). Adapter authors can use the [PCM and speech contracts](stackchan-voice-adapters.md). Existing voice MODs need the [API migration](voice-api-migration.md).
+
 Stack-chan firmware sources include `TSDoc` style comments.
 The repository keeps `firmware/tsconfig.json` for Node-side checks and API document generation.
 
@@ -53,7 +55,8 @@ Correspondence with the coordinate system can also be referenced in the actual s
 `StackchanContext` exposes namespaced capabilities. New MODs should prefer these namespaces:
 
 - `context.audio.say(...)`, `context.audio.record(...)`, `context.audio.playAudio(...)`
-- `context.audio.useTTS(...)` for replacing the speech engine when a MOD owns that choice
+- `context.audio.microphone` and `context.audio.speaker` supply the paired endpoints for a voice conversation pipeline. See the [working examples](chat-audioio-integration.md).
+- `context.audio.setSpeechPlayback(...)` for replacing the speech engine when a MOD owns that choice
 - `context.motion.lookAt(...)`, `context.motion.setPose(...)`, `context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`, `context.face.setColor(...)`
 - `context.i18n.locale`, `context.i18n.localize(...)`
@@ -78,7 +81,7 @@ Use `context.i18n.localize(key, values?)` for text shown by a MOD Drawer Button 
 It resolves the MOD catalog first, then the host catalog, and finally the key itself.
 See [Firmware localization](./localization.md) for catalog setup.
 
-The legacy flat methods such as `context.say(...)`, `context.lookAt(...)`, `context.showBalloon(...)`, and `context.useTTS(...)` remain as compatibility shims for existing MODs.
+The legacy flat methods such as `context.say(...)`, `context.lookAt(...)`, and `context.showBalloon(...)` remain as compatibility shims for existing MODs.
 They are deprecated for new code and may be removed after the sample MODs and downstream MODs have moved to the namespaced API.
 
 ### Lifecycle and errors
@@ -115,10 +118,20 @@ Low-level driver objects are internal to `host/modules/motion` and are not expos
 
 ### Audio capability
 
-The public audio API exposes speech playback through the capability object passed to MODs.
-Provider objects for local, remote, Voicevox, ElevenLabs, and OpenAI speech are internal to `host/modules/audio`.
+`context.audio.say(text)` uses the configured `SpeechPlayback` provider, which owns synthesis and playback as one operation. A MOD can replace it while audio is idle. `setSpeechPlayback(player)` returns the previous player; pass that player back to restore it. The runtime borrows the installed player, installs its mouth-animation callbacks, and detaches those callbacks on replacement. It does not close either player. Do not use or change the installed player independently while the runtime owns its callbacks.
 
-`sing(koe, volume?)` plays stackchan-voice singing notation when the active TTS provider supports it.
+```js
+const previous = context.audio.setSpeechPlayback(player)
+try {
+  await context.audio.say('Hello')
+} finally {
+  context.audio.setSpeechPlayback(previous)
+}
+```
+
+For bundled clips, import `SpeechPlayback` from `speech-playback-local`. Voice conversations instead take a synthesis-only `TTS` that produces an audio source. The pipeline's speaker owns playback and its completion.
+
+`sing(koe, volume?)` plays stackchan-voice singing notation when the active speech player supports it.
 It returns a failed result for providers without singing support; it never sends the notation to ordinary speech synthesis as text.
 
 `playAudio(buffer)` returns `true` only when the target accepts the borrowed buffer and playback completes.

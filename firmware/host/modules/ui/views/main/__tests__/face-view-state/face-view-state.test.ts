@@ -1,6 +1,7 @@
 import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
 import type { StackchanContext } from 'capabilities'
+import { Emoticon } from 'effects/emoticon'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
@@ -16,6 +17,7 @@ import {
 } from 'piu/MC'
 import { StackchanRuntimeUI } from 'runtime-ui'
 import { assert, equal } from 'testing/assert'
+import Timer from 'timer'
 
 trace('=== face-view state test ===\n')
 
@@ -650,4 +652,54 @@ for (let i = 0; i < 2; i++) {
     'standard face origin after shades',
   )
 }
-trace('@@STACKCHAN_TEST:PASS@@\n')
+async function testEmoticonMotion() {
+  const displayed = () => new Promise<void>((resolve) => Timer.set(() => resolve(), 50))
+  controller.setFaceMotionEnabled(true)
+  const moving = new Emoticon({ key: 'heart' })
+  const stopped = new Emoticon({ key: 'tear' })
+  const addedQuiet = new Emoticon({ key: 'sleepy' })
+  const control = new Content(null, { width: 40, height: 20, active: true })
+  const balloon = new SpeechBalloon({ text: 'control stays visible' })
+  controller.addEffect(moving)
+  controller.addEffect(stopped)
+  controller.addEffect(control, 'motion-test-control')
+  controller.addEffect(balloon, 'motion-test-balloon')
+  await displayed()
+  assert(moving.first?.running, 'attached emoticon should start animating')
+  assert(stopped.first?.running, 'tear should start animating')
+  stopped.first.stop()
+  stopped.visible = false
+
+  controller.setFaceMotionEnabled(false)
+  equal(moving.visible, false, 'quiet presentation should hide decorative emoticons')
+  equal(moving.first.running, false, 'quiet presentation should stop emoticon timers')
+  equal(control.visible, true, 'quiet presentation should retain static controls')
+  equal(control.active, true, 'quiet presentation should retain control interaction')
+  equal(balloon.visible, true, 'quiet presentation should retain speech balloons')
+  controller.setFaceMotionEnabled(false)
+  controller.addEffect(addedQuiet)
+  equal(addedQuiet.visible, false, 'emoticons added while quiet should be hidden immediately')
+  controller.removeEffect(stopped)
+  controller.addEffect(stopped)
+  await displayed()
+  equal(addedQuiet.first?.running, false, 'initial display must not restart a quiet emoticon')
+  equal(stopped.first.running, false, 'reattachment must not restart a quiet emoticon')
+  equal(stopped.visible, false, 'reattachment must keep a quiet emoticon hidden')
+
+  controller.setFaceMotionEnabled(true)
+  equal(moving.visible, true, 'motion restore should restore an emoticon visibility')
+  equal(moving.first.running, true, 'motion restore should resume the previously running timer')
+  equal(stopped.visible, false, 'motion restore should preserve previously hidden visibility')
+  equal(stopped.first.running, false, 'motion restore should preserve a previously stopped timer')
+  equal(addedQuiet.visible, true, 'motion restore should reveal an emoticon first added while quiet')
+  equal(addedQuiet.first?.running, true, 'motion restore should start an emoticon first added while quiet')
+  for (const effect of [moving, stopped, addedQuiet, control, balloon]) controller.removeEffect(effect)
+}
+
+void testEmoticonMotion().then(
+  () => trace('@@STACKCHAN_TEST:PASS@@\n'),
+  (error) => {
+    trace(`${error}\n`)
+    trace('@@STACKCHAN_TEST:FAIL@@\n')
+  },
+)

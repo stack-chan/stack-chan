@@ -84,6 +84,7 @@
           "incremental": 1280
         },
         "stack": 768,
+        "nativeStack": 15360,
         "keys": {
           "initial": 32,
           "incremental": 32
@@ -125,6 +126,7 @@
           "incremental": 1280
         },
         "stack": 768,
+        "nativeStack": 15360,
         "keys": {
           "initial": 32,
           "incremental": 32
@@ -143,6 +145,7 @@
           "incremental": 1280
         },
         "stack": 768,
+        "nativeStack": 15360,
         "keys": {
           "initial": 32,
           "incremental": 32

@@ -18,6 +18,16 @@
     "sourceMap": true,
     "target": "es2024",
     "paths": {
+      "stackchan-ai-*": ["./host/modules/ai/ai-*"],
+      "realtimeConversation/http-core": ["./host/modules/realtime-conversation/http-core.js"],
+      "stackchanChatWorkerSession": ["./host/modules/conversation/chat-audioio/worker-session.js"],
+      "stackchanBorrowedChatIO": ["./host/modules/conversation/chat-audioio/borrowed-io"],
+      "stackchanPcmRingWriter": ["./host/modules/conversation/chat-audioio/pcm-ring-writer-native"],
+      "stackchan/voice/device": ["./host/modules/voice/pcm-device"],
+      "stackchan/ai": ["./host/modules/ai/index"],
+      "stackchan/voice": ["./host/modules/voice/index"],
+      "stackchan/voice/*": ["./host/modules/voice/*"],
+      "stackchan/voice/contracts": ["./host/modules/voice/contracts"],
       "media-player": [
         "./host/modules/audio/platforms/m5stackchan-cores3/media-player.ts"
       ],

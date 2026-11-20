@@ -35,6 +35,10 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeInputConstructorParam &
   RuntimeLightingConstructorParam &
   MotionControllerConstructorParam & {
+    createVoiceRuntime: (acquireExclusive: () => () => void) => {
+      microphone: NonNullable<AudioCapability['microphone']>
+      speaker: AudioCapability['speaker']
+    }
     connectivity?: ConnectivityCapability
     remoteConversationSession?: RemoteConversationSession
     closeHandlers?: ReadonlyArray<() => void | Promise<void>>
@@ -90,7 +94,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     void this.#updateFaceHandler
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
-    this.#audioCapability = this.createAudioCapability()
+    this.#audioCapability = this.createAudioCapability(params.createVoiceRuntime)
     // Capture the host-owned localization service after boot selected a locale;
     // MODs receive this stable boundary instead of importing host UI internals.
     this.#i18nCapability = createI18nCapability()
@@ -139,15 +143,6 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   /**
-   * Set a TTS instance and register callbacks.
-   *
-   * @param tts - TTS class instance
-   */
-  useTTS(tts: RuntimeAudioConstructorParam['tts']) {
-    this.#audioRuntime.useTTS(tts)
-  }
-
-  /**
    * get Buttons
    *
    * @returns Button instances
@@ -193,15 +188,6 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   /**
-   * get Microphone
-   *
-   * @returns Microphone instance
-   */
-  get microphone() {
-    return this.#audioRuntime.microphone
-  }
-
-  /**
    * get Camera
    *
    * @returns Camera instance
@@ -230,7 +216,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   /**
-   * Sing raw stackchan-voice koe notation when the active TTS supports it.
+   * Sing raw stackchan-voice koe notation when the configured speech player supports it.
    *
    * @param koe - romanized koe notation with `#` note annotations
    * @returns the koe notation when singing finishes, otherwise the reason why it fails.
@@ -346,10 +332,6 @@ export class StackchanRuntimeContext implements StackchanContext {
     if (immediate || this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
-  get tts() {
-    return this.#audioRuntime.tts
-  }
-
   get ui(): RuntimeUICapability {
     return this.#uiCapability
   }
@@ -441,8 +423,10 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
   }
 
-  private createAudioCapability(): AudioCapability {
+  private createAudioCapability(createRuntime: RuntimeContextConstructorParam['createVoiceRuntime']): AudioCapability {
     const context = this
+    let endpoints: ReturnType<typeof createRuntime>
+    const getEndpoints = () => (endpoints ??= createRuntime(() => this.#audioRuntime.acquireExclusive()))
     return {
       get volume() {
         return context.#audioRuntime.volume
@@ -450,15 +434,14 @@ export class StackchanRuntimeContext implements StackchanContext {
       set volume(volume: number) {
         context.#audioRuntime.volume = volume
       },
-      acquireExclusive: () => this.#audioRuntime.acquireExclusive(),
-      get tts() {
-        return context.tts
-      },
       get microphone() {
-        return context.microphone ? { record: (duration?: number) => context.record(duration) } : undefined
+        return context.#audioRuntime.hasMicrophone ? getEndpoints().microphone : undefined
       },
-      useTTS(tts) {
-        context.useTTS(tts)
+      get speaker() {
+        return getEndpoints().speaker
+      },
+      setSpeechPlayback(playback) {
+        return context.#audioRuntime.setSpeechPlayback(playback)
       },
       say(text, volume) {
         return context.say(text, volume)
@@ -602,6 +585,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       },
       setHandAnimation(animation) {
         context.#uiRuntime.ui.setHandAnimation(animation)
+      },
+      get faceMotionEnabled() {
+        return context.#updateFaceHandler !== undefined
       },
       setFaceMotionEnabled(enabled) {
         if (!enabled && context.#updateFaceHandler !== undefined) {

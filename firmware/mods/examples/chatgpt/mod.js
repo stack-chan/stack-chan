@@ -1,5 +1,7 @@
 import WebSocket from 'WebSocket'
-import { ChatGPTDialogue } from 'dialogue-chatgpt'
+import { runTextTurn } from 'example-text-turn'
+import { Agent, OpenAIResponsesLLM, ToolSet } from 'stackchan/ai'
+import { VoiceScope } from 'stackchan/voice'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -17,38 +19,39 @@ const CONTEXT = [
   },
 ]
 
+let stop
+export function onClose() {
+  stop?.()
+  stop = undefined
+}
 export function onContextCreated(robot, option) {
   // Integrate ChatGPT
   const aiPrefs = option.config.ai
-  trace(`ai.token: ${aiPrefs.token}\n`)
-  const dialogue = new ChatGPTDialogue({
-    apiKey: aiPrefs.token,
-    model: MODEL,
-    context: CONTEXT,
+  const scope = VoiceScope.create()
+  const agent = Agent.create({
+    llm: OpenAIResponsesLLM.create({ apiKey: aiPrefs.token, model: aiPrefs.model ?? MODEL }),
+    instructions: CONTEXT.map((item) => item.content).join('\n'),
+    tools: ToolSet.create(),
+    maxToolRounds: 0,
   })
+  const state = { id: 'text-session', nextTurn: 0, history: [] }
+  const reply = (text) => runTextTurn(agent, state, text, scope)
   let chatting = false
   async function chatAndSay(message) {
     if (chatting) {
       return
     }
     chatting = true
-    const result = await dialogue.post(message)
-    if (!result.success) {
-      trace(`failed: ${result.reason}`)
-      return
+    try {
+      const answer = await reply(message)
+      for (const sentence of answer.split(/[。！？]/).filter(Boolean)) {
+        if (scope.signal.aborted) return
+        ws.send(JSON.stringify({ role: 'assistant', message: sentence }))
+        await robot.audio.say(sentence)
+      }
+    } finally {
+      chatting = false
     }
-
-    const messages = result.value.split(/[。！？]/).filter((m) => m.length > 0)
-    for (const message of messages) {
-      ws.send(
-        JSON.stringify({
-          role: 'assistant',
-          message,
-        }),
-      )
-      await robot.audio.say(message)
-    }
-    chatting = false
   }
 
   // Connect to STT server
@@ -58,10 +61,11 @@ export function onContextCreated(robot, option) {
     trace('connected\n')
   })
   ws.addEventListener('message', (payload) => {
-    if (payload.data != null && payload.data.length > 1) {
-      const { role, message } = JSON.parse(payload.data)
+    if (payload.data != null) {
+      const data = typeof payload.data === 'string' ? payload.data : String.fromArrayBuffer(payload.data)
+      const { role, message } = JSON.parse(data)
       if (role === 'user') {
-        chatAndSay(message)
+        void chatAndSay(message).catch((error) => trace(String(error)))
       }
     }
   })
@@ -98,9 +102,12 @@ export function onContextCreated(robot, option) {
       return
     }
     chatting = true
-    await robot.audio.say('こんにちは。ぼくｽﾀｯｸﾁｬﾝ！')
-    await robot.audio.say('よろしくね。')
-    chatting = false
+    try {
+      await robot.audio.say('こんにちは。ぼくｽﾀｯｸﾁｬﾝ！')
+      if (!scope.signal.aborted) await robot.audio.say('よろしくね。')
+    } finally {
+      chatting = false
+    }
   }
 
   // Look around
@@ -115,5 +122,10 @@ export function onContextCreated(robot, option) {
     trace(`looking at: [${x}, ${y}, ${z}]\n`)
     robot.motion.lookAt([x, y, z])
   }
-  Timer.repeat(lookAround, 5000)
+  const timer = Timer.repeat(lookAround, 5000)
+  stop = () => {
+    scope.abort()
+    Timer.clear(timer)
+    ws.close()
+  }
 }

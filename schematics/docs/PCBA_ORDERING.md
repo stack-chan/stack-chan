@@ -6,7 +6,7 @@ This guide provides step-by-step instructions for ordering Stack-chan boards usi
 
 **PCB (Printed Circuit Board)** is a bare board with printed circuit patterns. You receive the board without components and need to solder all parts yourself.
 
-**PCBA (Printed Circuit Board Assembly)** is a fully assembled board delivered with all components already soldered. This means you can use it immediately upon arrival. It eliminates the need for tedious SMD (Surface Mount Device) soldering work, making the build process much easier.
+**PCBA (Printed Circuit Board Assembly)** is a board delivered with the components included in the assembly order already soldered. It reduces the amount of manual soldering, but any parts left out of the order must still be fitted.
 
 ## About Stack-chan Board
 
@@ -102,13 +102,13 @@ After upload, board specifications are automatically detected. Verify the follow
    - **Economic**: Single-sided assembly, lower cost
    - **Standard**: Supports double-sided assembly
    
-   For Stack-chan board with components on one side only, **Economic** is sufficient
+   The m5-pantilt board has SMD parts on both sides. The M5Stack connector **J1** is on the bottom side (`B.Cu`).
 
 3. Select Assembly Side:
    - **Top Side**: Assemble top surface only
    - **Bottom Side**: Assemble bottom surface only
    
-   Choose according to your board design (usually Top Side)
+   For m5-pantilt, choose **Economic → Top Side** only if you plan to hand-solder the bottom-side SMD connector **J1** before attaching the M5Stack. If you want both sides factory-assembled, confirm that the [Standard service](https://jlcpcb.com/capabilities/pcb-assembly-capabilities) accepts your board dimensions and can supply and place J1. Check that J1 is shown on the bottom in the assembly preview before ordering.
 
 4. Select PCBA Qty (assembly quantity):
    - Minimum 2 boards (must be equal to or less than PCB order quantity)
@@ -121,11 +121,11 @@ After upload, board specifications are automatically detected. Verify the follow
 
 2. **Upload BOM File**
    - Click "Add BOM File"
-   - Upload `m5-pantilt-bom-jlc.csv` from the downloaded folder
+   - Upload `m5-pantilt_bom_jlc.csv` from the downloaded folder
 
 3. **Upload CPL File**
    - Click "Add CPL File"
-   - Upload `m5-pantilt-cpl-jlc.csv` from the downloaded folder
+   - Upload `m5-pantilt_cpl_jlc.csv` from the downloaded folder
 
 4. Click "Process BOM & CPL" button
 
@@ -189,6 +189,7 @@ After ordering, JLCPCB engineers will review the design files. If there are any 
 
 The PCBA service may not assemble the following (depending on design):
 
+- The bottom-side SMD M5Stack connector J1 when ordering Economic / Top Side
 - Through-hole components (pin headers, connectors, etc.)
 - Some large components
 - Special components

@@ -11,6 +11,8 @@
 ｽﾀｯｸﾁｬﾝのファームウェアは、ｽﾀｯｸﾁｬﾝの基本動作を提供するプログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
 一度ホストを書き込んでしまえば、ユーザアプリケーションのインストールは短時間で終わるため高速な開発が可能です。
 最初にホストを書き込み、必要に応じて MOD の書き込みを行います。
+MOD がインストールされていない場合、ホストは製品既定動作を実行します。
+MOD がインストールされている場合、製品既定動作は実行されず、MOD が `onContextCreated` で runtime context を受け取ります。
 
 ### マニフェストファイル
 
@@ -23,12 +25,17 @@
 ## 設定変更
 
 ｽﾀｯｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
-ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json)にまとまっています。
+ユーザが変更する設定は[`stack-chan/firmware/host/app/manifest_local.json`](../host/app/manifest_local.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
+
+`manifest_local.json` は、私設 IP アドレス、API キー、ベンチ固有のサーボ設定をコミットしないため、空の `"config"` として管理しています。
+ローカルの driver 設定を追加せずにビルドした場合、firmware は platform/app の既定値を使います。
+汎用ベンチ環境では既定のシリアルサーボ driver が選ばれる可能性があるため、異なる driver を使う場合は `config.driver.type` を明示してください。
 
 | キー              | 説明                                            | 使用可能な値                                |
 | ----------------- | ----------------------------------------------- | ------------------------------------------- |
-| driver.type       | モータドライバの種類                            | "scservo", "rs30x", "pwm", "none", "dynamixel"           |
+| sntp              | TLS 接続前に時刻を取得する NTP サーバー           | ホスト名または IP アドレス。既定値: "pool.ntp.org" |
+| driver.type       | モータドライバの種類                            | "m5stackchan", "scservo", "rs30x", "pwm", "none", "dynamixel"           |
 | driver.panId      | パン軸（首の横回転）に使うシリアルサーボの ID   | 1~254                                       |
 | driver.tiltId     | チルト軸（首の縦回転）に使うシリアルサーボの ID | 1~254                                       |
 | driver.offsetPan  | パン軸のオフセット                              | -90~90                                      |
@@ -36,9 +43,31 @@
 | tts.type          | [TTS](./text-to-speech_ja.md) の種類            | "local", "voicevox", "remote", "voicevox-web", "elevenlabs", "openai"                         |
 | tts.host          | TTS がサーバと通信する場合のホスト名            | "localhost", "ttsserver.local" などの文字列 |
 | tts.port          | TTS がサーバと通信する場合のポート番号          | 1~65535                                     |
-| tts.volume          | TTS を再生する時の音量          | 0~1                                     |
+| tts.volume        | TTS を再生する時の音量                        | 0~1                                         |
 
 また、`"include"`キーの配下にリスト形式で他のマニフェストファイルのパスを指定できます。
+
+### インターネットに接続しないネットワークでの時刻同期
+
+Wi-Fi 接続と DHCP による IP アドレス取得に成功しても、既定の NTP サーバーに到達できない場合があります。
+ホストは TLS 接続に必要な時刻同期が完了するまで、ネットワークの準備完了を通知しません。
+時刻同期に失敗した場合やタイムアウトした場合、起動時の復旧画面に時刻同期の失敗と設定済みのサーバーを表示します。
+再試行とオフライン起動は引き続き選択できます。
+
+インターネットに接続しない VLAN では、ビルドに使うアプリ manifest の `config` 直下にある `sntp` を、到達可能な LAN 内の NTP サーバーに変更してください。
+
+```json
+{
+  "config": {
+    "sntp": "192.0.2.123"
+  }
+}
+```
+
+例のアドレスを実際のサーバーのホスト名または IP アドレスに置き換え、ロボットからの NTP 通信（UDP ポート 123）を許可してください。
+既定の `npm run build` / `npm run flash` では `host/app/manifest_m5stackchan_cores3.json` を編集します。他のターゲットでは各スクリプトが選択するアプリ manifest を使ってください。
+変更後はホストを再ビルドして書き込みます。Wi-Fi の保存設定や MOD ではなく、ビルド時の設定です。
+システムの時刻が既に設定されている場合、時刻同期は省略します。
 
 ### 設定例: ｽﾀｯｸﾁｬﾝ M5Bottom 版キットを動かす
 
@@ -101,43 +130,49 @@ M5Stack Basic の Port.C を使う場合:
 
 参考: [ｽﾀｯｸﾁｬﾝ M5GoBottom 版のファームウェアについて \| M5Stack 沼人の日記](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
-### 設定例: mod の書き込み領域を増やす
-
-2023 年 3 月現在、Moddable は SD Card のドライバが実装されていないため、音声や画像などのリソースは mod に含めてコンパイルして書き込む形になります。
-多量の音声を含む場合、ｽﾀｯｸﾁｬﾝのデフォルトのパーティションサイズである 4MB を上回って mod が書き込めない場合があります。
-
-最近の M5Stack は 16MB の Flash を備えています。
-その場合は[`stackchan/manifest_8mb_flash.json`](../stackchan/manifest_8mb_flash.json)をインクルードすることで、
-mod を書き込むパーティションの容量が大幅に増加します。
-
-```json
-{
-  "include": ["./manifest_8mb_flash.json"]
-}
-```
-
 ## 基本プログラム（ホスト）の書き込み
 
 前述の通りｽﾀｯｸﾁｬﾝのファームウェアは基本プログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
-次のコマンドで基本プログラム（ホスト）の書き込みを行います。
+次のコマンドで、標準構成の M5StackChan CoreS3 ホストをビルドして書き込みます。
 
 _コマンドに`sudo`をつける必要はありません。_
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
-$ npm run build
-$ npm run deploy
-
-# M5Stack Core2の場合
-$ npm run build --target=esp32/m5stack_core2
-$ npm run deploy --target=esp32/m5stack_core2
-
-# M5Stack CoreS3の場合
-$ npm run build --target=esp32/m5stack_cores3
-$ npm run deploy --target=esp32/m5stack_cores3
+$ npm run flash
 ```
 
-ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
+ビルドだけ確認したい場合は `npm run build` を使います。
+`build`、`flash`、`deploy` の各スクリプトは、すべての対応サブプラットフォームでreleaseモードを既定とします。
+debugまたはinstrumentモードが必要な場合は、`--mode=debug` または `--mode=instrument` を明示してください。
+ビルドしたプログラムと中間生成物は `firmware/dist/bin/` と `firmware/dist/tmp/` 配下に保存されます。
+ホストアプリケーション名は `stack-chan-host` です。
+`npm run clean` を実行すると、`firmware/dist/` 配下の生成物をすべて削除できます。
+`npm run bundle` でも各ターゲットのビルド出力は `firmware/dist/` 配下に保存され、検証済みの成果物は `firmware/dist/bundle-targets/` に集約されます。最終的なディレクトリと ZIP は `firmware/host/app/` 配下に生成されます。
+
+### Stack-chan サブプラットフォーム
+
+Stack-chan の各ハードウェア構成は、サーボの driver 種別とバスのピンをあらかじめ定義した**サブプラットフォーム**を同梱しています。汎用 `--target=` コマンドではなく、次の npm スクリプトを使ってください。サブプラットフォーム（`-p esp32:./host/platforms/<board>`）と対応するアプリ manifest が自動的に選択されます。
+
+| 用途                      | M5StackChan CoreS3 | Stack-chan RT | タカオ版 Core2 + SG90 |
+| ------------------------- | ------------------ | ------------- | --------------------- |
+| ビルドのみ                | `npm run build` または `npm run build:m5stackchan_cores3` | `npm run build:stackchan_rt` | `npm run build:takao_core2_sg90` |
+| ビルドから書き込みまで    | `npm run flash` または `npm run flash:m5stackchan_cores3` | `npm run flash:stackchan_rt` | `npm run flash:takao_core2_sg90` |
+| deploy task を実行        | `npm run deploy` または `npm run deploy:m5stackchan_cores3` | `npm run deploy:stackchan_rt` | `npm run deploy:takao_core2_sg90` |
+| デバッグ（xsbug）         | `npm run debug` または `npm run debug:m5stackchan_cores3` | `npm run debug:stackchan_rt` | `npm run debug:takao_core2_sg90` |
+| デバッグ（xsdb）          | `npm run debug:xsdb` または `npm run debug:xsdb:m5stackchan_cores3` | `npm run debug:xsdb:stackchan_rt` | `npm run debug:xsdb:takao_core2_sg90` |
+| MOD の書き込み            | `npm run mod -- [modのパス]` または `npm run mod:m5stackchan_cores3 -- [modのパス]` | `npm run mod:stackchan_rt -- [modのパス]` | `npm run mod:takao_core2_sg90 -- [modのパス]` |
+
+ボード固有の driver 種別とサーボバスのピンは、各サブプラットフォームの manifest にまとまっています。
+
+- M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver、シリアル TX6 / RX7。
+- Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver、シリアル TX7 / RX6。
+- タカオ版 Core2 + SG90: [`host/platforms/takao_core2_sg90/manifest.json`](../host/platforms/takao_core2_sg90/manifest.json) — `pwm` driver、pan PWM19 / tilt PWM27。
+
+`m5stackchan` driver は SCServo プロトコルに加えて、M5StackChan 専用のゼロ位置、可動域、PY32 サーボ電源制御を提供します。安全のため、M5StackChan CoreS3 用ファームウェアは driver 種別を `m5stackchan` に、Stack-chan RT 用ファームウェアは `dynamixel` に固定します。どちらも保存済みの異なる `driver.type` は無視します。
+
+専用の `m5stackchan` driver は、pitch の標準可動域をメーカー推奨の **5〜85°** に制限します。StackChan の回転座標では `rotation.p` の −85〜−5°（指定時はラジアン）に相当し、正面を向く `rotation.p = 0` の要求も下限の 5° に制限されます。校正用のゼロ位置は変更しません。これは標準設定であり、個体ごとの校正や軸の可動域の明示的な上書きは引き続き可能です。変更前に機構の可動範囲を確認してください。[M5Stack は、pitch の端まで動かすとサーボのストールや永久的な損傷が生じる可能性があると注意しています](https://docs.m5stack.com/en/StackChan#note)。
+
+Wi-Fi 認証情報や API キーなどのデバイス固有の設定は、各ボードのアプリ manifest の `"config"` 配下に書いてください。秘密情報はコミットせず、ローカルにのみ追加してください。起動時のログ `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` で RT が実際に使うシリアルピンを確認できます。
 
 正しく書き込めていれば起動から数秒後にｽﾀｯｸﾁｬﾝの顔が表示されます。
 M5Stack のボタンを押すと次のように変わります。
@@ -148,25 +183,35 @@ M5Stack のボタンを押すと次のように変わります。
 
 ## デバッグ
 
-次のコマンドでプログラムのデバッグが可能です
+次のコマンドで、選択したホストを Moddable のデバッガで起動できます。
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
 $ npm run debug
-
-# M5Stack Core2の場合
-$ npm run debug --target=esp32/m5stack_core2
-
-# M5Stack CoreS3の場合
-$ npm run debug --target=esp32/m5stack_cores3
 ```
 
+Stack-chan RT やタカオ版 Core2 + SG90 では、上の表にあるボード別の debug script を使います。
 このコマンドはModdableのデバッガ`xsbug`を開き、M5Stackと接続します。
+
+Moddable SDK 9.0.0以降のM5StackChan CoreS3では、debugおよびinstrument buildは、xsbugを起動しない場合も内蔵USB Serial/JTAGのCDCドライバをModdable debugger用に確保します。
+同じbuildでStackchan DockやCodex VoiceにCDC接続を使わせることはできません。
+USB通信の検証には、通常のreleaseモードの`build`、`flash`、`deploy`コマンドを使用してください。
 
 ![xsbug](./images/xsbug.png)
 
 `xsbug`を使うとログの確認やブレークポイントの設定（プログラムの特定行で一時停止する）、ステップ実行（プログラムを1行ずつ実行する）などができます。
 `xsbug`の詳しい使い方は[公式ドキュメント（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
+
+ターミナル上の`xsdb`を使う場合は次のコマンドを実行します。
+
+```console
+$ npm run debug:xsdb
+```
+
+複数のシリアルデバイスがある場合は、`--port`で対象を指定できます。
+
+```console
+$ npm run debug:xsdb -- --port /dev/ttyACM1
+```
 
 ## （オプション）ユーザアプリケーション（MOD）の書き込み
 
@@ -175,34 +220,45 @@ $ npm run debug --target=esp32/m5stack_cores3
 _コマンドに`sudo`をつける必要はありません。_
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
-$ npm run mod [modのマニフェストファイルのパス]
-
-# M5Stack Core2の場合
-$ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイルのパス]
-
-# M5Stack CoreS3の場合
-$ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイルのパス]
+$ npm run mod -- [modのマニフェストファイルのパス]
 ```
 
-**例: [`mods/look_around`](../mods/look_around/)をインストールする**
+`npm run mod`は`mcrun -t build`でXSアーカイブを生成した後、`esptool`で実機のpartition tableを読み、type `0x40` / subtype `1`の`xs`パーティションへ直接書き込みます。
+パーティションのoffsetは実機から取得され、アーカイブの形式、領域サイズ、選択したチップ、Moddable firmware descriptorを確認してから書き込みとverifyを行います。
+xsbugの書き込みチャネルを使わないため、ホストはdebug buildとrelease buildのどちらでも構いません。
+
+複数のシリアルデバイスがある場合は、`--port`または`STACKCHAN_PORT`で対象を指定してください。
 
 ```console
-$ npm run mod ./mods/look_around/manifest.json
+$ npm run mod -- ./mods/examples/look_around/manifest.json --port /dev/ttyACM1
+```
+
+標準のコマンドは、JavaScript module を解決する MOD manifest を対象にします。
+ESP32 と lin target では、Moddable toolchain 経由で TypeScript module も扱えます。
+WASM host で確認する場合も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
+
+書き込み後は、MOD が製品既定動作の代わりに実行されます。
+ボタンや画面操作の意味は、インストールした MOD の実装で決まります。
+
+**例: [`mods/examples/look_around`](../mods/examples/look_around/)をインストールする**
+
+```console
+$ npm run mod -- ./mods/examples/look_around/manifest.json
 
 > stack-chan@0.2.1 mod
-> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/look_around/manifest.json"
+> node scripts/firmware.mjs mod ./mods/examples/look_around/manifest.json
 
 # xsc mod.xsb
 # xsc check.xsb
 # xsc mod/config.xsb
 # xsl look_around.xsa
-Installing mod...complete
+[stack-chan] MOD preflight: xs_esp32 9.0.0+stackchan.1, XS 17.8.0, xs=0xfa0000/262144
+[stack-chan] MOD installed and verified: .../look_around.xsa
 ```
 
 ## (オプショナル)フラッシュ領域の消去
 
-MODを描き込み後、MODを書き込みする前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
+MODを書き込み後、MODを書き込む前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
 
 > [!NOTE]  
 > コマンドを実行するとMODの領域だけでなく、フラッシュ領域全体を消去します。  

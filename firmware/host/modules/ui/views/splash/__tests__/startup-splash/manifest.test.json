@@ -1,0 +1,38 @@
+{
+  "include": [
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "resources": {
+    "*": ["../../../../../../app/strings/*"],
+    "*-mask": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "localization": true,
+        "monochrome": true
+      },
+      {
+        "source": "../../../../assets/fonts/StackchanCJK-Regular",
+        "name": "StackchanCJK",
+        "size": 12,
+        "characters": " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-.:_%[]",
+        "blocks": [],
+        "localization": true,
+        "monochrome": true
+      }
+    ],
+    "*-alpha": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 24,
+        "characters": "Stack-chan[・＿・]",
+        "monochrome": true
+      }
+    ]
+  },
+  "modules": {
+    "main": "./startup-splash.test"
+  }
+}

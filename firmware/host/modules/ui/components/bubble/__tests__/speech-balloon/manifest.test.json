@@ -1,0 +1,31 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../../manifest.json",
+    "../../../../../../app/docks/android-usb-audio/manifest_presentation.json",
+    "../../../../../audio/manifest.json",
+    "../../../../../camera/manifest.json",
+    "../../../../../input/manifest.json",
+    "../../../../../motion/manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  },
+  "modules": {
+    "capabilities": "../../../../../../app/capabilities",
+    "local-peer-types": "../../../../../connectivity/local-peer-types",
+    "main": "./speech-balloon.test",
+    "stackchan-application-event": "../../../../../../app/remote-session/application-event",
+    "stackchan-usb-media-session": "../../../../../usb-audio/media-session"
+  }
+}

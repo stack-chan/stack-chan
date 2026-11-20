@@ -1,0 +1,6 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "main": "./py32-led-init.test"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "modules": {
+    "testing/assert": "./assert",
+    "testing/fakes/ChatAudioIO": "./fakes/ChatAudioIO",
+    "testing/fakes/timer": "./fakes/timer"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "lib": ["es2025", "esnext.disposable"]
+      }
+    }
+  }
+}

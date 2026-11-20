@@ -1,0 +1,52 @@
+{
+  "format": "tech.stackchan.visual-project",
+  "version": 1,
+  "id": "gallery-block-sensors",
+  "name": "センサーとLED",
+  "target": "m5stackchan-cores3",
+  "workspace": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "stackchan_on_imu",
+          "x": 24,
+          "y": 24,
+          "fields": { "MOTION": "shake" },
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_light_rainbow",
+                "fields": { "NAME": "a" }
+              }
+            }
+          }
+        },
+        {
+          "type": "stackchan_on_head_touch",
+          "x": 340,
+          "y": 24,
+          "fields": { "GESTURE": "forwardSwipe" },
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_show_balloon",
+                "inputs": {
+                  "TEXT": { "shadow": { "type": "text", "fields": { "TEXT": "スワイプしたね!" } } }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "assets": [],
+  "settings": {
+    "educationalProfile": true,
+    "embedAssets": true,
+    "faceAsset": null
+  },
+  "createdAt": "2026-07-19T00:00:00.000Z",
+  "updatedAt": "2026-07-19T00:00:00.000Z"
+}

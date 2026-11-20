@@ -1,54 +1,93 @@
 name: Generate Stack-chan Schematics Files
+
 on:
   push:
+    branches:
+      - develop
+      - main
     paths:
-    - '**.kicad_sch'
-    - '**.kicad_pcb'
-    - '.github/workflows/schematics.yml'
-  pull_request:
-    paths:
-      - '**.kicad_sch'
-      - '**.kicad_pcb'
+      - '**/*.kicad_sch'
+      - '**/*.kicad_pcb'
+      - 'schematics/**/*.kibot.yaml'
       - '.github/workflows/schematics.yml'
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - '**/*.kicad_sch'
+      - '**/*.kicad_pcb'
+      - 'schematics/**/*.kibot.yaml'
+      - '.github/workflows/schematics.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: schematics-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-schematics:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: INTI-CMNB/KiBot@v2_k7
-      with:
-        config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
-        schema: schematics/m5-pantilt/m5-pantilt.kicad_sch
-        board: schematics/m5-pantilt/m5-pantilt.kicad_pcb
-        dir: generated
-    - name: Upload Results
-      uses: actions/upload-artifact@v2
-      with:
-        name: schematics-files
-        path: generated
+      - uses: actions/checkout@v7
+      - uses: INTI-CMNB/KiBot@v2_k7
+        with:
+          config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
+          schema: schematics/m5-pantilt/m5-pantilt.kicad_sch
+          board: schematics/m5-pantilt/m5-pantilt.kicad_pcb
+          dir: generated
+      - name: Upload results
+        uses: actions/upload-artifact@v7
+        with:
+          name: schematics-files
+          path: generated
+
   deploy-schematics:
     needs: build-schematics
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    env:
+      PAGES_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'release' || 'develop' }}
+      PAGES_DIRECTORY: ${{ github.ref == 'refs/heads/main' && 'web' || 'develop/web' }}
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Pages Branch
-        uses: actions/checkout@v3
+      - name: Checkout Pages branch
+        uses: actions/checkout@v7
         with:
           ref: gh-pages
-      - name: Download Schematics Files
-        uses: actions/download-artifact@v2
+      - name: Download schematics files
+        uses: actions/download-artifact@v8
         with:
           name: schematics-files
           path: ./schematics-files
-      - name: Move Files
+      - name: Update schematics files
         run: |
-          mkdir -p ./web/schematics
-          rm -rf ./web/schematics/*
-          mv schematics-files/* ./web/schematics
-      - name: Commit and Push
+          set -euo pipefail
+          if [ -z "$(find ./schematics-files -mindepth 1 -print -quit)" ]; then
+            echo "Schematics artifact is empty"
+            exit 1
+          fi
+          target_directory="./$PAGES_DIRECTORY/schematics"
+          rm -rf "$target_directory"
+          mkdir -p "$target_directory"
+          cp -R ./schematics-files/. "$target_directory/"
+      - name: Commit schematics update
         run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add .
-          git commit -m "Deploy schematics files from ${{ github.sha }}"
-          git push
+          set -euo pipefail
+          git config user.name 'GitHub Action'
+          git config user.email 'action@github.com'
+          git add "./$PAGES_DIRECTORY/schematics"
+          if git diff --cached --quiet; then
+            echo "No schematics changes to deploy"
+            exit 0
+          fi
+          git commit -m "Deploy $PAGES_CHANNEL schematics files from ${{ github.sha }}"
+          git push origin HEAD:gh-pages

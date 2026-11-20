@@ -1,0 +1,6 @@
+{
+  "include": ["./manifest.json"],
+  "modules": {
+    "wasm-button-bridge": "./wasm/button-bridge"
+  }
+}

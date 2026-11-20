@@ -36,6 +36,7 @@
  *
  *****************************************************************************/
 import wae from 'web-audio-engine'
+
 const AudioContext = wae.RenderingAudioContext
 const audioCtx = new AudioContext()
 

@@ -1,0 +1,18 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Five small lenses on a hexagonal lattice (2 / 1 / 2). Each uses the same
+-- five-leaf iris. One shared front plate + 5 * 6 = 31 primitives, limit 32.
+-- Blink is synchronized by eye_open; no new host clock or state is required.
+fn draw()
+  let gx = 10 * clamp(gaze_h, -1, 1)
+  let gy = 8 * clamp(gaze_v, -1, 1)
+  -- Keep the original pupil size, with separate wider metal housings.
+  let r = sz(29)
+  begin_group(tx(80), ty(16), sz(160), sz(208))
+  fill_rect(tx(80), ty(16), sz(160), sz(208), 0x39e7)
+  iris_lens(tx(125 + gx), ty(57 + gy), r)
+  iris_lens(tx(195 + gx), ty(57 + gy), r)
+  iris_lens(tx(160 + gx), ty(118 + gy), r)
+  iris_lens(tx(125 + gx), ty(179 + gy), r)
+  iris_lens(tx(195 + gx), ty(179 + gy), r)
+  end_group()
+end

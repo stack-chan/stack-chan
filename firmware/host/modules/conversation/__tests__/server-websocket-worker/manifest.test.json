@@ -1,0 +1,22 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "ChatWorker": "./chat-worker",
+    "JSONBase64Parser": "./json-base64-parser",
+    "main": "./server-websocket-worker.test",
+    "stackchanServerChatWebSocketWorker": "../../chat-audioio/server-chat-websocket-worker"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

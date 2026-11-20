@@ -36,7 +36,7 @@
 $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 ```
 
-* `stackchan/manifest_local.json`の`config.tts.host|port`にサーバー設定を保存します
+* `host/app/manifest_local.json`の`config.tts.host|port`にサーバー設定を保存します
 
 ```json
 {
@@ -52,7 +52,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 ### ElevenLabs TTS
 
 * [API KEY](https://docs.elevenlabs.io/authentication/01-xi-api-key)に従い、API KEYを取得します。
-* `stackchan/manifest_local.json`の`config.tts`にAPI KEYを保存します
+* `host/app/manifest_local.json`の`config.tts`にAPI KEYを保存します
 
 ```json
 {
@@ -67,7 +67,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 
 ## 使用方法（事前生成）
 
-以下のようなJavaScriptファイルに発話する文章を書き込みます（`mods/monologue/speeches_monologue.js`などを参照）。
+以下のようなJavaScriptファイルに発話する文章を書き込みます（`mods/examples/monologue/speeches_monologue.js`などを参照）。
 
 ```javascript
 // speeches.js
@@ -80,17 +80,17 @@ export const speeches = {
 ```
 
 * npm run generate-speech-[google|coqui|voicevox]を実行します
-  * このスクリプトはサーバーから音声データを取得し、stackchan/assets/soundsにwaveファイルを保存します
+  * このスクリプトはサーバーから音声データを取得し、host/modules/audio/assets/soundsにwaveファイルを保存します
 * 音声ファイルとともにファームウェアを書き込みます
-* `Robot#say(sentense: string)`を呼び出します
+* `context.say(sentence: string)`を呼び出します
 
 ```javascript
 import { speeches } from 'speeches'
 const keys = Object.keys(speeches)
 
-export async function onRobotCreated(robot) {
-  await robot.say('hello')
-  await robot.say(keys[0] /* 'niceToMeetYou' */)
+export async function onContextCreated(context) {
+  await context.say('hello')
+  await context.say(keys[0] /* 'niceToMeetYou' */)
 }
 ```
 
@@ -111,11 +111,11 @@ export async function onRobotCreated(robot) {
 }
 ```
 
-* `Robot#say(sentense: string)`を呼び出します。
+* `context.say(sentence: string)`を呼び出します。
 
 ```javascript
 // ...
-export async function onRobotCreated(robot) {
-  await robot.say('Now I can speak any sentense you want.')
+export async function onContextCreated(context) {
+  await context.say('Now I can speak any sentence you want.')
 }
 ```

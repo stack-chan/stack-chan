@@ -1,0 +1,16 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "~": "../../local-peer-capability",
+    "local-peer-capability": "../../sim/local-peer-capability",
+    "main": "./local-peer-error-xs.test"
+  },
+  "preload": ["local-peer-types"],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "strictNullChecks": false
+      }
+    }
+  }
+}

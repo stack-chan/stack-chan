@@ -1,0 +1,98 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- C SENSOR: circular aperture, 9px rim, stationary 30px/18px sensor.
+-- Fixed-pivot model from d2c9700; eye_open and breath run in the native VM.
+-- Conservative inner sensor mask uses existing rectangles, no circle opcode.
+fn sensor_band(cx,cy,q,height,width,color)
+  let h = min(height,floor(q * 0.70710678))
+  let w = min(width,floor(sqrt(max(0,q*q-h*h))))
+  if h > 0 and w > 0 then fill_rect(cx-w,cy-h,2*w,2*h,color) end
+end
+fn seam(cx,cy,r,d,nx,ny)
+  let vr = max(0,d) / 0.809016994
+  if vr >= r-2 then return end
+  -- Adjacent pentagon vertices, in screen-clockwise order.
+  let ax = nx * 0.809016994 - ny * 0.587785252
+  let ay = nx * 0.587785252 + ny * 0.809016994
+  let bx = ax * 0.309016994 - ay * 0.951056516
+  let by = ax * 0.951056516 + ay * 0.309016994
+  let dx = bx-ax
+  let dy = by-ay
+  let length = sqrt(dx*dx+dy*dy)
+  dx = dx/length
+  dy = dy/length
+  let x = bx*vr
+  let y = by*vr
+  let projection = x*dx+y*dy
+  -- Endpoints sit inside the circle; AA and rounded coordinates cannot escape.
+  let reach = -projection + sqrt(max(0,projection*projection+(r-2)*(r-2)-x*x-y*y))
+  if reach < 1 then return end
+  let ex = x+reach*dx
+  let ey = y+reach*dy
+  fill_triangle(round(cx+x),round(cy+y),round(cx+ex),round(cy+ey),
+                round(cx+(x+ex)/2+dy*1.8),round(cy+(y+ey)/2-dx*1.8),0xc618)
+end
+fn draw()
+  let cx = 160
+  let cy = 112
+  let r = 52
+  let frame = 88
+  let open = clamp(eye_open,0,1)
+  let a = 0.97*frame*0.809016994
+  let b = -0.97*frame*0.587785252
+  let g = 0.15*frame
+  let dx = -0.65*frame-a
+  let dy = -b
+  let length = sqrt(dx*dx+dy*dy)
+  let pivot = sqrt(a*a+b*b)
+  let k = (a*dy-b*dx)/length/pivot
+  let j = (a*dx+b*dy)/length/pivot
+  let t = r/pivot
+  let w = sqrt(1-t*t)
+  let co = t*k-w*j
+  let so = t*j+w*k
+  let x0 = a-0.669130606*g
+  let y0 = b+0.743144825*g
+  let x1 = a+g*(-0.809016994*co-0.587785252*so)
+  let y1 = b+g*(-0.809016994*so+0.587785252*co)
+  let n0 = sqrt(x0*x0+y0*y0)
+  let n1 = sqrt(x1*x1+y1*y1)
+  let ux = (1-open)*x0/n0+open*x1/n1
+  let uy = (1-open)*y0/n0+open*y1/n1
+  let n = sqrt(ux*ux+uy*uy)
+  ux = ux/n
+  uy = uy/n
+  let cross = a*uy-b*ux
+  let distance = a*ux+b*uy-sqrt(max(0,g*g-cross*cross))
+  let vx = (distance*ux-a)/g
+  let vy = (distance*uy-b)/g
+  let c = -0.809016994*vx+0.587785252*vy
+  let s = -0.809016994*vy-0.587785252*vx
+  let unit = sqrt(c*c+s*s)
+  c = c/unit
+  s = s/unit
+  let d = (a*dy-b*dx)/length*c+(a*dx+b*dy)/length*s
+  let nx = dy/length*c+dx/length*s
+  let ny = dy/length*s-dx/length*c
+  let q = floor(max(0,min(r-9,d)))
+  let gain = 0.25+0.75*((clamp(breath,-1,1)+1)/2)
+  let sensor_frame = round(1*gain)*2048+round(18*gain)*32+round(11*gain)
+  let sensor_core = round(6*gain)*2048+round(38*gain)*32+round(24*gain)
+  begin_group(0,0,320,240)
+  fill_circle(cx,cy,r,0x4228)
+  if q > 0 then
+    fill_circle(cx,cy,q,0x0842)
+    sensor_band(cx,cy,q,10,15,sensor_frame)
+    sensor_band(cx,cy,q,12,14,sensor_frame)
+    sensor_band(cx,cy,q,14,13,sensor_frame)
+    sensor_band(cx,cy,q,15,10,sensor_frame)
+    sensor_band(cx,cy,q,6,9,sensor_core)
+    sensor_band(cx,cy,q,8,8,sensor_core)
+    sensor_band(cx,cy,q,9,6,sensor_core)
+  end
+  seam(cx,cy,r,d,nx,ny)
+  seam(cx,cy,r,d,nx*0.309016994-ny*0.951056516,nx*0.951056516+ny*0.309016994)
+  seam(cx,cy,r,d,nx*-0.809016994-ny*0.587785252,nx*0.587785252+ny*-0.809016994)
+  seam(cx,cy,r,d,nx*-0.809016994+ny*0.587785252,nx*-0.587785252+ny*-0.809016994)
+  seam(cx,cy,r,d,nx*0.309016994+ny*0.951056516,nx*-0.951056516+ny*0.309016994)
+  end_group()
+end

@@ -1,0 +1,11 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../manifest.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./stackchan-catch.test"
+  }
+}

@@ -1,10 +1,11 @@
 // Imports the Google Cloud client library
-import fetch from 'node-fetch'
-import yargs from 'yargs/yargs'
+
 import fs from 'fs'
+import { writeFile } from 'fs/promises'
+import fetch from 'node-fetch'
 import path from 'path'
 import { hideBin } from 'yargs/helpers'
-import { writeFile } from 'fs/promises'
+import yargs from 'yargs/yargs'
 
 /**
  * get Speech data from VoiceVox server
@@ -134,8 +135,8 @@ async function main() {
     } else {
       process.chdir(cwd) // change CurrentDirectory to saved(firmware Directory)
       console.log(`cwd   :${process.cwd()}`)
-      console.log('input :./stackchan/assets/sounds/speeches_ja.js')
-      options.input = path.resolve('./stackchan/assets/sounds/speeches_ja.js')
+      console.log('input :./host/modules/audio/assets/sounds/speeches_ja.js')
+      options.input = path.resolve('./host/modules/audio/assets/sounds/speeches_ja.js')
     }
     console.log(`      (${options.input})`)
   }

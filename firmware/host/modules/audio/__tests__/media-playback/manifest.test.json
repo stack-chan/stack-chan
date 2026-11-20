@@ -1,0 +1,51 @@
+{
+  "include": [
+    "../../platforms/m5stackchan-cores3/manifest.json",
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "../../../../app/manifest_typings.json",
+    "$(MODDABLE)/modules/data/xml/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "~": "$(MODDABLE)/modules/base/timer/timer.js",
+    "main": "./media-playback.test",
+    "timer": "./timer",
+    "capabilities": "../../../testing/fakes/capabilities",
+    "tts-types": "../../tts-types",
+    "embedded:io/audio/out": "./driver",
+    "test-http": "./http",
+    "worker": "./worker",
+    "esp32-mp3-decoder": "./decoder",
+    "podcast-controller": "../../../../../mods/examples/podcast/controller",
+    "podcast-feed": "../../../../../mods/examples/podcast/feed-core",
+    "podcast-rss-parser": "../../../../../mods/examples/podcast/rss-parser",
+    "podcast-rss-tests": "../../../../../mods/examples/podcast/__tests__/rss-native.test",
+    "podcast-feed-proxy": "../../../../../mods/examples/podcast/feed"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "creation": {
+    "static": 2097152,
+    "chunk": {
+      "initial": 524288,
+      "incremental": 65536
+    },
+    "heap": {
+      "initial": 16384,
+      "incremental": 1024
+    },
+    "stack": 1024
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

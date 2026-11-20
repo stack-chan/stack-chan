@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stack-chan.github.io/schemas/face-asset-v1.schema.json",
+  "title": "Stack-chan Shape Face Asset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "kind",
+    "name",
+    "emotion",
+    "colors",
+    "mouth",
+    "canvas",
+    "shape"
+  ],
+  "properties": {
+    "format": { "const": "tech.stackchan.face" },
+    "version": { "const": 1 },
+    "kind": { "const": "shape" },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "\\S"
+    },
+    "emotion": {
+      "enum": [
+        "NEUTRAL",
+        "HAPPY",
+        "ANGRY",
+        "SAD",
+        "SLEEPY",
+        "DOUBTFUL",
+        "COLD",
+        "HOT"
+      ]
+    },
+    "colors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary"],
+      "properties": {
+        "primary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "secondary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      }
+    },
+    "mouth": { "type": "number", "minimum": 0, "maximum": 1 },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["left", "top", "width", "height"],
+      "properties": {
+        "left": { "type": "number", "minimum": 0, "maximum": 280 },
+        "top": { "type": "number", "minimum": 0, "maximum": 200 },
+        "width": { "type": "number", "minimum": 40, "maximum": 320 },
+        "height": { "type": "number", "minimum": 40, "maximum": 240 }
+      }
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eyes", "mouth"],
+      "properties": {
+        "eyes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["left", "right"],
+          "properties": {
+            "left": { "$ref": "#/$defs/eye" },
+            "right": { "$ref": "#/$defs/eye" }
+          }
+        },
+        "mouth": { "$ref": "#/$defs/mouth" }
+      }
+    }
+  },
+  "$defs": {
+    "eye": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "radius", "eyelidWidth", "eyelidHeight"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 320 },
+        "y": { "type": "number", "minimum": 0, "maximum": 240 },
+        "radius": { "type": "number", "minimum": 2, "maximum": 40 },
+        "eyelidWidth": {
+          "description": "Width of the eyelid centered on the eye. Runtime validation also requires radius * 2 or greater.",
+          "type": "number",
+          "minimum": 4,
+          "maximum": 120
+        },
+        "eyelidHeight": {
+          "description": "Height of the eyelid centered on the eye. Runtime validation also requires radius * 2 or greater.",
+          "type": "number",
+          "minimum": 4,
+          "maximum": 120
+        }
+      }
+    },
+    "mouth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "minWidth", "maxWidth", "minHeight", "maxHeight"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 320 },
+        "y": { "type": "number", "minimum": 0, "maximum": 240 },
+        "minWidth": { "type": "number", "minimum": 1, "maximum": 320 },
+        "maxWidth": { "type": "number", "minimum": 1, "maximum": 320 },
+        "minHeight": { "type": "number", "minimum": 1, "maximum": 240 },
+        "maxHeight": { "type": "number", "minimum": 1, "maximum": 240 }
+      }
+    }
+  }
+}

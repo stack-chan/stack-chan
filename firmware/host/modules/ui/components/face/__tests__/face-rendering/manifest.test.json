@@ -1,0 +1,12 @@
+{
+  "include": [
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./face-rendering.test"
+  },
+  "creation": {
+    "stack": 512
+  }
+}

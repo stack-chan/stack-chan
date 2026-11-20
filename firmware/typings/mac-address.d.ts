@@ -1,4 +1,2 @@
-declare module "mac-address" {
-  function getMacAddress(): string;
-  export default getMacAddress;
-}
+export * from '../host/modules/util/esp32/mac-address'
+export { default } from '../host/modules/util/esp32/mac-address'

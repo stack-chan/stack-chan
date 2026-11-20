@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:22-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
 
 RUN npm install -g xs-dev
 
@@ -14,7 +14,7 @@ RUN echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 USER node
 
 # xs-dev をセットアップ
-RUN CI=true xs-dev setup
+RUN CI=true xs-dev setup --branch 10.1.1
 RUN . /home/node/.local/share/xs-dev-export.sh && \
     CI=true xs-dev setup --device=esp32
 

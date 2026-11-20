@@ -1,0 +1,25 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "tech.stackchan.samples.mcp-server",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "MCPサーバー",
+  "description": "CodexなどのMCPクライアントから表情変更と発話を操作できるサーバーを起動し、接続先URLをドロワーから確認できます。Wi-Fiとmcp.tokenの設定が必要です。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0",
+  "source": {
+    "path": "mod/manifest.json",
+    "entrypoint": "mod/mod.js"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": ["face", "audio.speech", "connectivity.network", "ui.drawer"],
+  "artifacts": [
+    {
+      "format": "xsa",
+      "path": "mcp.xsa",
+      "target": "m5stackchan-cores3"
+    }
+  ]
+}

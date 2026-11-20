@@ -1,0 +1,107 @@
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import path from 'node:path'
+import { webRtcComponents } from './webrtc-solution.mjs'
+
+const dependenciesByPlatform = {
+  m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
+  stackchan_rt: [
+    ['espressif/esp32-camera', '^2.0.10'],
+    ['espressif/esp_jpeg', '^1.3.1'],
+  ],
+  m5stackchan_cores3: [
+    ['espressif/esp_audio_codec', '~2.5.0'],
+    ['espressif/esp32-camera', '^2.0.10'],
+  ],
+}
+
+/**
+ * Seeds a generated CoreS3 IDF manifest before Moddable adds dependencies.
+ * @param {{outputDirectory: string, platformName: string, applicationName: string, mode: string}} options - Build output configuration.
+ * @returns {string} Path to the prepared IDF component manifest.
+ */
+export function prepareCoreS3IdfDependencies({
+  outputDirectory,
+  platformName,
+  applicationName,
+  mode,
+  realtime = false,
+  solutionDirectory,
+}) {
+  if (!outputDirectory) throw new Error('Build output directory is required')
+  const dependencies = dependenciesByPlatform[platformName]
+  if (!dependencies) throw new Error(`Unsupported CoreS3 platform: ${platformName}`)
+  if (!applicationName) throw new Error('Application name is required')
+  if (!['debug', 'instrument', 'release'].includes(mode)) throw new Error(`Unsupported build mode: ${mode}`)
+
+  const mainDirectory = path.join(
+    outputDirectory,
+    'tmp',
+    'esp32',
+    platformName,
+    mode,
+    applicationName,
+    'xsProj-esp32s3',
+    'main',
+  )
+  const manifestPath = path.join(mainDirectory, 'idf_component.yml')
+  mkdirSync(mainDirectory, { recursive: true })
+
+  const originalManifest = existsSync(manifestPath) ? readFileSync(manifestPath, 'utf8') : null
+  let manifest =
+    originalManifest ?? "## IDF Component Manager Manifest File\ndependencies:\n  idf:\n    version: '>=4.1.0'\n"
+
+  if (!/^dependencies:\s*$/m.test(manifest)) {
+    throw new Error(`IDF component manifest has no dependencies block: ${manifestPath}`)
+  }
+
+  for (const [name, version] of dependencies) {
+    if (manifest.includes(`  ${name}:`)) continue
+    if (!manifest.endsWith('\n')) manifest += '\n'
+    manifest += `  ${name}: ${version}\n`
+  }
+
+  if (realtime) {
+    if (!['m5stack_cores3', 'm5stackchan_cores3'].includes(platformName) || !solutionDirectory)
+      throw new Error('RealtimeConversation requires CoreS3 and ESP_WEBRTC_SOLUTION')
+    const componentDirectory = path.join(mainDirectory, '..', 'components')
+    mkdirSync(componentDirectory, { recursive: true })
+    for (const name of webRtcComponents) {
+      const source = path.resolve(solutionDirectory, 'components', name)
+      if (!existsSync(path.join(source, 'CMakeLists.txt'))) throw new Error(`Missing WebRTC component: ${name}`)
+      linkComponent(source, path.join(componentDirectory, name))
+    }
+    // Use ESP-IDF's project component discovery; never patch the SDK CMake project.
+    const conversation = JSON.parse(
+      readFileSync(new URL('../../host/modules/realtime-conversation/esp32/manifest.json', import.meta.url)),
+    )
+    for (const { name, version } of conversation.dependencies) {
+      if (name && !manifest.includes(`  espressif/${name}:`)) manifest += `  espressif/${name}: '${version}'\n`
+    }
+  }
+
+  // Moddable 10.0.1 joins `idf.py add-dependency` commands with `&` on
+  // POSIX. RT needs both entries seeded before make, including after a target
+  // clean, to avoid concurrent manifest writes and reconfigure reading too early.
+  if (manifest !== originalManifest) writeFileSync(manifestPath, manifest)
+  console.log(`[stack-chan] prepared IDF dependencies: ${manifestPath}`)
+  return manifestPath
+}
+
+function linkComponent(source, destination) {
+  const current = lstatSync(destination, { throwIfNoEntry: false })
+  if (current) {
+    if (!current.isSymbolicLink()) throw new Error(`Refusing to replace component directory: ${destination}`)
+    if (existsSync(destination) && realpathSync(destination) === realpathSync(source)) return
+    unlinkSync(destination)
+  }
+  symlinkSync(source, destination, 'dir')
+}

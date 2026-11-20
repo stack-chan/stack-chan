@@ -1,0 +1,15 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./local-peer-hello-sender.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

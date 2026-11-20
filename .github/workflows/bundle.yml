@@ -1,63 +1,253 @@
 name: Bundle Stack-chan Firmware
-on: 
+
+on:
   push:
     branches:
-      - dev/v1.0
+      - develop
+      - main
+    paths:
+      - "firmware/**"
+      - "web/**"
+      - "**/*.kicad_sch"
+      - "**/*.kicad_pcb"
+      - "schematics/**/*.kibot.yaml"
+      - ".github/scripts/**"
+      - ".github/actions/setup/action.yml"
+      - ".github/workflows/bundle.yml"
+      - ".github/workflows/cloudflare-preview.yml"
   pull_request:
     branches:
-      - dev/v1.0
+      - develop
+      - feat/webrtc-runtime-coexistence
+      - main
+    paths:
+      - "firmware/**"
+      - "web/**"
+      - "**/*.kicad_sch"
+      - "**/*.kicad_pcb"
+      - "schematics/**/*.kibot.yaml"
+      - ".github/scripts/**"
+      - ".github/actions/setup/action.yml"
+      - ".github/workflows/bundle.yml"
+      - ".github/workflows/cloudflare-preview.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bundle-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  firmware:
+    name: Release build (${{ matrix.target }})
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: m5stack
+            command: npm run build:release:m5stack
+            bundle: true
+          - target: m5stack_core2
+            command: npm run build:release:m5stack_core2
+            bundle: true
+          - target: m5stack_cores3
+            command: npm run build:release:m5stack_cores3
+            bundle: true
+          - target: m5stackchan_cores3
+            command: npm run build:release:m5stackchan_cores3
+            bundle: true
+          - target: stackchan_rt
+            command: npm run build:release:stackchan_rt
+            bundle: false
+          - target: takao_core2_sg90
+            command: npm run build:release:takao_core2_sg90
+            bundle: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          target-branch: "10.1.1"
+      - name: Prepare pinned WebRTC sources
+        if: matrix.target == 'm5stack_cores3' || matrix.target == 'm5stackchan_cores3'
+        working-directory: ./firmware
+        run: npm run setup:webrtc
+      - name: Build release firmware
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}
+      - name: Verify Avatar DSL ESP32 ABI for all rotations
+        if: matrix.target == 'm5stackchan_cores3'
+        working-directory: ./firmware
+        run: |
+          source "$HOME/.local/share/xs-dev-export.sh"
+          source "$IDF_PATH/export.sh"
+          npm run test:avatar-dsl:esp32:abi
+      - name: Upload bundle target
+        if: matrix.bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware-bundle-target-${{ matrix.target }}
+          path: ./firmware/dist/bundle-targets
+          if-no-files-found: error
+
+  web:
+    name: Bundle web artifacts
+    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          target-branch: "10.1.1"
+          install-emscripten: "true"
+      - name: Install web dependencies
+        working-directory: ./firmware
+        run: npm --prefix ../web ci
+      - name: Rebuild editor tools for release verification
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:editor-tools
+      - name: Verify release editor tools
+        working-directory: ./firmware
+        run: |
+          npm --prefix ../web run check:editor-artifacts
+          git diff --exit-code -- ':(top)web/editor/vendor/tools.js' ':(top)web/editor/vendor/tools.wasm'
+      - name: Build WASM simulator firmware
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
+      - name: Build web application
+        working-directory: ./firmware
+        run: npm --prefix ../web run build
+      - name: Upload web application
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: ./web/dist
+          if-no-files-found: error
+
   build:
+    needs:
+      - firmware
+      - web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Check for changes in firmware
-        id: diff_check
-        run: |
-          git diff --quiet HEAD^ HEAD -- ./firmware/ || echo "diff_detected=true" >> $GITHUB_ENV
-      - name: Cache build results
-        id: cache
-        uses: actions/cache@v4
+      - uses: actions/checkout@v7
         with:
-          path: ./firmware/stackchan/tech.moddable.stackchan
-          key: ${{ github.sha }}
-      - name: Setup
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        uses: ./.github/actions/setup
-      - name: Bundle
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Build candidate schematics
+        if: github.event_name == 'pull_request'
+        uses: INTI-CMNB/KiBot@v2_k7
+        with:
+          config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
+          schema: schematics/m5-pantilt/m5-pantilt.kicad_sch
+          board: schematics/m5-pantilt/m5-pantilt.kicad_pcb
+          dir: pages-schematics
+      - name: Download bundle targets
+        uses: actions/download-artifact@v8
+        with:
+          pattern: firmware-bundle-target-*
+          path: ./firmware/dist/bundle-targets
+          merge-multiple: true
+      - name: Package firmware bundle
         working-directory: ./firmware
-      - name: Upload Firmware Bundle
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        uses: actions/upload-artifact@v4
+        run: npm run bundle:package
+      - name: Upload firmware bundle
+        uses: actions/upload-artifact@v7
         with:
           name: firmware-bundle
-          path: ./firmware/stackchan/tech.moddable.stackchan
+          path: ./firmware/host/app/tech.moddable.stackchan
+          if-no-files-found: error
+      - name: Download web application
+        uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: ./web/dist
+      - name: Assemble Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        run: >-
+          node .github/scripts/update-pages-bundle.mjs
+          ./web/dist
+          ./firmware/host/app/tech.moddable.stackchan
+          ./docs/specs/stackchan-mod.schema.json
+          .
+          pages-preview
+          ./pages-schematics
+      - name: Validate Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        run: |
+          node --test .github/scripts/*.test.mjs
+          node .github/scripts/validate-pages-preview.mjs ./pages-preview
+      - name: Upload Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: cloudflare-pages-preview
+          path: ./pages-preview
+          retention-days: 2
+          if-no-files-found: error
 
   deploy:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    env:
+      PAGES_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'release' || 'develop' }}
+      PAGES_DIRECTORY: ${{ github.ref == 'refs/heads/main' && 'web' || 'develop/web' }}
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Pages Branch
-        uses: actions/checkout@v4
+      - name: Checkout Pages branch
+        uses: actions/checkout@v7
         with:
           ref: gh-pages
-      - name: Download Firmware Bundle
-        uses: actions/download-artifact@v4
+      - name: Checkout website source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: website-source
+          persist-credentials: false
+      - name: Download firmware bundle
+        uses: actions/download-artifact@v8
         with:
           name: firmware-bundle
           path: ./firmware-bundle
-      - name: Move Bundle
+      - name: Download web application
+        uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: ./web-dist
+      - name: Update bundle files
+        run: >-
+          node ./website-source/.github/scripts/update-pages-bundle.mjs
+          ./web-dist
+          ./firmware-bundle
+          ./website-source/docs/specs/stackchan-mod.schema.json
+          .
+          "$PAGES_DIRECTORY"
+      - name: Commit bundle update
         run: |
-          mkdir -p ./web/flash/tech.moddable.stackchan
-          rm -rf ./web/flash/tech.moddable.stackchan/*
-          mv firmware-bundle/* ./web/flash/tech.moddable.stackchan
-      - name: Commit and Push
-        run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add .
-          git commit -m "Deploy firmware bundle from ${{ github.sha }}"
-          git push
+          set -euo pipefail
+          git config user.name 'GitHub Action'
+          git config user.email 'action@github.com'
+          git add --all "./$PAGES_DIRECTORY"
+          if git diff --cached --quiet; then
+            echo "No bundle changes to deploy"
+            exit 0
+          fi
+          git commit -m "Deploy $PAGES_CHANNEL website and firmware bundle from ${{ github.sha }}"
+          git push origin HEAD:gh-pages

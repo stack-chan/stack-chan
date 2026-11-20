@@ -1,0 +1,57 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Five rigid straight-edged leaves; fixed pivots and one radial-slot drive ring.
+-- Triangles approximate curved leaf profiles; a fixed cover clips their tails.
+-- Six primitives per lens. The parent preset draws one shared front plate.
+-- Fixed-pivot five-leaf iris, radial-slot drive-ring approximation.
+fn iris_leaf(cx,cy,r,ux,uy,c,s)
+  let a = 0.97 * r * 0.809016994
+  let b = -0.97 * r * 0.587785252
+  let qt = -2 * b
+  let dx = -0.65 * r - a
+  let dy = -b
+  let qx = a - s * qt
+  let qy = b + c * qt
+  let txp = a + c * dx - s * dy
+  let typ = b + s * dx + c * dy
+  fill_triangle(cx + ux*a - uy*b, cy + uy*a + ux*b,
+                cx + ux*qx - uy*qy, cy + uy*qx + ux*qy,
+                cx + ux*txp - uy*typ, cy + uy*txp + ux*typ, 0x4228)
+end
+fn iris_lens(cx,cy,r)
+  if r <= 0 then return end
+  let open = clamp(eye_open,0,1)
+  let turn = open
+  let a = 0.97 * r * 0.809016994
+  let b = -0.97 * r * 0.587785252
+  let g = 0.15 * r
+  -- Drive-pin positions at the 12-degree closed and 70-degree open stops.
+  let x0 = a - 0.669130606*g
+  let y0 = b + 0.743144825*g
+  let x1 = a + 0.275637356*g
+  let y1 = b + 0.961261696*g
+  let n0 = sqrt(x0*x0+y0*y0)
+  let n1 = sqrt(x1*x1+y1*y1)
+  let ux = (1-turn)*x0/n0 + turn*x1/n1
+  let uy = (1-turn)*y0/n0 + turn*y1/n1
+  let n = sqrt(ux*ux+uy*uy)
+  ux = ux/n
+  uy = uy/n
+  -- Intersection of a radial slot with the fixed-radius drive-pin orbit.
+  let cross = a*uy-b*ux
+  let distance = a*ux+b*uy-sqrt(max(0,g*g-cross*cross))
+  let vx = (distance*ux-a)/g
+  let vy = (distance*uy-b)/g
+  let c = -0.809016994*vx + 0.587785252*vy
+  let s = -0.809016994*vy - 0.587785252*vx
+  let unit = sqrt(c*c+s*s)
+  c = c/unit
+  s = s/unit
+  begin_group(cx-r,cy-r,2*r,2*r)
+  fill_circle(cx,cy,0.60*r,primary)
+  iris_leaf(cx,cy,r,1,0,c,s)
+  iris_leaf(cx,cy,r,0.309016994,0.951056516,c,s)
+  iris_leaf(cx,cy,r,-0.809016994,0.587785252,c,s)
+  iris_leaf(cx,cy,r,-0.809016994,-0.587785252,c,s)
+  iris_leaf(cx,cy,r,0.309016994,-0.951056516,c,s)
+  end_group()
+end

@@ -1,0 +1,11 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "main": "./touch-panel.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

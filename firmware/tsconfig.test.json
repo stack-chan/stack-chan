@@ -1,0 +1,318 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist-tests",
+    "rootDir": ".",
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "allowJs": false,
+    "allowImportingTsExtensions": false,
+    "checkJs": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "piu/MC": [
+        "./node_modules/@moddable/typings/piu/MC.d.ts"
+      ],
+      "piu/*": [
+        "./node_modules/@moddable/typings/piu/*"
+      ],
+      "camera": [
+        "./host/modules/camera/wasm/camera.ts"
+      ],
+      "capabilities": [
+        "./host/modules/testing/fakes/capabilities.ts"
+      ],
+      "crypt": [
+        "./host/modules/connectivity/__tests__/fakes/crypt.ts"
+      ],
+      "audio-buffer": [
+        "./host/modules/audio/audio-buffer.ts"
+      ],
+      "tts-types": [
+        "./host/modules/audio/tts-types.ts"
+      ],
+      "audio-in": [
+        "./host/modules/testing/fakes/audio-in.ts"
+      ],
+      "pins/audioout": [
+        "./host/modules/testing/fakes/audio-out.ts"
+      ],
+      "embedded:io/audio/out": [
+        "./host/modules/testing/fakes/audio-out.ts"
+      ],
+      "mp3streamer": [
+        "./host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "buffered-mp3streamer": [
+        "./host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "web-radio-audio-out": [
+        "./host/modules/audio/platforms/m5stackchan-cores3/web-radio-audio-out.ts"
+      ],
+      "pcm-resampler": [
+        "./host/modules/testing/fakes/pcm-resampler.ts"
+      ],
+      "calculate-power": [
+        "./host/modules/testing/fakes/calculate-power.ts"
+      ],
+      "wasm-driver": [
+        "./host/modules/motion/wasm/wasm-driver.ts"
+      ],
+      "face-state": [
+        "./host/modules/ui/state/face-state.ts"
+      ],
+      "parts/*": [
+        "./host/modules/ui/components/face/parts/*"
+      ],
+      "parts/image/image-avatar-pack": [
+        "./host/modules/ui/components/face/parts/image/image-avatar-pack.ts"
+      ],
+      "parts/image/image-avatar-state": [
+        "./host/modules/ui/components/face/parts/image/image-avatar-state.ts"
+      ],
+      "motion-controller": [
+        "./host/modules/motion/motion-controller.ts"
+      ],
+      "microphone": [
+        "./host/modules/testing/fakes/microphone-type.ts"
+      ],
+      "speaker": [
+        "./host/modules/testing/fakes/speaker-type.ts"
+      ],
+      "imu-motion": [
+        "./host/modules/input/imu-motion.ts"
+      ],
+      "imu": [
+        "./host/modules/input/imu.ts"
+      ],
+      "led": [
+        "./host/modules/lighting/led.ts"
+      ],
+      "touch": [
+        "./host/modules/input/touch.ts"
+      ],
+      "touch-panel": [
+        "./host/modules/input/touch-panel.ts"
+      ],
+      "touch-panel-gesture": [
+        "./host/modules/input/touch-panel-gesture.ts"
+      ],
+      "stored-wifi": [
+        "./host/modules/connectivity/stored-wifi.ts"
+      ],
+      "preference-write-guard": [
+        "./host/modules/connectivity/preference-write-guard.ts"
+      ],
+      "preference-server": [
+        "./host/modules/connectivity/preference-server.ts"
+      ],
+      "settings-view": [
+        "./host/app/__tests__/fakes/settings-view.ts"
+      ],
+      "settings-network-list": [
+        "./host/modules/ui/views/settings/settings-network-list.ts"
+      ],
+      "settings-status": [
+        "./host/app/settings-status.ts"
+      ],
+      "wifi-scan": [
+        "./host/modules/connectivity/wifi-scan.ts"
+      ],
+      "wifi-scan-types": [
+        "./host/modules/connectivity/wifi-scan-types.ts"
+      ],
+      "network-service": [
+        "./host/modules/connectivity/network-service.ts"
+      ],
+      "network-state": [
+        "./host/modules/connectivity/network-state.ts"
+      ],
+      "loadPreference": [
+        "./host/modules/preferences/loadPreference.ts"
+      ],
+      "timezone-settings": [
+        "./host/modules/preferences/timezone-settings.ts"
+      ],
+      "timezone-model": [
+        "./host/modules/preferences/timezone-model.ts"
+      ],
+      "volume-model": [
+        "./host/modules/preferences/volume-model.ts"
+      ],
+      "volume-preview": [
+        "./host/app/volume-preview.ts"
+      ],
+      "network-manager": [
+        "./host/modules/connectivity/__tests__/fakes/network-manager.ts"
+      ],
+      "preference": [
+        "./host/modules/testing/fakes/preference.ts"
+      ],
+      "consts": [
+        "./host/modules/preferences/consts.ts"
+      ],
+      "mcp-auth": [
+        "./host/modules/connectivity/mcp-server/mcp-auth.ts"
+      ],
+      "modules": [
+        "./host/modules/testing/fakes/modules.ts"
+      ],
+      "structuredClone": [
+        "./host/modules/testing/fakes/structured-clone.ts"
+      ],
+      "timer": [
+        "./host/modules/testing/fakes/timer.ts"
+      ],
+      "uartserver": [
+        "./host/modules/connectivity/__tests__/fakes/uartserver.ts"
+      ],
+      "time": [
+        "./host/modules/testing/fakes/time.ts"
+      ],
+      "sntp": [
+        "./host/modules/connectivity/__tests__/fakes/sntp.ts"
+      ],
+      "embedded:network/interface/wifi": [
+        "./host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
+      ],
+      "ecma-wifi": [
+        "./host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
+      ],
+      "mc/config": [
+        "./host/modules/testing/fakes/mc-config.ts"
+      ],
+      "input-event": [
+        "./host/modules/input/input-event.ts"
+      ],
+      "startup-splash": [
+        "./host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
+      ],
+      "setup-mode": [
+        "./host/app/default-behavior/__tests__/startup-choice/setup-mode-stub.ts"
+      ],
+      "settings-status-model": [
+        "./host/modules/ui/views/settings/settings-status-model.ts"
+      ],
+      "boot-network-recovery": [
+        "./host/app/boot-network-recovery.ts"
+      ],
+      "app-behavior-resolver": [
+        "./host/app/app-behavior-resolver.ts"
+      ],
+      "app-launch": [
+        "./host/app/app-launch.ts"
+      ],
+      "app-default-behavior/startup-choice": [
+        "./host/app/default-behavior/startup-choice.ts"
+      ],
+      "app-default-behavior/wasm/on-launch": [
+        "./host/app/default-behavior/wasm/on-launch.ts"
+      ],
+      "mac-address": [
+        "./host/modules/util/sim/mac-address.ts"
+      ],
+      "localization": [
+        "./host/modules/testing/fakes/localization.ts"
+      ],
+      "local-peer-capability": [
+        "./host/modules/connectivity/sim/local-peer-capability.ts"
+      ],
+      "local-peer-codec": [
+        "./host/modules/connectivity/local-peer-codec.ts"
+      ],
+      "local-peer-auth": [
+        "./host/modules/connectivity/local-peer-auth.ts"
+      ],
+      "local-peer-frame": [
+        "./host/modules/connectivity/local-peer-frame.ts"
+      ],
+      "local-peer-radio-types": [
+        "./host/modules/connectivity/local-peer-radio-types.ts"
+      ],
+      "ble-local-peer-record": [
+        "./host/modules/connectivity/ble/local-peer-record.ts"
+      ],
+      "local-peer-service": [
+        "./host/modules/connectivity/local-peer-service.ts"
+      ],
+      "local-peer-types": [
+        "./host/modules/connectivity/local-peer-types.ts"
+      ],
+      "stackchan-util": [
+        "./host/modules/util/stackchan-util.ts"
+      ],
+      "stackchan-application-event": [
+        "./host/app/remote-session/application-event.ts"
+      ],
+      "stackchan-approval-model": [
+        "./host/app/remote-session/approval-model.ts"
+      ],
+      "stackchan-approval-session": [
+        "./host/app/remote-session/__tests__/approval-session-fake.ts"
+      ],
+      "stackchan-conversation-session": [
+        "./host/app/remote-session/conversation-session.ts"
+      ],
+      "stackchan-realtime-session": [
+        "./host/app/remote-session/realtime-session.ts"
+      ],
+      "stackchan-remote-session-runtime": [
+        "./host/app/remote-session/runtime.ts"
+      ],
+      "stackchan-task-session": [
+        "./host/app/remote-session/task-session.ts"
+      ],
+      "stackchan-remote-session-facade": [
+        "./host/app/remote-session/facade.ts"
+      ],
+      "stackchan-owned-resources": [
+        "./host/app/owned-resources.ts"
+      ],
+      "stackchan-usb-media-session": [
+        "./host/modules/usb-audio/media-session.ts"
+      ],
+      "stackchan-usb-protocol": [
+        "./host/modules/usb-audio/protocol.ts"
+      ],
+      "stackchan-usb-event-frame-queue": [
+        "./host/modules/usb-audio/event-frame-queue.ts"
+      ],
+      "stackchan-usb-event-send-requests": [
+        "./host/modules/usb-audio/event-send-requests.ts"
+      ],
+      "stackchan-usb-event-transport": [
+        "./host/modules/usb-audio/event-transport.ts"
+      ],
+      "stackchan-usb-audio-core": [
+        "./host/modules/usb-audio/__tests__/audio-core-types.ts"
+      ],
+      "web-radio-byte-ring": [
+        "./host/modules/audio/platforms/m5stackchan-cores3/shared-byte-ring.ts"
+      ],
+      "media-player": [
+        "./host/modules/audio/platforms/m5stackchan-cores3/media-player.ts"
+      ],
+      "embedded:network/http/*": [
+        "./node_modules/@moddable/typings/embedded_network/http/*.d.ts"
+      ],
+      "network-power": [
+        "./host/modules/connectivity/network-power.ts"
+      ],
+      "wifi-power-policy": [
+        "./host/modules/connectivity/wifi-power-policy.ts"
+      ]
+    },
+    "types": [
+      "node",
+      "./typings/xs-runtime"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "host/**/*.test.ts"
+  ],
+  "exclude": [
+    "host/**/__tests__/*/*.test.ts"
+  ]
+}

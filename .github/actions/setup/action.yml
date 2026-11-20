@@ -1,10 +1,22 @@
 name: Setup
-description: Setup Node.js, ModdableSDK and ESP-IDF environments
+description: Setup Node.js, ModdableSDK, ESP-IDF and Emscripten environments
+outputs:
+  moddable-cache-key:
+    description: "Cache key prefix for the resolved Moddable SDK commit"
+    value: ${{ steps.resolve_moddable.outputs.cache-key }}
 inputs:
   target-branch:
-    description: "Target branch to setup environment"
+    description: "Target branch or tag to setup environment"
     required: false
-    default: ""
+    default: "10.1.1"
+  install-emscripten:
+    description: "Install Emscripten for WASM builds"
+    required: false
+    default: "false"
+  install-moddable:
+    description: "Install Moddable SDK, ESP-IDF and Linux simulator dependencies"
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
@@ -21,48 +33,111 @@ runs:
     - run: npm ci
       working-directory: ./firmware
       shell: bash
-    - name: check latest release tag of Moddable
-      if: inputs.target-branch == ''
+    - name: Validate setup inputs
+      env:
+        INSTALL_MODDABLE: ${{ inputs.install-moddable }}
       run: |
-        API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/commits/public"
-        RESPONSE=$(curl -s -H "Authorization: Bearer ${{ github.token }}" $API_URL)
-        LATEST_COMMIT=$(echo $RESPONSE | jq -r '.sha' | cut -c1-12)
-        echo "Latest commit of Moddable: $LATEST_COMMIT"
-        echo "moddable_cache_key=${{ runner.os }}-moddable-$LATEST_COMMIT" >> $GITHUB_ENV
+        if [[ "$INSTALL_MODDABLE" != "true" && "$INSTALL_MODDABLE" != "false" ]]; then
+          echo "::error::install-moddable must be true or false"
+          exit 1
+        fi
       shell: bash
-    - name: Restore cache of Moddale and ESP32
-      if: inputs.target-branch == ''
+    - name: Setup Emscripten for WASM simulator
+      if: inputs.install-emscripten == 'true'
+      uses: emscripten-core/setup-emsdk@v16
+      with:
+        version: 5.0.1
+    - name: Install Moddable Linux tool dependencies
+      if: inputs.install-moddable == 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dbus libasound2-dev libfreetype6-dev libglib2.0-dev libgtk-3-dev pkg-config xvfb
+      shell: bash
+    - name: Resolve Moddable cache key
+      id: resolve_moddable
+      if: inputs.install-moddable == 'true'
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        INPUT_TARGET_BRANCH: ${{ inputs.target-branch }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+      run: |
+        set -euo pipefail
+        github_api_get() {
+          curl -fsSL \
+            --retry 5 \
+            --retry-all-errors \
+            --retry-delay 10 \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$1"
+        }
+        if [ -n "$INPUT_TARGET_BRANCH" ]; then
+          REF="$INPUT_TARGET_BRANCH"
+        else
+          RELEASE_RESPONSE=$(github_api_get "https://api.github.com/repos/Moddable-OpenSource/moddable/releases/latest")
+          REF=$(echo "$RELEASE_RESPONSE" | jq -r '.tag_name')
+          if [ -z "$REF" ] || [ "$REF" = "null" ]; then
+            echo "::error::Failed to resolve latest Moddable release tag"
+            exit 1
+          fi
+        fi
+        API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/commits/$REF"
+        RESPONSE=$(github_api_get "$API_URL")
+        MODDABLE_SHA=$(echo "$RESPONSE" | jq -r '.sha')
+        if [[ ! "$MODDABLE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "::error::Failed to resolve Moddable commit for ref: $REF"
+          exit 1
+        fi
+        MODDABLE_REF=$(echo "$MODDABLE_SHA" | cut -c1-12)
+        echo "Moddable ref: $REF ($MODDABLE_REF)"
+        MODDABLE_CACHE_KEY="$RUNNER_OS_NAME-moddable-$MODDABLE_REF"
+        echo "MODDABLE_TARGET_REF=$REF" >> "$GITHUB_ENV"
+        echo "moddable_cache_key=$MODDABLE_CACHE_KEY" >> "$GITHUB_ENV"
+        echo "cache-key=$MODDABLE_CACHE_KEY" >> "$GITHUB_OUTPUT"
+      shell: bash
+    - name: Restore cache of Moddable and ESP32
       id: restore-cache-moddable
+      if: inputs.install-moddable == 'true'
       uses: actions/cache/restore@v4
       with:
         path: |
           /home/runner/.local/share
           /home/runner/.espressif
-        key: ${{ env.moddable_cache_key }}
+        key: ${{ env.moddable_cache_key }}-fontbm2
     - name: install Moddable
-      if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
+      if: inputs.install-moddable == 'true' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
-        if [ -z "${{ inputs.target-branch }}" ]; then
-          npm run setup
-        else
-          npm run setup -- --target-branch ${{ inputs.target-branch }}
-        fi
+        npm run setup -- --branch "$MODDABLE_TARGET_REF"
+        git -C "$HOME/.local/share/moddable" fetch origin "$MODDABLE_TARGET_REF"
+        git -C "$HOME/.local/share/moddable" checkout --detach FETCH_HEAD
+        echo "Installed Moddable ref: $(git -C "$HOME/.local/share/moddable" describe --tags --always)"
       working-directory: ./firmware
       shell: bash
     - name: install ESP32
-      if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
+      if: inputs.install-moddable == 'true' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         source $HOME/.local/share/xs-dev-export.sh && npm run setup -- --device=esp32
       working-directory: ./firmware
       shell: bash
-    - name: Save cache of Moddale and ESP32
-      if: inputs.target-branch == '' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
+    - name: install fontbm
+      if: inputs.install-moddable == 'true' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get install -y cmake libfreetype6-dev
+        git clone --depth 1 https://github.com/vladimirgamalyan/fontbm.git $HOME/.local/share/fontbm
+        cd $HOME/.local/share/fontbm && mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+        printf '\nexport FONTBM=%s\n' "$HOME/.local/share/fontbm/build/fontbm" >> $HOME/.local/share/xs-dev-export.sh
+      shell: bash
+    - name: Save cache of Moddable and ESP32
+      if: inputs.install-moddable == 'true' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
       id: save-cache-moddable
+      continue-on-error: true
       uses: actions/cache/save@v4
       with:
         path: |
           /home/runner/.local/share
           /home/runner/.espressif
-        key: ${{ env.moddable_cache_key }}
+        key: ${{ env.moddable_cache_key }}-fontbm2

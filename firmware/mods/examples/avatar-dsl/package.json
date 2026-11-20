@@ -1,0 +1,11 @@
+{
+  "name": "avatar-dsl",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./context": "./context.js",
+    "./driver": "./driver.js",
+    "./vm": "./vm.js",
+    "./vendor/compiler/opcodes": "./vendor/compiler/opcodes.js"
+  }
+}

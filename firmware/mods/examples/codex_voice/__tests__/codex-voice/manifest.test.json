@@ -1,0 +1,10 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./codex-voice.test"
+  }
+}

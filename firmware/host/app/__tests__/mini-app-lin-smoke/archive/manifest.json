@@ -1,0 +1,7 @@
+{
+  "include": ["../../../../../mods/examples/mini_app_sample/manifest.json"],
+  "modules": {
+    "mod": "./mod",
+    "mini-app-smoke-behavior": "../behavior"
+  }
+}

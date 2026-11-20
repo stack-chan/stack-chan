@@ -34,13 +34,13 @@
 * Common options  
   * --input: Input file name.  
     If omitted, it will be 'speeches.js' in the current directory if it exists.  
-    If not, it will be './stackchan/assets/sounds/speeches_ja.js' (assuming execution in the 'stack-chan/firmware' directory).
+    If not, it will be './host/modules/audio/assets/sounds/speeches_ja.js' (assuming execution in the 'stack-chan/firmware' directory).
   * --output: Output directory.  
     If omitted, it will be the 'assets' directory under the directory where the input file is located, if it exists.  
     If there is no 'assets' directory, it will be the same directory as the input file.
 
 * Example of execution  
-    `~/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `~/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     Note: When specifying options, add ' -- ' after the command as shown above.
 
 ## generate-speech-coqui (for [CoquiTTS](https://github.com/coqui-ai/TTS#readme))
@@ -53,9 +53,9 @@
 
 * Unique options for generate-speech-coqui  
   * --host: Hostname or IP address of the host where the TTS-Server is running.  
-    Usually, it is read from stackchan/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
+    Usually, it is read from host/app/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
   * --port: Port of the TTS-Server.  
-    Usually, it is read from stackchan/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
+    Usually, it is read from host/app/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
   * --shift: Pitch shift by pitch-shift.js.  
     Ranges from 0.5 (1 octave lower) to 2 (1 octave higher), with 1 being normal (CoquiTTS output as is).  
     If omitted, the value of 'SynthProps.shift' in the input file will be used. However, if it is also undefined, it will be 1.5.  
@@ -64,13 +64,13 @@
 * Common options  
   * --input: Input file name.  
     If omitted, it will be 'speeches.js' in the current directory if it exists.  
-    If not, it will be './stackchan/assets/sounds/speeches_ja.js' (assuming execution in the 'stack-chan/firmware' directory).
+    If not, it will be './host/modules/audio/assets/sounds/speeches_ja.js' (assuming execution in the 'stack-chan/firmware' directory).
   * --output: Output directory.  
     If omitted, it will be the 'assets' directory under the directory where the input file is located, if it exists.  
     If there is no 'assets' directory, it will be the same directory as the input file.
 
 * Example of execution  
-    `~/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `~/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     Note: When specifying options, add ' -- ' after the command as shown above.
 
 ## generate-speech-voicevox  (For [VOICEVOX](https://voicevox.hiroshiba.jp/))
@@ -101,12 +101,12 @@
 * Common options
   * --input Input file name  
     If omitted, it will default to speeches.js in the current directory if present  
-    If not present, it will default to ./stackchan/assets/sounds/speeches_ja.js (assuming execution in the ~/stack-chan/firmware directory)
+    If not present, it will default to ./host/modules/audio/assets/sounds/speeches_ja.js (assuming execution in the ~/stack-chan/firmware directory)
   * --output Output directory  
     If omitted, it will default to the assets directory under the input file's directory if it exists  
     If the assets directory does not exist, it will default to the same directory as the input file  
 * Execution example
-     ~/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets
+     ~/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets
      ※ If you want to specify options, add ' -- ' after the command as shown above
 
 ## About License

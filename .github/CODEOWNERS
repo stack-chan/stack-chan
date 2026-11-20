@@ -1,0 +1,17 @@
+# Default owner
+* @meganetaaan
+
+# Firmware and tooling
+/firmware/ @meganetaaan
+/.github/ @meganetaaan
+
+# Documentation and site content
+/docs/ @meganetaaan
+/README.md @meganetaaan
+/README_ja.md @meganetaaan
+/CONTRIBUTING.md @meganetaaan
+
+# Hardware assets
+/schematics/ @meganetaaan
+/case/ @meganetaaan
+/web/ @meganetaaan

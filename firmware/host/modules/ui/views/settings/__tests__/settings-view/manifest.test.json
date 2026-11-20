@@ -1,0 +1,30 @@
+{
+  "include": [
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "resources": {
+    "*": ["../../../../../../app/strings/*"],
+    "*-mask": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "localization": true,
+        "monochrome": true
+      },
+      {
+        "source": "../../../../assets/fonts/StackchanCJK-Regular",
+        "name": "StackchanCJK",
+        "size": 12,
+        "characters": " ",
+        "blocks": [],
+        "localization": true,
+        "monochrome": true
+      }
+    ]
+  },
+  "modules": {
+    "main": "./settings-view.test"
+  }
+}

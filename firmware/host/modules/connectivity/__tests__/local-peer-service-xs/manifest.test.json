@@ -1,0 +1,19 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "main": "./local-peer-service-xs.test"
+  },
+  "preload": ["local-peer-types"],
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "strictNullChecks": false
+      }
+    }
+  }
+}

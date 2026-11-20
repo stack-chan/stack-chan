@@ -1,11 +1,11 @@
 // Imports the Google Cloud client library
 import textToSpeech from '@google-cloud/text-to-speech'
 import fs from 'fs'
-import shiftPitch from './pitch-shift.js'
-import wae from 'web-audio-engine'
-import yargs from 'yargs/yargs'
-import { hideBin } from 'yargs/helpers'
 import path from 'path'
+import wae from 'web-audio-engine'
+import { hideBin } from 'yargs/helpers'
+import yargs from 'yargs/yargs'
+import shiftPitch from './pitch-shift.js'
 
 const AudioContext = wae.RenderingAudioContext
 // const LANG = "EN"
@@ -100,8 +100,8 @@ if (input) {
   } else {
     process.chdir(cwd) // change CurrentDirectory to saved(firmware Directory)
     console.log(`cwd   :${process.cwd()}`)
-    console.log('input :./stackchan/assets/sounds/speeches_ja.js')
-    options.input = path.resolve('./stackchan/assets/sounds/speeches_ja.js')
+    console.log('input :./host/modules/audio/assets/sounds/speeches_ja.js')
+    options.input = path.resolve('./host/modules/audio/assets/sounds/speeches_ja.js')
   }
   console.log(`      (${options.input})`)
 }

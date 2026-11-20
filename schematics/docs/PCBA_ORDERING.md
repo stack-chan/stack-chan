@@ -50,10 +50,10 @@ This repository uses GitHub Actions to automatically generate a complete set of 
 
 4. **Extract Files**
    - Extract the downloaded ZIP file
-   - Inside the `Manufacturers/JLCPCB/` folder, you'll find:
-     - Complete Gerber files (ZIP file)
-     - BOM (Bill of Materials) - CSV file
-     - CPL (Component Placement List) - CSV file
+   - Use these files from the extracted artifact:
+     - `Manufacturers/m5-pantilt-_JLCPCB_compress.zip`: Gerber and drill files
+     - `Manufacturers/JLCPCB/m5-pantilt_bom_jlc.csv`: bill of materials (BOM)
+     - `Manufacturers/JLCPCB/m5-pantilt_cpl_jlc.csv`: component placement list (CPL)
 
 ## JLCPCB PCBA Ordering Steps
 
@@ -66,8 +66,7 @@ This repository uses GitHub Actions to automatically generate a complete set of 
 
 1. Click "Order Now" on JLCPCB homepage
 2. Click the "Add gerber file" button
-3. Upload the Gerber ZIP file from the downloaded `Manufacturers/JLCPCB/` folder
-   - File name is typically like `m5-pantilt-gerbers.zip`
+3. Upload `Manufacturers/m5-pantilt-_JLCPCB_compress.zip`, not the outer `schematics-files` archive.
 
 ### Step 3: Verify/Configure Board Specifications
 
@@ -108,7 +107,7 @@ After upload, board specifications are automatically detected. Verify the follow
    - **Top Side**: Assemble top surface only
    - **Bottom Side**: Assemble bottom surface only
    
-   For m5-pantilt, choose **Economic → Top Side** only if you plan to hand-solder the bottom-side SMD connector **J1** before attaching the M5Stack. If you want both sides factory-assembled, confirm that the [Standard service](https://jlcpcb.com/capabilities/pcb-assembly-capabilities) accepts your board dimensions and can supply and place J1. Check that J1 is shown on the bottom in the assembly preview before ordering.
+   For m5-pantilt, choose **Economic → Top Side** only if you plan to hand-solder the bottom-side SMD connector **J1** before attaching the M5Stack. If you want both sides factory-assembled, confirm that the [Standard service](https://jlcpcb.com/capabilities/pcb-assembly-capabilities) accepts your board dimensions and can supply and place J1. The currently generated CPL lists J1 on the bottom, but the generated BOM does not include it. If you want J1 fitted, check that it is included in the assembly quote and shown on the bottom in the preview before ordering.
 
 4. Select PCBA Qty (assembly quantity):
    - Minimum 2 boards (must be equal to or less than PCB order quantity)

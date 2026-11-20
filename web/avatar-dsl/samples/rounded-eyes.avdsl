@@ -1,0 +1,46 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Original rounded rectangle eyes; no third-party artwork or new DSL opcode.
+-- eye_open follows the host's blink (1 -> 0 -> 1). In the editor use Eye open.
+-- gaze_h / gaze_v move both eyes. HAPPY and SLEEPY squint.
+-- Change primary to 0x07ff below if you prefer a fixed cyan face.
+
+-- Rounded rectangle made from the existing rectangles and circles.
+-- Ignore empty sizes; clamp radius so a closed eye remains a safe pill.
+fn rounded_rect(x, y, w, h, radius, color)
+  if w <= 0 or h <= 0 then return end
+  let r = min(max(radius, 0), min(w, h) / 2)
+  if r <= 0 then
+    fill_rect(x, y, w, h, color)
+    return
+  end
+  fill_rect(x + r, y, w - 2 * r, h, color)
+  fill_rect(x, y + r, w, h - 2 * r, color)
+  fill_circle(x + r, y + r, r, color)
+  fill_circle(x + w - r, y + r, r, color)
+  fill_circle(x + r, y + h - r, r, color)
+  fill_circle(x + w - r, y + h - r, r, color)
+end
+
+fn rounded_eye(center_x)
+  let openness = min(max(eye_open, 0), 1)
+  let w = sz(52)
+  let h = sz(4 + 56 * openness)
+  if expr == HAPPY then
+    w = sz(52 + 6 * openness)
+    h = sz(4 + 14 * openness)
+  elif expr == SLEEPY then
+    h = sz(4 + 10 * openness)
+  end
+  -- tx/ty scale signed positions. sz has a minimum of 1: sizes only.
+  let cx = tx(center_x + 8 * min(max(gaze_h, -1), 1))
+  let cy = ty(112 + 7 * min(max(gaze_v, -1), 1))
+  -- Fixed maximum damage/clip box: clears old pixels during blink and gaze.
+  begin_group(tx(center_x - 42), ty(66), sz(84), sz(92))
+  rounded_rect(cx - w / 2, cy - h / 2, w, h, sz(12), primary)
+  end_group()
+end
+
+fn draw()
+  rounded_eye(104)
+  rounded_eye(216)
+end

@@ -1,0 +1,12 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../platforms/core_s3_audioout/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "~": "$(MODULES)/pins/i2s/audioout.js",
+    "main": "./cores3-audioout.test",
+    "pins/audioout-original": "./audioout-original"
+  }
+}

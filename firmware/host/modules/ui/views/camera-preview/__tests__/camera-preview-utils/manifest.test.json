@@ -1,0 +1,9 @@
+{
+  "include": [
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./camera-preview-utils.test"
+  }
+}

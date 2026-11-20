@@ -1,0 +1,9 @@
+{
+  "include": [
+    "../../manifest.json",
+    "../../../mcp-server/manifest.json",
+    "../../../../testing/manifest.json"
+  ],
+  "modules": { "main": "./http-keepalive.test" },
+  "defines": { "main": { "async": 1 } }
+}

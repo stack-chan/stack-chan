@@ -1,0 +1,14 @@
+{
+  "source": "Contemporary Written Japanese UniDic",
+  "version": "3.1.1",
+  "lexical_csv_url": "https://clrd.ninjal.ac.jp/unidic_archive/cwj/3.1.1/unidic-cwj-3.1.1/lex_3_1.csv",
+  "lexical_csv_sha256": "887bc6dc865d7b839193d03bda50c50f1a36926cb84b567c39ac758da0b8d87d",
+  "license_choice": "modified BSD",
+  "output": "stackchan-ja.aqd",
+  "format_version": 3,
+  "output_sha256": "57414645e35d8f2e14bf964d3b92ee0aeb7311db2121fb8c07c08d026c0c8d47",
+  "entries": 148558,
+  "surfaces": 148554,
+  "alternatives": 4,
+  "bytes": 2097014
+}

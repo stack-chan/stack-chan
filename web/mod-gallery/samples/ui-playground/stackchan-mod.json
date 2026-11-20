@@ -1,0 +1,26 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "tech.stackchan.samples.ui-playground",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "UI Playground",
+  "description": "Piuの選択肢、区切り線、ヘルプ、通知を試せるミニアプリです。本体のAppBarから起動します。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0",
+  "source": {
+    "path": "miniapp/manifest.json",
+    "entrypoint": "miniapp/miniapp.ts"
+  },
+  "entrypoints": ["miniapp"],
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": [],
+  "artifacts": [
+    {
+      "format": "xsa",
+      "path": "ui-playground.xsa",
+      "target": "m5stackchan-cores3"
+    }
+  ]
+}

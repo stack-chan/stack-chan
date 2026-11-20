@@ -1,37 +1,76 @@
-# サンプルMOD
+# MODとサンプル
 
-ｽﾀｯｸﾁｬﾝのユーザアプリケーション（MOD）のサンプル集です。
-MODの書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照ください。
+[English](./README.md)
 
-一部のMODは動かすためにネットワーク接続や外部のサーバを準備を準備する必要があります（執筆中）。
+**MOD**は、ｽﾀｯｸﾁｬﾝのホストファームウェア上で動くユーザーアプリケーションです。
 
-## Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
+## MODを試す
 
-![きょろきょろｽﾀｯｸﾁｬﾝ](../../docs/images/stackchan.gif)
+公開MODは[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)から探せます。
+名前や機能で検索し、シミュレーターまたは実機で試せます。
+ブロックで作られたMODは、ブロックエディタで変更できます。
 
-- [look_around](./look_around/)
+MODを選ぶときは、カードに表示される使用機能と対応機種を確認してください。
+外部サービスやネットワークを使うMODは、リンク先のソースコードも確認してから書き込んでください。
+実機へ書き込むときは、Galleryが対象チップ、XSバージョン、ファームウェア互換性を自動で検査します。
 
-## Monologue: ぽしょぽしょ独り言ｽﾀｯｸﾁｬﾝ
+[![MOD Galleryの画面](../../docs/images/web-tools/mod-gallery-ja.png)](https://stack-chan.github.io/stack-chan/web/mod-gallery/)
 
-- [monologue](./monologue/)
+このディレクトリの[`examples`](./examples/)には、APIの学習、テスト、ローカル開発に使えるMODのソースコードがあります。
+その一部はGalleryにも掲載されています。
+現在、Galleryと`examples`の収録内容は一致していませんが、今後そろえていく予定です。
 
-## Cheerup: ｽﾀｯｸﾁｬﾝ応援団
+## MODを作る
 
-![顔の同期](../docs/images/face-sync.gif)
-![ｽﾀｯｸﾁｬﾝ応援団](../docs/images/cheerup.gif)
+### ブラウザーで作る
 
-- [cheerup_ble_lite](./cheerup_ble_lite/): BLE版
-- [cheerup_ws](./cheerup_ws/): WebSocket版
+[ブロックエディタ](https://stack-chan.github.io/stack-chan/web/editor/)では、Blocklyで処理を組み立て、ブラウザー内でMODをビルドできます。
+作成したMODは[シミュレーター](https://stack-chan.github.io/stack-chan/web/simulator/)で確認し、対応する実機へ書き込めます。
+最初のプロジェクトは[ブロックエディタのチュートリアル](https://stack-chan.github.io/stack-chan/web/editor/tutorial.html)に沿って作成できます。
 
-## Mimic: まねっこｽﾀｯｸﾁｬﾝ
+[![ブロックエディタの画面](../../docs/images/web-tools/block-editor-ja.png)](https://stack-chan.github.io/stack-chan/web/editor/)
 
-![まねっこｽﾀｯｸﾁｬﾝ](../docs/images/mimic.gif)
+### ソースコードから作る
 
-- [mimic_main](./mimic_main/): ユーザが動かすほう
-- [mimic_follow](./mimic_follow/): まねして動くほう
+MODはJavaScriptまたはTypeScriptのモジュールとして実装できます。
+TypeScriptのMODでは、Stack-chanのcapability APIが公開する型とModdableのモジュール指定子を使用します。
 
-## Face Tracker: 顔を追いかけるｽﾀｯｸﾁｬﾝ
+ローカル環境からMODを書き込む場合は、`firmware`ディレクトリで`manifest.json`を指定します。
 
-![顔を追いかけるｽﾀｯｸﾁｬﾝ](../docs/images/face-tracker.gif)
+```console
+npm run mod -- mods/examples/look_around/manifest.json
+```
 
-- [face_tracker](./face_tracker/)
+環境構築、ターゲット別のコマンド、書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照してください。
+
+## MODの実行モデル
+
+MODをインストールすると、ホストの通常動作に代わってそのMODが実行されます。
+ボタンや画面操作の意味は、インストールしたMODの実装で決まります。
+
+MODは、対象機種とホストが使用するXSバージョンに合わせてビルドする必要があります。
+WASMホストで使う場合も、`lin`などTypeScriptをサポートするターゲットでビルドした`.xsb`またはアーカイブを読み込みます。
+
+表示文字列は[`context.i18n`を使ったファームウェアのローカライズ](../docs/localization_ja.md)に従って追加します。
+顔画面とホストのAppBarを維持したままPiu UIを追加する場合は、実験的な[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。
+
+## 代表的なソース例
+
+| サンプル | 確認できる機能 |
+| --- | --- |
+| [`look_around`](./examples/look_around/) | モーションAPIを使った最小限の首振り |
+| [`localized_drawer`](./examples/localized_drawer/) | `context.i18n`を使ったローカライズ済みUI |
+| [`mini_app_sample`](./examples/mini_app_sample/) | 顔画面とAppBarを維持するミニアプリ |
+| [`stackchan_catch`](./examples/stackchan_catch/) | 落下物を離散状態で動かすゲーム&ウォッチ風ミニアプリ |
+| [`stackchan_minigames`](./examples/stackchan_minigames/) | JUMPとCATCHを1つのarchiveへまとめるミニゲーム集 |
+| [`local_peer_hello`](./examples/local_peer_hello/) | インターネットを経由しない端末間の型付きメッセージ |
+| [`web_radio`](./examples/web_radio/) | M5StackChan CoreS3でのネットワーク音声再生 |
+| [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3のサーボ電源とヘッドLEDの確認](../docs/m5stackchan-cores3-smoke.md) |
+
+## 参考資料
+
+- [プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)
+- [ファームウェアAPI](../docs/api_ja.md)
+- [MODパッケージ仕様](../../docs/specs/stackchan-mod.md)
+- [ローカライズ](../docs/localization_ja.md)
+- [ミニアプリ（実験的）](../docs/mini-apps_ja.md)

@@ -1,0 +1,14 @@
+{
+  "build": {
+    "SUBPLATFORM": "takao_core2_sg90"
+  },
+  "include": ["$(BUILD)/devices/esp32/targets/m5stack_core2/manifest.json"],
+  "config": {
+    "tts": {
+      "sampleRate": 24000
+    }
+  },
+  "modules": {
+    "sdk-board-provider": "$(BUILD)/devices/esp32/targets/m5stack_core2/host/provider"
+  }
+}

@@ -1,0 +1,8 @@
+This derived dictionary uses Contemporary Written Japanese UniDic v3.1.1.
+
+Authors: The UniDic Consortium, Teruaki Oka
+Project and current downloads: https://clrd.ninjal.ac.jp/unidic/
+
+The authoritative AUTHORS and license files shipped with the named UniDic
+release take precedence over this summary and are retained when packaging the
+derived dictionary.

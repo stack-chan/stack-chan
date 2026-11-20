@@ -103,7 +103,7 @@ If the installation was successful, the version of Moddable SDK will be displaye
 ```console
 $ npm run doctor
 
-> stack-chan@0.2.1 doctor
+> stack-chan@1.0.0 doctor
 > xs-dev doctor
 
 xs-dev environment info:

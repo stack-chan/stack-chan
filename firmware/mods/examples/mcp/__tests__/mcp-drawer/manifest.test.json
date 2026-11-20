@@ -1,0 +1,18 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "face-state": "./face-state-stub",
+    "mcp-server": "./mcp-server-stub",
+    "ecma-wifi": "./wifi-stub",
+    "main": "./mcp-drawer.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

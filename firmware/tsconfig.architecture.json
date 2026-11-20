@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "outDir": "dist-architecture"
+  },
+  "include": [
+    "host/**/*.architecture.ts"
+  ],
+  "exclude": []
+}

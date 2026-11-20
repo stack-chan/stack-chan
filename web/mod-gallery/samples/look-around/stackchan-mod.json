@@ -1,0 +1,17 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "tech.stackchan.samples.block-look-around",
+  "version": "1.0.0",
+  "type": "block",
+  "name": "定期的に見回す",
+  "description": "3秒ごとに向きを変え、少し待って正面へ戻ります。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0",
+  "source": {
+    "path": "look-around.stackchan-blocks.json"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": ["motion"]
+}

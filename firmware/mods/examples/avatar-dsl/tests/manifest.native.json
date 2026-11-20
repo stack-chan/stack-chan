@@ -1,0 +1,29 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/modules/base/debug/manifest.json",
+    "../../../../host/modules/ui/components/face/avatar-native/manifest.json"
+  ],
+  "modules": {
+    "main": "./native-main",
+    "avatar-dsl/native-face": "../native-face",
+    "avatar-dsl/context": "../context",
+    "face-state": "../../../../host/modules/ui/state/face-state"
+  },
+  "resources": {
+    "*": [
+      "../assets/*.avbc",
+      "./numeric.avbc",
+      "../../../../dist/avatar-dsl-native/oracle.bin",
+      "../../../../dist/avatar-dsl-native/primitive-overflow.avbc",
+      "../../../../dist/avatar-dsl-native/upstream-default_face.avbc",
+      "../../../../dist/avatar-dsl-native/upstream-omega_mouth.avbc",
+      "../../../../dist/avatar-dsl-native/upstream-aokko_face.avbc"
+    ]
+  },
+  "build": { "NAME": "avatar-dsl-native-render" },
+  "creation": { "stack": 2048 },
+  "config": { "startupSound": false }
+}

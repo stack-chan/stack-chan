@@ -1,0 +1,203 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
+    "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",
+    "$(MODULES)/web/fetch/manifest.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json",
+    "$(MODDABLE)/modules/base/uuid/manifest.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "../util/manifest.json",
+    "./manifest_file.json",
+    "../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "./*",
+      "$(MODDABLE)/examples/pins/audioout/http-stream/calculatePower",
+      "../../../typings/elevenlabsstreamer",
+      "../../../typings/resourcestreamer",
+      "../../../typings/wavstreamer",
+      "../../../typings/mp3streamer"
+    ],
+    "audio-in": "./audio-in"
+  },
+  "preload": [
+    "audio-in",
+    "audio-buffer",
+    "microphone",
+    "speaker",
+    "stt-whisper",
+    "calculatePower",
+    "tts-local",
+    "tts-remote",
+    "tts-voicevox",
+    "tts-voicevox-web",
+    "tts-elevenlabs",
+    "tts-openai",
+    "tts-stackchan-voice"
+  ],
+  "data": {
+    "*": [
+      "$(MODULES)/crypt/data/ca109",
+      "$(MODULES)/crypt/data/ca176",
+      "$(MODULES)/crypt/data/ca236"
+    ]
+  },
+  "config": {
+    "tls": {
+      "DHE_RSA": false
+    }
+  },
+  "defines": {
+    "audioIn": {
+      "sampleRate": 16000,
+      "bitsPerSample": 16
+    }
+  },
+  "platforms": {
+    "mac": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/mac/audioin"
+      },
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 11025
+        }
+      }
+    },
+    "lin": {
+      "include": ["$(MODDABLE)/modules/embedded/io/audio/out/manifest.json"],
+      "modules": {
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/lin/audioin"
+      }
+    },
+    "win": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/win/audioin"
+      }
+    },
+    "esp32": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/esp32/audioin"
+      },
+      "dependency": [
+        {
+          "idf": "esp_driver_i2s"
+        }
+      ],
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 11025
+        }
+      }
+    },
+    "esp32/m5stack_fire": {
+      "modules": {
+        "audio-in": "./platforms/m5stack-fire/audio-in"
+      }
+    },
+    "esp32/m5stack_cores3": {
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 24000
+        }
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "include": [
+        "$(MODDABLE)/modules/embedded/io/audio/out/manifest.json",
+        "../../../vendor/stackchan-voice/manifest.json",
+        "./platforms/m5stackchan-cores3/manifest.json"
+      ],
+      "build": {
+        "SDKCONFIGPATH ?=": "./platforms/m5stackchan-cores3/sdkconfig"
+      },
+      "modules": {
+        "~": "./tts-stackchan-voice",
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
+        "stackchanOpusDecoder": "./platforms/m5stackchan-cores3/esp32-opus-decoder",
+        "stackchanOpusEncoder": "./platforms/m5stackchan-cores3/esp32-opus-encoder",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/esp32/audioin",
+        "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
+      },
+      "dependency": [
+        {
+          "idf": "esp_driver_i2s"
+        },
+        {
+          "name": "esp_audio_codec",
+          "version": "~2.5.0",
+          "includes": [
+            "include/decoder",
+            "include/decoder/impl",
+            "include/encoder",
+            "include/encoder/impl"
+          ]
+        }
+      ],
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 24000
+        },
+        "audioIn": {
+          "sampleRate": 16000,
+          "bitsPerSample": 16,
+          "numChannels": 2,
+          "i2s": {
+            "num": 1,
+            "slot": "I2S_STD_SLOT_BOTH",
+            "format_i2s": 1,
+            "bck_pin": 34,
+            "lr_pin": 33,
+            "mck_pin": 0,
+            "datain": 14
+          }
+        }
+      }
+    },
+    "esp32/stackchan_rt": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/embedded/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/embedded/io/audio/in/esp32/audioin"
+      },
+      "dependency": [
+        {
+          "idf": "esp_driver_i2s"
+        }
+      ],
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 24000
+        }
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

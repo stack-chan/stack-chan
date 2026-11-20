@@ -1,0 +1,10 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./http-server-service.test"
+  }
+}

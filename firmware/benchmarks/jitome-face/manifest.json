@@ -1,0 +1,30 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/base/instrumentation/manifest.json",
+    "../../host/modules/ui/components/face/jitome/manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "face-state": "../../host/modules/ui/state/face-state",
+    "face-skin": "../../host/modules/ui/state/face-skin"
+  },
+  "config": { "startupSound": false },
+  "creation": { "stack": 1024 },
+  "platforms": {
+    "esp32/m5stack_cores3": {
+      "defines": {
+        "xs": { "task_core": 1 },
+        "spi": {
+          "esp32_task_core": 0,
+          "esp32_isr_core": 0,
+          "esp32_transactionsize": 4096,
+          "esp32_blocking_wait": 1,
+          "esp32_polling_limit": 0
+        }
+      }
+    }
+  }
+}

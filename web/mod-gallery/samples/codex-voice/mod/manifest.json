@@ -1,0 +1,11 @@
+{
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "config": {
+    "usbAudio": {
+      "enabled": true
+    }
+  },
+  "modules": {
+    "*": ["./mod"]
+  }
+}

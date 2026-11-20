@@ -1,0 +1,6 @@
+{
+  "modules": {
+    "stackchan-usb-dock-presentation": "./presentation",
+    "stackchan-usb-dock-presentation-model": "./presentation-model"
+  }
+}

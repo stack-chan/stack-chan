@@ -1,0 +1,12 @@
+{
+  "include": ["./manifest_android_usb_audio_diagnostics.json"],
+  "config": {
+    "usbAudio": {
+      "enabled": true,
+      "autoStart": true,
+      "diagnostics": true,
+      "speakerVolume": 0,
+      "presentationEnabled": false
+    }
+  }
+}

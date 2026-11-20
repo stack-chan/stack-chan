@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -7,12 +7,14 @@
   },
   "files": {
     "includes": [
-      "**/stackchan/**",
-      "**/mods/**",
-      "**/tests/**",
-      "**/scripts/**",
-      "!**/stackchan/speeches/calculate-power.js",
-      "!**/stackchan/utilities/esp32/mac-address.js"
+      "host/**",
+      "mods/**",
+      "scripts/**",
+      "!mods/examples/avatar-dsl/vendor",
+      "!mods/examples/avatar-dsl/tests/oracle.json",
+      "!host/modules/camera/wasm/runtime-bitmap-port.js",
+      "!host/modules/audio/wasm/audio-bridge.js",
+      "!host/modules/camera/wasm/camera-bridge.js"
     ],
     "ignoreUnknown": false
   },
@@ -21,11 +23,17 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "correctness": {
         "noSwitchDeclarations": "off"
       },

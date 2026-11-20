@@ -1,0 +1,287 @@
+import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
+import type { MediaCapability, MediaStartOptions, TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
+import type Microphone from 'microphone'
+import type Speaker from 'speaker'
+import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
+import { DEFAULT_VOLUME, MAX_MEDIA_VOLUME } from 'volume-model'
+
+export type RuntimeAudioConstructorParam = {
+  tts: TTS
+  microphone?: Microphone
+  speaker?: Speaker
+  webRadio?: WebRadioCapability
+  media?: MediaCapability
+  volume?: number
+  onVolumeChanged?: (volume: number) => void
+}
+
+type RuntimeAudioOptions = {
+  onMouthOpenChanged?: (value: number) => void
+}
+
+export class StackchanRuntimeAudio {
+  #microphone: Microphone | undefined
+  #options: RuntimeAudioOptions
+  #speaker: Speaker | undefined
+  #tts: TTS
+  #webRadio: WebRadioCapability | undefined
+  #media: MediaCapability | undefined
+  #activeOperations = 0
+  #volume: number | undefined
+  #onVolumeChanged: RuntimeAudioConstructorParam['onVolumeChanged']
+  #exclusive = false
+
+  constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
+    this.#options = options
+    this.#microphone = params.microphone
+    this.#speaker = params.speaker
+    this.#webRadio = params.webRadio
+    this.#media = params.media
+    this.#volume = params.volume
+    this.#onVolumeChanged = params.onVolumeChanged
+    this.useTTS(params.tts)
+  }
+
+  get volume(): number {
+    return this.#volume ?? DEFAULT_VOLUME
+  }
+
+  set volume(volume: number) {
+    if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw new Error('Volume must be between 0 and 1')
+    if (volume === this.#volume) return
+    this.#onVolumeChanged?.(volume)
+    this.#volume = volume
+    // WASM speakers accept tone volume per call but have no mutable volume property.
+    if (this.#speaker && 'volume' in this.#speaker) this.#speaker.volume = volume
+    this.#media?.setVolume(volume * MAX_MEDIA_VOLUME)
+    if (!this.#media) this.#webRadio?.setVolume(volume * MAX_MEDIA_VOLUME)
+  }
+
+  get microphone() {
+    return this.#microphone
+  }
+
+  /** Reserve I2S for a native conversation after existing short playback finishes. */
+  acquireExclusive(): () => void {
+    if (this.#exclusive || this.#activeOperations || this.#microphone?.recording) throw new Error('audio busy')
+    this.#exclusive = true
+    try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
+    } catch (error) {
+      this.#exclusive = false
+      throw error
+    }
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.#exclusive = false
+    }
+  }
+
+  get tts(): TTS {
+    return this.#tts
+  }
+
+  get media(): MediaCapability | undefined {
+    const media = this.#media
+    if (!media) return undefined
+    const runtime = this
+    return {
+      get state() {
+        return media.state
+      },
+      get progress() {
+        return media.progress
+      },
+      pause() {
+        media.pause()
+      },
+      resume() {
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        return media.resume()
+      },
+      seek(seconds: number) {
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        return media.seek(seconds)
+      },
+      start(options: MediaStartOptions) {
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        return media.start({
+          ...options,
+          volume: options.volume ?? (runtime.#volume === undefined ? undefined : runtime.#volume * MAX_MEDIA_VOLUME),
+        })
+      },
+      stop() {
+        media.stop()
+      },
+      setVolume(volume: number) {
+        media.setVolume(volume)
+      },
+    }
+  }
+
+  get webRadio(): WebRadioCapability | undefined {
+    const media = this.media
+    if (media)
+      return {
+        get state() {
+          return media.state === 'ended' || media.state === 'paused' ? 'idle' : media.state
+        },
+        async start(options: WebRadioStartOptions) {
+          if ((options.sampleRate ?? 44100) !== 44100)
+            throw new Error('WebRadio supports only 44100 Hz sampleRate options')
+          return media.start({
+            ...options,
+            mode: 'live',
+            onStateChanged: (state, reason) =>
+              options.onStateChanged?.(state === 'ended' || state === 'paused' ? 'idle' : state, reason),
+          })
+        },
+        stop() {
+          media.stop()
+        },
+        setVolume(volume: number) {
+          media.setVolume(volume)
+        },
+      }
+    if (!this.#webRadio) return undefined
+    const runtime = this
+    return {
+      get state() {
+        return runtime.#webRadio?.state ?? 'idle'
+      },
+      start(options: WebRadioStartOptions) {
+        if (runtime.#exclusive || runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        const webRadio = runtime.#webRadio
+        if (!webRadio) return Promise.reject(new Error('WebRadio is not supported'))
+        return webRadio.start({
+          ...options,
+          volume: options.volume ?? (runtime.#volume === undefined ? undefined : runtime.#volume * MAX_MEDIA_VOLUME),
+        })
+      },
+      stop() {
+        runtime.#webRadio?.stop()
+      },
+      setVolume(volume: number) {
+        runtime.#webRadio?.setVolume(volume)
+      },
+    }
+  }
+
+  useTTS(tts: TTS) {
+    if (this.#tts != null) {
+      this.#tts.onDone = noop
+      this.#tts.onPlayed = noop
+    }
+    this.#tts = tts
+    this.#tts.onPlayed = (volume: number) => {
+      this.#options.onMouthOpenChanged?.(volume === 0 ? 0 : Math.min(volume / 2000, 1.0))
+    }
+    this.#tts.onDone = () => {
+      this.#options.onMouthOpenChanged?.(0)
+    }
+  }
+
+  async say(text: string, volume?: number): Promise<Maybe<string>> {
+    if (this.#exclusive) return { success: false, reason: 'audio busy' }
+    this.#activeOperations += 1
+    try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
+      await waitForCompletion((callback) => this.#tts.stream(text, volume ?? this.#volume, callback))
+      return {
+        success: true,
+        value: text,
+      }
+    } catch (reason) {
+      trace('error\n')
+      return {
+        success: false,
+        reason: String(reason),
+      }
+    } finally {
+      this.#activeOperations -= 1
+    }
+  }
+
+  async sing(koe: string, volume?: number): Promise<Maybe<string>> {
+    if (this.#exclusive) return { success: false, reason: 'audio busy' }
+    this.#activeOperations += 1
+    try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
+      const tts = this.#tts
+      if (!tts.streamKoe) throw new Error('The active TTS does not support singing.')
+      await waitForCompletion((callback) => tts.streamKoe(koe, volume ?? this.#volume, callback))
+      return {
+        success: true,
+        value: koe,
+      }
+    } catch (reason) {
+      trace('error\n')
+      return {
+        success: false,
+        reason: String(reason),
+      }
+    } finally {
+      this.#activeOperations -= 1
+    }
+  }
+
+  async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
+    if (this.#exclusive) throw new Error('audio busy')
+    if (!this.#microphone) {
+      throw Error('This device does not support a microphone.')
+    }
+    this.#activeOperations += 1
+    try {
+      return await this.#microphone.record(durationMilliSec)
+    } finally {
+      this.#activeOperations -= 1
+    }
+  }
+
+  async tone(hz: number, duration: number, volume?: number): Promise<void> {
+    if (this.#exclusive) throw new Error('audio busy')
+    if (volume !== undefined && (volume < 0 || volume > 1)) {
+      throw new Error('Volume must be between 0 and 1')
+    }
+    this.#activeOperations += 1
+    try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
+      await this.#speaker?.tone(hz, duration, volume ?? this.#volume)
+    } finally {
+      this.#activeOperations -= 1
+    }
+  }
+
+  async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
+    if (this.#exclusive) return false
+    if (!this.#speaker) return false
+    this.#activeOperations += 1
+    try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
+      return await this.#speaker.play(buffer)
+    } finally {
+      this.#activeOperations -= 1
+    }
+  }
+
+  close(): void {
+    try {
+      this.#media?.stop()
+      this.#webRadio?.stop()
+    } finally {
+      try {
+        this.#microphone?.stop()
+      } finally {
+        this.#tts.onPlayed = noop
+        this.#tts.onDone = noop
+      }
+    }
+  }
+}

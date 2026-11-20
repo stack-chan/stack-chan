@@ -1,0 +1,81 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../app/manifest_typings.json"
+  ],
+  "platforms": {
+    "esp32": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    },
+    "esp32/m5stack_cores3": {
+      "include": ["./manifest_device.json"],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "include": ["./manifest_device.json"],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/stackchan_rt": {
+      "include": ["./manifest_device.json"],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/m5atom_s3r_cam": {
+      "include": ["./manifest_device.json"],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/m5atom_s3r_m12": {
+      "include": ["./manifest_device.json"],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/lilygo_t_camera_plus_s3": {
+      "include": ["./manifest_device.json"],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/xiao_esp32s3_sense": {
+      "include": ["./manifest_device.json"],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "mac": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    },
+    "lin": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    },
+    "win": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

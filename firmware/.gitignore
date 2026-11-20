@@ -1,7 +1,10 @@
-/node_modules/
+node_modules/
 /tmp/
 /scripts/key.json
 /docs/api
+/dist/
+/dist-architecture/
+/dist-tests/
 
 # Bundle file
-/stackchan/tech.moddable.stackchan*
+/host/app/tech.moddable.stackchan*

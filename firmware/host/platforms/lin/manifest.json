@@ -1,0 +1,73 @@
+{
+  "platforms": {
+    "mac/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
+      "config": {
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "lin/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
+      "config": {
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "win/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
+      "config": {
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "mac/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
+      "config": {
+        "ui": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "lin/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
+      "config": {
+        "ui": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "win/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
+      "config": {
+        "ui": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    }
+  }
+}

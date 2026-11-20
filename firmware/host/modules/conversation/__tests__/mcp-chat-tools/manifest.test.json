@@ -1,0 +1,18 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "main": "./mcp-chat-tools.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

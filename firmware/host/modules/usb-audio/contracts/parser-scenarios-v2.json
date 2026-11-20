@@ -1,0 +1,20 @@
+{
+  "schema": "stackchan.firmware.usb-cdc.parser-scenarios.v1",
+  "parserScenarios": {
+    "fragmentFrame": "firmware-golden-speaker-frame",
+    "coalescedFrames": [
+      "speaker-frame-with-stream-id",
+      "single-frame-conversation-event"
+    ],
+    "crcCorruptFrame": "crc-mismatch",
+    "recoveryFrame": "firmware-golden-speaker-frame"
+  },
+  "eventSequenceMismatch": {
+    "streamId": 11,
+    "frames": [
+      { "flags": 1, "sequence": 0, "payloadHex": "61" },
+      { "flags": 2, "sequence": 2, "payloadHex": "62" }
+    ],
+    "expectedError": "event sequence mismatch"
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "build": {
+    "SUBPLATFORM": "m5stackchan_cores3",
+    "C_FLAGS_SUBPLATFORM": "-DI2S_DMA_BUFFER_MAX_SIZE=2048",
+    "C_INCLUDES": "-I$(SUBPLATFORMDIRECTORY)"
+  },
+  "include": [
+    "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",
+    "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json",
+    "$(MODDABLE)/modules/drivers/sensors/rfid/st25r3916/manifest.json",
+    "$(MODDABLE)/modules/files/flash/manifest.json",
+    "$(MODDABLE)/modules/embedded/storage/files/esp32/manifest_sdspi.json",
+    "../core_s3_audioout/manifest.json"
+  ],
+  "modules": {
+    "m5stackchan-screen": "./host/screen",
+    "axp2101-power-capture": "../../modules/power/platforms/axp2101-power-capture",
+    "embedded:sensor/Touch/FT6x06": "./host/ft6206_async_m5stackchan",
+    "setup/m5stackchan-power": "./setup-target",
+    "stackchan-sdcard": "./sd-card",
+    "mod-files": "../../app/mod-files",
+    "stackchan-sdroot": "./sd-root",
+    "sdk-board-provider": "$(BUILD)/devices/esp32/targets/m5stack_cores3/host/provider"
+  },
+  "preload": ["axp2101-power-capture"],
+  "config": {
+    "screen": "m5stackchan-screen",
+    "driver": {
+      "type": "m5stackchan",
+      "typeLocked": true,
+      "panId": 1,
+      "tiltId": 2,
+      "yawZeroPosition": 460,
+      "pitchZeroPosition": 620,
+      "serial": {
+        "transmit": 6,
+        "receive": 7,
+        "port": 1,
+        "baud": 1000000
+      },
+      "servoPower": {
+        "type": "py32",
+        "pin": 0,
+        "address": 111
+      }
+    },
+    "led": {
+      "head": {
+        "type": "py32",
+        "length": 12,
+        "ledPin": 13,
+        "address": 111
+      }
+    },
+    "serial": {
+      "transmit": 6,
+      "receive": 7,
+      "port": 1,
+      "baud": 1000000
+    },
+    "touchIntervalMs": 50,
+    "touchIdleIntervalMs": 50,
+    "touchActiveIntervalMs": 8,
+    "touchReleaseDebounceMs": 75,
+    "virtualButton": false,
+    "tts": {
+      "type": "stackchan-voice",
+      "voice": "normal",
+      "speed": 100,
+      "volume": 0.1
+    }
+  },
+  "defines": {
+    "audioIn": {
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "numChannels": 2,
+      "i2s": {
+        "num": 1,
+        "slot": "I2S_STD_SLOT_BOTH",
+        "format_i2s": 1,
+        "bck_pin": 34,
+        "lr_pin": 33,
+        "mck_pin": 0,
+        "datain": 14
+      }
+    },
+    "camera": {
+      "xclk": -1,
+      "xclk_freq_hz": 20000000,
+      "scl": -1,
+      "sda": -1,
+      "i2c_port": 1
+    },
+    "ft6206": {
+      "hz": 400000
+    },
+    "file": {
+      "root": "#/sdcard",
+      "format": 0,
+      "maxOpen": 1
+    },
+    "sdcard": {
+      "cs": 4,
+      "miso": 35,
+      "mosi": 37,
+      "sck": 36,
+      "spi_port": "SPI3_HOST",
+      "hz": 20000000
+    }
+  }
+}

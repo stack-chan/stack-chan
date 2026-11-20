@@ -1,0 +1,14 @@
+{
+  "sdkRevision": "6ec053b83d1b00a27a19824e55bdf6a6101507a3",
+  "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 5.0.1 (8c5f43157a3f069ade75876e23061330521eabde)",
+  "memoryBytes": 16777216,
+  "stackBytes": 1048576,
+  "wasmSha256": "cba8328d7ac3910c958be9111c947f1fb64f2e283f98ba0518f4c64e58e70198",
+  "sources": {
+    "web/avatar-dsl/runtime/bridge.c": "5651b95c30f3bdd043546e58da04e6c039f5f471b9156acfc64312dbb2a0659b",
+    "firmware/host/modules/ui/components/face/avatar-native/avds-engine.c": "d0347ef3fc7ac2c080f0a24859e477b142ffa166a84168d607d15d43e19c83f6",
+    "firmware/host/modules/ui/components/face/avatar-native/avds-render.c": "b07a2858ad222a1c293d27a9330acebf484d2ae284cdad85bbcba8818c68312c",
+    "MODDABLE/modules/commodetto/freetype/src/smooth/ftgrays.c": "f53e98f94945f339c1de1e4e0a291ef4d96fe0c4d7e128837d2146725be614b4",
+    "firmware/host/modules/ui/components/face/avatar-native/avds-outline.h": "79c5075924776f042c53142ebacb3ecf30dc63b3ae3c1ac84d892c9c60ccaa29"
+  }
+}

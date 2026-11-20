@@ -50,10 +50,10 @@
 
 4. **ファイルを解凍**
    - ダウンロードしたZIPファイルを解凍
-   - `Manufacturers/JLCPCB/` フォルダ内に以下のファイルが含まれています：
-     - ガーバーファイル一式（ZIPファイル）
-     - BOM（部品表）- CSVファイル
-     - CPL（部品配置リスト）- CSVファイル
+   - 展開したアーティファクトから以下のファイルを使用します：
+     - `Manufacturers/m5-pantilt-_JLCPCB_compress.zip`：ガーバーとドリルのファイル
+     - `Manufacturers/JLCPCB/m5-pantilt_bom_jlc.csv`：BOM（部品表）
+     - `Manufacturers/JLCPCB/m5-pantilt_cpl_jlc.csv`：CPL（部品配置リスト）
 
 ## JLCPCB PCBA発注手順
 
@@ -66,8 +66,7 @@
 
 1. JLCPCBトップページの「Order Now」または「今すぐ注文」をクリック
 2. 「Add gerber file」ボタンをクリック
-3. ダウンロードした`Manufacturers/JLCPCB/`フォルダ内のガーバーファイルのZIPをアップロード
-   - ファイル名は通常 `m5-pantilt-gerbers.zip` のような形式です
+3. 外側の `schematics-files` アーカイブではなく、`Manufacturers/m5-pantilt-_JLCPCB_compress.zip` をアップロードします。
 
 ### ステップ3: 基板仕様の確認・設定
 
@@ -108,7 +107,7 @@
    - **Top Side**: 表面のみ実装
    - **Bottom Side**: 裏面のみ実装
    
-   m5-pantiltで **Economic → Top Side** を選んだ場合は、M5Stackを取り付ける前に、裏面のSMDコネクタ **J1** を手はんだで実装してください。両面の実装を委託したい場合は、[Standard](https://jlcpcb.com/capabilities/pcb-assembly-capabilities) の基板寸法条件とJ1の調達・実装可否を確認し、発注前にプレビューでJ1が裏面に配置されていることを確認してください。
+   m5-pantiltで **Economic → Top Side** を選んだ場合は、M5Stackを取り付ける前に、裏面のSMDコネクタ **J1** を手はんだで実装してください。両面の実装を委託したい場合は、[Standard](https://jlcpcb.com/capabilities/pcb-assembly-capabilities) の基板寸法条件とJ1の調達・実装可否を確認してください。現在の生成データではCPLに裏面のJ1が載っていますが、BOMには含まれていません。発注前に、見積もりにJ1の実装が含まれ、プレビューでJ1が裏面に配置されていることを確認してください。
 
 4. PCBA Qty（実装数量）を選択：
    - 最小2枚から（基板の発注枚数以下である必要があります）

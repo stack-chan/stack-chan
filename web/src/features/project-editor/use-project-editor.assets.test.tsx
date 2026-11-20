@@ -212,3 +212,14 @@ it('finishes other files in a batch when a read for a superseded path rejects', 
   expect(paths(result.current.project)).toEqual(['assets/same.txt', 'assets/other.txt'])
   expect(result.current.logs.some(({ message }) => message.includes('obsolete read'))).toBe(false)
 })
+
+it('does not read a new asset if the open project already has no free slot', async () => {
+  const { result, add } = await editorWithProject()
+  await add(...Array.from({ length: MAX_ASSET_COUNT }, (_, index) => asset(`asset-${index}.txt`, 'old')))
+  const excess = asset('excess.txt', 'excess')
+  const read = vi.spyOn(excess, 'arrayBuffer')
+  await add(excess)
+  expect(read).not.toHaveBeenCalled()
+  expect(paths(result.current.project)).toHaveLength(MAX_ASSET_COUNT)
+  expect(paths(result.current.project)).not.toContain('assets/excess.txt')
+})

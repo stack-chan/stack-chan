@@ -259,6 +259,30 @@ async function checkK151Motion(pose: Pose) {
   equal(registers.getUint8(40), 0, 'K151 should honor explicit torque off after stopping')
   equal(registers.getUint16(56), positionBeforeTorqueOff, 'K151 should not move to a pose while torque is off')
 
+  const beforeGaze = await start()
+  await beforeGaze.setPower(0.5, 1000)
+  registers.setUint16(56, 731)
+  await beforeGaze.close()
+  const staleTarget = registers.getUint16(42)
+  const motionCount = servoFixture.yawMotionTargets.length
+  const lookAt = async () => {
+    controller.lookAt([1, 2, 2])
+    for (let attempt = 0; attempt < 40 && controller.updating; attempt += 1) await wait(5)
+    controller.lookAway()
+    equal(controller.updating, false, 'K151 gaze update should complete')
+  }
+  servoFixture.faultOnNextTiltTorqueEnable = true
+  await lookAt()
+  equal(servoFixture.faultOnNextTiltTorqueEnable, false, 'K151 gaze should attempt to enable tilt')
+  equal(registers.getUint8(40), 0, 'K151 should leave yaw torque off when tilt fails to enable')
+  equal(registers.getUint16(56), 731, 'K151 should keep its yaw position when gaze preparation fails')
+  equal(servoFixture.yawMotionTargets.length, motionCount, 'K151 should not move to the latched gaze target')
+  await lookAt()
+  equal(registers.getUint8(40), 1, 'K151 should restore yaw torque for a successful gaze update')
+  equal(servoFixture.yawMotionTargets.length, motionCount + 1, 'K151 should move only to the fresh gaze target')
+  assert(registers.getUint16(56) !== staleTarget, 'K151 should move away from the latched goal')
+  equal(registers.getUint16(56), registers.getUint16(42), 'K151 should reach the fresh gaze target')
+
   const lost = await start()
   await lost.setPower(0.5, 1000)
   servoFixture.wireDisconnected = true

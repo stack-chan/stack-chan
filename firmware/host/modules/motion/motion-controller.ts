@@ -38,6 +38,7 @@ export type MotionDriver = {
   applyRotation: (ori: RotationType, time?: MotionDurationSeconds, callback?: MotionCompletion) => void
   getRotation: (callback: MotionResultCallback<Maybe<RotationType>>) => void
   setTorque: (torque: boolean, callback?: MotionCompletion) => void
+  prepareRotation?: (callback: MotionCompletion) => void
   continuousYaw?: ContinuousYawDriver
   onAttached?: () => void
   onDetached?: () => void
@@ -496,7 +497,8 @@ export class MotionController {
           this.#pendingMotionTime = randomBetween(0.5, 1.0)
           writeRotationFromVector3(this.#nextRotation, gazePoint)
           try {
-            this.#driver.setTorque(true, this.#handleTorqueEnabled)
+            if (this.#driver.prepareRotation) this.#driver.prepareRotation(this.#handleTorqueEnabled)
+            else this.#driver.setTorque(true, this.#handleTorqueEnabled)
           } catch (error) {
             trace(`[MotionController] set torque failed: ${String(error)}\n`)
             this.#isMoving = false

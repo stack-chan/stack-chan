@@ -95,6 +95,14 @@ export class M5StackChanServoDriver {
     this.#servoPower?.setEnabled(false)
   }
 
+  prepareRotation(callback: MotionCompletion): void {
+    if (this.#enableYawOnPose && !this.#servoFault) {
+      this.#tilt.setTorque(true, callback, true)
+      return
+    }
+    this.setTorque(true, callback)
+  }
+
   setTorque(torque: boolean, callback?: MotionCompletion): void {
     if (this.#servoFault) {
       callback?.(this.#servoFault)

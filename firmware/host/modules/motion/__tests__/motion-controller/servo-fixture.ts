@@ -5,6 +5,7 @@ export const servoFixture = {
   wireDisconnected: false,
   faultOnNextPowerWrite: false,
   faultOnNextPositionWrite: false,
+  faultOnNextTiltTorqueEnable: false,
   yaw: undefined as Uint8Array | undefined,
   tilt: undefined as Uint8Array | undefined,
   yawPositionWrites: 0,
@@ -39,6 +40,12 @@ export default class Serial {
     const values = data.subarray(6, data.length - 1)
     let status = 0
     if (command === 3) {
+      const tiltEnableFault =
+        registers !== yaw && address === 40 && values[0] === 1 && servoFixture.faultOnNextTiltTorqueEnable
+      if (tiltEnableFault) {
+        servoFixture.faultOnNextTiltTorqueEnable = false
+        status = 0x20
+      }
       if (registers === yaw) {
         if (address === 9 && (values[2] || values[3]) && yaw[40]) servoFixture.poweredModeRestores += 1
         if (address === 42) {
@@ -53,7 +60,7 @@ export default class Serial {
           status = 0x20
         }
       }
-      if (address !== 42 || status === 0) registers.set(values, address)
+      if (!tiltEnableFault && (address !== 42 || status === 0)) registers.set(values, address)
       if (registers === yaw && (address === 9 || address === 40 || address === 42) && yaw[40] && (yaw[11] || yaw[12])) {
         const position = new DataView(yaw.buffer)
         const target = position.getUint16(42)

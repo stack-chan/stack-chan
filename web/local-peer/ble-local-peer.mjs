@@ -382,7 +382,9 @@ class BLELocalPeerSession {
 
   #handleNotification = (event) => {
     const { buffer, byteOffset, byteLength } = event.target.value
-    void this.#receive(new Uint8Array(buffer, byteOffset, byteLength))
+    void this.#receive(new Uint8Array(buffer, byteOffset, byteLength)).catch((error) => {
+      if (!this.closed) console.warn('[local-peer] BLE receive failed', error)
+    })
   }
 
   async #announce() {
@@ -439,19 +441,21 @@ class BLELocalPeerSession {
         }
         return
       } catch (error) {
-        if (offset !== 0 || this.#writeChunkIndex === GATT_CHUNK_BYTES.length - 1) throw error
+        if (this.closed || offset !== 0 || this.#writeChunkIndex === GATT_CHUNK_BYTES.length - 1) throw error
         this.#writeChunkIndex += 1
       }
     }
   }
 
   async #writeChunk(chunk) {
+    this.#assertOpen()
     if (this.#rx.writeValueWithResponse) await this.#rx.writeValueWithResponse(chunk)
     else await this.#rx.writeValue(chunk)
   }
 
   async #receive(chunk) {
     for (const record of this.#decoder.push(chunk)) {
+      if (this.closed) return
       if (record.kind === RecordKind.HELLO) {
         if (!record.authenticated && record.destinationId === BROADCAST_ID) this.#remoteId = record.sourceId
         continue
@@ -478,15 +482,19 @@ class BLELocalPeerSession {
   }
 
   async #handleFrame(peerId, bytes, secure) {
+    if (this.closed) return
     const frame = decodeFrame(bytes)
     if (!frame || frame.serviceHash !== this.#serviceHash) return
     if (frame.kind === FrameKind.DISCOVER || frame.kind === FrameKind.ANNOUNCE) {
+      let envelope
       try {
-        const envelope = JSON.parse(new TextDecoder().decode(frame.payload))
-        if (envelope.service !== this.#options.service) return
-        this.#remoteName = typeof envelope.name === 'string' ? envelope.name : undefined
-        if (frame.kind === FrameKind.DISCOVER) void this.#announce()
-      } catch {}
+        envelope = JSON.parse(new TextDecoder().decode(frame.payload))
+      } catch {
+        return
+      }
+      if (envelope?.service !== this.#options.service) return
+      this.#remoteName = typeof envelope.name === 'string' ? envelope.name : undefined
+      if (frame.kind === FrameKind.DISCOVER) await this.#announce()
       return
     }
     if (frame.kind === FrameKind.ACK) {
@@ -539,6 +547,7 @@ class BLELocalPeerSession {
         })
       )
     }
+    if (this.closed) return
     const now = Date.now()
     for (const [deliveredKey, deliveredAt] of this.#delivered) {
       if (now - deliveredAt > 30_000) this.#delivered.delete(deliveredKey)

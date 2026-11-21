@@ -46,6 +46,7 @@ export class M5StackChanServoDriver {
   #servoPower?: PY32ServoPower
   #positionLimits?: SCServoAngleLimits
   #servoFault?: Error
+  #enableYawOnPose = false
   readonly continuousYaw?: ContinuousYawDriver
 
   constructor(param: M5StackChanServoDriverProps = {}) {
@@ -87,6 +88,7 @@ export class M5StackChanServoDriver {
   onAttached() {
     this.#servoPower?.setEnabled(true)
     this.#servoFault = undefined
+    this.#enableYawOnPose = false
   }
 
   onDetached() {
@@ -98,6 +100,7 @@ export class M5StackChanServoDriver {
       callback?.(this.#servoFault)
       return
     }
+    this.#enableYawOnPose = false
     this.#pan.setTorque(torque, (panError) => {
       if (panError != null) {
         callback?.(panError)
@@ -115,6 +118,35 @@ export class M5StackChanServoDriver {
     const angles = rotationToM5StackChanServoAngles(ori)
     const panRawPosition = angleToRawPosition(angles.yaw, this.#config.yaw)
     const tiltRawPosition = angleToRawPosition(angles.pitch, this.#config.pitch)
+    const goalTimeMilliseconds = motionDurationSecondsToMilliseconds(time)
+    if (this.#enableYawOnPose) {
+      runCommands(
+        [
+          // Stage the new goal while torque is off so enabling yaw cannot act on a latched target.
+          (done) => {
+            if (time === 0) this.#pan.setRawPosition(panRawPosition, done, true)
+            else this.#pan.setRawPositionInTime(panRawPosition, goalTimeMilliseconds, done, true)
+          },
+          (done) => {
+            if (!this.#enableYawOnPose) return done()
+            this.#pan.setTorque(
+              true,
+              (error) => {
+                if (error == null) this.#enableYawOnPose = false
+                done(error)
+              },
+              true,
+            )
+          },
+          (done) => {
+            if (time === 0) this.#tilt.setRawPosition(tiltRawPosition, done)
+            else this.#tilt.setRawPositionInTime(tiltRawPosition, goalTimeMilliseconds, done)
+          },
+        ],
+        callback,
+      )
+      return
+    }
     if (time === 0) {
       this.#pan.setRawPosition(panRawPosition, (panError) => {
         if (panError != null) {
@@ -124,7 +156,6 @@ export class M5StackChanServoDriver {
         this.#tilt.setRawPosition(tiltRawPosition, callback)
       })
     } else {
-      const goalTimeMilliseconds = motionDurationSecondsToMilliseconds(time)
       this.#pan.setRawPositionInTime(panRawPosition, goalTimeMilliseconds, (panError) => {
         if (panError != null) {
           callback?.(panError)
@@ -202,7 +233,11 @@ export class M5StackChanServoDriver {
           }),
         (done) => this.#setAngleLimits(limits, done),
       ],
-      (error) => complete(error == null ? undefined : this.#cutServoPower(error)),
+      (error) => {
+        if (error != null) return complete(this.#cutServoPower(error))
+        this.#enableYawOnPose = true
+        complete()
+      },
     )
   }
 
@@ -255,19 +290,19 @@ export class M5StackChanServoDriver {
   }
 }
 
-function runCommands(commands: Array<(done: MotionCompletion) => void>, complete: MotionCompletion): void {
+function runCommands(commands: Array<(done: MotionCompletion) => void>, complete?: MotionCompletion): void {
   let index = 0
   const next: MotionCompletion = (error) => {
     // Leave the Serial.onReadable stack before issuing another command.
     Timer.set(() => {
       if (error != null || index === commands.length) {
-        complete(error)
+        complete?.(error)
         return
       }
       try {
         commands[index++](next)
       } catch (commandError) {
-        complete(commandError)
+        complete?.(commandError)
       }
     }, 0)
   }

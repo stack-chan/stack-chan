@@ -2,6 +2,8 @@ import { CalibrationGait, isTurnCenter, TurningGait } from 'strider-gait'
 
 export const CONTROL_TICK_MS = 25
 const COMMAND_LEASE_MS = 400
+// A heartbeat can arrive during a UART read with a 120 ms timeout.
+const HOST_WATCHDOG_RESERVE_MS = 150
 const WALK_DIRECTION = { forward: 1, backward: -1 }
 
 function parseCommand(payload) {
@@ -19,6 +21,7 @@ export class StriderDrive {
   #turnCenter
   #status
   #reason
+  #stateGesture
   #lastGesture = 0
   #command
   #motion
@@ -42,13 +45,15 @@ export class StriderDrive {
       status: this.#status,
       calibrated: this.#turnCenter !== undefined,
       ...(this.#reason !== undefined ? { reason: this.#reason } : {}),
+      ...(this.#stateGesture !== undefined ? { gesture: this.#stateGesture } : {}),
     }
   }
 
-  #publish(status, reason) {
-    if (this.#status === status && this.#reason === reason) return
+  #publish(status, reason, gesture) {
+    if (this.#status === status && this.#reason === reason && this.#stateGesture === gesture) return
     this.#status = status
     this.#reason = reason
+    this.#stateGesture = gesture
     this.#ports.notify(this.state())
   }
 
@@ -78,7 +83,7 @@ export class StriderDrive {
       return false
     }
     if (received.action === 'calibrate' && !this.#ports.openGyro) {
-      this.#publish('error', 'gyro-unavailable')
+      this.#publish('error', 'gyro-unavailable', received.gesture)
       return false
     }
     this.#command = { ...received, receivedAt: this.#ports.now() }
@@ -97,16 +102,22 @@ export class StriderDrive {
     await this.#stopPending
   }
 
-  #cancel(calibrationStatus = this.#idleStatus()) {
+  #cancel() {
     const command = this.#command
     this.#command = undefined
+    this.#releaseMotion()
+    if (command?.action === 'calibrate' && this.#status === 'calibrating') {
+      this.#publish(this.#idleStatus(), undefined, command.gesture)
+    }
+  }
+
+  #releaseMotion() {
     if (this.#motion) {
       const { yaw, gyro } = this.#motion
       this.#motion = undefined
       this.#stopYaw(yaw)
       gyro?.close()
     }
-    if (command?.action === 'calibrate' && this.#status === 'calibrating') this.#publish(calibrationStatus)
   }
 
   #stopYaw(yaw) {
@@ -141,7 +152,7 @@ export class StriderDrive {
         if (this.#command !== command) return
         this.#cancel()
         this.#ports.reportError(error)
-        this.#publish('error', 'drive-failed')
+        this.#publish('error', 'drive-failed', command.gesture)
       })
       .finally(() => {
         this.#task = undefined
@@ -161,20 +172,25 @@ export class StriderDrive {
       }
       if (!yaw) {
         this.#cancel()
-        this.#publish('error', 'motion-unavailable')
+        this.#publish('error', 'motion-unavailable', command.gesture)
         return
       }
       const calibration = action === 'calibrate' ? new CalibrationGait() : undefined
       const turn = action === 'left' || action === 'right' ? new TurningGait(this.#turnCenter, action) : undefined
       this.#motion = { yaw, calibration, turn, gyro: undefined, startedAt: this.#ports.now(), applied: undefined }
       if (calibration) this.#motion.gyro = this.#ports.openGyro()
-      this.#publish(calibration ? 'calibrating' : this.#idleStatus())
+      if (calibration) this.#publish('calibrating', undefined, command.gesture)
+      else this.#publish(this.#idleStatus())
     }
 
     const motion = this.#motion
     const { calibration, turn, yaw } = motion
     let power
     if (calibration || turn) {
+      if (motion.applied && motion.applied.receivedAt !== command.receivedAt) {
+        await this.#applyPower(command, motion, motion.applied.power)
+        if (!this.#current(command)) return
+      }
       const raw = turn || calibration?.needsSample ? await yaw.readRawPosition() : undefined
       if (!this.#current(command)) return
       if (raw !== undefined && (!Number.isInteger(raw) || raw < 0 || raw > 1023)) {
@@ -185,7 +201,7 @@ export class StriderDrive {
         const gyro = calibration.needsSample ? motion.gyro.read() : undefined
         const result = calibration.advance(elapsedMs, raw, gyro)
         if (!('power' in result)) {
-          await this.#finishCalibration(result.center)
+          await this.#finishCalibration(command, result.center)
           return
         }
         power = result.power
@@ -196,6 +212,10 @@ export class StriderDrive {
       power = WALK_DIRECTION[action] * command.power
     }
 
+    await this.#applyPower(command, motion, power)
+  }
+
+  async #applyPower(command, motion, power) {
     if (!this.#current(command)) return
     const { receivedAt } = command
     if (motion.applied?.power === power && motion.applied?.receivedAt === receivedAt) return
@@ -204,25 +224,26 @@ export class StriderDrive {
       this.#cancel()
       return
     }
-    await yaw.setPower(power, leaseMs)
+    await motion.yaw.setPower(power, leaseMs + HOST_WATCHDOG_RESERVE_MS)
     motion.applied = { power, receivedAt }
   }
 
-  async #finishCalibration(center) {
-    this.#cancel('calibrating')
+  async #finishCalibration(command, center) {
+    this.#releaseMotion()
     await this.#stopPending
-    if (this.#closed || this.#stopFailed) return
+    if (!this.#current(command)) return
+    this.#command = undefined
     if (center === undefined) {
-      this.#publish('error', 'calibration-failed')
+      this.#publish('error', 'calibration-failed', command.gesture)
       return
     }
     try {
       this.#ports.saveTurnCenter(center)
       this.#turnCenter = center
-      this.#publish('calibrated')
+      this.#publish('calibrated', undefined, command.gesture)
     } catch (error) {
       this.#ports.reportError(error)
-      this.#publish('error', 'calibration-save-failed')
+      this.#publish('error', 'calibration-save-failed', command.gesture)
     }
   }
 }

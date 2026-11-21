@@ -4,9 +4,11 @@ export const servoFixture = {
   powerEnabled: false,
   wireDisconnected: false,
   faultOnNextPowerWrite: false,
+  faultOnNextPositionWrite: false,
   yaw: undefined as Uint8Array | undefined,
   tilt: undefined as Uint8Array | undefined,
   yawPositionWrites: 0,
+  yawMotionTargets: [] as number[],
   poweredModeRestores: 0,
 }
 
@@ -21,6 +23,7 @@ export default class Serial {
     const yaw = new Uint8Array(64)
     yaw.set([0, 15, 3, 132], 9)
     yaw.set([0x02, 0xdb], 56)
+    yaw.set([0x01, 0xf4], 42)
     yaw[40] = 1
     servoFixture.yaw = yaw
     servoFixture.tilt = new Uint8Array(64)
@@ -38,13 +41,27 @@ export default class Serial {
     if (command === 3) {
       if (registers === yaw) {
         if (address === 9 && (values[2] || values[3]) && yaw[40]) servoFixture.poweredModeRestores += 1
-        if (address === 42) servoFixture.yawPositionWrites += 1
+        if (address === 42) {
+          servoFixture.yawPositionWrites += 1
+          if (servoFixture.faultOnNextPositionWrite) {
+            servoFixture.faultOnNextPositionWrite = false
+            status = 0x20
+          }
+        }
         if (address === 44 && (values[0] || values[1]) && servoFixture.faultOnNextPowerWrite) {
           servoFixture.faultOnNextPowerWrite = false
           status = 0x20
         }
       }
-      registers.set(values, address)
+      if (address !== 42 || status === 0) registers.set(values, address)
+      if (registers === yaw && (address === 9 || address === 40 || address === 42) && yaw[40] && (yaw[11] || yaw[12])) {
+        const position = new DataView(yaw.buffer)
+        const target = position.getUint16(42)
+        if (position.getUint16(56) !== target) {
+          servoFixture.yawMotionTargets.push(target)
+          position.setUint16(56, target)
+        }
+      }
     }
     const payload = command === 2 ? registers.subarray(address, address + values[0]) : []
     const response = [0xff, 0xff, id, payload.length + 2, status, ...payload]

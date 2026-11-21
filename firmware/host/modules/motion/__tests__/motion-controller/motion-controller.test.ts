@@ -226,20 +226,38 @@ async function checkK151Motion(pose: Pose) {
   equal(registers.getUint16(44), 0, 'K151 should enter continuous yaw at zero output')
   equal(await session.readRawPosition(), 731, 'K151 should report the servo position register verbatim')
   await session.setPower(-0.5, 1000)
-  equal(registers.getUint16(44), 0x600, 'K151 should encode reverse PWM with the direction bit')
+  equal(registers.getUint16(44), 0x400 | 500, 'K151 should encode reverse PWM with the direction bit')
+  await session.setPower(1, 1000)
+  equal(registers.getUint16(44), 1000, 'K151 full duty should stay within the servo PWM range')
   await session.close()
   equal(registers.getUint16(44), 0, 'K151 should send PWM zero on stop')
   equal(servoFixture.yawPositionWrites, 0, 'K151 should never send a position target on stop')
   equal(servoFixture.poweredModeRestores, 0, 'K151 should disable torque before restoring positional mode')
   equal(registers.getUint32(9), originalLimits, 'K151 should restore the original servo limits')
+  equal(registers.getUint8(40), 0, 'K151 should leave yaw torque off after stopping')
+  equal(registers.getUint16(56), 731, 'K151 should keep its yaw position when returning to positional mode')
+  servoFixture.faultOnNextPositionWrite = true
+  await rejects(
+    waitForCompletion((done) => controller.setPose(pose, 0, done)),
+    'K151 should reject a failed position write before re-enabling torque',
+  )
+  equal(registers.getUint8(40), 0, 'K151 should leave torque off if the fresh goal is rejected')
   await waitForCompletion((done) => controller.setPose(pose, 0, done))
-  equal(servoFixture.yawPositionWrites, 1, 'K151 should accept a new position target after stop')
+  equal(registers.getUint8(40), 1, 'K151 should restore torque for a new position target')
+  equal(registers.getUint16(56), registers.getUint16(42), 'K151 should move to the new position target')
+  equal(servoFixture.yawMotionTargets.length, 1, 'K151 should move only to the freshly staged target')
 
   const overloaded = await start()
   servoFixture.faultOnNextPowerWrite = true
   await rejects(overloaded.setPower(0.5, 1000), 'K151 should reject an overload status response')
   equal(registers.getUint16(44), 0, 'K151 should stop after a servo reports an overload')
   equal(registers.getUint32(9), originalLimits, 'K151 should restore position mode after a servo reports an overload')
+  const positionBeforeTorqueOff = registers.getUint16(56)
+  await waitForCompletion((done) => controller.setTorque(false, done))
+  const poseWithTorqueOff = { ...pose, rotation: { ...pose.rotation, y: -pose.rotation.y } }
+  await waitForCompletion((done) => controller.setPose(poseWithTorqueOff, 0.25, done))
+  equal(registers.getUint8(40), 0, 'K151 should honor explicit torque off after stopping')
+  equal(registers.getUint16(56), positionBeforeTorqueOff, 'K151 should not move to a pose while torque is off')
 
   const lost = await start()
   await lost.setPower(0.5, 1000)

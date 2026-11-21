@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { writeAliasPackage } from '../../testing/node-alias-package.js'
 
 const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+type NotificationCharacteristic = { name: string; handle: number }
 
 function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'ble-local-peer-record', resolve(modulesRoot, 'connectivity/ble/local-peer-record.js'))
@@ -57,24 +58,24 @@ test('BLE link loss notifies the session once and advertising allows a fresh con
   const server = uartserver.lastUARTServer as
     | (NonNullable<typeof uartserver.lastUARTServer> & {
         onDisconnected(): void
-        onCharacteristicNotifyEnabled(characteristic: { name: string }): void
-        onCharacteristicNotifyDisabled(characteristic: { name: string }): void
+        onCharacteristicNotifyEnabled(characteristic: NotificationCharacteristic): void
+        onCharacteristicNotifyDisabled(characteristic: NotificationCharacteristic): void
       })
     | undefined
   assert.ok(server)
 
-  const characteristic = { name: 'tx' }
   server.onConnected()
-  server.onCharacteristicNotifyEnabled(characteristic)
+  server.onCharacteristicNotifyEnabled({ name: 'tx', handle: 42 })
+  server.onCharacteristicNotifyDisabled({ name: 'tx', handle: 43 })
   assert.equal(disconnects, 0)
-  server.onCharacteristicNotifyDisabled(characteristic)
+  server.onCharacteristicNotifyDisabled({ name: 'tx', handle: 42 })
   assert.equal(disconnects, 1)
   server.onDisconnected()
   assert.equal(disconnects, 1)
   assert.equal(server.advertisingStarts.length, 1)
 
   server.onConnected()
-  server.onCharacteristicNotifyEnabled(characteristic)
+  server.onCharacteristicNotifyEnabled({ name: 'tx', handle: 42 })
   assert.equal(disconnects, 1)
   server.onDisconnected()
   assert.equal(disconnects, 2)

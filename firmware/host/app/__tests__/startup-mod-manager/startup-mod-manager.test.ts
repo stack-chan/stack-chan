@@ -35,8 +35,9 @@ async function run(): Promise<void> {
   equal(managerOpened(), false, 'the MOD Manager must wait for context shutdown')
 
   finishShutdown?.()
-  await waitUntil(managerOpened)
+  await waitUntil(() => state.closeEvents.includes('restart'))
   equal(managerOpened(), true, 'the MOD Manager must open after cleanup')
+  equal(state.closeEvents.at(-1), 'restart', 'a failed manager launch must restart the closed Host')
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 

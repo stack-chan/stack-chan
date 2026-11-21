@@ -8,12 +8,9 @@ const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const UART_RX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 const UART_TX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 
-function connectedBluetooth(writeValueWithResponse, deviceEvents = new EventTarget()) {
+function connectedBluetooth(writeValueWithResponse, deviceEvents = new EventTarget(), tx = new EventTarget()) {
   const rx = { writeValueWithResponse }
-  const tx = {
-    addEventListener() {},
-    async startNotifications() {},
-  }
+  tx.startNotifications = async () => {}
   const service = {
     async getCharacteristic(uuid) {
       if (uuid === UART_RX_UUID) return rx
@@ -198,9 +195,14 @@ test('BLE local-peer can always open the chooser instead of reusing an STK', asy
   session.close()
 })
 
-test('BLE local-peer reports unexpected GATT loss once and allows a clean reconnect', async () => {
+test('BLE local-peer reports unexpected GATT loss once and allows a clean reconnect', async (t) => {
   const events = new EventTarget()
-  const bluetooth = connectedBluetooth(async () => {}, events)
+  const tx = new EventTarget()
+  const deviceAdded = t.mock.method(events, 'addEventListener')
+  const deviceRemoved = t.mock.method(events, 'removeEventListener')
+  const txAdded = t.mock.method(tx, 'addEventListener')
+  const txRemoved = t.mock.method(tx, 'removeEventListener')
+  const bluetooth = connectedBluetooth(async () => {}, events, tx)
   const capability = new BLELocalPeerCapability({ bluetooth, crypto: webcrypto })
   let disconnects = 0
   const options = {
@@ -213,11 +215,80 @@ test('BLE local-peer reports unexpected GATT loss once and allows a clean reconn
   events.dispatchEvent(new Event('gattserverdisconnected'))
   assert.equal(first.closed, true)
   assert.equal(disconnects, 1)
+  assert.deepEqual(deviceRemoved.mock.calls[0]?.arguments, deviceAdded.mock.calls[0]?.arguments)
+  assert.deepEqual(txRemoved.mock.calls[0]?.arguments, txAdded.mock.calls[0]?.arguments)
 
   const second = await capability.open(options)
+  assert.equal(deviceAdded.mock.callCount() - deviceRemoved.mock.callCount(), 1)
+  assert.equal(txAdded.mock.callCount() - txRemoved.mock.callCount(), 1)
   second.close()
   events.dispatchEvent(new Event('gattserverdisconnected'))
   assert.equal(disconnects, 1)
+})
+
+test('BLE local-peer drops a reliable notification when its ACK write is interrupted by disconnect', async () => {
+  const events = new EventTarget()
+  const tx = new EventTarget()
+  const ackStarted = Promise.withResolvers()
+  const ackWrite = Promise.withResolvers()
+  let ackAttempts = 0
+  let expectingAck = false
+  const bluetooth = connectedBluetooth(
+    async () => {
+      if (!expectingAck) return
+      ackAttempts += 1
+      ackStarted.resolve()
+      await ackWrite.promise
+    },
+    events,
+    tx
+  )
+  const capability = new BLELocalPeerCapability({ bluetooth, crypto: webcrypto })
+  const session = await capability.open({ transport: 'ble', service: 'strider' })
+  const remoteId = 'AABBCCDDEEFF'
+  const messages = []
+  session.subscribe('state', (message) => messages.push(message))
+  const notify = (bytes) => {
+    tx.value = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    tx.dispatchEvent(new Event('characteristicvaluechanged'))
+  }
+  notify(
+    await encodeBLELocalPeerRecord({
+      kind: 1,
+      sourceId: remoteId,
+      destinationId: 'FFFFFFFFFFFF',
+      payload: new Uint8Array(),
+    })
+  )
+
+  const payload = Buffer.from(JSON.stringify({ service: 'strider', type: 'state', payload: 'ready' }))
+  const header = Buffer.alloc(18)
+  header.write('SLP1')
+  header[4] = 3
+  header[5] = 1
+  header.writeUInt32BE(1, 6)
+  header[11] = 1
+  header.writeUInt32BE(0xef3c6b3e, 12)
+  header.writeUInt16BE(payload.byteLength, 16)
+  expectingAck = true
+  notify(
+    await encodeBLELocalPeerRecord({
+      kind: 2,
+      sourceId: remoteId,
+      destinationId: capability.id,
+      payload: Buffer.concat([header, payload]),
+    })
+  )
+  await ackStarted.promise
+  assert.deepEqual(messages, [])
+
+  events.dispatchEvent(new Event('gattserverdisconnected'))
+  ackWrite.reject(new DOMException('GATT disconnected', 'NetworkError'))
+  await new Promise(setImmediate)
+
+  assert.equal(session.closed, true)
+  assert.equal(ackAttempts, 1)
+  assert.deepEqual(messages, [])
 })
 
 test('BLE local-peer falls back from the preferred MTU to 60-byte writes for an older host', async () => {

@@ -144,8 +144,8 @@ class BLELocalPeerRadio implements LocalPeerRadio {
     )
   }
 
-  onNotificationsDisabled(characteristic): void {
-    if (this.#txCharacteristic === characteristic) this.#loseLink()
+  onNotificationsDisabled(characteristic: { handle: number }): void {
+    if (this.#txCharacteristic?.handle === characteristic.handle) this.#loseLink()
   }
 
   onRX(data: ArrayBuffer): void {

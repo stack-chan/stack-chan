@@ -286,6 +286,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
       onReceive: (event) => this.#handleRadioReceive(event),
       onDisconnect: () => {
         this.#linkGeneration += 1
+        this.#peers.clear()
         for (const reassembly of this.#reassemblies.values()) Timer.clear(reassembly.timer)
         this.#reassemblies.clear()
         try {

@@ -48,6 +48,19 @@ export class DriveSender {
     return this.#stopping
   }
 
+  stopForPeerState(state: { status: string; reason?: string; gesture?: number }): Promise<void> | undefined {
+    const command = this.#command
+    if (!command) return
+    if (state.status === 'error' && state.reason === 'stop-failed') return this.stop()
+    if (state.gesture !== command.gesture) return
+    if (
+      state.status === 'error' ||
+      (command.action === 'calibrate' && (state.status === 'calibrated' || state.status === 'needs-calibration'))
+    ) {
+      return this.stop()
+    }
+  }
+
   close() {
     this.#closed = true
     this.#command = undefined

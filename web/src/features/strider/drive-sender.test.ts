@@ -52,3 +52,38 @@ test('a failed write ends heartbeats and rejects further presses on the old conn
   expect(broadcast).toHaveBeenCalledTimes(1)
   expect(sender.start('backward', 0.4)).toBe(false)
 })
+
+test('a delayed calibration result leaves a newer direction held and sending', async () => {
+  const broadcast = vi.fn().mockResolvedValue(undefined)
+  const sender = new DriveSender({ broadcast }, vi.fn())
+
+  sender.start('calibrate', 0.6)
+  const [, calibration] = broadcast.mock.calls[0]
+  await sender.stop()
+  sender.start('forward', 0.6)
+  const [, forward] = broadcast.mock.calls[2]
+
+  await sender.stopForPeerState({ status: 'calibrated', gesture: calibration.gesture })
+  await sender.stopForPeerState({ status: 'error', reason: 'calibration-failed', gesture: calibration.gesture })
+  await vi.advanceTimersByTimeAsync(100)
+  expect(broadcast).toHaveBeenCalledTimes(4)
+  expect(broadcast).toHaveBeenLastCalledWith('drive', forward)
+
+  await sender.stopForPeerState({ status: 'error', reason: 'drive-failed', gesture: forward.gesture })
+  expect(broadcast).toHaveBeenLastCalledWith('drive', { action: 'stop', gesture: expect.any(Number), power: 0.2 })
+  sender.close()
+})
+
+test('a calibration result stops the matching hold', async () => {
+  const broadcast = vi.fn().mockResolvedValue(undefined)
+  const sender = new DriveSender({ broadcast }, vi.fn())
+
+  sender.start('calibrate', 0.6)
+  const [, calibration] = broadcast.mock.calls[0]
+  await sender.stopForPeerState({ status: 'calibrating', gesture: calibration.gesture })
+  expect(broadcast).toHaveBeenCalledTimes(1)
+
+  await sender.stopForPeerState({ status: 'calibrated', gesture: calibration.gesture })
+  expect(broadcast).toHaveBeenLastCalledWith('drive', { action: 'stop', gesture: expect.any(Number), power: 0.2 })
+  sender.close()
+})

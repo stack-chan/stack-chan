@@ -553,8 +553,12 @@ class SCServo {
     this.setRawPositionInTime(a, goalTimeMilliseconds, callback)
   }
 
-  setRawPosition(rawPosition: number, callback?: CompletionCallback): void {
+  setRawPosition(rawPosition: number, callback?: CompletionCallback, checkStatus = false): void {
     const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    if (checkStatus && callback) {
+      this.#writeChecked(ADDRESS.GOAL_POSITION, callback, ...le(position))
+      return
+    }
     this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, () => callback?.(), callback ?? (() => {}), ...le(position))
   }
 
@@ -562,8 +566,13 @@ class SCServo {
     rawPosition: number,
     goalTimeMilliseconds: SCServoGoalTimeMilliseconds,
     callback?: CompletionCallback,
+    checkStatus = false,
   ): void {
     const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    if (checkStatus && callback) {
+      this.#writeChecked(ADDRESS.GOAL_POSITION, callback, ...le(position), ...le(goalTimeMilliseconds))
+      return
+    }
     this.#sendCommand(
       COMMAND.WRITE,
       ADDRESS.GOAL_POSITION,
@@ -632,7 +641,7 @@ class SCServo {
   }
 
   setPwmDuty(power: number, callback: CompletionCallback): void {
-    const magnitude = Math.round(Math.abs(power) * 1023)
+    const magnitude = Math.round(Math.abs(power) * 1000)
     const output = power < 0 ? magnitude | 0x400 : magnitude
     this.#writeChecked(ADDRESS.GOAL_TIME, callback, ...le(output))
   }

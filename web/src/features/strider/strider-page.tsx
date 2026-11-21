@@ -17,7 +17,7 @@ type Link = {
 type Hold = { action: DriveAction } & ({ pointerId: number } | { key: string })
 type LinkStatus = keyof typeof linkLabels
 type PeerStatus = keyof typeof peerLabels
-type PeerState = { status: PeerStatus; calibrated: boolean; reason?: string }
+type PeerState = { status: PeerStatus; calibrated: boolean; reason?: string; gesture?: number }
 
 const linkLabels = {
   disconnected: 'Bluetooth接続を押し、Strider MODを起動したSTKを選んでください。',
@@ -58,10 +58,12 @@ function readPeerState(payload: unknown): PeerState | undefined {
   if (typeof payload !== 'object' || payload === null || !('status' in payload)) return
   const { status } = payload
   if (typeof status !== 'string' || !Object.hasOwn(peerLabels, status)) return
+  const gesture = 'gesture' in payload ? payload.gesture : undefined
   return {
     status: status as PeerStatus,
     calibrated: 'calibrated' in payload ? payload.calibrated === true : status === 'calibrated',
     reason: 'reason' in payload && typeof payload.reason === 'string' ? payload.reason : undefined,
+    gesture: typeof gesture === 'number' && Number.isSafeInteger(gesture) && gesture > 0 ? gesture : undefined,
   }
 }
 
@@ -75,23 +77,29 @@ export function StriderPage() {
   const hold = useRef<Hold>(null)
   const bluetoothSupported = window.isSecureContext && 'bluetooth' in navigator
 
-  const dropLink = useCallback((current: Link, nextStatus: LinkStatus) => {
-    if (link.current !== current) return
-    link.current = null
+  const clearHold = useCallback(() => {
     hold.current = null
-    window.clearTimeout(current.timeout)
-    current.sender?.close()
-    current.session?.close()
     setHeldAction(undefined)
-    setPeer(undefined)
-    setStatus(nextStatus)
   }, [])
 
+  const dropLink = useCallback(
+    (current: Link, nextStatus: LinkStatus) => {
+      if (link.current !== current) return
+      link.current = null
+      window.clearTimeout(current.timeout)
+      current.sender?.close()
+      current.session?.close()
+      clearHold()
+      setPeer(undefined)
+      setStatus(nextStatus)
+    },
+    [clearHold]
+  )
+
   const stop = useCallback(() => {
-    hold.current = null
-    setHeldAction(undefined)
+    clearHold()
     return link.current?.sender?.stop()
-  }, [])
+  }, [clearHold])
 
   useEffect(() => {
     const releaseHeld = () => {
@@ -142,12 +150,7 @@ export function StriderPage() {
           window.clearTimeout(current.timeout)
           setStatus('connected')
         }
-        if (
-          hold.current &&
-          (state.status === 'error' || (current.peer?.status === 'calibrating' && state.status !== 'calibrating'))
-        ) {
-          void stop()
-        }
+        if (current.sender?.stopForPeerState(state)) clearHold()
         current.peer = state
         setPeer(state)
       })

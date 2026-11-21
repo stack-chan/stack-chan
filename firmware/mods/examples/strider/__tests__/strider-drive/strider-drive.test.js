@@ -13,19 +13,28 @@ function setup(turnCenter, options = {}) {
   let now = 0
   let starts = 0
   let rawPosition = 650
+  let hostDeadline = Infinity
   const powers = []
   const saved = []
   const errors = []
+  const states = []
   const yaw = {
     async setPower(power, timeoutMs) {
-      assert(timeoutMs > 0 && timeoutMs <= 400, 'Host power must have a bounded command lease')
+      assert(timeoutMs > 0 && timeoutMs <= 550, 'Host power must have a bounded command lease')
+      if (now >= hostDeadline) throw new Error('Host yaw lease expired')
+      hostDeadline = now + timeoutMs
       powers.push(power)
     },
     async readRawPosition() {
-      return options.readRawPosition ? options.readRawPosition() : rawPosition
+      if (now >= hostDeadline) throw new Error('Host yaw lease expired before reading')
+      const position = options.readRawPosition ? await options.readRawPosition() : rawPosition
+      if (now >= hostDeadline) throw new Error('Host yaw lease expired while reading')
+      return position
     },
     async close() {
       powers.push(0)
+      options.onClose?.()
+      await options.closeGate
     },
   }
   const drive = new StriderDrive(
@@ -35,6 +44,7 @@ function setup(turnCenter, options = {}) {
       startContinuousYaw: async () => {
         starts++
         await options.startGate
+        hostDeadline = Infinity
         return yaw
       },
       openGyro: () => ({ read: () => options.gyroAt?.(rawPosition), close: () => options.onGyroClose?.() }),
@@ -42,7 +52,7 @@ function setup(turnCenter, options = {}) {
         equal(powers.at(-1), 0, 'calibration must stop before saving')
         saved.push(value)
       },
-      notify() {},
+      notify: (state) => states.push(state),
       reportError: (error) => errors.push(String(error)),
     },
     turnCenter,
@@ -52,6 +62,7 @@ function setup(turnCenter, options = {}) {
     powers,
     saved,
     errors,
+    states,
     get starts() {
       return starts
     },
@@ -128,6 +139,52 @@ equal(turning.powers.length, 1, 'interrupted position read must not issue a turn
 equal(turning.powers[0], 0, 'interrupted position read must stop')
 await turning.drive.close()
 
+const inFlightRead = deferred()
+const readAfterHeartbeat = deferred()
+const inFlightStarted = deferred()
+const afterHeartbeatStarted = deferred()
+let reads = 0
+const lateHeartbeat = setup(668, {
+  readRawPosition() {
+    reads++
+    if (reads === 2) {
+      inFlightStarted.resolve()
+      return inFlightRead.promise
+    }
+    if (reads === 3) {
+      afterHeartbeatStarted.resolve()
+      return readAfterHeartbeat.promise
+    }
+    return 668
+  },
+})
+lateHeartbeat.drive.receive(command('right'))
+await lateHeartbeat.drive.tick()
+lateHeartbeat.advance(375)
+const inFlightTick = lateHeartbeat.drive.tick()
+await inFlightStarted.promise
+lateHeartbeat.advance(15)
+assert(lateHeartbeat.drive.receive(command('right')), 'a heartbeat during an in-flight read should be accepted')
+lateHeartbeat.advance(60)
+inFlightRead.resolve(668)
+await inFlightTick
+equal(Math.abs(lateHeartbeat.powers.at(-1)), 1, 'an accepted heartbeat during a read should keep turning')
+lateHeartbeat.advance(330)
+assert(lateHeartbeat.drive.receive(command('right')), 'a heartbeat just before expiry should be accepted')
+lateHeartbeat.advance(49)
+const refreshedTick = lateHeartbeat.drive.tick()
+await afterHeartbeatStarted.promise
+lateHeartbeat.advance(112)
+readAfterHeartbeat.resolve(668)
+await refreshedTick
+equal(Math.abs(lateHeartbeat.powers.at(-1)), 1, 'a pending heartbeat should renew the Host before reading')
+equal(lateHeartbeat.starts, 1, 'heartbeats should keep the same yaw session')
+lateHeartbeat.advance(239)
+await lateHeartbeat.drive.tick()
+equal(lateHeartbeat.powers.at(-1), 0, 'the MOD must release yaw at the 400 ms inactivity deadline')
+equal(lateHeartbeat.drive.receive(command('right')), false, 'an expired gesture must not restart')
+await lateHeartbeat.drive.close()
+
 const startGate = deferred()
 const starting = setup(undefined, { startGate: startGate.promise })
 starting.drive.receive(command('forward'))
@@ -189,32 +246,68 @@ equal(left.powers.at(-1), -1, 'left and right turns should start in opposite dir
 await left.drive.close()
 
 const shift = 650
-const calibration = setup(undefined, {
-  gyroAt: (position) => ({
-    x: 20 * Math.cos(((position - 418 - shift) * 4 * Math.PI) / 1152),
-    y: 12 * Math.cos(((position - 246 - shift) * 2 * Math.PI) / 1152),
-  }),
+const gyroAt = (position) => ({
+  x: 20 * Math.cos(((position - 418 - shift) * 4 * Math.PI) / 1152),
+  y: 12 * Math.cos(((position - 246 - shift) * 2 * Math.PI) / 1152),
 })
-for (let sample = 0; sample <= 640; sample++) {
-  const position = (1000 - ((sample * 21) % 1152) + 1152) % 1152
-  calibration.position = position > 1023 ? 3 : position
-  if (sample % 4 === 0) calibration.drive.receive(command('calibrate'))
-  await calibration.drive.tick()
-  if (sample === 0) {
-    equal(calibration.drive.state().status, 'calibrating', 'calibration should report a held run')
-    equal(calibration.powers.at(-1), 0.6, 'calibration should first walk forward')
+
+async function calibrateThroughReturn(calibration) {
+  for (let sample = 0; sample < 640; sample++) {
+    const position = (1000 - ((sample * 21) % 1152) + 1152) % 1152
+    calibration.position = position > 1023 ? 3 : position
+    if (sample % 4 === 0) calibration.drive.receive(command('calibrate'))
+    await calibration.drive.tick()
+    if (sample === 0) {
+      equal(calibration.drive.state().status, 'calibrating', 'calibration should report a held run')
+      equal(calibration.powers.at(-1), 0.6, 'calibration should first walk forward')
+    }
+    if (sample === 320) {
+      equal(calibration.powers.at(-1), -0.6, 'calibration should return after collecting samples')
+      equal(calibration.saved.length, 0, 'calibration must not save while still moving')
+    }
+    calibration.advance(25)
   }
-  if (sample === 320) {
-    equal(calibration.powers.at(-1), -0.6, 'calibration should return after collecting samples')
-    equal(calibration.saved.length, 0, 'calibration must not save while still moving')
-  }
-  calibration.advance(25)
+  calibration.drive.receive(command('calibrate'))
 }
+
+const restoration = deferred()
+const restorationStarted = deferred()
+const calibration = setup(undefined, { gyroAt, onClose: restorationStarted.resolve, closeGate: restoration.promise })
+await calibrateThroughReturn(calibration)
+const finishCalibration = calibration.drive.tick()
+await restorationStarted.promise
+equal(calibration.saved.length, 0, 'calibration must wait for the Host to restore yaw')
+restoration.resolve()
+await finishCalibration
 equal(calibration.powers.at(-1), 0, 'completed calibration should stop')
 equal(calibration.saved[0], 166, 'calibration should recover the shifted center from the gyro phases')
 equal(calibration.drive.state().status, 'calibrated', 'successful calibration should enable turns')
+equal(calibration.drive.state().gesture, 1, 'completion should identify the completed gesture')
 equal(calibration.drive.receive(command('calibrate')), false, 'late heartbeat must not restart completed calibration')
 await calibration.drive.close()
+
+const replacedRestoration = deferred()
+const replacedRestorationStarted = deferred()
+const replacement = setup(undefined, {
+  gyroAt,
+  onClose: replacedRestorationStarted.resolve,
+  closeGate: replacedRestoration.promise,
+})
+await calibrateThroughReturn(replacement)
+const finishReplaced = replacement.drive.tick()
+await replacedRestorationStarted.promise
+assert(replacement.drive.receive(command('forward', 2)), 'operator should be able to request a new direction')
+replacedRestoration.resolve()
+await finishReplaced
+await replacement.drive.tick()
+equal(replacement.saved.length, 0, 'an abandoned calibration must not save a center')
+equal(
+  replacement.states.some(({ status }) => status === 'calibrated'),
+  false,
+  'an abandoned calibration must not complete',
+)
+equal(replacement.powers.at(-1), 0.8, 'the new gesture should be able to move')
+await replacement.drive.close()
 
 let gyroClosed = false
 const interrupted = setup(668, { onGyroClose: () => (gyroClosed = true) })

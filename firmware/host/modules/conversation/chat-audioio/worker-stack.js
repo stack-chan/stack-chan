@@ -63,7 +63,7 @@ function startWorker(io, { specifier, configuration, instructions, functions, vo
   worker.onmessage = (message) => {
     if (io.voiceClosed) return
     if (message.id === 'audioConsumed') {
-      io.releaseInputSlot?.(message.slot)
+      if (!io.inputSlotState) io.releaseInputSlot?.(message.slot)
       return
     }
     const handler = workerEvents.has(message.id) ? io[message.id] : undefined
@@ -88,6 +88,7 @@ function startWorker(io, { specifier, configuration, instructions, functions, vo
     providerID,
     modelID,
     apiKey,
+    inputSlotState: io.inputSlotState,
   })
   io.ensureInput()
 }

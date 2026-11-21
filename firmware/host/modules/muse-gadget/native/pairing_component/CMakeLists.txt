@@ -10,6 +10,7 @@ idf_component_register(
     "${PAIRING_COMPONENT_REAL}/../account-nvs.c"
     "${PAIRING_COMPONENT_REAL}/../setup-metadata-core.c"
     "${PAIRING_COMPONENT_REAL}/../account-http.c"
+    "${PAIRING_COMPONENT_REAL}/../gemini-native-http.c"
     "${PAIRING_COMPONENT_REAL}/../account-worker.c"
     "${PAIRING_COMPONENT_REAL}/../account-wifi-driver.c"
     "${PAIRING_COMPONENT_REAL}/../sdk-token-store.c"

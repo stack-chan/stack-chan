@@ -1,0 +1,9 @@
+# Offline StopWatch TTS rate replay
+
+Build with `node scripts/build-muse-native-device.mjs --setup-rate-replay`. The separate target runs the standard Piu setup main and startup self-tests, then waits 1.5 s before arming the muted replay. It deliberately does not restore the account, pair, connect, call a provider, or set preferences. Normal application builds do not bundle the fixture hook and follow their existing startup path.
+
+Review the app image and live boot partition before any flash. On the previously verified StopWatch the bootloader uses ota_0 at 0x20000; the factory address in the build instructions is **not** the correct device address. Do not write bootloader, partition table, NVS or OTA selection. Compare the approved full-app recovery image to the active slot before proceeding. Restore if the replay causes a repeating bootloop.
+
+Capture serial before the first boot (or capture the boot transcript on reopen); record ROM reset reason and loaded partition separately from Wi-Fi/Muse events, save phase markers, and stop at the first unexpected failure without repeating. Markers: APP_READY, ARMED, START, OUTPUT_OPEN, OUTPUT_READY, BEGIN, END, DONE, SKIPPED, INIT_FAILED or FAILED. END records rate, stress flag, first enqueue return relative to test start, max time to any enqueue return within an event, max and total parser/feed time, and decoded PCM byte count. MUSE_SINK includes time to first native submission; MUSE_SUPPLY estimates playback gaps (not microphone/acoustic evidence).
+
+There are four muted 6.4 s runs (normal/stressed × 24/16 kHz). Input fragments are 1 KiB with identical 80 ms audio-event cadence and an injected delay in stress mode. Both drive the actual 16 kHz output and same startup prefill; only 24 kHz invokes the native resampler. No TLS or Worker scheduling is exercised. Interpret results only as evidence about the post-receive path and native audio startup.

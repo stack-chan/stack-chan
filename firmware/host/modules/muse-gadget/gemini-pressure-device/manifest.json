@@ -76,9 +76,7 @@
       "../setup-device/assets/kasane-sad-eyes-8",
       "../setup-device/assets/kasane-sad-mouth-8"
     ],
-    "*-alpha": [
-      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"
-    ],
+    "*-alpha": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"],
     "*-mask": [
       {
         "source": "../../ui/assets/fonts/k8x12",
@@ -115,6 +113,7 @@
     "stack": 1024
   },
   "include": [
+    "../setup-device/manifest-buffered-playback.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_piu.json",
     "$(MODDABLE)/modules/piu/MC/colorcell"
@@ -128,6 +127,7 @@
     "time": "$(MODULES)/base/time/time",
     "guruguru-view": "../setup-device/kasane-view",
     "muse-stopwatch-output": "../stopwatch-audio/output",
+    "muse-native-speech-enabled": "../setup-device/native-speech-disabled",
     "kasane-frames": "../setup-device/kasane-frames",
     "offline-heap": "../__tests__/cascaded-device/heap",
     "stackchan/voice/scope": "../../voice/scope",
@@ -139,6 +139,11 @@
     "muse-resampled-output": "../setup-device/resampled-output",
     "guruguru-avatar": "../../../../mods/examples/guruguru_voice/avatar",
     "timer": "$(MODULES)/base/timer/timer",
-    "stackchan-ai-wire": "../../ai/ai-wire"
+    "stackchan-ai-wire": "../../ai/ai-wire",
+    "muse-stopwatch-levels": [
+      "../stopwatch-audio/levels.js",
+      "$(MODULES)/network/services/chatAudioIO/ChatAudioIO.c"
+    ],
+    "stackchan/voice/pcm-base64": "../../voice/pcm-base64"
   }
 }

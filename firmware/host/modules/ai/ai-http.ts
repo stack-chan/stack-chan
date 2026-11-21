@@ -1,6 +1,7 @@
 import { createClosingClient, guardSocketCallbacks } from 'realtimeConversation/http-core'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import { streamResponse } from 'stackchan-ai-http-stream'
+import Time from 'time'
 import Timer from 'timer'
 import { URL } from 'url'
 
@@ -13,6 +14,8 @@ export function createResponseTransport(
   maxPendingBytes: number,
   extraHeaders?: Readonly<Record<string, string>>,
   idleTimeout = false,
+  onDiagnostic?: (values: number[]) => void,
+  readAhead = false,
 ) {
   const url = new URL(endpoint)
   if (url.protocol !== 'https:' && url.protocol !== 'http:') throw Error('unsupported endpoint protocol')
@@ -21,6 +24,7 @@ export function createResponseTransport(
     {
       path: url.pathname + url.search,
       extraHeaders,
+      diagnostic: onDiagnostic ? { now: () => Time.ticks, emit: onDiagnostic } : undefined,
       schedule: (task, ms) => Timer.set(task, ms),
       clear: (timer) => Timer.clear(timer),
       connect(onError) {
@@ -42,5 +46,6 @@ export function createResponseTransport(
     timeoutMs,
     maxPendingBytes,
     idleTimeout,
+    readAhead,
   )
 }

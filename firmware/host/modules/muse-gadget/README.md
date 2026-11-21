@@ -287,3 +287,36 @@ Next device pass must capture the allowlisted error code, elapsed time, internal
 heap/PSRAM minima, event high-water size, and UI timer lag together. Flash/restart
 must be coordinated with the user. No new microphone or paid API call was made
 for the above replay tests.
+
+### Gemini transcription latency on StopWatch
+
+On successful non-empty Gemini STT, the setup image traces
+`MUSE_SPEECH stt_timing_<pcmBytes>_<toWritableMs>_<audioWriteMs>_<toReplyMs>_<parseMs>`.
+Timing starts at STT finish, **after** the capture link drains. The first
+interval includes request setup and connection to the first body pull.
+The second spans lazy encoding plus local HTTP writer acceptance of the
+last audio block. The third includes writing the four-byte JSON suffix,
+remaining network transfer, remote processing, and waiting for the first
+response body byte. It is **not** a measurement of remote inference alone.
+The last interval includes reading and parsing the remaining response.
+No audio, transcript, authorization, or endpoint is included.
+
+For a deterministic transport check, run from `firmware`:
+`STT_BENCH=1 node --js-base-64 --test --test-name-pattern='short synthetic STT' host/modules/voice/__tests__/gemini-speech.test.mjs`
+(Node 24; on Node with native Base64 enabled by default omit the flag).
+This uses only loopback HTTP, fixed generated PCM, and a fixed mock reply;
+it cannot measure Wi-Fi, real model latency, or recognition accuracy. A
+1.5-second fixture uses 18 instead of 65 body fragments with native Base64,
+with identical WAV and content length. Fragments are not TCP packet counts.
+
+On a physical StopWatch, an offline image alternated the previous and new STT
+implementations on the same hardware, with a sink consuming the body as fast
+as possible and a fixed 30 ms mock reply. Median of 3 runs per case:
+
+| 16 kHz mono PCM | Body encode/drain before → after | STT finish to mock transcript before → after |
+| --- | --- | --- |
+| 48,000 bytes (1.50 s) | 4,311 → 33 ms | 4,353 → 75 ms |
+| 120,160 bytes (3.76 s) | 10,805 → 75 ms | 10,847 → 118 ms |
+
+These figures isolate post-recording work on the device. They exclude
+microphone capture, Wi-Fi/TLS transfer, and actual provider recognition.

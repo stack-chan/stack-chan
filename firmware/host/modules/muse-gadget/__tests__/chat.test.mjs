@@ -286,3 +286,44 @@ test('retired replay and unrelated metadata are discarded before acknowledgment 
  turn.acknowledge(ack(),1);turn.feed(reply(),2);
  assert.equal(turn.result().text,'answer');
 })
+
+test('native open failures expose only a finite code, never the exception detail', async () => {
+  for (const [message, code] of [['Muse account WebSocket initialization', 4], ['private diagnostic detail', 0]]) {
+    const f = fixture()
+    const received = []
+    f.session.dependencies.onDiagnostic = value => received.push(value)
+    f.session.dependencies.open = () => { throw new Error(message) }
+    await assert.rejects(f.session.connect(), { code: 'provider_failed' })
+    assert.deepEqual(received, [`note_connect_open_${code}`])
+  }
+})
+
+test('reply settlement markers distinguish accepted reply from completed turn', async () => {
+  const f = fixture(), diagnostics = []
+  f.session.dependencies.onDiagnostic = value => diagnostics.push(value)
+  await f.ready()
+  const pending = f.session.send({ message: 'private user text' })
+  f.feed(3, '', { kind: 2, status: 404, end: true })
+  f.feed(5, JSON.stringify(ack()), { kind: 2, status: 200, end: true })
+  f.feed(7, JSON.stringify(reply()) + '\n', { kind: 2, status: 200 })
+  assert.ok(diagnostics.includes('note_subscription_body'))
+  assert.ok(diagnostics.includes('note_reply_event'))
+  assert.ok(!diagnostics.includes('note_reply_complete'))
+  f.advance(3001)
+  assert.equal((await pending).text, 'answer')
+  assert.equal(diagnostics.filter(x => x === 'note_reply_complete').length, 1)
+  assert.ok(!diagnostics.some(x => x.includes('private') || x.includes('answer')))
+})
+test('subscription close during settle fails before TTS even with a complete reply event', async () => {
+  const f = fixture(), diagnostics = []
+  f.session.dependencies.onDiagnostic = value => diagnostics.push(value)
+  await f.ready()
+  const pending = f.session.send({ message: 'hello' })
+  f.feed(3, '', { kind: 2, status: 200 })
+  f.feed(5, JSON.stringify(ack()), { kind: 2, status: 200, end: true })
+  f.feed(3, JSON.stringify(reply()) + '\n', { end: true })
+  await assert.rejects(pending, { code: 'provider_failed' })
+  assert.ok(diagnostics.includes('note_reply_event'))
+  assert.ok(diagnostics.includes('note_subscription_end'))
+  assert.ok(!diagnostics.includes('note_reply_complete'))
+})

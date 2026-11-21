@@ -8,7 +8,8 @@ import { createProfiledGeminiSpeech } from 'muse-speech-provider'
 import Preference from 'preference'
 import RNG from 'rng'
 import { createCascadedConversation, createPushToTalk } from 'stackchan/voice/cascaded'
-import { GeminiSpeechTTS, GeminiTranscribeSTT } from 'stackchan/voice/gemini-speech'
+import { GeminiTranscribeSTT } from 'stackchan/voice/gemini-speech'
+import { GeminiSpeechTTS } from 'stackchan/voice/gemini-worker-tts'
 import { OpenAISpeechTTS, WhisperSTT } from 'stackchan/voice/speech'
 import { createResponseTransport } from 'stackchan-ai-http'
 import TextDecoder from 'text/decoder'
@@ -28,10 +29,21 @@ export function hasGeminiSpeechKey() {
 
 export function createMuseAccountCascadedConversation(
   account,
-  { nodeId, onDiagnostic, onPlaybackState, getSpeechVoice, getSpeechProvider, getGeminiVoice } = {},
+  {
+    nodeId,
+    onDiagnostic,
+    onPlaybackState,
+    getSpeechVoice,
+    getSpeechProvider,
+    getGeminiVoice,
+    nativeGeminiTransport = false,
+    geminiSampleRate = 24000,
+  } = {},
 ) {
   const provider = getSpeechProvider?.() ?? 'openai'
   if (provider !== 'openai' && provider !== 'gemini') throw new Error('unsupported speech provider')
+  const nativeGemini = provider === 'gemini' && nativeGeminiTransport
+  const buffered = nativeGemini && geminiSampleRate === 24000
   const apiKey = Preference.get('ai', provider === 'gemini' ? 'geminiToken' : 'token')
   if (typeof apiKey !== 'string' || !apiKey.trim()) {
     const code = provider === 'gemini' ? 'gemini_key_missing' : 'openai_key_missing'
@@ -45,37 +57,41 @@ export function createMuseAccountCascadedConversation(
         })
       : undefined
   const stt = request
-    ? GeminiTranscribeSTT.create({ request, maxAudioBytes: 480000 })
+    ? GeminiTranscribeSTT.create({
+        request,
+        maxAudioBytes: 480000,
+        timing: onDiagnostic
+          ? { now: () => Time.ticks, emit: (values) => onDiagnostic(`stt_timing_${values.join('_')}`) }
+          : undefined,
+      })
     : WhisperSTT.create({ apiKey, language: 'ja', maxAudioBytes: 480000 })
-  const speechRequest = request
-    ? createResponseTransport(
-        'https://generativelanguage.googleapis.com/v1beta/interactions',
-        '',
-        45000,
-        16384,
-        {
-          'x-goog-api-key': apiKey,
-        },
-        true,
-      )
-    : undefined
   const tts = request
     ? createProfiledGeminiSpeech(
         (options) =>
           GeminiSpeechTTS.create({
-            request: speechRequest,
+            endpoint: 'https://generativelanguage.googleapis.com/v1beta/interactions',
+            apiKey,
+            nativeTransport: nativeGeminiTransport,
+            sampleRate: geminiSampleRate,
+            ...(buffered ? { timeoutMs: 120000, transportTimeoutMs: 120000, pcmIdleTimeoutMs: 45000 } : {}),
+            onLifecycle: (phase) => onDiagnostic?.(`tts_worker_${phase}`),
+            onTransport: (values) => onDiagnostic?.(`tts_transport_${values.join('_')}`),
             ...options,
+            onFailure: (reason) => onDiagnostic?.(`tts_failure_${reason}`),
             onMetrics: ({ maxEventChars, pcmBytes }) => onDiagnostic?.(`tts_metrics_${maxEventChars}_${pcmBytes}`),
           }),
         getGeminiVoice,
       )
     : createProfiledSpeech((options) => OpenAISpeechTTS.create({ apiKey, ...options }), getSpeechVoice)
   return createMuseCascadedConversation({
-    createConversation: createCascadedConversation,
+    // This device finishes the Muse reply before opening Gemini. Each speech chunk costs a new TLS handshake.
+    createConversation: (config) =>
+      createCascadedConversation(config, buffered ? 'buffered' : nativeGemini ? 'bounded' : 'sentence'),
     createPushToTalk,
     createAgent: createMuseChatAgent,
     stt,
     tts,
+    outputSampleRate: request ? geminiSampleRate : 24000,
     voice: provider === 'gemini' ? 'Leda' : 'marin',
     onPlaybackState,
     async openChat({ signal }) {

@@ -8,8 +8,8 @@ import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
 import type { PairedAudioRuntime, PcmOutput, PcmOutputModule } from './runtime-types.js'
 
-export function createAudioRuntime(options: RuntimeOptions): PairedAudioRuntime {
-  return bindAudioRuntime(options, openPcmLease)
+export function createAudioRuntime(options: RuntimeOptions & { startupBlocks?: () => 1 | 3 }): PairedAudioRuntime {
+  return bindAudioRuntime(options, (lease) => openPcmLease(lease, options.startupBlocks?.() ?? 1))
 }
 
 interface CaptureDriver {
@@ -50,7 +50,7 @@ type OutputSegment = {
   | { lengths: number[]; flush(): void; flushTimer?: ReturnType<typeof Timer.set> }
 )
 
-function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions): DuplexLease {
+function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions, startupBlocks: 1 | 3): DuplexLease {
   requireActive(signal)
   if (requirements.duplex === 'full') throw voiceError('unsupported_capability', 'generic device supports half duplex')
   const inputFormat = monoFormat(requirements.input)
@@ -209,6 +209,8 @@ function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions): 
           volume,
           directLimit,
           onLevel && ((value) => onLevel({ direction: 'output', value })),
+          // StopWatch needs one 4092-byte conversion block plus three native startup blocks.
+          startupBlocks === 3 && outputFormat.sampleRate === 24000 && directLimit >= 4 * 4092 ? 3 : 1,
         )
         const item: OutputSegment = {
           id,

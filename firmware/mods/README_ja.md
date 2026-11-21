@@ -38,21 +38,40 @@ TypeScriptのMODでは、Stack-chanのcapability APIが公開する型とModdabl
 ローカル環境からMODを書き込む場合は、`firmware`ディレクトリで`manifest.json`を指定します。
 
 ```console
-npm run mod -- mods/examples/look_around/manifest.json
+npm run mod -- mods/examples/hello_balloon/manifest.json
 ```
 
 環境構築、ターゲット別のコマンド、書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照してください。
 
 ## MODの実行モデル
 
-MODをインストールすると、ホストの通常動作に代わってそのMODが実行されます。
-ボタンや画面操作の意味は、インストールしたMODの実装で決まります。
+ホストは `mod` モジュールの名前付きエクスポートから[フック](../host/app/app-behavior.ts)を読み込みます。
+MODが定義したフックでは、ホストは既定のフックに代えてMODのフックを実行します。
+MODが省略したフックや `undefined` としてエクスポートしたフックには、既定のフックがあればそれを使います。
+`mod` モジュールがない場合や読み込みに失敗した場合は、ホストは既定の動作に戻ります。
 
 MODは、対象機種とホストが使用するXSバージョンに合わせてビルドする必要があります。
 WASMホストで使う場合も、`lin`などTypeScriptをサポートするターゲットでビルドした`.xsb`またはアーカイブを読み込みます。
 
 表示文字列は[`context.i18n`を使ったファームウェアのローカライズ](../docs/localization_ja.md)に従って追加します。
 顔画面とホストのAppBarを維持したままPiu UIを追加する場合は、実験的な[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。
+
+### フックを1つだけ定義する例
+
+[`hello_balloon` MOD](./examples/hello_balloon/mod.js)は `onContextCreated` だけをエクスポートします。
+ホストは既定の `onLaunch` で起動画面を表示し、起動を進めます。
+コンテキストが作成されると、MODの `onContextCreated` が吹き出しに `Hello from a MOD!` と表示します。
+
+Moddable SDKとXvfbを導入済みのLinux環境では、`firmware` ディレクトリで既存のシミュレーター起動テストを実行できます。
+テストはサンプルのアーカイブを読み込み、MODが吹き出しを表示した後に出すログを確認します。
+
+```sh
+STACKCHAN_LIN_SMOKE_ARCHIVE_MANIFEST="$PWD/mods/examples/hello_balloon/manifest.json" \
+STACKCHAN_LIN_SMOKE_EXPECT="[hello_balloon] balloon shown" \
+npm run smoke:lin
+```
+
+`npm run test:unit` で実行される[ホストの動作テスト](../host/app/__tests__/app-behavior.test.ts)では、`onContextCreated` だけを定義したMODでも既定の `onLaunch` が使われることと、MODがない場合や読み込みに失敗した場合に既定の動作へ戻ることを確認しています。
 
 ## 代表的なソース例
 

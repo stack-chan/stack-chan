@@ -1,0 +1,26 @@
+{
+  "dependencies": [
+    {
+      "name": "esp-sr",
+      "version": "==2.4.7",
+      "includes": ["include/esp32s3", "src/include"]
+    }
+  ],
+  "platforms": {
+    "...": {
+      "error": "WakeNet requires the opt-in M5StackChan CoreS3 host build"
+    },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "wakeword-wakenet": "./wakenet",
+        "*": ["./wakenet.c"]
+      },
+      "resources": {
+        "*": [
+          "../../../dist/wakeword-model/stackchan-wakenet-v247.bin",
+          "../../../dist/wakeword-model/esp-sr-2.4.7-LICENSE.txt"
+        ]
+      }
+    }
+  }
+}

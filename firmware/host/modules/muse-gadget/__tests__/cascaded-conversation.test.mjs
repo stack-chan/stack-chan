@@ -6,6 +6,7 @@ import { createMuseChatAgent } from '../chat-agent.js'
 
 registerHooks({
   resolve(specifier, context, next) {
+    if (specifier === 'gemini-worker-events') return next(new URL('../../voice/gemini-worker-events.js', import.meta.url).href, context)
     if (specifier === 'timer') return next(new URL('../../testing/fakes/timer.ts', import.meta.url).href, context)
     if (specifier.startsWith('stackchan/voice/'))
       return next(new URL(`../../voice/${specifier.slice(16)}.ts`, import.meta.url).href, context)
@@ -18,7 +19,7 @@ const { createVoiceScope, deferred } = await import('../../voice/scope.ts')
 const tick = () => new Promise((resolve) => setImmediate(resolve))
 const user = (text) => ({ type: 'message', role: 'user', content: [{ type: 'input_text', text }] })
 
-function setup({ transcript = 'こんにちは', send, finish, failStt = false } = {}) {
+function setup({ transcript = 'こんにちは', send, finish, failStt = false, tts, finalSpeech } = {}) {
   const events = [],
     spoken = [],
     messages = [],
@@ -48,7 +49,7 @@ function setup({ transcript = 'こんにちは', send, finish, failStt = false }
     },
   }
   const conversation = createMuseCascadedConversation({
-    createConversation: createCascadedConversation,
+    createConversation: (config) => createCascadedConversation(config, finalSpeech),
     createPushToTalk,
     createAgent: createMuseChatAgent,
     async openChat() {
@@ -83,7 +84,7 @@ function setup({ transcript = 'こんにちは', send, finish, failStt = false }
         }
       },
     },
-    tts: {
+    tts: tts ?? {
       async open({ format }) {
         const source = createPcmSource(format)
         return {
@@ -298,4 +299,124 @@ test('interrupt closes active recognition without finishing or sending it', asyn
   assert.equal(f.counts().finishing, 0)
   assert.equal(f.messages.length, 0)
   await session.close({ mode: 'abort' })
+})
+
+const { createGeminiWorkerTTS } = await import('../../voice/gemini-worker-session.js')
+const { synthesize } = await import('../../voice/gemini-worker-request.js')
+
+function geminiFinalFixture(text, finalSpeech, afterAudio) {
+  ArrayBuffer.fromString ??= (s) => new TextEncoder().encode(s).buffer
+  String.fromArrayBuffer ??= (buffer, offset = 0, length = buffer.byteLength - offset) =>
+    new TextDecoder().decode(new Uint8Array(buffer, offset, length))
+  Uint8Array.fromBase64 ??= (s) => new Uint8Array(Buffer.from(s, 'base64'))
+  const requests = []
+  // Run the Muse adapter, common pipeline, Gemini session and request encoder/parser; replace only the service.
+  const tts = createGeminiWorkerTTS({}, (job) =>
+    synthesize(async (body, consume, { signal }) => {
+      const emit = (event) => consume(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`))
+      const value = JSON.parse(Buffer.concat([...body.read()]).toString('utf8'))
+      requests.push(value.input[0].content[0].text)
+      await emit({ event_type: 'step.delta', delta: { type: 'audio', data: 'AQA=' } })
+      await afterAudio?.(signal, emit)
+      await emit({ event_type: 'interaction.completed', interaction: { status: 'completed' } })
+    }, job),
+  )
+  const send = async () => ({ status: 'completed', messages: [{ id: 'reply', text }] })
+  return { requests, ...setup({ tts, finalSpeech, send }) }
+}
+
+async function runFinal(text, mode) {
+  const f = geminiFinalFixture(text, mode)
+  const session = await f.conversation.open(f.options)
+  const turn = await session.submit(user('one'), f.scope)
+  const result = await turn.done
+  await session.close({ mode: 'drain' })
+  return { ...f, result }
+}
+
+test('native Muse final grouping preserves the full text and uses one Gemini request instead of four', async () => {
+  const text = '\u6700\u521d\u306e\u6587\u3002\u4e8c\u6587\u76ee\uff01\n\u6700\u5f8c\u306f\u7d75\u6587\u5b57\ud83d\udc2f\uff1f'
+  const before = await runFinal(text)
+  const after = await runFinal(text, 'bounded')
+  assert.equal(before.result.status, 'completed')
+  assert.equal(after.result.status, 'completed')
+  assert.equal(before.requests.length, 4)
+  assert.equal(before.requests.join(''), text)
+  assert.deepEqual(after.requests, [text])
+  assert.equal(after.messages.length, 1)
+  assert.equal(after.playback.filter(Boolean).length, 1)
+})
+
+test('bounded final batching keeps text across chunks, avoids splitting pairs, preserves 4096-unit cap', async () => {
+  const input = 'a'.repeat(239) + '\ud83d\udc2f' + 'b'.repeat(80) + '.' + 'c'.repeat(145) + '!' + 'd'.repeat(3628)
+  assert.equal(input.length, 4096)
+  const f = await runFinal(input, 'bounded')
+  assert.equal(f.result.status, 'completed')
+  assert.equal(f.requests.join(''), input)
+  assert.equal(f.requests[0], 'a'.repeat(239))
+  assert.ok(f.requests.every((s) => s.length <= 240 && !/[\uD800-\uDBFF]$/.test(s) && !/^[\uDC00-\uDFFF]/.test(s)))
+  const tooLong = await runFinal(input + 'x', 'bounded')
+  assert.equal(tooLong.result.status, 'failed')
+  assert.deepEqual(tooLong.requests, [])
+})
+
+test('abort after partial audio never issues another bounded request, replays, or reports completion', async () => {
+  const first = deferred()
+  const text = 'a'.repeat(239) + '.' + 'b'.repeat(150)
+  const f = geminiFinalFixture(text, 'bounded', (signal) => new Promise((_, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    first.resolve()
+  }))
+  const session = await f.conversation.open(f.options)
+  const caller = createVoiceScope()
+  const turn = await session.submit(user('one'), caller)
+  await first.promise
+  caller.abort()
+  assert.equal((await turn.done).status, 'interrupted')
+  assert.deepEqual(f.requests, [text.slice(0, 240)])
+  assert.equal(f.messages.length, 1)
+  assert.ok(!f.events.some((e) => e.type === 'output.playback' && e.receipt.state === 'played'))
+  await assert.rejects(session.setInputEnabled(true), { code: 'cancelled_unconfirmed' })
+  await session.close({ mode: 'abort' })
+})
+
+test('Gemini failure after a complete Muse reply permits the next spoken turn in the same session', async () => {
+  const text = 'First sentence. Second sentence.'
+  let fail = true
+  const f = geminiFinalFixture(text, 'bounded', async (_signal, emit) => {
+    if (!fail) return
+    fail = false
+    await emit({ event_type: 'interaction.failed' })
+  })
+  const session = await f.conversation.open(f.options)
+  const first = await session.submit(user('read the reply'), f.scope)
+  assert.equal((await first.done).status, 'failed')
+  const errors = f.events.filter((event) => event.type === 'error')
+  assert.deepEqual(
+    errors.map(({ code, fatal }) => ({ code, fatal })),
+    [{ code: 'provider_failed', fatal: false }],
+  )
+
+  await session.setInputEnabled(true)
+  await tick()
+  await f.capture.push(new Uint8Array([1, 0, 2, 0]))
+  await session.setInputEnabled(false)
+  const statuses = () => f.events.filter((event) => event.type === 'turn.ended').map((event) => event.status)
+  for (let i = 0; i < 20 && statuses().length < 2; i++) await tick()
+  assert.deepEqual(statuses(), ['failed', 'completed'])
+  assert.deepEqual(f.messages, [{ message: 'read the reply' }, { message: 'こんにちは' }])
+  assert.deepEqual(f.requests, [text, text])
+  assert.deepEqual(
+    f.events.filter((event) => event.type === 'output.playback').map((event) => event.receipt.state),
+    ['played'],
+  )
+  assert.equal(f.counts().closed, 0)
+  await session.close({ mode: 'drain' })
+})
+
+// Match the two-sentence capture without retaining the private words of that reply.
+test('two final sentences need only one Gemini HTTP body in grouped mode', async () => {
+  const text = 'First sentence. Second sentence.'
+  assert.deepEqual((await runFinal(text)).requests, ['First sentence.', ' Second sentence.'])
+  assert.deepEqual((await runFinal(text, 'bounded')).requests, [text])
 })

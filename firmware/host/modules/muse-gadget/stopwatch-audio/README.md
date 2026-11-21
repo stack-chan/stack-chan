@@ -82,3 +82,36 @@ same native scaling/copy path; only unity volume has the direct-copy fast path.
 The correction changes buffer scheduling, not decoder threading. Worker/C
 migration should follow measured decode/UI stalls rather than substitute for
 correct credit handling.
+
+## Optional sink diagnostics
+
+The setup target emits one numeric `MUSE_SINK` summary per output segment.
+The fields are: phase (1 = drain, 2 = close before drain), input bytes, native
+PCM bytes, first input delay ms, first native write delay ms, elapsed ms,
+maximum input-call interval ms, maximum native-write interval ms, total credit
+wait ms, maximum credit wait ms, full-credit callbacks, maximum credit bytes,
+and remaining staged bytes. Time starts at output creation. All PCM values
+are at the hardware rate of 16 kHz mono S16, after resampling.
+
+The input interval includes time spent waiting for DMA credit; it is not a
+network timing metric. A full-credit callback after PCM has started means
+that the SDK reports all five writable descriptors free, not proof of an
+audible underrun. First-write startup and the intentional seven-descriptor
+silence used by drain are excluded from that count. The final summary excludes
+those silence bytes and their waits. No samples or text are logged.
+
+Worker transport vector 6 measures SSE framing: feed calls, raw bytes passed
+to feed, LF scans, total and maximum LF scan ms, buffer growth/copy ms,
+total and maximum feed ms, and frames dispatched. Feed time includes async
+dispatch and PCM delivery; do not add it to stage or sink time. These are
+monotonic elapsed times, not CPU counters. No samples or text are logged.
+
+The optional `MUSE_SUPPLY` vector estimates how long previously submitted native
+PCM could cover at the nominal 16 kHz, mono S16 clock. Fields: phase, native
+writes, number of gaps ≥2 ms, total gap ms, largest gap ms, shorter rounding
+edges, native bytes. Each arrival adds its entire byte count to the remaining
+playable reserve; long intervals are not gaps while queued PCM still covers
+them. The clock starts at the first real native write. Intentional drain silence
+and time after the last PCM write are excluded. DMA launch phase and actual
+speaker output are not instrumented. This is a scheduling model, not a recording
+or an exact hardware underrun counter.

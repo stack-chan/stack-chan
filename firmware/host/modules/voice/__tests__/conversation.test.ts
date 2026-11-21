@@ -1644,3 +1644,50 @@ test('a slow PCM consumer is cancelled while a synchronous sibling continues rec
   await second.done
   assert.deepEqual(seen, [1, 2])
 })
+
+test('PCM lease snapshots startup reserve and falls back for 16k, default and insufficient direct budget', async () => {
+  const { resetModules } = await import('../../testing/fakes/modules.js')
+  const { createAudioRuntime } = await import('../pcm-device.js')
+  class Input {
+    channels = 1
+    sampleRate = 16000
+    start() {}
+    close() {}
+  }
+  const opened: { rate: number; limit: number; reserve: number | undefined }[] = []
+  resetModules({
+    'audio-in': Input,
+    'stackchan/voice/cores3-pcm-output': {
+      minimumOutputBytes: 8184,
+      openOutput(rate: number, _volume: number, limit: number, _level: unknown, reserve?: number) {
+        opened.push({ rate, limit, reserve })
+        return { write() {}, async drain() {}, close() {}, setVolume() {} }
+      },
+    },
+  })
+  for (const [rate, bytes, selected, expected] of [
+    [24000, 24000, 3, 3],
+    [24000, 20464, 3, 3],
+    [24000, 20462, 3, 1],
+    [16000, 24000, 3, 1],
+    [24000, 24000, 1, 1],
+    [24000, 24000, 0, 1],
+  ]) {
+    let reserve: 1 | 3 = selected === 3 ? 3 : 1
+    const runtime = createAudioRuntime({
+      acquireExclusive: () => () => {},
+      ...(selected ? { startupBlocks: () => reserve } : {}),
+    })
+    const lease = await runtime.acquire(
+      runtime.microphone,
+      runtime.speaker,
+      { input: [mono(16000)], output: [mono(rate)], duplex: 'half' },
+      { ...createVoiceScope(), budget: { maxBufferedMs: 2000, maxBufferedBytes: bytes } },
+    )
+    reserve = 1
+    lease.output.begin('first', 0)
+    assert.equal(opened.at(-1)?.reserve, expected)
+    assert.equal(opened.at(-1)?.limit, bytes - 4096)
+    await lease.close()
+  }
+})

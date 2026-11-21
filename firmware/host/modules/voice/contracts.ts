@@ -55,7 +55,8 @@ export type ProviderItem = {
   readonly provider: string
   readonly value: unknown
 }
-export type InputItem = InputMessage | OutputMessage | FunctionCall | FunctionOutput | ProviderItem
+export type AssistantInputMessage = Omit<OutputMessage, 'id'> & { readonly id?: string }
+export type InputItem = InputMessage | AssistantInputMessage | FunctionCall | FunctionOutput | ProviderItem
 export type OutputItem = OutputMessage | FunctionCall | ProviderItem
 export type FunctionDefinition = {
   readonly type: 'function'

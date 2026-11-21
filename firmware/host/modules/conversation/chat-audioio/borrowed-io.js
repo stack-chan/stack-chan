@@ -19,7 +19,8 @@ export function createBorrowedChatIO(io, options, states, level) {
   const outputBytes = 2 ** Math.floor(Math.log2(Math.min(131072, remaining)))
   if (!(outputBytes > outputRate / 2)) throw new RangeError('Insufficient Chat worker PCM budget')
 
-  const available = new Set(Array.from({ length: slots }, (_, i) => i))
+  const inputSlots = new Int32Array(new SharedArrayBuffer(slots * 4))
+  const inputLengths = new Uint16Array(slots), inputStarted = new Float64Array(slots)
   let generation = 0,
     serial = 0,
     active,
@@ -36,12 +37,13 @@ export function createBorrowedChatIO(io, options, states, level) {
     state: states.DISCONNECTED,
     microphone: true,
     inputBuffer: new SharedArrayBuffer(nativeInput ? 2 : slotBytes * slots),
+    inputSlotState: inputSlots.buffer,
     outputBuffer: new SharedArrayBuffer(outputBytes),
     barrier: new Int32Array(new SharedArrayBuffer(8)),
     inputSampleRate: media.input.format.sampleRate,
     outputSampleRate: media.output.format.sampleRate,
     releaseInputSlot(slot) {
-      if (Number.isInteger(slot) && slot >= 0 && slot < slots) available.add(slot)
+      if (Number.isInteger(slot) && slot >= 0 && slot < slots) Atomics.store(inputSlots, slot, 0)
     },
     ensureInput() {
       if (subscription || io.voiceClosed) return
@@ -51,9 +53,24 @@ export function createBorrowedChatIO(io, options, states, level) {
           if (!io.microphone || io.state !== states.SPEAKING || io.voiceClosed) return
           options.onInputLevelChanged?.(level(bytes))
           if (nativeInput) return io.writeNativeInput(bytes)
-          if (bytes.length > slotBytes || !available.size) throw new Error('Chat input overrun')
-          const slot = available.values().next().value
-          available.delete(slot)
+          if (bytes.length > slotBytes) throw new Error('Chat input overrun: frame too large')
+          let slot = -1
+          for (let candidate = 0; candidate < slots; candidate++) {
+            if (Atomics.compareExchange(inputSlots, candidate, 0, 1) === 0) { slot = candidate; break }
+          }
+          if (slot < 0) {
+            const now = Date.now()
+            let held = 0, age = 0
+            for (let candidate = 0; candidate < slots; candidate++) {
+              if (Atomics.load(inputSlots, candidate)) {
+                held += inputLengths[candidate]
+                age = Math.max(age, now - inputStarted[candidate])
+              }
+            }
+            throw new Error(`Chat input overrun: slots exhausted bytes=${held} frame=${bytes.length} age=${age}`)
+          }
+          inputLengths[slot] = bytes.length
+          inputStarted[slot] = Date.now()
           new Uint8Array(io.inputBuffer, slot * slotBytes, bytes.length).set(bytes)
           io.worker.postMessage({ id: 'sendAudio', slot, offset: slot * slotBytes, size: bytes.length, channels: 1 })
         },

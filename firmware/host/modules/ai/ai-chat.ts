@@ -45,7 +45,7 @@ function messages(request: ResponseRequest, provider: string): WireMessage[] {
       result.push({
         role: 'assistant',
         content: item.content.map((p) => (p.type === 'refusal' ? p.refusal : p.text)).join(''),
-        extra_content: extra.get(item.id),
+        extra_content: item.id === undefined ? undefined : extra.get(item.id),
       })
     } else {
       result.push({

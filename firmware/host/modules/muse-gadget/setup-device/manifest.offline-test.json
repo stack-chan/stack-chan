@@ -3,6 +3,7 @@
     "NAME": "muse-cascaded-offline-test"
   },
   "include": [
+    "./manifest-buffered-playback.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_piu.json",
     "../pairing/manifest.json",
@@ -14,6 +15,7 @@
     "$(MODDABLE)/modules/piu/MC/colorcell"
   ],
   "modules": {
+    "muse-native-speech-enabled": "./native-speech-disabled",
     "main": "../__tests__/cascaded-device/main",
     "muse-caption-layout": "./caption-layout",
     "muse-talk-controls": "./talk-controls",
@@ -40,7 +42,11 @@
     "kasane-frames": "./kasane-frames",
     "audio-in": "../__tests__/cascaded-device/silent-input",
     "muse-response-expression": "./response-expression",
-    "offline-heap": "../__tests__/cascaded-device/heap"
+    "offline-heap": "../__tests__/cascaded-device/heap",
+    "muse-stopwatch-levels": [
+      "../stopwatch-audio/levels.js",
+      "$(MODULES)/network/services/chatAudioIO/ChatAudioIO.c"
+    ]
   },
   "resources": {
     "*-color": [
@@ -119,9 +125,7 @@
       "./assets/kasane-sad-eyes-8",
       "./assets/kasane-sad-mouth-8"
     ],
-    "*-alpha": [
-      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"
-    ],
+    "*-alpha": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"],
     "*-mask": [
       {
         "source": "../../ui/assets/fonts/k8x12",

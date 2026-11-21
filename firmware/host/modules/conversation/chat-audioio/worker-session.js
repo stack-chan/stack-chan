@@ -1,5 +1,6 @@
 export function startWorkerSession(self, Model, configuration) {
   const pending = []
+  const inputSlots = configuration.inputSlotState && new Int32Array(configuration.inputSlotState)
   let requested = 0,
     written = 0,
     socket,
@@ -9,9 +10,13 @@ export function startWorkerSession(self, Model, configuration) {
     if (!stopped) self.postMessage({ id: 'failed', string: message })
     stopped = true
   }
+  function consumed(slot) {
+    if (inputSlots) Atomics.store(inputSlots, slot, 0)
+    else self.postMessage({ id: 'audioConsumed', slot })
+  }
   function release() {
     while (pending.length && pending[0].through <= written)
-      self.postMessage({ id: 'audioConsumed', slot: pending.shift().slot })
+      consumed(pending.shift().slot)
   }
   class WorkerModel extends Model {
     get ws() {
@@ -72,9 +77,13 @@ export function startWorkerSession(self, Model, configuration) {
       dispatch(message)
       // Deepgram can queue a view into the shared input buffer. Keep its slot
       // borrowed until the actual socket has accepted every byte for this packet.
-      if (message.id === 'sendAudio') {
-        pending.push({ through: requested, slot: message.slot })
-        release()
+      if (message.id === 'sendAudio' && !stopped) {
+        if (configuration.workerSpecifier === 'googleGeminiLive') {
+          consumed(message.slot)
+        } else {
+          pending.push({ through: requested, slot: message.slot })
+          release()
+        }
       }
     } catch (error) {
       fail(String(error))

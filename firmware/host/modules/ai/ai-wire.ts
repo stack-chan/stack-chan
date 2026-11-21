@@ -12,7 +12,10 @@ export type SendResponseRequest = (
 ) => Promise<void>
 
 export class ImageURL {
-  constructor(readonly image: Image) {}
+  readonly image: Image
+  constructor(image: Image) {
+    this.image = image
+  }
 }
 
 export function jsonBody(value: unknown, maxBytes: number): Body {
@@ -106,12 +109,22 @@ export function consumeSSE(maxBytes: number, scope: Scope, receive: (json: strin
       offset = end
       if (newline < 0) continue
       if (count - lineStart === 1 || (count - lineStart === 2 && buffer[lineStart] === 13)) {
-        const data = String.fromArrayBuffer(buffer.buffer.slice(0, lineStart))
-          .split('\n')
-          .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trimStart())
-          .join('\n')
+        // The usual audio event is one data line. Do not allocate a string array
+        // (and several mapped copies) containing its large Base64 payload.
+        let data = ''
+        const text = String.fromArrayBuffer(buffer.buffer.slice(0, lineStart))
+        let start = 0,
+          fields = 0
+        while (start < text.length) {
+          const newline = text.indexOf('\n', start)
+          const next = newline < 0 ? text.length : newline
+          const end = text.charCodeAt(next - 1) === 13 ? next - 1 : next
+          if (text.startsWith('data:', start)) {
+            const value = text.slice(start + 5, end).trimStart()
+            data = fields++ ? data + '\n' + value : value
+          }
+          start = next + 1
+        }
         if (data && data !== '[DONE]') await receive(data)
         checkScope(scope)
         count = 0

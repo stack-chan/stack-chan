@@ -19,7 +19,7 @@ registerHooks({
       return {
         shortCircuit: true,
         format: 'module',
-        source: stripTypeScriptTypes(readFileSync(new URL(url), 'utf8'), { mode: 'transform' }),
+        source: stripTypeScriptTypes(readFileSync(new URL(url), 'utf8'), { mode: 'strip' }),
       }
     return next(url, context)
   },
@@ -71,7 +71,7 @@ test('STT emits lazy WAV base64 with verbatim Japanese config and parses only mo
     mode: { type: 'verbatim' },
   })
   assert.equal(sent.value.input[0].mime_type, 'audio/wav')
-  assert.ok(sent.chunks.every((chunk) => chunk.length <= 1024))
+  assert.ok(sent.chunks.every((chunk) => chunk.length <= 4096))
   const wave = Buffer.from(sent.value.input[0].data, 'base64')
   assert.equal(wave.subarray(0, 4).toString(), 'RIFF')
   assert.equal(wave.readUInt32LE(24), 16000)
@@ -219,7 +219,7 @@ test('TTS bounds PCM slices, preserves odd delta boundaries and awaits backpress
   assert.equal(progressed, false)
   pending.resolve()
   await end
-  assert.ok(received.every((chunk) => chunk.length <= 1024 && chunk.length % 2 === 0))
+  assert.ok(received.every((chunk) => chunk.length <= 4096 && chunk.length % 2 === 0))
   assert.equal(f.heard.length, 4096)
   assert.equal(f.heard[0], 1)
   await f.result.close()
@@ -305,7 +305,7 @@ test('total safety deadline during consumer backpressure cannot deliver the rema
   const f = await synthesis(
     async (_, consume) => {
       try {
-        await consume(sse(audio(new Uint8Array(4096))))
+        await consume(sse(audio(new Uint8Array(8192))))
       } finally {
         transportEnded.resolve()
       }
@@ -328,7 +328,7 @@ test('total safety deadline during consumer backpressure cannot deliver the rema
   pending.resolve()
   await transportEnded.promise
   assert.equal(writes, 1)
-  assert.equal(f.heard.length, 1024)
+  assert.equal(f.heard.length, 4096)
   await f.result.close()
 })
 
@@ -448,7 +448,7 @@ test('native decoder uses strict mode and preserves odd deltas, PCM order and bo
         await f.result.endInput()
         assert.deepEqual(f.heard, [...expected])
         assert.deepEqual(calls, [{ lastChunkHandling: 'strict' }, { lastChunkHandling: 'strict' }])
-        assert.ok(offers.every((size) => size > 0 && size <= 1024 && size % 2 === 0))
+        assert.ok(offers.every((size) => size > 0 && size <= 4096 && size % 2 === 0))
       } finally {
         await f.result.close()
       }
@@ -457,12 +457,12 @@ test('native decoder uses strict mode and preserves odd deltas, PCM order and bo
 })
 
 for (const data of ['AA=\n', 'AAAAAAA\n', 'AA A', 'AA=A', 'A===', 'AB==', 'AAB=']) {
-  test(`invalid base64 is rejected before native decode: ${JSON.stringify(data)}`, async () => {
-    let calls = 0
+  test(`invalid base64 is rejected without emitting PCM: ${JSON.stringify(data)}`, async () => {
     await withNativeDecoder(
       (value) => {
-        calls++
-        return new Uint8Array(Buffer.from(value, 'base64'))
+        const decoded = Buffer.from(value, 'base64')
+        if (decoded.toString('base64') !== value) throw new SyntaxError('invalid base64')
+        return new Uint8Array(decoded)
       },
       async () => {
         const f = await synthesis(async (_, consume) => {
@@ -472,7 +472,6 @@ for (const data of ['AA=\n', 'AAAAAAA\n', 'AA A', 'AA=A', 'A===', 'AB==', 'AAB='
         try {
           await f.result.write('invalid fixture')
           await assert.rejects(f.result.endInput(), { code: 'provider_failed' })
-          assert.equal(calls, 0)
           assert.deepEqual(f.heard, [])
         } finally {
           await f.result.close()
@@ -520,7 +519,7 @@ test('native PCM decode respects backpressure and cancellation suppresses its re
         transportEnded = deferred()
       const f = await synthesis(async (_, consume) => {
         try {
-          await consume(sse(audio(new Uint8Array(4096))))
+          await consume(sse(audio(new Uint8Array(8192))))
         } finally {
           transportEnded.resolve()
         }
@@ -545,7 +544,7 @@ test('native PCM decode respects backpressure and cancellation suppresses its re
         pending.resolve()
         await transportEnded.promise
         assert.equal(calls, 1)
-        assert.equal(f.heard.length, 1024)
+        assert.equal(f.heard.length, 4096)
       } finally {
         pending.resolve()
         await f.result.close()
@@ -565,4 +564,187 @@ test('SSE handles CRLF and multiple data lines without changing decoded PCM', as
   await f.result.endInput()
   assert.deepEqual(f.heard, [1, 0, 2, 0])
   await f.result.close()
+})
+
+test('TTS failure diagnostics expose only fixed categories, not exception contents', async () => {
+  for (const [message, expected] of [
+    ['Responses connection closed early', 9],
+    ['Responses connection failed: private-token', 11],
+    ['Responses HTTP 503', 12],
+    ['private utterance and key', 0],
+  ]) {
+    const reasons = []
+    const tts = await GeminiSpeechTTS.create({
+      request: async () => {
+        throw new Error(message)
+      },
+      onFailure: (reason) => reasons.push(reason),
+    }).open({ ...createVoiceScope(), format: mono(24000) })
+    await tts.write('hello')
+    await assert.rejects(tts.flush())
+    assert.deepEqual(reasons, [expected])
+    await tts.close()
+  }
+})
+
+test('TTS rejects a runtime without native Base64 decoding without emitting PCM', async () => {
+  await withNativeDecoder(undefined, async () => {
+    const f = await synthesis(async (_, consume) => {
+      await consume(sse(audio([1, 0])))
+      await consume(sse(complete))
+    })
+    try {
+      await f.result.write('unsupported runtime')
+      await assert.rejects(f.result.endInput(), { code: 'unsupported_capability' })
+      assert.deepEqual(f.heard, [])
+    } finally {
+      await f.result.close()
+    }
+  })
+})
+
+test('short synthetic STT release traverses a bounded number of loopback writes', async (t) => {
+  const { createServer, request } = await import('node:http')
+  const { once } = await import('node:events')
+  const pcm = Uint8Array.from({ length: 48000 }, (_, i) => (17 * i + 3) & 255)
+  const reply = JSON.stringify(transcript('おはようございます'))
+  let times, posted, transcriptText
+  const server = createServer(async (req, res) => {
+    const chunks = []
+    for await (const part of req) chunks.push(part)
+    times.peerReceived = performance.now()
+    posted = JSON.parse(Buffer.concat(chunks).toString())
+    res.end(reply)
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  t.after(() => {
+    server.closeAllConnections()
+    server.close()
+  })
+  const observations = []
+  for (let i = 0; i < (process.env.STT_BENCH ? 12 : 1); i++) {
+    let writes = 0
+    times = {}
+    const stt = await GeminiTranscribeSTT.create({
+      request: (body, consume) =>
+        new Promise((resolve, reject) => {
+          times.startRequest = performance.now()
+          const req = request(
+            {
+              method: 'POST',
+              host: '127.0.0.1',
+              port: server.address().port,
+              headers: { 'content-length': body.length, connection: 'close' },
+            },
+            async (res) => {
+              times.firstResponse = performance.now()
+              try {
+                for await (const part of res) await consume(part)
+                resolve()
+              } catch (error) {
+                reject(error)
+              }
+            },
+          )
+          req.on('error', reject)
+          let encodeMs = 0
+          const iter = body.read()[Symbol.iterator]()
+          while (true) {
+            const tick = performance.now()
+            const part = iter.next()
+            encodeMs += performance.now() - tick
+            if (part.done) break
+            assert.ok(part.value.length <= 4096)
+            req.write(part.value)
+            writes++
+          }
+          times.encodeMs = encodeMs
+          req.end()
+        }),
+    }).open({
+      ...createVoiceScope(),
+      format: mono(16000),
+      utteranceId: 'u',
+      onTranscript: (event) => {
+        times.final = performance.now()
+        transcriptText = event.text
+      },
+    })
+    await writeSink(stt.input, pcm)
+    times.release = performance.now()
+    await stt.finish()
+    await stt.close()
+    assert.equal(transcriptText, 'おはようございます')
+    assert.deepEqual(Buffer.from(posted.input[0].data, 'base64').subarray(44), Buffer.from(pcm))
+    observations.push({
+      prepare: times.startRequest - times.release,
+      encode: times.encodeMs,
+      uploadIncludingEncode: times.peerReceived - times.startRequest,
+      mockWait: times.firstResponse - times.peerReceived,
+      parse: times.final - times.firstResponse,
+      total: times.final - times.release,
+      writes,
+    })
+  }
+  if (process.env.STT_BENCH) {
+    const warm = observations.slice(1)
+    const medians = Object.fromEntries(
+      Object.keys(warm[0]).map((k) => [
+        k,
+        +warm
+          .map((v) => v[k])
+          .sort((a, b) => a - b)[5]
+          .toFixed(3),
+      ]),
+    )
+    t.diagnostic(JSON.stringify(medians))
+  }
+  // TLS writes are significant on the wearable, even when the peer is ready.
+  if (typeof Uint8Array.prototype.toBase64 === 'function')
+    assert.ok(
+      observations.every((v) => v.writes <= 18),
+      'a 1.5 s utterance should use at most 18 bounded writes',
+    )
+})
+
+test('STT timing contains only byte count and stage durations, including a tick wrap', async () => {
+  let tick = 0xfffffff0
+  const metrics = []
+  const stt = await GeminiTranscribeSTT.create({
+    timing: { now: () => tick >>> 0, emit: (fields) => metrics.push(fields) },
+    request: async (body, consume) => {
+      tick += 7
+      const parts = body.read()[Symbol.iterator]()
+      parts.next()
+      tick += 11
+      for (const _ of parts) {}
+      tick += 23
+      await consume(bytes(JSON.stringify(transcript('test'))))
+      tick += 2
+    },
+  }).open({ ...createVoiceScope(), format: mono(16000), utteranceId: 'u', onTranscript() {} })
+  await writeSink(stt.input, new Uint8Array(16))
+  await stt.finish()
+  await stt.close()
+  assert.deepEqual(metrics, [[16, 7, 11, 23, 2]])
+})
+
+test('WAV base64 pads only at the end across exact native block boundaries', async () => {
+  for (const length of [2, 3026, 3028, 3030, 6098, 6100, 6102]) {
+    const pcm = Uint8Array.from({ length }, (_, i) => (i * 31 + (i >>> 6)) & 255)
+    const stt = await GeminiTranscribeSTT.create({
+      request: async (body, consume) => {
+        const data = bodyJSON(body).value.input[0].data
+        const wave = Buffer.from(data, 'base64')
+        assert.equal(data, wave.toString('base64'))
+        assert.equal(wave.readUInt32LE(40), length)
+        assert.deepEqual(wave.subarray(44), Buffer.from(pcm))
+        await consume(bytes(JSON.stringify(transcript('ok'))))
+      },
+    }).open({ ...createVoiceScope(), format: mono(16000), utteranceId: 'u', onTranscript() {} })
+    await writeSink(stt.input, pcm)
+    await stt.finish()
+    await stt.close()
+  }
 })

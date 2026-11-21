@@ -1,6 +1,6 @@
 import Modules from 'modules'
 import type AudioOutput from 'pins/audioout'
-import type { AudioSink, DuplexLease, PcmFormat, PlaybackReceipt } from 'stackchan/voice/contracts'
+import type { DuplexLease, PcmFormat, PlaybackReceipt, PlaybackSegment } from 'stackchan/voice/contracts'
 import { pcmLevel } from 'stackchan/voice/levels'
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
@@ -198,7 +198,7 @@ function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions, s
     capture()
     return receipt
   }
-  function begin(id: string, epoch: number): AudioSink {
+  function begin(id: string, epoch: number): PlaybackSegment {
     if (closed || epoch !== generation) throw voiceError('cancelled')
     if (active) throw voiceError('device_busy')
     stopMic()
@@ -243,7 +243,13 @@ function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions, s
             onFailure(error)
           }
         }
-        return Object.assign(createPcmSink(outputFormat, write), { writeBorrowed: write })
+        return Object.assign(createPcmSink(outputFormat, write), {
+          writeBorrowed: write,
+          allowStreaming: direct.allowStreaming && (() => {
+            if (active !== item || item.sealed) throw voiceError('cancelled')
+            direct.allowStreaming?.()
+          }),
+        })
       }
       out = new AudioOut({ streams: 1, sampleRate: outputFormat.sampleRate, bitsPerSample: 16, numChannels: 1 })
       const driver = out

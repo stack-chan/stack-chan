@@ -1,6 +1,6 @@
 # StopWatch: opt-in native Gemini speech synthesis
 
-For local evaluation only. The regular StopWatch setup target, Gemini STT and OpenAI speech retain their existing transports. From the configured firmware build environment:
+The opt-in StopWatch build uses native HTTPS for Gemini speech synthesis. From the configured firmware build environment:
 
     node scripts/build-muse-native-device.mjs --setup-native-speech
 
@@ -12,7 +12,11 @@ The existing worker retains ownership of SSE validation, audio ring credits and 
 
 The caller observes its deadline even while the network task is inside DNS, TCP connect or TLS handshake. Before the HTTP client exposes a socket, cancellation cannot interrupt the SDK call: the native gate remains occupied until it returns. The configured five-second socket timeout is not a five-second upper bound on DNS plus handshake or on native cleanup. During established exchanges the watchdog can interrupt the current socket. A replacement request while cleanup is pending fails closed and is not automatically sent.
 
-Before enabling by default, measure short and long replies against the current transport with the same network fixture and user-visible audio buffer. Track first audio and starvation independently. Test paced and interrupted streams, absence of completion, delayed headers, timeouts and cancellation followed by a fresh turn, certificate/hostname rejection, back-to-back segments and internal heap recovery. Do not use a real credential on a fixture host or disable peer verification.
+## Live playback on StopWatch
+
+Gemini returns 24 kHz mono PCM. The device resamples to 16 kHz and buffers the reply in PSRAM. For replies split across multiple TTS requests, playback can start when the final request has supplied PCM and at least 35 seconds of audio are buffered. ESP-IDF allocates TLS record buffers as needed so the device can open I²S while that request is active. If opening the output fails before playback starts, the device retries after synthesis finishes.
+
+On 2026-11-21, the same two spoken requests went through the StopWatch microphone, live Gemini STT, Muse and Gemini TTS on release builds. Each long reply used two TTS requests. Time from release to the first I²S audio was 77.0–80.4 seconds with full buffering and 53.2–62.0 seconds with early playback. In the early-playback runs, the first samples preceded final TTS completion by 15.1–16.2 seconds. All four long replies had zero I²S underruns. Both early-playback conversations completed two long turns and a third short turn without restarting. Release-to-STT completion was 4.66–5.45 seconds before and 4.52–5.28 seconds after. The prompt audio was matched; generated reply text and service timing varied.
 
 
 ## StopWatch fixture measurements (ESP32-S3, 2026-11-18)

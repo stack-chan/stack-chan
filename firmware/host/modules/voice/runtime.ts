@@ -7,7 +7,8 @@ export type { LeaseFactory, LeaseOptions, RuntimeOptions } from './runtime-types
 export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory) {
   let reserved = false
   const runtime: AudioRuntime = {
-    async acquire(microphone, speaker, requirements, { budget, signal, onLevel }) {
+    async acquire(microphone, speaker, requirements, { budget, signal, onLevel: requestedLevel }) {
+      const onLevel = options.emitLevels === false ? undefined : requestedLevel
       requireActive(signal)
       if (microphone !== mic || speaker !== spk) throw voiceError('unsupported_capability', 'unpaired audio ports')
       if (reserved) throw voiceError('device_busy')

@@ -1,0 +1,12 @@
+{
+  "build": { "NAME": "guruguru-avatar-device" },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json"
+  ],
+  "modules": {
+    "*": "./main",
+    "guruguru-avatar": "../avatar",
+    "guruguru-view": "../view"
+  }
+}

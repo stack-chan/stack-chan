@@ -1,0 +1,78 @@
+--- a/modules/embedded/io/audio/out/esp32/audioout-esp32.c
++++ b/modules/embedded/io/audio/out/esp32/audioout-esp32.c
+@@ -73,7 +73,13 @@
+ typedef struct AudioOutRecord AudioOutRecord;
+ typedef struct AudioOutRecord *AudioOut;
+ 
++#ifdef MODDEF_MUSE_AUDIO_DIAGNOSTICS
++#include <stdio.h>
++#endif
+ struct AudioOutRecord {
++#ifdef MODDEF_MUSE_AUDIO_DIAGNOSTICS
++    uint32_t diagTicks, diagEmpty, diagWrites, diagBytes, diagPartial, diagMaxGap, diagLastTick;
++#endif
+ 	xsSlot				obj;
+ 	uint32_t			total_dma_buf_size;
+ 	uint32_t			dma_buf_size;
+@@ -144,6 +150,12 @@
+ 	gPDMAudioOutBusy = 0;
+ #endif
+ 
++#ifdef MODDEF_MUSE_AUDIO_DIAGNOSTICS
++    printf("MUSE_DMA ticks_%lu_empty_%lu_writes_%lu_bytes_%lu_partial_%lu_gap_%lu\n",
++        (unsigned long)audioOut->diagTicks, (unsigned long)audioOut->diagEmpty,
++        (unsigned long)audioOut->diagWrites, (unsigned long)audioOut->diagBytes,
++        (unsigned long)audioOut->diagPartial, (unsigned long)audioOut->diagMaxGap);
++#endif
+ 	while (audioOut->elements) {
+ 		AudioOutElement element = audioOut->elements, next = element->next;
+ 		c_free(element);
+@@ -599,6 +611,12 @@
+ 	if (bytesWritable > audioOut->total_dma_buf_size)
+ 		audioOut->bytesWritable = audioOut->total_dma_buf_size;
+ 
++#ifdef MODDEF_MUSE_AUDIO_DIAGNOSTICS
++    if (audioOut->diagWrites) {
++        audioOut->diagTicks++;
++        if (bytesWritable >= audioOut->total_dma_buf_size) audioOut->diagEmpty++;
++    }
++#endif
+ 	if (audioOut->elements) {
+ 		AudioOutElement walker;
+ 		uint32_t bytesAvailable = 0;
+@@ -741,7 +759,16 @@
+ 				err = i2s_channel_write(audioOut->tx_handle, src, audioOut->dma_buf_size, &bytes_written, kTimeout);
+ 			else
+ 				err = i2s_channel_preload_data(audioOut->tx_handle, src, audioOut->dma_buf_size, &bytes_written);
+-			__atomic_fetch_sub(&audioOut->bytesWritable, audioOut->dma_buf_size, __ATOMIC_SEQ_CST);
++			#ifdef MODDEF_MUSE_AUDIO_DIAGNOSTICS
++            uint32_t now = (uint32_t)xTaskGetTickCount();
++            uint32_t gap = (now - audioOut->diagLastTick) * portTICK_PERIOD_MS;
++            if (audioOut->diagWrites && gap > audioOut->diagMaxGap) audioOut->diagMaxGap = gap;
++            audioOut->diagLastTick = now;
++            audioOut->diagWrites++;
++            audioOut->diagBytes += bytes_written;
++            if (bytes_written != audioOut->dma_buf_size) audioOut->diagPartial++;
++#endif
++            __atomic_fetch_sub(&audioOut->bytesWritable, audioOut->dma_buf_size, __ATOMIC_SEQ_CST);
+ 			src += audioOut->dma_buf_size;
+ 			requested -= audioOut->dma_buf_size;
+ 		}
+@@ -770,7 +797,16 @@
+ 					err = i2s_channel_write(audioOut->tx_handle, audioOut->stagingBuffer, audioOut->dma_buf_size, &bytes_written, kTimeout);
+ 				else
+ 					err = i2s_channel_preload_data(audioOut->tx_handle, audioOut->stagingBuffer, audioOut->dma_buf_size, &bytes_written);
+-				__atomic_fetch_sub(&audioOut->bytesWritable, audioOut->dma_buf_size, __ATOMIC_SEQ_CST);
++				#ifdef MODDEF_MUSE_AUDIO_DIAGNOSTICS
++            uint32_t now = (uint32_t)xTaskGetTickCount();
++            uint32_t gap = (now - audioOut->diagLastTick) * portTICK_PERIOD_MS;
++            if (audioOut->diagWrites && gap > audioOut->diagMaxGap) audioOut->diagMaxGap = gap;
++            audioOut->diagLastTick = now;
++            audioOut->diagWrites++;
++            audioOut->diagBytes += bytes_written;
++            if (bytes_written != audioOut->dma_buf_size) audioOut->diagPartial++;
++#endif
++            __atomic_fetch_sub(&audioOut->bytesWritable, audioOut->dma_buf_size, __ATOMIC_SEQ_CST);
+ 				audioOut->stagingOffset = 0;
+ 			}
+ 		}

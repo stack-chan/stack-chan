@@ -1,0 +1,7 @@
+{
+  "modules": {
+    "muse-setup/coordinator": "./coordinator",
+    "muse-setup/prompt": "./prompt",
+    "muse-setup/conversation-owner": "./conversation-owner"
+  }
+}

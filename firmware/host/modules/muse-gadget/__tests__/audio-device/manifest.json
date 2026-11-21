@@ -1,0 +1,20 @@
+{
+  "build": {
+    "NAME": "muse-audio-device"
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json",
+    "../../stopwatch-audio/manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "stackchan/voice/device": "../../../voice/pcm-device",
+    "stackchan/voice/runtime": "../../../voice/runtime",
+    "stackchan/voice/scope": "../../../voice/scope",
+    "stackchan/voice/media": "../../../voice/media",
+    "stackchan/voice/levels": "../../../voice/levels",
+    "stackchan/voice/contracts": "../../../voice/contracts"
+  }
+}

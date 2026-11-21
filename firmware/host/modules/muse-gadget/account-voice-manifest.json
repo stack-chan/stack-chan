@@ -1,0 +1,18 @@
+{
+  "include": [
+    "./voice-manifest.json",
+    "./native/pairing-manifest.json",
+    "./wifi-privacy/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/dns/resolver/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/ntp/client/manifest.json",
+    "$(MODDABLE)/modules/embedded/io/socket/manifest.json"
+  ],
+  "modules": {
+    "muse-account-voice": "./voice-account-client",
+    "muse-account-native": "./native/account-voice",
+    "muse-setup/account-network": "./setup/account-network",
+    "muse-setup/device-account-network": "./setup/device-account-network",
+    "*": ["./native/account-wifi.c"]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "include": [
+    "./voice-native-manifest.json",
+    "$(MODULES)/data/text/encoder/manifest.json",
+    "$(MODULES)/data/text/decoder/manifest.json"
+  ],
+  "modules": {
+    "muse-voice": "./voice-client",
+    "muse-voice-bridge": "./voice-bridge",
+    "muse-voice-conversation": "./voice-conversation",
+    "stackchan/voice/media": "../voice/media",
+    "stackchan/voice/scope": "../voice/scope",
+    "stackchan/voice/contracts": "../voice/contracts",
+    "rng": "$(MODULES)/crypt/etc/rng",
+    "time": "$(MODULES)/base/time/time",
+    "timer": "$(MODULES)/base/timer/timer"
+  }
+}

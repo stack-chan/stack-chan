@@ -1,0 +1,6 @@
+{
+  "modules": {
+    "audio-in": "./input",
+    "stackchan/voice/cores3-pcm-output": "./output"
+  }
+}

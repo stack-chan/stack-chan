@@ -1,0 +1,31 @@
+{
+  "modules": {
+    "muse-pairing-native": "./pairing-native",
+    "*": [
+      "./account-session-core.h",
+      "./account-nvs.h",
+      "./setup-metadata-core.h",
+      "./account-owner.h",
+      "./account-worker.h",
+      "./account-wifi-driver.h",
+      "./sdk-token-store.h",
+      "./sdk-provision-core.h",
+      "../../../../vendor/muse-gadget-sdk/pairing/main/link_pairing.h",
+      "../../../../vendor/muse-gadget-sdk/pairing/managed_components/espressif__cjson/cJSON/cJSON.h"
+    ]
+  },
+  "platforms": {
+    "esp32": {
+      "dependency": [
+        {
+          "name": "stackchan_muse_pairing",
+          "idf": "stackchan_muse_pairing"
+        }
+      ],
+      "esp32Config": {
+        "CONFIG_LIBC_NEWLIB_NANO_FORMAT": "n",
+        "CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS": "y"
+      }
+    }
+  }
+}

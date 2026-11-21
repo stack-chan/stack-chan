@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/modules/network/ble/manifest_server.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json",
+    "$(MODDABLE)/modules/data/text/decoder/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json",
+    "../wifi-privacy/manifest.json"
+  ],
+  "modules": {
+    "muse-pairing/framing": "./framing",
+    "muse-pairing/session": "./session",
+    "muse-pairing/peripheral": "./peripheral",
+    "muse-pairing/notify": "./notify",
+    "muse-pairing/wifi-scan": "./wifi-scan",
+    "muse-pairing/device-wifi-scan": "./device-wifi-scan"
+  },
+  "ble": {
+    "*": "./bleservices/*"
+  }
+}

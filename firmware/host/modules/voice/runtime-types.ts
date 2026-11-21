@@ -22,6 +22,7 @@ export type RuntimeOptions = {
   acquireExclusive: () => () => void
   openNativeLease?: LeaseFactory
   volume?: number
+  emitLevels?: boolean
 }
 
 export type PairedAudioRuntime = AudioRuntime & { microphone: Microphone; speaker: Speaker }

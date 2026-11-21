@@ -6,15 +6,22 @@ import type {
   DuplexLease,
   InputMessage,
   PipelineOptions,
+  PipelineStartStage,
   Scope,
 } from 'stackchan/voice/contracts'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
 
 export function createConversationPipeline(options: PipelineOptions): ConversationPipeline {
   const { microphone, speaker, conversation } = options
+  const diagnostic = (stage: PipelineStartStage) => {
+    try {
+      options.onDiagnostic?.(stage)
+    } catch {}
+  }
   let startTask: Promise<void> | undefined
   let started = false
   let closeTask: Promise<CloseResult> | undefined
+  let terminalResult: CloseResult | undefined
   let lease: DuplexLease | undefined
   let session: ConversationSession | undefined
   let scope: ReturnType<typeof createVoiceScope>
@@ -47,7 +54,7 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
         scope?.abort()
         await gate.catch(() => {})
         await release()
-        return result ?? { reason: 'aborted' as const, remoteFinalization: 'not-required' as const }
+        return result ?? terminalResult ?? { reason: 'aborted' as const, remoteFinalization: 'not-required' as const }
       })
       .finally(() => scope?.dispose())
     return closeTask
@@ -60,6 +67,7 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
         requireActive(scope.signal)
         if (!microphone || !speaker || microphone.runtime !== speaker.runtime)
           throw voiceError('unsupported_capability', 'microphone and speaker must share a runtime')
+        diagnostic('audio_acquire')
         lease = await microphone.runtime.acquire(microphone, speaker, conversation.audio, {
           budget: options.mediaBudget ?? { maxBufferedMs: 250, maxBufferedBytes: 24000 },
           signal: scope.signal,
@@ -74,13 +82,33 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
             }),
         })
         requireActive(scope.signal)
+        diagnostic('audio_ready')
         if (volume !== undefined) lease.setVolume(volume)
-        if (muted) await lease.setInputEnabled(false)
+        if (muted) {
+          diagnostic('audio_mute')
+          await lease.setInputEnabled(false)
+        }
+        diagnostic('conversation_open')
         session = await conversation.open({
           media: { input: lease.input, output: lease.output, media: lease.media },
           history: options.history ?? [],
           signal: scope.signal,
           onEvent(event) {
+            if (event.type === 'session.ended') {
+              if (terminalResult) return
+              terminalResult = event.result
+              void close({ mode: event.result.reason === 'drained' ? 'drain' : 'abort' })
+                .then(
+                  () => {
+                    options.onEvent?.(event)
+                  },
+                  () => {
+                    options.onEvent?.({ type: 'error', code: 'provider_failed', fatal: true })
+                  },
+                )
+                .catch(() => {})
+              return
+            }
             try {
               options.onEvent?.(event)
             } finally {
@@ -89,9 +117,12 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
           },
         })
         requireActive(scope.signal)
+        diagnostic('conversation_ready')
+        diagnostic('input_gate')
         await applyMute(muted)
         requireActive(scope.signal)
         started = true
+        diagnostic('ready')
       })
       .catch(async (error) => {
         scope.abort(error)

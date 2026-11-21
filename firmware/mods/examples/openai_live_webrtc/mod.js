@@ -25,6 +25,9 @@ export function onContextCreated(robot) {
   const { LiveConversation } = Modules.importNow('realtimeConversation', true)
   const power = Modules.importNow('network-power')
   const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
+  const uiPerformance = Modules.has('stackchan/realtime-ui-performance')
+    ? Modules.importNow('stackchan/realtime-ui-performance')
+    : undefined
   const drawer = robot.ui.drawer
   const settings = (Modules.has('mod/config') ? Modules.importNow('mod/config').openaiLive : undefined) ?? {}
   const microphone = robot.audio.microphone
@@ -61,6 +64,7 @@ export function onContextCreated(robot) {
     afterWake(coordinator.disable())
   }
   let changingMute = false
+  let releaseUI
   let mouthTimer,
     lastMouth = 0
   function updateMouth(value) {
@@ -86,6 +90,16 @@ export function onContextCreated(robot) {
     settings,
     onState(state) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
+      try {
+        if (state === 'connected' && !releaseUI) releaseUI = uiPerformance?.acquire()
+        else if (!active && releaseUI) {
+          const release = releaseUI
+          releaseUI = undefined
+          release()
+        }
+      } catch {
+        trace('[openai-live] realtime UI scheduling failed\n')
+      }
       if (state === 'connected' && mouthTimer === undefined && levels && robot.setMouthOpen) {
         mouthTimer = Timer.repeat(() => {
           const level = levels.levels().referenceLevel ?? 0

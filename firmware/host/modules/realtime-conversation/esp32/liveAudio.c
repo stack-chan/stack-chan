@@ -84,6 +84,10 @@ extern int stackchanInstallOpusPolicy(void);
 #define DMA_BLOCKS 3
 #define CAPTURE_BYTES 6400
 #define PLAYBACK_BYTES 19200
+#if defined(MODDEF_LIVEAUDIO_PREFILL) && MODDEF_LIVEAUDIO_PREFILL
+#define PLAYBACK_PREFILL_BLOCKS (MODDEF_LIVEAUDIO_PREFILL / 10)
+#define PLAYBACK_RESET_BLOCKS 20
+#endif
 
 struct LiveAudio {
 	esp_capture_audio_src_if_t source;
@@ -196,10 +200,33 @@ static void audioTask(void *ctx)
 	int accumulated = 0, delay = 0;
 	unsigned idle = 1000, gap = 0;
 	bool gapActive = false;
+#if defined(MODDEF_LIVEAUDIO_PREFILL) && MODDEF_LIVEAUDIO_PREFILL
+	unsigned emptyBlocks = PLAYBACK_RESET_BLOCKS, prefillBlocks = 0;
+#endif
 	while (!atomic_load(&a->stopping)) {
 		/* Non-blocking dequeue: the clock must keep running between utterances. */
 		unsigned playbackStop = atomic_load(&a->playbackStop);
+#if defined(MODDEF_LIVEAUDIO_PREFILL) && MODDEF_LIVEAUDIO_PREFILL
+		/* Prime at the start of playback. Keep the I2S clock running, and
+		 * drain the remaining PCM immediately when closing the session. */
+		bool waitForPcm = false;
+		if (!playbackStop && emptyBlocks == PLAYBACK_RESET_BLOCKS && prefillBlocks < PLAYBACK_PREFILL_BLOCKS) {
+			size_t available = xStreamBufferBytesAvailable(a->output);
+			if (available && available < PLAYBACK_PREFILL_BLOCKS * BLOCK * 2) {
+				prefillBlocks++;
+				waitForPcm = true;
+			}
+		}
+		size_t got = waitForPcm ? 0 : xStreamBufferReceive(a->output, tx, BLOCK * 2, 0);
+		if (got) {
+			emptyBlocks = 0;
+			prefillBlocks = 0;
+		} else if (emptyBlocks < PLAYBACK_RESET_BLOCKS) {
+			emptyBlocks++;
+		}
+#else
 		size_t got = xStreamBufferReceive(a->output, tx, BLOCK * 2, 0);
+#endif
 		if (playbackStop == 2) got = 0;
 		if (got < BLOCK * 2 && idle < 500) {
 			if (!gapActive) atomic_fetch_add(&a->underruns, 1);

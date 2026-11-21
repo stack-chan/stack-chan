@@ -38,6 +38,8 @@ async function fixture({
   pendingNetwork,
   pendingDetectorClaim,
   lostRelease = false,
+  uiPerformance = false,
+  pendingConversationClose,
 } = {}) {
   const events = [],
     buttons = new Map(),
@@ -83,6 +85,13 @@ async function fixture({
       },
     ],
   ])
+  if (uiPerformance)
+    modules.set('stackchan/realtime-ui-performance', {
+      acquire() {
+        events.push('UI scheduler acquired')
+        return () => events.push('UI scheduler released')
+      },
+    })
   if (hasDetector)
     modules.set('wakeword-wakenet', {
       default: class {
@@ -126,7 +135,8 @@ async function fixture({
           owner = 'conversation'
           events.push('conversation started')
         },
-        close() {
+        async close() {
+          if (pendingConversationClose) await pendingConversationClose
           owner = undefined
           events.push('conversation released')
           return { remoteFinalization: 'confirmed' }
@@ -164,6 +174,7 @@ async function fixture({
     wake: () => read(new Uint8Array([1, 0])),
     fault: () => readError(new Error('detector fault')),
     remoteClose: () => conversation.onStateChanged('closed'),
+    remoteError: () => conversation.onError(new Error('transport error')),
     shutdown: () => mod.onClose(),
   }
 }
@@ -292,4 +303,28 @@ test('late proven no-claim after manual handoff does not leave a stale Wake draw
   assert.equal(f.events.at(-1), 'conversation released')
   assert.equal(f.states.get(names.wake), false)
   await f.shutdown()
+})
+
+test('session UI scheduling spans active audio and is released after each kind of close', async () => {
+  for (const close of ['shutdown', 'remoteClose', 'remoteError']) {
+    let finish
+    const f = await fixture({
+      uiPerformance: true,
+      pendingConversationClose: new Promise((resolve) => {
+        finish = resolve
+      }),
+    })
+    assert.deepEqual(f.events, [])
+    f.fire('session')
+    await settle()
+    assert.deepEqual(f.events, ['conversation created', 'conversation started', 'UI scheduler acquired'])
+    const closing = f[close]()
+    await settle()
+    assert.equal(f.events.at(-1), 'UI scheduler acquired')
+    finish()
+    await closing
+    await settle()
+    assert.deepEqual(f.events.slice(-2), ['conversation released', 'UI scheduler released'])
+    await f.shutdown()
+  }
 })

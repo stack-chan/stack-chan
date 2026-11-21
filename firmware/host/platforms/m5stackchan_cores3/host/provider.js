@@ -21,6 +21,8 @@
 import Touch from 'M5StackCoreS3Touch'
 import RFID from 'embedded:sensor/RFID/ST25R3916'
 import TouchPanel from 'embedded:sensor/Touch/Si12T'
+import config from 'mc/config'
+import Modules from 'modules'
 import device from 'sdk-board-provider'
 
 // Camera SCCB reuses the initialized internal bus on port 1.
@@ -31,7 +33,11 @@ device.rtc.clock.port = 1
 device.sensor.Touch = class {
   constructor(options) {
     trace('[m5stackchan-cores3] Touch provider init hz=400000 polling\n')
-    const result = new Touch({
+    const TouchDriver =
+      !config.virtualButton && Modules.has('stackchan/touch-polling')
+        ? Modules.importNow('stackchan/touch-polling')
+        : Touch
+    const result = new TouchDriver({
       ...options,
       sensor: { ...device.i2c.internal, io: device.io.SMBus, hz: 400_000 },
     })

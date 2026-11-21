@@ -8,9 +8,11 @@
 
 void xs_io_main_priority(xsMachine *the) {
   int priority = xsmcToInteger(xsArg(0));
-  if (priority != 4 && priority != 6) xsRangeError("supported main priorities: 4, 6");
+  if (priority < 0 || priority >= configMAX_PRIORITIES) xsRangeError("invalid main priority");
   if (strcmp(pcTaskGetName(NULL), "main")) xsUnknownError("main thread required");
+  UBaseType_t previous = uxTaskPriorityGet(NULL);
   vTaskPrioritySet(NULL, priority);
+  xsmcSetInteger(xsResult, previous);
 }
 // Existing MODs can call these hooks without requiring a measurement build.
 __attribute__((weak)) void xs_io_reset(xsMachine *the) {}

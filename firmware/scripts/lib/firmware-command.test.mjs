@@ -173,6 +173,44 @@ test('RT release prepares both camera dependencies before the build', () => {
   }
 })
 
+test('wakeword UI host builds override only the board settings selected by the application manifest', {
+  skip: process.platform === 'win32',
+}, () => {
+  const fixture = createFirmwareWrapperFixture()
+  try {
+    const profileName = 'manifest_m5stackchan_cores3_wakeword_ui.json'
+    const profile = JSON.parse(readFileSync(path.join(firmwareDirectory, 'host/app', profileName), 'utf8'))
+    const profilePath = path.join(fixture.firmware, 'host/app', profileName)
+    writeFileSync(profilePath, JSON.stringify({ esp32Config: profile.esp32Config }))
+    const boardPath = path.join(
+      fixture.fakeModdable,
+      'build/devices/esp32/targets/m5stack_cores3/sdkconfig/sdkconfig.defaults',
+    )
+    const protectedDefaults = '# Board defaults\nCONFIG_ESPTOOLPY_FLASHMODE_DIO=y\nCONFIG_SPIRAM=y\n'
+    const overriddenDefaults = Object.keys(profile.esp32Config)
+      .map((key) => `${key}=n\n`)
+      .join('')
+    writeFileSync(boardPath, protectedDefaults + overriddenDefaults)
+    writeFileSync(
+      path.join(fixture.fakeBin, 'mcconfig'),
+      `#!/usr/bin/env node
+const { readFileSync, writeFileSync } = require('node:fs')
+const path = require('node:path')
+const [profile, override] = JSON.parse(readFileSync(process.argv.at(-1), 'utf8')).include
+const { SDKCONFIGPATH } = JSON.parse(readFileSync(override, 'utf8')).build
+const defaults = readFileSync(path.join(SDKCONFIGPATH, 'sdkconfig.defaults'), 'utf8')
+writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify({ profile, defaults }))
+`,
+    )
+
+    runFixture(fixture, 'build', profilePath)
+    assert.deepEqual(readInvocations(fixture.commandLog), [{ profile: profilePath, defaults: protectedDefaults }])
+    assert.equal(readFileSync(boardPath, 'utf8'), protectedDefaults + overriddenDefaults)
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 test('build wrappers select WebRTC settings from the manifest, not an inherited source checkout', {
   skip: process.platform === 'win32',
 }, () => {

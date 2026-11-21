@@ -57,6 +57,8 @@ const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
+const wakewordUi =
+  deviceName === 'm5stackchan_cores3' && path.basename(manifest) === 'manifest_m5stackchan_cores3_wakeword_ui.json'
 let toolManifest = manifest
 let expectedDescriptorVersion
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
@@ -112,7 +114,7 @@ if (
   }
 }
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
+if (!dryRun && !wakewordUi && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
       realtime,
@@ -125,28 +127,27 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
   }
 }
 
-if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
+const sdkconfigTarget = wakewordUi ? 'm5stack_cores3' : device.sdkconfigTarget
+if (!dryRun && sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
     const moddableDirectory = process.env.MODDABLE
     if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
-    const versionSdkconfig = prepareVersionSdkconfig({
-      platformName: deviceName,
-      moddableDirectory,
-      sourceDirectory: path.join(moddableDirectory, 'build/devices/esp32/targets', device.sdkconfigTarget, 'sdkconfig'),
-      partitionSourcePath: path.join(
-        moddableDirectory,
-        'build/devices/esp32/targets',
-        device.sdkconfigTarget,
-        'sdkconfig/partitions.csv',
-      ),
-    })
-    expectedDescriptorVersion = versionSdkconfig.version
+    const sourceDirectory = path.join(moddableDirectory, 'build/devices/esp32/targets', sdkconfigTarget, 'sdkconfig')
+    const sdkconfig = wakewordUi
+      ? prepareWakewordUiSdkconfig(manifest, sourceDirectory)
+      : prepareVersionSdkconfig({
+          platformName: deviceName,
+          moddableDirectory,
+          sourceDirectory,
+          partitionSourcePath: path.join(sourceDirectory, 'partitions.csv'),
+        })
+    expectedDescriptorVersion = sdkconfig.version
     // The included board manifest overrides SDKCONFIGPATH from the environment.
     // Apply this last, as the standard release bundle wrapper does.
     const overrideDirectory = path.join(buildOutputDirectory, 'generated', 'host-manifests', deviceName)
     const overrideManifest = path.join(overrideDirectory, 'sdkconfig.json')
     mkdirSync(overrideDirectory, { recursive: true })
-    writeFileSync(overrideManifest, JSON.stringify({ build: { SDKCONFIGPATH: versionSdkconfig.directory } }))
+    writeFileSync(overrideManifest, JSON.stringify({ build: { SDKCONFIGPATH: sdkconfig.directory } }))
     toolManifest = path.join(
       path.dirname(path.resolve(manifest)),
       `stack-chan-host.${deviceName}.${process.pid}.manifest.json`,
@@ -154,7 +155,7 @@ if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].i
     writeFileSync(toolManifest, JSON.stringify({ include: [path.resolve(manifest), overrideManifest] }))
     process.on('exit', () => rmSync(toolManifest, { force: true }))
   } catch (error) {
-    console.error(`[stack-chan] firmware version could not be prepared: ${error.message}`)
+    console.error(`[stack-chan] firmware sdkconfig could not be prepared: ${error.message}`)
     process.exit(1)
   }
 }
@@ -264,6 +265,20 @@ switch (command) {
     console.error(`[stack-chan] Unknown command: ${command}`)
     printHelp()
     process.exit(1)
+}
+
+function prepareWakewordUiSdkconfig(manifestPath, sourceDirectory) {
+  const { esp32Config } = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const directory = path.join(buildOutputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3_wakeword_ui')
+  const filePath = path.join(directory, 'sdkconfig.defaults')
+  // mcconfig merges the board defaults after esp32Config, so explicitly selected values must be removed from the copy.
+  const sdkconfig = readFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'utf8')
+    .split(/\r?\n/)
+    .filter((line) => !Object.hasOwn(esp32Config, line.split('=', 1)[0]))
+    .join('\n')
+  mkdirSync(directory, { recursive: true })
+  if (!existsSync(filePath) || readFileSync(filePath, 'utf8') !== sdkconfig) writeFileSync(filePath, sdkconfig)
+  return { directory }
 }
 
 /**

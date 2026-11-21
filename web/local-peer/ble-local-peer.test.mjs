@@ -8,7 +8,7 @@ const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const UART_RX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 const UART_TX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 
-function connectedBluetooth(writeValueWithResponse) {
+function connectedBluetooth(writeValueWithResponse, deviceEvents = new EventTarget()) {
   const rx = { writeValueWithResponse }
   const tx = {
     addEventListener() {},
@@ -24,7 +24,12 @@ function connectedBluetooth(writeValueWithResponse) {
   const device = {
     id: 'connected-stackchan',
     name: 'STK',
-    addEventListener() {},
+    addEventListener(...args) {
+      deviceEvents.addEventListener(...args)
+    },
+    removeEventListener(...args) {
+      deviceEvents.removeEventListener(...args)
+    },
     gatt: {
       async connect() {
         return {
@@ -172,6 +177,47 @@ test('BLE local-peer sends a complete tracking record in one preferred-MTU write
   assert.ok(writes[0].byteLength > 60)
   assert.ok(writes[0].byteLength <= 244)
   session.close()
+})
+
+test('BLE local-peer can always open the chooser instead of reusing an STK', async () => {
+  const bluetooth = connectedBluetooth(async () => {})
+  bluetooth.getDevices = async () => {
+    throw new Error('the Strider chooser must start with the same user activation')
+  }
+  const requestDevice = bluetooth.requestDevice
+  let chooserOpened = false
+  bluetooth.requestDevice = async (...args) => {
+    chooserOpened = true
+    return requestDevice(...args)
+  }
+  const capability = new BLELocalPeerCapability({ bluetooth, crypto: webcrypto })
+
+  const opening = capability.open({ transport: 'ble', service: 'strider', selectDevice: true })
+  assert.equal(chooserOpened, true)
+  const session = await opening
+  session.close()
+})
+
+test('BLE local-peer reports unexpected GATT loss once and allows a clean reconnect', async () => {
+  const events = new EventTarget()
+  const bluetooth = connectedBluetooth(async () => {}, events)
+  const capability = new BLELocalPeerCapability({ bluetooth, crypto: webcrypto })
+  let disconnects = 0
+  const options = {
+    transport: 'ble',
+    service: 'strider',
+    onDisconnect: () => disconnects++,
+  }
+
+  const first = await capability.open(options)
+  events.dispatchEvent(new Event('gattserverdisconnected'))
+  assert.equal(first.closed, true)
+  assert.equal(disconnects, 1)
+
+  const second = await capability.open(options)
+  second.close()
+  events.dispatchEvent(new Event('gattserverdisconnected'))
+  assert.equal(disconnects, 1)
 })
 
 test('BLE local-peer falls back from the preferred MTU to 60-byte writes for an older host', async () => {

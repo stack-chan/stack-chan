@@ -129,6 +129,9 @@ function validateOpenOptions(options: LocalPeerOpenOptions): void {
       )
     }
   }
+  if (options.onDisconnect !== undefined && typeof options.onDisconnect !== 'function') {
+    throw new LocalPeerError('invalid-argument', 'onDisconnect must be a function')
+  }
 }
 
 function validateMessageType(type: string): void {
@@ -261,6 +264,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
   #discoveryWaits = new Map<TimerHandle, () => void>()
   #reassemblies = new Map<string, ReassemblyRecord>()
   #delivered = new Map<string, number>()
+  #linkGeneration = 0
 
   constructor(
     id: string,
@@ -280,6 +284,16 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
       offlineChannel,
       sharedKey: this.sharedKey,
       onReceive: (event) => this.#handleRadioReceive(event),
+      onDisconnect: () => {
+        this.#linkGeneration += 1
+        for (const reassembly of this.#reassemblies.values()) Timer.clear(reassembly.timer)
+        this.#reassemblies.clear()
+        try {
+          options.onDisconnect?.()
+        } catch (error) {
+          trace(`[local-peer] disconnect handler failed: ${String(error)}\n`)
+        }
+      },
     })
     if (this.#radio.id.toUpperCase() !== this.id.toUpperCase()) {
       this.#radio.close()
@@ -569,8 +583,9 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     // Complete the ACK before invoking subscribers. A subscriber may immediately
     // send a reply or close the session; either action must not overtake or cancel
     // acknowledgement of a message that has already been accepted for delivery.
+    const linkGeneration = this.#linkGeneration
     if (reliable && !(await this.#sendAcknowledgement(peerId, frame.messageId))) return
-    if (this.closed) return
+    if (this.closed || this.#linkGeneration !== linkGeneration) return
     const duplicate = this.#wasDelivered(key)
     if (!duplicate) {
       this.#deliver({

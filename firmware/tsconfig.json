@@ -120,6 +120,12 @@
       "image-avatar-lite-packs": [
         "./mods/examples/image_avatar_lite/image-avatar-lite-packs"
       ],
+      "strider-drive": [
+        "./mods/examples/strider/drive"
+      ],
+      "strider-gait": [
+        "./mods/examples/strider/gait"
+      ],
       "*": [
         "./node_modules/@moddable/typings/*",
         "./node_modules/@moddable/typings/ble/*",

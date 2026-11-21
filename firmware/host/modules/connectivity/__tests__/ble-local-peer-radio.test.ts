@@ -38,3 +38,46 @@ test('closing a BLE local-peer radio prevents a late disconnect from restarting 
   assert.equal(server.closed, true)
   assert.equal(server.advertisingStarts.length, 1)
 })
+
+test('BLE link loss notifies the session once and advertising allows a fresh connection', async () => {
+  installBareSpecifierPackages()
+  const [{ default: createRadio }, uartserver] = await Promise.all([
+    import('../ble/local-peer-radio.js'),
+    import('./fakes/uartserver.js'),
+  ])
+  let disconnects = 0
+  const radio = createRadio({
+    id: '001122334455',
+    offlineChannel: 0,
+    onReceive() {},
+    onDisconnect() {
+      disconnects += 1
+    },
+  })
+  const server = uartserver.lastUARTServer as
+    | (NonNullable<typeof uartserver.lastUARTServer> & {
+        onDisconnected(): void
+        onCharacteristicNotifyEnabled(characteristic: { name: string }): void
+        onCharacteristicNotifyDisabled(characteristic: { name: string }): void
+      })
+    | undefined
+  assert.ok(server)
+
+  const characteristic = { name: 'tx' }
+  server.onConnected()
+  server.onCharacteristicNotifyEnabled(characteristic)
+  assert.equal(disconnects, 0)
+  server.onCharacteristicNotifyDisabled(characteristic)
+  assert.equal(disconnects, 1)
+  server.onDisconnected()
+  assert.equal(disconnects, 1)
+  assert.equal(server.advertisingStarts.length, 1)
+
+  server.onConnected()
+  server.onCharacteristicNotifyEnabled(characteristic)
+  assert.equal(disconnects, 1)
+  server.onDisconnected()
+  assert.equal(disconnects, 2)
+  assert.equal(server.advertisingStarts.length, 2)
+  radio.close()
+})

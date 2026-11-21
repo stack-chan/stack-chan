@@ -237,6 +237,7 @@ export class BLELocalPeerCapability {
     this.#session = session
     try {
       await session.connect()
+      if (session.closed) throw new Error('local peer session disconnected while connecting')
       return session
     } catch (error) {
       session.close()
@@ -282,32 +283,30 @@ class BLELocalPeerSession {
 
   async connect() {
     this.#key = this.#options.sharedKey ? await authenticationKey(this.#options.sharedKey, this.#crypto) : undefined
-    let permitted = []
-    try {
-      permitted = (await this.#bluetooth.getDevices?.()) ?? []
-    } catch {}
-    const rememberedId = this.#storage?.getItem(DEVICE_STORAGE_KEY)
-    const permittedStackchans = permitted.filter((device) => device.name === STACKCHAN_DEVICE_NAME)
-    this.#device =
-      permitted.find((device) => device.id === rememberedId) ??
-      (permittedStackchans.length === 1 ? permittedStackchans[0] : undefined)
+    if (!this.#options.selectDevice) {
+      let permitted = []
+      try {
+        permitted = (await this.#bluetooth.getDevices?.()) ?? []
+      } catch {}
+      const rememberedId = this.#storage?.getItem(DEVICE_STORAGE_KEY)
+      const permittedStackchans = permitted.filter((device) => device.name === STACKCHAN_DEVICE_NAME)
+      this.#device =
+        permitted.find((device) => device.id === rememberedId) ??
+        (permittedStackchans.length === 1 ? permittedStackchans[0] : undefined)
+    }
     if (!this.#device) {
       this.#device = await this.#bluetooth.requestDevice({
         filters: [{ services: [SERVICE_UUID] }],
         optionalServices: [SERVICE_UUID],
       })
     }
-    if (this.#device.id) this.#storage?.setItem(DEVICE_STORAGE_KEY, this.#device.id)
-    this.#device.addEventListener('gattserverdisconnected', () => this.close())
+    if (!this.#options.selectDevice && this.#device.id) this.#storage?.setItem(DEVICE_STORAGE_KEY, this.#device.id)
+    this.#device.addEventListener('gattserverdisconnected', this.#handleDisconnect)
     const server = await this.#device.gatt.connect()
     const service = await server.getPrimaryService(SERVICE_UUID)
     this.#rx = await service.getCharacteristic(RX_UUID)
     this.#tx = await service.getCharacteristic(TX_UUID)
-    this.#tx.addEventListener('characteristicvaluechanged', (event) => {
-      void this.#receive(
-        new Uint8Array(event.target.value.buffer, event.target.value.byteOffset, event.target.value.byteLength)
-      )
-    })
+    this.#tx.addEventListener('characteristicvaluechanged', this.#handleNotification)
     await this.#tx.startNotifications()
     await this.#writeRecord(RecordKind.HELLO, BROADCAST_ID, new Uint8Array(0), false)
     await this.#announce()
@@ -368,8 +367,22 @@ class BLELocalPeerSession {
     for (const record of this.#reassemblies.values()) clearTimeout(record.timer)
     this.#reassemblies.clear()
     this.#delivered.clear()
+    this.#subscribers.clear()
+    this.#tx?.removeEventListener?.('characteristicvaluechanged', this.#handleNotification)
+    this.#device?.removeEventListener?.('gattserverdisconnected', this.#handleDisconnect)
     this.#device?.gatt?.disconnect()
     this.#onClose()
+  }
+
+  #handleDisconnect = () => {
+    if (this.closed) return
+    this.close()
+    this.#options.onDisconnect?.()
+  }
+
+  #handleNotification = (event) => {
+    const { buffer, byteOffset, byteLength } = event.target.value
+    void this.#receive(new Uint8Array(buffer, byteOffset, byteLength))
   }
 
   async #announce() {

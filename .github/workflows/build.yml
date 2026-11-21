@@ -148,6 +148,22 @@ jobs:
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:package-mod
 
+      - name: Build the Strider MOD for M5StackChan
+        if: matrix.shard == 0
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run mod:build -- mods/examples/strider/manifest.json --mode=release
+
+      - name: Upload the Strider MOD archive
+        if: matrix.shard == 0
+        uses: actions/upload-artifact@v4
+        with:
+          name: strider-m5stackchan-mod
+          path: |
+            firmware/dist/bin/esp32/release/strider/strider.xsa
+            firmware/mods/examples/strider/LICENSE-MIT
+            firmware/mods/examples/strider/README_ja.md
+          if-no-files-found: error
+
       - name: Upload simulator test logs
         if: always()
         uses: actions/upload-artifact@v4

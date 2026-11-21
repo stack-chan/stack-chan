@@ -1,4 +1,4 @@
-import { ArrowRight, Blocks, Box, Cpu, ScanFace, SlidersHorizontal, Smile, Store, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Blocks, Box, Compass, Cpu, ScanFace, SlidersHorizontal, Smile, Store, type LucideIcon } from 'lucide-react'
 import { useEffect } from 'react'
 
 import { AppShell } from '@/app/app-shell'
@@ -40,6 +40,12 @@ const tools: Tool[] = [
     label: 'MediaPipe BLE追従',
     description: '顔と手の動きをBLEで送る',
     icon: ScanFace,
+  },
+  {
+    href: 'strider/',
+    label: 'Strider',
+    description: '歩行と旋回をBLEで操作する',
+    icon: Compass,
   },
   {
     href: 'simulator/',

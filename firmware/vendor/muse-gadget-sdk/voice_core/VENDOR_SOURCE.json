@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/facebookincubator/muse-gadget-sdk",
+  "sha256": {
+    "muse_voice_call_core.c": "8a96c3018a3d6112de578d02c326cc46765769c0c60cac325f99c241f3bf0cc7",
+    "muse_voice_call_core.h": "536d87af1dd99b303235ba89f119ff7dd8bf2f3e248e42b3544667255ba28531",
+    "test_muse_voice_call.py": "04f4d43d5abca2268c8be7f8db0a680c96ee794a64ddc7ed7c6ddb3ef83aaa7b",
+    "muse_voice_call_core_harness.c": "0a3c4223cb362e3a77d60b6d75f571de9a182fb082b7d14079399cb6d157688c"
+  },
+  "commit": "f2c702b123e97f4fecdaefb29ded17bb03fab0b0",
+  "license": "Apache-2.0",
+  "path": "esp32/components/muse"
+}

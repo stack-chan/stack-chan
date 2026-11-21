@@ -1,0 +1,8 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODULES)/data/text/encoder/manifest.json",
+    "$(MODULES)/data/text/decoder/manifest.json"
+  ],
+  "modules": { "muse-session": "../session", "*": "../types" }
+}

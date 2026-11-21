@@ -292,6 +292,8 @@ export type ConversationCapabilities = {
   readonly submitCompletion: 'playback' | 'unavailable'
 }
 export type ConversationEvent =
+  /** Provider resources are closed; the pipeline forwards this only after releasing its audio lease. */
+  | { readonly type: 'session.ended'; readonly result: CloseResult }
   | { readonly type: 'input.level' | 'output.level'; readonly value: number }
   | { readonly type: 'input.transcript'; readonly value: Transcript }
   | { readonly type: 'input.transcript.delta'; readonly streamId: string; readonly delta: string }
@@ -357,7 +359,16 @@ export interface DelegateAgent {
     options: Scope,
   ): Promise<readonly InputItem[]>
 }
+export type PipelineStartStage =
+  | 'audio_acquire'
+  | 'audio_ready'
+  | 'audio_mute'
+  | 'conversation_open'
+  | 'conversation_ready'
+  | 'input_gate'
+  | 'ready'
 export type PipelineOptions = {
+  readonly onDiagnostic?: (stage: PipelineStartStage) => void
   readonly microphone: Microphone
   readonly speaker: Speaker
   readonly conversation: Conversation

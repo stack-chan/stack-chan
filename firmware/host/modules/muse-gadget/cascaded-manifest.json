@@ -1,0 +1,38 @@
+{
+  "include": [
+    "./account-voice-manifest.json",
+    "../voice/manifest.json",
+    "../util/manifest.json",
+    "$(MODDABLE)/modules/files/preference/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/https/client/manifest.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "$(MODDABLE)/modules/base/uuid/manifest.json",
+    "../ai/manifest.json"
+  ],
+  "modules": {
+    "muse-account-cascaded": "./cascaded-account-client",
+    "muse-cascaded-conversation": "./cascaded-conversation",
+    "muse-chat-agent": "./chat-agent",
+    "muse-chat-session": "./chat-session",
+    "chat-turn": "./chat-turn",
+    "muse-session-id": "./session-id",
+    "stt-whisper": "../audio/stt-whisper",
+    "whisper-multipart": "../audio/whisper-multipart",
+    "muse-speech-profile": "./speech-profile",
+    "muse-speech-provider": "./speech-provider",
+    "stackchan/voice/gemini-speech": "../voice/gemini-speech"
+  },
+  "data": {
+    "*": [
+      "$(MODULES)/crypt/data/ca109",
+      "$(MODULES)/crypt/data/ca176",
+      "$(MODULES)/crypt/data/ca236"
+    ]
+  },
+  "config": {
+    "tls": {
+      "DHE_RSA": false
+    }
+  }
+}

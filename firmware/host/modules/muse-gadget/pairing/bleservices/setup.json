@@ -1,0 +1,21 @@
+{
+  "service": {
+    "uuid": "7fdd3d1c-38ea-46cf-8b46-314ecf5f240c",
+    "characteristics": {
+      "pairingRx": {
+        "uuid": "4d593029-28a2-4a6e-a1f0-3c2d5e8f9b01",
+        "type": "ArrayBuffer",
+        "maxBytes": 512,
+        "permissions": "write",
+        "properties": "write,writeNoResponse"
+      },
+      "pairingTx": {
+        "uuid": "d75dc4ca-7b2b-4e9c-8f0a-1d2e3f4a5b6c",
+        "type": "ArrayBuffer",
+        "maxBytes": 160,
+        "permissions": "read",
+        "properties": "read,notify"
+      }
+    }
+  }
+}

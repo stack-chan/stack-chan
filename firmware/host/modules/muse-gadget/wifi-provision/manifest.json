@@ -1,0 +1,29 @@
+{
+  "build": {
+    "NAME": "muse-wifi-provision"
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../native/pairing-manifest.json",
+    "../wifi-privacy/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "muse-wifi-provision": "./device",
+    "timer": "$(MODULES)/base/timer/timer",
+    "*": ["../native/wifi-provision-core.h", "./wire.h"]
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 65536,
+      "incremental": 16384
+    },
+    "heap": {
+      "initial": 4096,
+      "incremental": 512
+    },
+    "stack": 1024
+  }
+}

@@ -24,6 +24,8 @@ function fixture(onEvent?: (event: ConversationEvent) => void) {
   let inputWait: Promise<void> | undefined
   let openWait: Promise<void> | undefined
   let closeError: Error | undefined
+  let providerEvent: ((event: ConversationEvent) => void) | undefined
+  let endOnClose = false
   let signal: VoiceSignal
   const lease = {
     input: {},
@@ -59,6 +61,7 @@ function fixture(onEvent?: (event: ConversationEvent) => void) {
       submitCompletion: 'unavailable',
     },
     async open(options) {
+      providerEvent = options.onEvent
       signal = options.signal
       calls.push('open')
       await openWait
@@ -77,6 +80,8 @@ function fixture(onEvent?: (event: ConversationEvent) => void) {
         },
         async close() {
           calls.push('close')
+          if (endOnClose)
+            options.onEvent({ type: 'session.ended', result: { reason: 'aborted', remoteFinalization: 'unknown' } })
           if (closeError) throw closeError
           return { reason: 'aborted', remoteFinalization: 'unknown' }
         },
@@ -94,6 +99,12 @@ function fixture(onEvent?: (event: ConversationEvent) => void) {
   })
   return {
     pipeline,
+    emitProvider(event: ConversationEvent) {
+      providerEvent?.(event)
+    },
+    endDuringClose() {
+      endOnClose = true
+    },
     calls,
     events,
     emitLevel(level: AudioLevel) {
@@ -233,4 +244,78 @@ test('level observers can reenter close without recursive release', async () => 
   await pipeline.start()
   await pipeline.close()
   assert.equal(f.calls.filter((call) => call === 'release').length, 1)
+})
+
+test('provider session end releases its lease before notifying the app', async () => {
+  const f = fixture()
+  await f.pipeline.start()
+  f.emitProvider({ type: 'session.ended', result: { reason: 'drained', remoteFinalization: 'confirmed' } })
+  await tick()
+  assert.equal(f.calls.filter((value) => value === 'release').length, 1)
+  assert.equal(f.calls.filter((value) => value === 'close').length, 1)
+  assert.equal(f.events.filter((event) => event.type === 'session.ended').length, 1)
+  await assert.rejects(f.pipeline.setMicrophoneMuted(false), { code: 'cancelled' })
+  await f.pipeline.close()
+  assert.equal(f.calls.filter((value) => value === 'release').length, 1)
+})
+
+test('end callback during explicit close does not recurse and notifies after release', async () => {
+  let notified = false
+  const f = fixture((event) => {
+    if (event.type === 'session.ended') {
+      assert.ok(f.calls.includes('release'))
+      notified = true
+      void f.pipeline.close()
+    }
+  })
+  await f.pipeline.start()
+  f.endDuringClose()
+  await f.pipeline.close()
+  await tick()
+  assert.equal(notified, true)
+  assert.equal(f.calls.filter((value) => value === 'close').length, 1)
+  assert.equal(f.calls.filter((value) => value === 'release').length, 1)
+})
+
+test('providers without terminal events retain their explicit-close behavior', async () => {
+  const f = fixture()
+  await f.pipeline.start()
+  f.emitProvider({ type: 'turn.ended', turnId: 'legacy', status: 'completed' })
+  await tick()
+  assert.equal(f.calls.includes('close'), false)
+  await f.pipeline.close()
+  assert.equal(
+    f.events.some((event) => event.type === 'session.ended'),
+    false,
+  )
+})
+
+test('failed teardown does not announce a released session', async () => {
+  const f = fixture()
+  await f.pipeline.start()
+  f.failClose(new Error('native callback still active'))
+  f.emitProvider({ type: 'session.ended', result: { reason: 'drained', remoteFinalization: 'confirmed' } })
+  await tick()
+  assert.equal(f.calls.includes('release'), false)
+  assert.equal(
+    f.events.some((event) => event.type === 'session.ended'),
+    false,
+  )
+  assert.ok(f.events.some((event) => event.type === 'error' && event.fatal))
+})
+
+test('terminal event during open settles startup and releases without deadlock', async () => {
+  const f = fixture()
+  const opening = deferred<void>()
+  f.waitOpen(opening.promise)
+  const starting = f.pipeline.start()
+  void starting.catch(() => {})
+  await tick()
+  f.emitProvider({ type: 'session.ended', result: { reason: 'drained', remoteFinalization: 'confirmed' } })
+  opening.resolve()
+  await assert.rejects(starting)
+  assert.equal((await f.pipeline.close()).remoteFinalization, 'confirmed')
+  await tick()
+  assert.equal(f.calls.filter((value) => value === 'release').length, 1)
+  assert.equal(f.events.filter((event) => event.type === 'session.ended').length, 1)
 })

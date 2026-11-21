@@ -1,0 +1,14 @@
+{
+  "include": [
+    "./account-voice-manifest.json",
+    "./note-tts-manifest.json"
+  ],
+  "modules": {
+    "muse-account-note": "./note-account-client",
+    "muse-audio-note": "./audio-note",
+    "muse-chat-session": "./chat-session",
+    "chat-turn": "./chat-turn",
+    "muse-note-conversation": "./note-conversation",
+    "muse-session-id": "./session-id"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../voice-manifest.json",
+    "$(MODULES)/files/preference/manifest.json"
+  ],
+  "defines": {
+    "XS_MODS": 0
+  },
+  "modules": {
+    "*": "./main"
+  },
+  "build": {
+    "NAME": "muse-native-device"
+  }
+}

@@ -7,14 +7,16 @@ import {
   rotationToM5StackChanServoAngles,
 } from 'm5stackchan-servo'
 import {
+  type ContinuousYawDriver,
   type MotionCompletion,
   type MotionDurationSeconds,
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
-import SCServo from 'protocols/scservo'
+import SCServo, { type SCServoAngleLimits } from 'protocols/scservo'
 import { type PY32IOExpander, tryGetSharedPY32IOExpander } from 'py32-io-expander'
 import type { Maybe, Rotation } from 'stackchan-util'
+import Timer from 'timer'
 
 type M5StackChanServoDriverProps = Partial<{
   panId: number
@@ -41,9 +43,10 @@ export class M5StackChanServoDriver {
   #rotation: Rotation = { y: 0, p: 0, r: 0 }
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
   #rotationErrorResult: { success: false; reason?: string } = { success: false }
-  #servoPower?: {
-    setEnabled: (enabled: boolean) => void
-  }
+  #servoPower?: PY32ServoPower
+  #positionLimits?: SCServoAngleLimits
+  #servoFault?: Error
+  readonly continuousYaw?: ContinuousYawDriver
 
   constructor(param: M5StackChanServoDriverProps = {}) {
     this.#config = createM5StackChanServoConfig({
@@ -67,10 +70,23 @@ export class M5StackChanServoDriver {
     if (param.servoPower?.type !== 'none') {
       this.#servoPower = new PY32ServoPower(param.servoPower?.pin ?? 0, param.servoPower?.address)
     }
+    if (param.servoPower?.type === 'py32' && this.#servoPower?.available) {
+      this.continuousYaw = {
+        start: (done) => this.#startContinuousYaw(done),
+        setPower: (power, done) => this.#pan.setPwmDuty(power, done),
+        readRawPosition: (done) =>
+          this.#pan.readRawPosition((result) => {
+            if (result.success === false) done(new Error(result.reason ?? 'Yaw servo read failed'))
+            else done(undefined, result.value.position)
+          }, true),
+        stop: (done) => this.#stopContinuousYaw(done),
+      }
+    }
   }
 
   onAttached() {
     this.#servoPower?.setEnabled(true)
+    this.#servoFault = undefined
   }
 
   onDetached() {
@@ -78,6 +94,10 @@ export class M5StackChanServoDriver {
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
+    if (this.#servoFault) {
+      callback?.(this.#servoFault)
+      return
+    }
     this.#pan.setTorque(torque, (panError) => {
       if (panError != null) {
         callback?.(panError)
@@ -88,6 +108,10 @@ export class M5StackChanServoDriver {
   }
 
   applyRotation(ori: Rotation, time: MotionDurationSeconds = 0.5, callback?: MotionCompletion): void {
+    if (this.#servoFault) {
+      callback?.(this.#servoFault)
+      return
+    }
     const angles = rotationToM5StackChanServoAngles(ori)
     const panRawPosition = angleToRawPosition(angles.yaw, this.#config.yaw)
     const tiltRawPosition = angleToRawPosition(angles.pitch, this.#config.pitch)
@@ -112,6 +136,10 @@ export class M5StackChanServoDriver {
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    if (this.#servoFault) {
+      this.#returnRotationError(callback, this.#servoFault.message)
+      return
+    }
     this.#pan.readRawPosition((panStatus) => {
       if (panStatus.success === false) {
         this.#returnRotationError(callback, panStatus.reason)
@@ -132,10 +160,118 @@ export class M5StackChanServoDriver {
     })
   }
 
+  #startContinuousYaw(complete: MotionCompletion): void {
+    if (this.#servoFault) {
+      complete(this.#servoFault)
+      return
+    }
+    this.#pan.readAngleLimits((result) => {
+      if (result.success === false) return complete(new Error(result.reason ?? 'Yaw servo read failed'))
+      const limits = result.value
+      if (limits.min >= limits.max || limits.max > 1023) {
+        return complete(this.#cutServoPower(new Error('Yaw servo did not report valid position limits')))
+      }
+      runCommands(
+        [
+          (done) => this.#disableYawTorque(done),
+          (done) => {
+            this.#positionLimits = limits
+            this.#setAngleLimits({ min: 0, max: 0 }, done)
+          },
+          (done) => this.#pan.setPwmDuty(0, done),
+          (done) => this.#pan.setTorque(true, done, true),
+        ],
+        complete,
+      )
+    })
+  }
+
+  #stopContinuousYaw(complete: MotionCompletion): void {
+    const limits = this.#positionLimits
+    if (!limits) {
+      complete()
+      return
+    }
+    this.#positionLimits = undefined
+    runCommands(
+      [
+        // Disable torque before restoring position mode so a latched angle target cannot move the head.
+        (done) =>
+          this.#pan.setPwmDuty(0, (pwmError) => {
+            this.#disableYawTorque((torqueError) => done(torqueError ?? pwmError))
+          }),
+        (done) => this.#setAngleLimits(limits, done),
+      ],
+      (error) => complete(error == null ? undefined : this.#cutServoPower(error)),
+    )
+  }
+
+  #disableYawTorque(complete: MotionCompletion): void {
+    runCommands(
+      [
+        (done) => this.#pan.setTorque(false, done, true),
+        (done) =>
+          this.#pan.readTorque((result) => {
+            if (result.success === false) return done(new Error(result.reason ?? 'Yaw servo read failed'))
+            done(result.value ? new Error('Yaw servo torque is still enabled') : undefined)
+          }),
+      ],
+      complete,
+    )
+  }
+
+  #setAngleLimits(limits: SCServoAngleLimits, complete: MotionCompletion): void {
+    runCommands(
+      [
+        (done) => this.#pan.enableAngleLimitWriteLock(done),
+        (done) => this.#pan.setAngleLimits(limits, done),
+        (done) =>
+          this.#pan.readAngleLimits((result) => {
+            if (result.success === false) return done(new Error(result.reason ?? 'Yaw servo read failed'))
+            const current = result.value
+            if (current.min !== limits.min || current.max !== limits.max) {
+              return done(new Error('Yaw servo did not apply the angle limits'))
+            }
+            done()
+          }),
+      ],
+      complete,
+    )
+  }
+
+  #cutServoPower(error: unknown): Error {
+    this.#servoFault = new Error('Yaw servo control failed', { cause: error })
+    try {
+      if (this.#servoPower?.setEnabled(false) !== false) throw new Error('Servo power cutoff did not take effect')
+    } catch (powerError) {
+      this.#servoFault = new AggregateError([error, powerError], 'Yaw servo control and power cutoff failed')
+    }
+    return this.#servoFault
+  }
+
   #returnRotationError(callback: MotionResultCallback<Maybe<Rotation>>, reason?: string): void {
     this.#rotationErrorResult.reason = reason
     callback(this.#rotationErrorResult)
   }
+}
+
+function runCommands(commands: Array<(done: MotionCompletion) => void>, complete: MotionCompletion): void {
+  let index = 0
+  const next: MotionCompletion = (error) => {
+    // Leave the Serial.onReadable stack before issuing another command.
+    Timer.set(() => {
+      if (error != null || index === commands.length) {
+        complete(error)
+        return
+      }
+      try {
+        commands[index++](next)
+      } catch (commandError) {
+        complete(commandError)
+      }
+    }, 0)
+  }
+  next()
 }
 
 class PY32ServoPower {
@@ -154,10 +290,16 @@ class PY32ServoPower {
     trace(`[m5stackchan-servo] configured PY32 servo power pin ${this.#pin}\n`)
   }
 
-  setEnabled(enabled: boolean) {
+  get available(): boolean {
+    return this.#expander !== undefined
+  }
+
+  setEnabled(enabled: boolean): boolean | undefined {
     const expander = this.#expander
     if (!expander) return
     expander.digitalWrite(this.#pin, enabled)
-    trace(`[m5stackchan-servo] servo power ${enabled ? 'on' : 'off'} (${expander.getWriteValue(this.#pin)})\n`)
+    const actual = expander.getWriteValue(this.#pin)
+    trace(`[m5stackchan-servo] servo power ${enabled ? 'on' : 'off'} (${actual})\n`)
+    return actual
   }
 }

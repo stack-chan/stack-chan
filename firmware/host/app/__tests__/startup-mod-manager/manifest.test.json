@@ -1,0 +1,10 @@
+{
+  "include": ["../startup-error/manifest.harness.json"],
+  "modules": {
+    "main": "./startup-mod-manager.test",
+    "mod-manager": "./mod-manager-stub"
+  },
+  "config": {
+    "startupErrorPhase": "success"
+  }
+}

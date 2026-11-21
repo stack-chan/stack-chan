@@ -69,6 +69,8 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 input device は optional です。
 `context.input.touch` は platform が `config.Touch` を公開している場合だけ定義されます。
 `context.input.touchPanel` は platform が `config.TouchPanel` を公開している場合だけ定義されます。
+
+`context.input.imu?.subscribeSamples(handler)` はHostのIMUが読み取った加速度と角速度を通知します。読み取りに失敗すると `handler` に `undefined` が渡ります。戻り値の関数で購読を解除できます。座標軸と単位は機種のドライバーに従います。K151の角速度は度毎秒です。
 MOD は touch handler を登録する前に `undefined` を確認してください。
 
 `context.connectivity.network?.ready` は `connected`、`skipped`、`failed` のいずれかへ解決されます。
@@ -118,6 +120,20 @@ wasm audio bridge は、現在の public capability 実装で唯一、非同期 
 
 公開 motion API は、`pose`、`lookAt`、`lookAway`、`setPose`、`setTorque` を提供します。
 低レイヤの driver object は `host/modules/motion` の内部実装であり、MOD には公開しません。
+
+#### 首の連続回転
+
+M5StackChan（K151）で専用サーボドライバーを使うと、`motion.startContinuousYaw` を利用できます。連続回転の操作を提供する前に、このメソッドがあるかを確かめてください。呼び出すと首を占有するセッションを出力0で開始します。他のセッションが使用中か、motionが終了済みなら拒否されます。ドライバーの切り替えなどで非対応になったときは `undefined` を返します。出力指令を送らないと最初の1秒で期限切れになります。
+
+| セッションのメソッド | 契約 |
+| --- | --- |
+| `setPower(power, timeoutMs)` | `-1`〜`1`の符号付き出力を指定します。`0`で出力を止めます。期限は呼び出し時からのミリ秒で、1〜1000の整数です。回転を続けるには期限までに指令を更新してください。 |
+| `readRawPosition()` | 首サーボの生の位置を返します。原点補正と角度への変換は行いません。K151では正の出力で値が減ります。1周は1152カウントで、位置が正しく読めるのはその一部です。 |
+| `close()` | 首の出力を0にし、セッションを解放します。繰り返し呼び出せます。 |
+
+読み取りや出力指令の完了を待ってから、次の指令を送ってください。処理中に届いた指令は拒否され、期限は延びません。セッションの開始時に視線の目標を取り消します。使用中の `setPose` と `setTorque` は拒否され、`lookAt` は反映されません。指令の期限切れ、出力や期限の値が不正な場合、サーボ通信のエラー、ランタイムの終了時はHostがセッションを閉じます。停止時に角度指令は送りません。角度指定や視線追従を再開するには、終了後に新しい指令を送ってください。連続回転の再開には新しいセッションが必要です。
+
+遠隔操作のMODは通信断と自身の終了時にセッションを閉じてください。リンクが接続中でも指令が途絶えることがあるため、指令には期限を付けます。実装例は[Strider MOD](../mods/examples/strider/README_ja.md)を参照してください。
 
 ### Audio capability
 

@@ -6,7 +6,7 @@ import type {
   LocalPeerRadioReceiveEvent,
 } from 'local-peer-radio-types'
 import { LocalPeerService } from 'local-peer-service'
-import type { LocalPeerMessage, LocalPeerSession } from 'local-peer-types'
+import type { LocalPeerInfo, LocalPeerMessage, LocalPeerSession } from 'local-peer-types'
 import { assert, equal } from 'testing/assert'
 
 type DropFrame = (from: string, to: string | undefined, data: ArrayBuffer) => boolean
@@ -50,12 +50,14 @@ class FakeRadio implements LocalPeerRadio {
   closed = false
   #network: FakeRadioNetwork
   #onReceive: (event: LocalPeerRadioReceiveEvent) => void
+  #onDisconnect?: () => void
 
   constructor(network: FakeRadioNetwork, id: string, options: LocalPeerRadioOptions) {
     this.#network = network
     this.id = id
     this.sharedKey = options.sharedKey
     this.#onReceive = options.onReceive
+    this.#onDisconnect = options.onDisconnect
   }
 
   addPeer(peerId: string, secure: boolean): void {
@@ -79,6 +81,10 @@ class FakeRadio implements LocalPeerRadio {
 
   receive(event: LocalPeerRadioReceiveEvent): void {
     this.#onReceive(event)
+  }
+
+  disconnect(): void {
+    this.#onDisconnect?.()
   }
 
   close(): void {
@@ -291,6 +297,51 @@ async function testTransportSelection(): Promise<void> {
   )
 }
 
+async function testDiscoveryAfterBLEDisconnect(): Promise<void> {
+  const service = 'test.stackchan'
+  const network = new FakeRadioNetwork()
+  const peripheral = new LocalPeerService('001122334455', {
+    defaultTransport: 'ble',
+    factories: { ble: network.factory('001122334455') },
+  })
+  let discoveryOnDisconnect: Promise<readonly LocalPeerInfo[]> | undefined
+  const session = await peripheral.open({
+    service,
+    onDisconnect() {
+      discoveryOnDisconnect = session.discover({ timeoutMs: 0 })
+    },
+  })
+  const messages: LocalPeerMessage[] = []
+  session.subscribe('hello', (message) => messages.push(message))
+  const firstCentral = new LocalPeerService('AABBCCDDEEFF', network.factory('AABBCCDDEEFF'))
+  const first = await firstCentral.open({ service, displayName: 'first' })
+  deepEqual(
+    await session.discover({ timeoutMs: 0 }),
+    [{ id: 'AABBCCDDEEFF', name: 'first', secure: false }],
+    'discovery should list the connected BLE central',
+  )
+
+  first.close()
+  network.endpoints.get(peripheral.id)?.disconnect()
+  deepEqual(await discoveryOnDisconnect, [], 'the disconnect callback should see no connected peer')
+
+  const secondCentral = new LocalPeerService('112233445566', network.factory('112233445566'))
+  const second = await secondCentral.open({ service, displayName: 'second' })
+  deepEqual(
+    await session.discover({ timeoutMs: 0 }),
+    [{ id: '112233445566', name: 'second', secure: false }],
+    'discovery after reconnect should list only the new central',
+  )
+  await second.broadcast('hello', 'world')
+  deepEqual(
+    messages.map((message) => message.payload),
+    ['world'],
+    'the original subscription should receive messages from the new central',
+  )
+  second.close()
+  session.close()
+}
+
 async function testCloseAndWildcard(): Promise<void> {
   const pair = await openPair()
   const wildcardMessages: LocalPeerMessage[] = []
@@ -337,6 +388,7 @@ async function runTest(): Promise<void> {
   await testPeerRegistrationFailure()
   await testFailedOpenCleanup()
   await testTransportSelection()
+  await testDiscoveryAfterBLEDisconnect()
   await testCloseAndWildcard()
   await testCloseFromSubscriber()
   trace('@@STACKCHAN_TEST:PASS@@\n')

@@ -66,7 +66,7 @@ unsubscribe();
 
 ## BLE Serial transport
 
-BLEではｽﾀｯｸﾁｬﾝがNordic UART Service peripheralとして`STK-LP-XXXX`という名前で広告します。
+BLEではｽﾀｯｸﾁｬﾝがNordic UART Service peripheralとして`STK`という名前で広告します。
 Web Bluetooth対応のPCまたはスマートフォンから接続してください。
 再利用可能なクライアントは[`web/local-peer/ble-local-peer.mjs`](../../web/local-peer/ble-local-peer.mjs)にあります。
 
@@ -85,6 +85,7 @@ await session.send(stackchan.id, "pose.changed", { pan: 0.2, tilt: -0.1 });
 
 BLE transportは同時に1台のcentralだけをpeerとして扱います。
 `discover()`は接続中のcentralを返し、`broadcast()`はそのcentralへ確認応答なしで送ります。
+`open()` の `onDisconnect` に関数を渡すと、BLE Serialの切断時に呼ばれます。セッションは開いたままで、再接続を受け付けます。
 BLE未接続時の`broadcast()`は配送されません。
 セットアップ画面と通常起動後のlocalPeerは同じNordic UART Serviceを別の起動フェーズで利用します。
 BLE serverを直接起動するMODとは同時利用できません。

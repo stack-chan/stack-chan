@@ -2,6 +2,7 @@ import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type {
   AudioCapability,
   ConnectivityCapability,
+  ContinuousYawSession,
   ConversationCapability,
   FaceCapability,
   I18nCapability,
@@ -18,7 +19,12 @@ import type {
 import type { Emotion, FaceEyeKey, FaceThemeKey } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
-import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
+import {
+  type ContinuousYawControl,
+  MotionController,
+  type MotionControllerConstructorParam,
+  type MotionValueCompletion,
+} from 'motion-controller'
 import { OwnedResources } from 'owned-resources'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
@@ -29,6 +35,15 @@ import { type Maybe, type Pose, type Vector3, waitForCompletion } from 'stackcha
 import Timer from 'timer'
 
 const INTERVAL_FACE = 1000 / 30
+
+function waitForMotionValue<T>(start: (done: MotionValueCompletion<T>) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    start((error, value) => {
+      if (error != null) reject(error)
+      else resolve(value)
+    })
+  })
+}
 
 type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeCameraConstructorParam &
@@ -422,6 +437,17 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   private createMotionCapability(): MotionCapability {
     const context = this
+    const startContinuousYaw = async (): Promise<ContinuousYawSession | undefined> => {
+      const control = await waitForMotionValue<ContinuousYawControl | undefined>((done) => {
+        context.#motionController.startContinuousYaw(done)
+      })
+      if (!control) return undefined
+      return {
+        setPower: (power, timeoutMs) => waitForCompletion((done) => control.setPower(power, timeoutMs, done)),
+        readRawPosition: () => waitForMotionValue<number>((done) => control.readRawPosition(done)),
+        close: () => waitForCompletion((done) => control.close(done)),
+      }
+    }
     return {
       get pose() {
         return context.pose
@@ -437,6 +463,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       },
       setTorque(torque) {
         return context.setTorque(torque)
+      },
+      get startContinuousYaw() {
+        return context.#motionController.supportsContinuousYaw ? startContinuousYaw : undefined
       },
     }
   }
@@ -684,7 +713,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       hasCloseError = true
     }
     try {
-      this.#motionController.close()
+      await waitForCompletion((done) => this.#motionController.close(done))
     } catch (error) {
       rememberCloseError(error)
     }

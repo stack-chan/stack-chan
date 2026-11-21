@@ -48,19 +48,29 @@ function loadAppBehaviors(): StackchanAppBehavior[] {
   })
 }
 
-function installModManagerShortcut(): void {
+function installModManagerShortcut(context?: StackchanContext): void {
   const powerButton = globalEnv.button?.power
   if (!powerButton || !Modules.has('mod-manager')) return
   installLaunchShortcut(powerButton, async () => {
+    let contextClosing = false
     try {
       const startModManager = Modules.importNow('mod-manager') as (
         application: ReturnType<typeof showStartupSplash>,
       ) => Promise<'back'>
+      if (context) {
+        contextClosing = true
+        try {
+          await context.lifecycle.close()
+        } catch (error) {
+          trace(`[mods] context cleanup failed: ${startupErrorClass(error)}\n`)
+        }
+      }
       await startModManager(globalEnv.application ?? showStartupSplash())
-      System.restart?.()
     } catch (error) {
       trace(`[mods] shortcut failed: ${startupErrorClass(error)}\n`)
+      if (!contextClosing) return
     }
+    System.restart?.()
   })
 }
 
@@ -159,7 +169,7 @@ async function main() {
       config: preferences,
     })
     trace('[main] app behaviors ready\n')
-    installModManagerShortcut()
+    installModManagerShortcut(context)
   } catch (error) {
     // A newer/disposed view during async cleanup owns its screen. Do not
     // replace it with an older startup attempt's failure.

@@ -17,6 +17,7 @@ type Maybe<T> =
     }
 
 export type SCServoGoalTimeMilliseconds = number
+export type SCServoAngleLimits = { min: number; max: number }
 
 // utilities
 function clamp(v: number, min: number, max: number): number {
@@ -47,6 +48,7 @@ type Command = (typeof COMMAND)[keyof typeof COMMAND]
 
 const ADDRESS = {
   ID: 5,
+  MIN_ANGLE_LIMIT: 9,
   OFFSET: 31,
   TORQUE_ENABLE: 40,
   GOAL_ACC: 41,
@@ -69,7 +71,7 @@ function assertNeverRxState(state: never): never {
 }
 
 class PacketHandler extends Serial {
-  #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
+  #callbacks: Map<number, (buffer: Uint8Array, status: number) => void>
   #rxBuffer: Uint8Array
   #payloadBuffer: PayloadBuffer
   #idx: number
@@ -107,8 +109,8 @@ class PacketHandler extends Serial {
               // trace('received packet!\n')
               const cs = checksum(rxBuf, this.#idx - 1) & 0xff
               const id = rxBuf[2]
-              const command = rxBuf[4] as Command
-              if (command === COMMAND.READ || command === COMMAND.WRITE) {
+              const status = rxBuf[4]
+              if (status === COMMAND.READ || status === COMMAND.WRITE) {
                 // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
               } else if (cs === rxBuf[this.#idx - 1] && this.#callbacks.has(id)) {
                 // trace(`got response for ${id}. triggering callback \n`)
@@ -116,7 +118,7 @@ class PacketHandler extends Serial {
                 const payloadView = this.#payloadBuffer.copyFrom(rxBuf, payloadLength, 5)
                 const payload = new Uint8Array(payloadLength)
                 payload.set(payloadView.subarray(0, payloadLength))
-                this.#callbacks.get(id)(payload, payloadLength)
+                this.#callbacks.get(id)(payload, status)
               } else {
                 trace(`unknown packet for ${id} ... ${rxBuf.subarray(0, this.#idx)}. ignoring\n`)
               }
@@ -136,7 +138,7 @@ class PacketHandler extends Serial {
       format: 'number',
       onReadable,
     })
-    this.#callbacks = new Map<number, (buffer: Uint8Array, length: number) => void>()
+    this.#callbacks = new Map<number, (buffer: Uint8Array, status: number) => void>()
     this.#rxBuffer = new Uint8Array(64)
     this.#payloadBuffer = new PayloadBuffer(32)
     this.#idx = 0
@@ -145,7 +147,7 @@ class PacketHandler extends Serial {
   hasCallbackOf(id: number): boolean {
     return this.#callbacks.has(id)
   }
-  registerCallback(id: number, callback: (buffer: Uint8Array, length: number) => void) {
+  registerCallback(id: number, callback: (buffer: Uint8Array, status: number) => void) {
     this.#callbacks.set(id, callback)
   }
   removeCallback(id: number) {
@@ -207,6 +209,12 @@ function failureFromError<T>(error: unknown): Maybe<T> {
   }
 }
 
+function responseFault(status?: number): Error | undefined {
+  if (status !== undefined && status !== COMMAND.RESPONSE && status !== COMMAND.RESPONSE_ALT) {
+    return new Error(`SCServo response fault 0x${status.toString(16)}`)
+  }
+}
+
 function deferNoResponseResult(onResult: CommandCallback, onError: ErrorCallback): void {
   // The M5StackChan driver chains pan/tilt writes. Keep no-response writes off the
   // current Serial.onReadable stack so nested callbacks cannot exhaust the XS stack.
@@ -223,19 +231,21 @@ let packetHandler: PacketHandler = null
 let packetHandlerSerialKey: string | null = null
 class SCServo {
   #id: number
-  #onCommandRead: (buffer: Uint8Array, length: number) => void
+  #onCommandRead: (buffer: Uint8Array, status: number) => void
   #txBuf: Uint8Array
   #waitSlot: SingleWaitSlot<Uint8Array>
   #commandQueue: PendingCommand[] = []
   #offset: number
   #awaitWriteResponse: boolean
   #isWriting = false
+  #responseStatus = 0
   constructor({ id, awaitWriteResponse = true, serial: serialOverride }: SCServoConstructorParam) {
     this.#id = id
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
     this.#offset = 0
     this.#awaitWriteResponse = awaitWriteResponse
-    this.#onCommandRead = (values, _length) => {
+    this.#onCommandRead = (values, status) => {
+      this.#responseStatus = status
       this.#waitSlot.resolve(values)
     }
     this.#txBuf = new Uint8Array(64)
@@ -543,8 +553,12 @@ class SCServo {
     this.setRawPositionInTime(a, goalTimeMilliseconds, callback)
   }
 
-  setRawPosition(rawPosition: number, callback?: CompletionCallback): void {
+  setRawPosition(rawPosition: number, callback?: CompletionCallback, checkStatus = false): void {
     const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    if (checkStatus && callback) {
+      this.#writeChecked(ADDRESS.GOAL_POSITION, callback, ...le(position))
+      return
+    }
     this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, () => callback?.(), callback ?? (() => {}), ...le(position))
   }
 
@@ -552,8 +566,13 @@ class SCServo {
     rawPosition: number,
     goalTimeMilliseconds: SCServoGoalTimeMilliseconds,
     callback?: CompletionCallback,
+    checkStatus = false,
   ): void {
     const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    if (checkStatus && callback) {
+      this.#writeChecked(ADDRESS.GOAL_POSITION, callback, ...le(position), ...le(goalTimeMilliseconds))
+      return
+    }
     this.#sendCommand(
       COMMAND.WRITE,
       ADDRESS.GOAL_POSITION,
@@ -564,11 +583,16 @@ class SCServo {
     )
   }
 
-  readRawPosition(callback: ResultCallback<{ position: number }>): void {
+  readRawPosition(callback: ResultCallback<{ position: number }>, checkStatus = false): void {
     this.#sendCommand(
       COMMAND.READ,
       ADDRESS.PRESENT_POSITION,
       (values) => {
+        const fault = checkStatus ? responseFault(this.#responseStatus) : undefined
+        if (fault) {
+          callback(failureFromError(fault))
+          return
+        }
         if (values == null || values.length < 2) {
           callback({
             success: false,
@@ -586,12 +610,86 @@ class SCServo {
     )
   }
 
+  readAngleLimits(callback: ResultCallback<SCServoAngleLimits>): void {
+    this.#sendCommand(
+      COMMAND.READ,
+      ADDRESS.MIN_ANGLE_LIMIT,
+      (values) => {
+        const fault = responseFault(this.#responseStatus)
+        if (fault) {
+          callback(failureFromError(fault))
+          return
+        }
+        if (values?.length !== 4) {
+          callback({ success: false, reason: 'Invalid angle limit response' })
+          return
+        }
+        callback({ success: true, value: { min: el(values[0], values[1]), max: el(values[2], values[3]) } })
+      },
+      (error) => callback(failureFromError(error)),
+      4,
+    )
+  }
+
+  enableAngleLimitWriteLock(callback: CompletionCallback): void {
+    // SCSCL applies angle limits in RAM when the EEPROM write lock is set.
+    this.#writeChecked(ADDRESS.LOCK, callback, 1)
+  }
+
+  setAngleLimits(limits: SCServoAngleLimits, callback: CompletionCallback): void {
+    this.#writeChecked(ADDRESS.MIN_ANGLE_LIMIT, callback, ...le(limits.min), ...le(limits.max))
+  }
+
+  setPwmDuty(power: number, callback: CompletionCallback): void {
+    const magnitude = Math.round(Math.abs(power) * 1000)
+    const output = power < 0 ? magnitude | 0x400 : magnitude
+    this.#writeChecked(ADDRESS.GOAL_TIME, callback, ...le(output))
+  }
+
+  #writeChecked(address: Address, callback: CompletionCallback, ...values: number[]): void {
+    this.#sendCommand(
+      COMMAND.WRITE,
+      address,
+      (response) => {
+        const fault = this.#awaitWriteResponse ? responseFault(this.#responseStatus) : undefined
+        callback(fault ?? (response?.length ? new Error('Invalid write response') : undefined))
+      },
+      callback,
+      ...values,
+    )
+  }
+
+  readTorque(callback: ResultCallback<boolean>): void {
+    this.#sendCommand(
+      COMMAND.READ,
+      ADDRESS.TORQUE_ENABLE,
+      (values) => {
+        const fault = responseFault(this.#responseStatus)
+        if (fault) {
+          callback(failureFromError(fault))
+          return
+        }
+        if (values?.length !== 1) {
+          callback({ success: false, reason: 'Invalid torque response' })
+          return
+        }
+        callback({ success: true, value: values[0] !== 0 })
+      },
+      (error) => callback(failureFromError(error)),
+      1,
+    )
+  }
+
   /**
    * sets torque
    * @param enable enable
    * @returns TBD
    */
-  setTorque(enable: boolean, callback?: CompletionCallback): void {
+  setTorque(enable: boolean, callback?: CompletionCallback, checkStatus = false): void {
+    if (checkStatus && callback) {
+      this.#writeChecked(ADDRESS.TORQUE_ENABLE, callback, Number(enable))
+      return
+    }
     this.#sendCommand(COMMAND.WRITE, ADDRESS.TORQUE_ENABLE, () => callback?.(), callback ?? (() => {}), Number(enable))
   }
 

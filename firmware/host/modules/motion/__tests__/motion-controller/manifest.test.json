@@ -6,6 +6,13 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
+    "~": [
+      "$(MODDABLE)/modules/embedded/io/serial/$(PLATFORM)/*",
+      "../../../io-expander/py32-io-expander"
+    ],
+    "embedded:io/serial": "./serial-stub",
+    "py32-io-expander": "./servo-power-stub",
+    "motion-test-servo-fixture": "./servo-fixture",
     "main": "./motion-controller.test"
   },
   "defines": {

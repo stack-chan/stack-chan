@@ -66,6 +66,8 @@ Input devices are optional. `context.input.touch` is defined only when the platf
 and `context.input.touchPanel` is defined only when the platform exposes `config.TouchPanel`.
 MODs must check for `undefined` before attaching touch handlers.
 
+`context.input.imu?.subscribeSamples(handler)` observes accelerometer and gyroscope snapshots from the Host's IMU. The handler receives `undefined` if a read fails. Call the returned function to unsubscribe. Samples use the platform driver's axes and units. On K151, gyroscope readings are in degrees per second.
+
 `context.connectivity.network?.ready` resolves to `connected`, `skipped`, or `failed`.
 Network-dependent MODs can await it and handle `skipped` or `failed` without importing host-internal network modules.
 Local peer sessions support ESP-NOW and BLE Serial through the same API; see [Local peer messaging](./local-peer-communication.md).
@@ -112,6 +114,20 @@ It provides face/effect operations, drawer registration, and drawer open/close m
 
 The public motion API exposes `pose`, `lookAt`, `lookAway`, `setPose`, and `setTorque`.
 Low-level driver objects are internal to `host/modules/motion` and are not exposed to MODs.
+
+#### Continuous yaw
+
+`motion.startContinuousYaw` is available on the M5StackChan (K151) with its M5StackChan servo driver. Check for the method before offering a continuous rotation control. It opens an exclusive session at zero output and rejects if another session owns motion or the motion controller is closed. It resolves to `undefined` if the driver no longer supports continuous yaw. The initial session expires after one second if you send no power command.
+
+| Session method | Contract |
+| --- | --- |
+| `setPower(power, timeoutMs)` | Apply signed output from `-1` to `1`. Zero sets zero output. The deadline starts at the call and must be an integer from 1 to 1000 milliseconds. Renew before the deadline to keep moving. |
+| `readRawPosition()` | Read the yaw servo's raw position without a zero offset or angle conversion. On K151, positive power decreases the raw reading. A full turn spans 1152 counts, while the sensor returns usable readings over only part of that turn. |
+| `close()` | Release the session and set yaw output to zero. Repeated calls are safe. |
+
+Await each read or power command before sending the next. Overlapping commands reject without extending the deadline. While the session owns motion, `setPose` and `setTorque` reject and `lookAt` has no effect. The previous gaze target is cleared when the session starts. The Host ends the session on expiry, invalid power or deadline, a servo communication error, or runtime shutdown. Closing sends no position target. To resume pose or gaze control, issue a new command after the session closes. A new continuous rotation also requires a new session.
+
+For remote control, close the session on link loss and on MOD shutdown. Keep the command deadline active in case messages stop arriving while the link remains connected. See the [Strider MOD](../mods/examples/strider/README_ja.md) for an example.
 
 ### Audio capability
 

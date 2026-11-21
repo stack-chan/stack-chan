@@ -125,10 +125,10 @@ static int onEvent(esp_webrtc_event_t *event, void *ctx)
 }
 static void scheduler(const char *name, media_lib_thread_cfg_t *cfg)
 {
-	if (!strcmp(name, "pc_task")) { cfg->stack_size = 25 * 1024; cfg->priority = 18; cfg->core_id = 1; }
-	else if (!strcmp(name, "Adec")) { cfg->stack_size = 40 * 1024; cfg->priority = 15; cfg->core_id = 0; }
+	/* Opus encoding and RTP sends can delay inbound RTP long enough to starve playback. */
+	if (!strcmp(name, "pc_task")) { cfg->stack_size = 25 * 1024; cfg->priority = 20; cfg->core_id = 1; }
+	else if (!strcmp(name, "Adec")) { cfg->stack_size = 40 * 1024; cfg->priority = 19; cfg->core_id = 0; }
 	else if (!strcmp(name, "pc_send")) {
-		/* Keep capture/RTP ahead of peer receive work on the S3. */
 		cfg->priority = 19;
 		cfg->core_id = 1;
 	}

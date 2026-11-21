@@ -298,6 +298,8 @@ export function createCascadedConversation(
                 if (index) await synthesis.flush()
                 await synthesis.write(segment)
               }
+              // TLSのハンドシェイクとI²Sの確保が重ならないよう、最後の要求のPCMが届くまで再生を待つ
+              if (segments.length > 1) sink.allowStreaming?.()
               await synthesis.endInput()
               await link.done
               const receipt = await ports.output.finish(outputId)

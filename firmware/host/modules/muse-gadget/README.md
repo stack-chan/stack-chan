@@ -223,8 +223,10 @@ is not a claim of zero retention under every Google account policy. Free and
 paid tiers have different data-use terms. Account model access, billing, and
 quotas require separate verification before a live test.
 
-Input remains bounded to 15 seconds of 16 kHz mono PCM. Output is streamed as
-24 kHz mono PCM into the existing resampler. Requests have bounded parsing,
+Input remains bounded to 15 seconds of 16 kHz mono PCM. Gemini returns 24 kHz
+mono PCM and StopWatch resamples it to 16 kHz. The
+[opt-in native speech target](setup-device/NATIVE-SPEECH.md) can start playing
+long replies while the final TTS request is still receiving audio. Requests have bounded parsing,
 backpressure, cancellation, and deadlines. Missing credentials and unsupported
 responses fail without silently switching providers. See
 [Gemini transcription](https://aistudio.google.com/docs/transcribe),

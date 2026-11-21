@@ -248,3 +248,156 @@ test('cancelling playback closes native output once and releases queued pages', 
   assert.equal(harness.closes(), 1)
   assert.equal(harness.pages.size, 0)
 })
+
+test('streaming waits for a producer write after arming and for the configured lead', async () => {
+  for (const alreadyHasLead of [true, false]) {
+    const harness = playbackHarness()
+    const playback = createBufferedPlayback({
+      allocatePage: harness.allocatePage,
+      openOutput: (volume) => harness.openOutput(16000, volume),
+      streamingLeadBytes: 6,
+      volume: 0.25,
+    })
+    playback.write(new Uint8Array(alreadyHasLead ? 6 : 2))
+    playback.allowStreaming()
+    if (!alreadyHasLead) playback.write(new Uint8Array(2))
+    await setImmediate()
+    assert.deepEqual(harness.opens, [])
+
+    playback.setVolume(0.5)
+    playback.write(new Uint8Array(2))
+    assert.deepEqual(harness.opens, [])
+    await setImmediate()
+    assert.deepEqual(harness.opens, [{ rate: 16000, volume: 0.5 }])
+    await playback.drain()
+    playback.close()
+  }
+})
+
+test('one streaming output plays writes in order while busy and after catching up to the producer', async () => {
+  const harness = playbackHarness()
+  const writing = Promise.withResolvers()
+  const continueWriting = Promise.withResolvers()
+  let drains = 0
+  const playback = createBufferedPlayback({
+    allocatePage: harness.allocatePage,
+    openOutput(volume) {
+      const output = harness.openOutput(16000, volume)
+      return {
+        ...output,
+        write(bytes) {
+          output.write(bytes)
+          if (harness.writes.length === 1) {
+            writing.resolve()
+            return continueWriting.promise
+          }
+        },
+        drain: () => drains++,
+      }
+    },
+    streamingLeadBytes: 4,
+    volume: 1,
+  })
+  const first = Uint8Array.of(5, 4, 3, 2)
+  const second = Uint8Array.from({ length: 16400 }, (_, index) => index % 251)
+  const third = Uint8Array.of(9, 14, 5, 11)
+  playback.allowStreaming()
+  playback.write(first)
+  await writing.promise
+  playback.write(second)
+  continueWriting.resolve()
+  await setImmediate()
+  assert.deepEqual(Buffer.concat(harness.writes), Buffer.concat([first, second]))
+  assert.equal(drains, 0)
+
+  playback.write(third)
+  await setImmediate()
+  assert.deepEqual(Buffer.concat(harness.writes), Buffer.concat([first, second, third]))
+  assert.equal(drains, 0)
+  const draining = playback.drain()
+  assert.equal(playback.drain(), draining)
+  await draining
+  assert.equal(drains, 1)
+  assert.equal(harness.opens.length, 1)
+  assert.equal(playback.submittedFrames, (first.length + second.length + third.length) / 2)
+  playback.close()
+  assert.equal(harness.pages.size, 0)
+})
+
+test('closing a streaming output waiting for data wakes playback and rejects further writes', async () => {
+  const harness = playbackHarness()
+  const playback = createBufferedPlayback({
+    allocatePage: harness.allocatePage,
+    openOutput: (volume) => harness.openOutput(16000, volume),
+    streamingLeadBytes: 4,
+    volume: 1,
+  })
+  playback.allowStreaming()
+  playback.write(Uint8Array.of(1, 2, 3, 4))
+  await setImmediate()
+  assert.equal(playback.submittedFrames, 2)
+  playback.close()
+  playback.close()
+  assert.throws(() => playback.write(Uint8Array.of(5, 6)), { code: 'cancelled' })
+  await assert.rejects(playback.drain(), { code: 'cancelled' })
+  assert.equal(harness.closes(), 1)
+  assert.equal(harness.pages.size, 0)
+})
+
+test('an early open failure defers the complete PCM to drain', async () => {
+  const harness = playbackHarness()
+  let attempts = 0
+  const playback = createBufferedPlayback({
+    allocatePage: harness.allocatePage,
+    openOutput(volume) {
+      if (++attempts === 1) throw new Error('driver unavailable during synthesis')
+      return harness.openOutput(16000, volume)
+    },
+    streamingLeadBytes: 4,
+    volume: 1,
+  })
+  const first = Uint8Array.of(1, 2, 3, 4)
+  const second = Uint8Array.of(5, 6)
+  playback.allowStreaming()
+  playback.write(first)
+  await setImmediate()
+  assert.equal(attempts, 1)
+  playback.allowStreaming()
+  playback.write(second)
+  await setImmediate()
+  assert.equal(attempts, 1)
+  assert.deepEqual(harness.writes, [])
+
+  await playback.drain()
+  assert.equal(attempts, 2)
+  assert.deepEqual(Buffer.concat(harness.writes), Buffer.concat([first, second]))
+  assert.equal(playback.submittedFrames, 3)
+  playback.close()
+  assert.equal(harness.pages.size, 0)
+})
+
+test('a downstream write failure is reported without reopening the streaming output', async () => {
+  const harness = playbackHarness()
+  const failure = new Error('driver write failed')
+  const playback = createBufferedPlayback({
+    allocatePage: harness.allocatePage,
+    openOutput(volume) {
+      return {
+        ...harness.openOutput(16000, volume),
+        write() {
+          throw failure
+        },
+      }
+    },
+    streamingLeadBytes: 4,
+    volume: 1,
+  })
+  playback.allowStreaming()
+  playback.write(Uint8Array.of(1, 2, 3, 4))
+  await setImmediate()
+  assert.throws(() => playback.write(Uint8Array.of(5, 6)), failure)
+  await assert.rejects(playback.drain(), failure)
+  assert.equal(harness.opens.length, 1)
+  playback.close()
+  assert.equal(harness.pages.size, 0)
+})

@@ -174,9 +174,12 @@ export type PlaybackReceipt = {
   readonly position: PlaybackCursor
   readonly state: 'played' | 'interrupted' | 'failed'
 }
+export interface PlaybackSegment extends AudioSink {
+  allowStreaming?(): void
+}
 export interface PlaybackSink extends AudioSink {
   readonly budget: MediaBudget
-  begin(outputId: string, generation: number): AudioSink
+  begin(outputId: string, generation: number): PlaybackSegment
   finish(outputId: string): Promise<PlaybackReceipt>
   fence(nextGeneration: number): Promise<readonly PlaybackReceipt[]>
 }

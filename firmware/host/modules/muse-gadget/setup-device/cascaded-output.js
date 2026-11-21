@@ -35,6 +35,7 @@ const buffered = createResampledOutput({
     createBufferedPlayback({
       allocatePage: () => new PcmPage(),
       openOutput: (gain) => openDriver(sampleRate, gain, limit, onLevel, startupBlocks),
+      streamingLeadBytes: 35 * sampleRate * 2,
       volume,
     }),
 })

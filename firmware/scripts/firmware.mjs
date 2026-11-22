@@ -15,7 +15,7 @@ import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
-import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
+import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion, renderVersionSdkconfig, firmwareDescriptorVersion } from './lib/moddable-version.mjs'
 import { manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
 
 const command = process.argv[2]
@@ -276,9 +276,12 @@ function prepareWakewordUiSdkconfig(manifestPath, sourceDirectory) {
     .split(/\r?\n/)
     .filter((line) => !Object.hasOwn(esp32Config, line.split('=', 1)[0]))
     .join('\n')
+  const moddableVersion = readModdableVersion()
+  const version = firmwareDescriptorVersion(moddableVersion)
+  const versionedSdkconfig = renderVersionSdkconfig(sdkconfig, moddableVersion)
   mkdirSync(directory, { recursive: true })
-  if (!existsSync(filePath) || readFileSync(filePath, 'utf8') !== sdkconfig) writeFileSync(filePath, sdkconfig)
-  return { directory }
+  if (!existsSync(filePath) || readFileSync(filePath, 'utf8') !== versionedSdkconfig) writeFileSync(filePath, versionedSdkconfig)
+  return { directory, version }
 }
 
 /**

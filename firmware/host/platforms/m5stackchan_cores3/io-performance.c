@@ -7,8 +7,13 @@
 #include <string.h>
 
 void xs_io_main_priority(xsMachine *the) {
-  int priority = xsmcToInteger(xsArg(0));
-  if (priority < 0 || priority >= configMAX_PRIORITIES) xsRangeError("invalid main priority");
+  if (xsmcArgc < 1) xsTypeError("main priority is required");
+  xsType type = xsmcTypeOf(xsArg(0));
+  if (type != xsIntegerType && type != xsNumberType) xsTypeError("main priority must be a number");
+  double value = xsmcToNumber(xsArg(0));
+  if (!(value >= 4 && value <= 13) || value >= configMAX_PRIORITIES || value != (int)value)
+    xsRangeError("supported main priorities: 4 through 13");
+  int priority = (int)value;
   if (strcmp(pcTaskGetName(NULL), "main")) xsUnknownError("main thread required");
   UBaseType_t previous = uxTaskPriorityGet(NULL);
   vTaskPrioritySet(NULL, priority);

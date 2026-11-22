@@ -51,14 +51,20 @@ export function firmwareDescriptorVersion(moddableVersion, hostApiVersion = STAC
  * Produces an sdkconfig overlay with the Moddable SDK and Stack-chan host API versions.
  * @param {string} source - Base sdkconfig.defaults contents.
  * @param {string} version - Moddable SDK version for esp_app_desc.
+ * @param {ReadonlySet<string>} manifestOverrides - Kconfig keys supplied by selected manifests.
  * @returns {string} Generated sdkconfig.defaults contents.
  */
-export function renderVersionSdkconfig(source, version) {
+export function renderVersionSdkconfig(source, version, manifestOverrides = new Set()) {
   const descriptorVersion = firmwareDescriptorVersion(version)
   const base = source
     .replaceAll('\r\n', '\n')
     .split('\n')
-    .filter((line) => !/^CONFIG_APP_PROJECT_VER(?:_FROM_CONFIG)?=/.test(line))
+    .filter((line) => {
+      const key = /^(?:#\s+)?(CONFIG_[A-Z0-9_]+)(?:=|\s+is not set\s*$)/.exec(line.trimStart())?.[1]
+      return (
+        key !== 'CONFIG_APP_PROJECT_VER' && key !== 'CONFIG_APP_PROJECT_VER_FROM_CONFIG' && !manifestOverrides.has(key)
+      )
+    })
     .join('\n')
     .trimEnd()
 
@@ -72,7 +78,7 @@ CONFIG_APP_PROJECT_VER="${descriptorVersion}"
 
 /**
  * Writes a generated sdkconfig directory for Moddable's SDKCONFIGPATH.
- * @param {{platformName: string, moddableDirectory?: string, outputDirectory?: string, sourceDirectory: string, partitionSourcePath: string}} options - Generation inputs.
+ * @param {{platformName: string, moddableDirectory?: string, outputDirectory?: string, sourceDirectory: string, partitionSourcePath: string, manifestOverrides?: ReadonlySet<string>}} options - Generation inputs.
  * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string, moddableVersion: string}} Generated configuration details.
  */
 export function prepareVersionSdkconfig({
@@ -81,6 +87,7 @@ export function prepareVersionSdkconfig({
   outputDirectory = buildOutputDirectory,
   sourceDirectory,
   partitionSourcePath,
+  manifestOverrides,
   realtime = false,
   realtimePerformance = false,
 }) {
@@ -105,7 +112,7 @@ export function prepareVersionSdkconfig({
   // Only the explicitly selected Live performance profile changes bus timing.
   if (realtimePerformance)
     source = source.replace(/^CONFIG_(?:SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=.*\n?/gm, '')
-  const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
+  const sdkconfig = renderVersionSdkconfig(source, moddableVersion, manifestOverrides)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')
   const partitionFilePath = path.join(directory, 'partitions.csv')

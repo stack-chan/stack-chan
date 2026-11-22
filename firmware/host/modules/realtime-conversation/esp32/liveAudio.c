@@ -84,9 +84,15 @@ extern int stackchanInstallOpusPolicy(void);
 #define DMA_BLOCKS 3
 #define CAPTURE_BYTES 6400
 #define PLAYBACK_BYTES 19200
+#define PLAYBACK_BLOCK_MS 10
+#define PLAYBACK_IDLE_MS 500
 #if defined(MODDEF_LIVEAUDIO_PREFILL) && MODDEF_LIVEAUDIO_PREFILL
-#define PLAYBACK_PREFILL_BLOCKS (MODDEF_LIVEAUDIO_PREFILL / 10)
-#define PLAYBACK_RESET_BLOCKS 20
+#define PLAYBACK_PREFILL_BLOCKS (MODDEF_LIVEAUDIO_PREFILL / PLAYBACK_BLOCK_MS)
+#if MODDEF_LIVEAUDIO_PREFILL < PLAYBACK_BLOCK_MS || MODDEF_LIVEAUDIO_PREFILL % PLAYBACK_BLOCK_MS \
+    || PLAYBACK_PREFILL_BLOCKS > PLAYBACK_BYTES / (BLOCK * 2)
+#error "liveaudio.prefill must be zero or a multiple of the PCM block duration that fits the playback buffer"
+#endif
+#define PLAYBACK_RESET_BLOCKS (PLAYBACK_IDLE_MS / PLAYBACK_BLOCK_MS)
 #endif
 
 struct LiveAudio {
@@ -206,10 +212,10 @@ static void audioTask(void *ctx)
 	while (!atomic_load(&a->stopping)) {
 		/* Non-blocking dequeue: the clock must keep running between utterances. */
 		unsigned playbackStop = atomic_load(&a->playbackStop);
+		bool waitForPcm = false;
 #if defined(MODDEF_LIVEAUDIO_PREFILL) && MODDEF_LIVEAUDIO_PREFILL
 		/* Prime at the start of playback. Keep the I2S clock running, and
 		 * drain the remaining PCM immediately when closing the session. */
-		bool waitForPcm = false;
 		if (!playbackStop && emptyBlocks == PLAYBACK_RESET_BLOCKS && prefillBlocks < PLAYBACK_PREFILL_BLOCKS) {
 			size_t available = xStreamBufferBytesAvailable(a->output);
 			if (available && available < PLAYBACK_PREFILL_BLOCKS * BLOCK * 2) {
@@ -228,10 +234,10 @@ static void audioTask(void *ctx)
 		size_t got = xStreamBufferReceive(a->output, tx, BLOCK * 2, 0);
 #endif
 		if (playbackStop == 2) got = 0;
-		if (got < BLOCK * 2 && idle < 500) {
+		if (!waitForPcm && got < BLOCK * 2 && idle < PLAYBACK_IDLE_MS) {
 			if (!gapActive) atomic_fetch_add(&a->underruns, 1);
-			gapActive = true; gap += 10;
-			atomic_fetch_add(&a->silenceMs, 10);
+			gapActive = true; gap += PLAYBACK_BLOCK_MS;
+			atomic_fetch_add(&a->silenceMs, PLAYBACK_BLOCK_MS);
 			if (gap > atomic_load(&a->maxSilenceMs)) atomic_store(&a->maxSilenceMs, gap);
 		} else { gapActive = false; gap = 0; }
 		memset((uint8_t *)tx + got, 0, BLOCK * 2 - got);

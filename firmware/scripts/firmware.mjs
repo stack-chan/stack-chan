@@ -8,6 +8,7 @@ import {
   assertNoCustomBuildOutput,
   buildOutputDirectory,
   ensureBuildOutputDirectory,
+  firmwareDirectory,
   hostApplicationName,
   moddableOutputArguments,
 } from './lib/build-output.mjs'
@@ -15,8 +16,8 @@ import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
-import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion, renderVersionSdkconfig, firmwareDescriptorVersion } from './lib/moddable-version.mjs'
-import { manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
+import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
+import { localManifests, manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -57,8 +58,7 @@ const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
-const wakewordUi =
-  deviceName === 'm5stackchan_cores3' && path.basename(manifest) === 'manifest_m5stackchan_cores3_wakeword_ui.json'
+let wakewordUiOverrides
 let toolManifest = manifest
 let expectedDescriptorVersion
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
@@ -72,6 +72,7 @@ let realtime = false
 let solutionDirectory
 if (!dryRun && deviceName === 'm5stackchan_cores3' && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
+    wakewordUiOverrides = selectWakewordUiOverrides(manifest, deviceName)
     realtime = manifestUsesWebRtc(manifest, deviceName)
     if (realtime) {
       solutionDirectory = prepareWebRtcSolution()
@@ -114,7 +115,13 @@ if (
   }
 }
 
-if (!dryRun && !wakewordUi && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
+if (
+  !dryRun &&
+  !wakewordUiOverrides &&
+  deviceName === 'm5stackchan_cores3' &&
+  command !== 'mod' &&
+  command !== 'mod:build'
+) {
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
       realtime,
@@ -127,20 +134,19 @@ if (!dryRun && !wakewordUi && deviceName === 'm5stackchan_cores3' && command !==
   }
 }
 
-const sdkconfigTarget = wakewordUi ? 'm5stack_cores3' : device.sdkconfigTarget
+const sdkconfigTarget = wakewordUiOverrides ? 'm5stack_cores3' : device.sdkconfigTarget
 if (!dryRun && sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
     const moddableDirectory = process.env.MODDABLE
     if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
     const sourceDirectory = path.join(moddableDirectory, 'build/devices/esp32/targets', sdkconfigTarget, 'sdkconfig')
-    const sdkconfig = wakewordUi
-      ? prepareWakewordUiSdkconfig(manifest, sourceDirectory)
-      : prepareVersionSdkconfig({
-          platformName: deviceName,
-          moddableDirectory,
-          sourceDirectory,
-          partitionSourcePath: path.join(sourceDirectory, 'partitions.csv'),
-        })
+    const sdkconfig = prepareVersionSdkconfig({
+      platformName: wakewordUiOverrides ? 'm5stackchan_cores3_wakeword_ui' : deviceName,
+      moddableDirectory,
+      sourceDirectory,
+      partitionSourcePath: path.join(sourceDirectory, 'partitions.csv'),
+      manifestOverrides: wakewordUiOverrides,
+    })
     expectedDescriptorVersion = sdkconfig.version
     // The included board manifest overrides SDKCONFIGPATH from the environment.
     // Apply this last, as the standard release bundle wrapper does.
@@ -267,21 +273,15 @@ switch (command) {
     process.exit(1)
 }
 
-function prepareWakewordUiSdkconfig(manifestPath, sourceDirectory) {
-  const { esp32Config } = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  const directory = path.join(buildOutputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3_wakeword_ui')
-  const filePath = path.join(directory, 'sdkconfig.defaults')
-  // mcconfig merges the board defaults after esp32Config, so explicitly selected values must be removed from the copy.
-  const sdkconfig = readFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'utf8')
-    .split(/\r?\n/)
-    .filter((line) => !Object.hasOwn(esp32Config, line.split('=', 1)[0]))
-    .join('\n')
-  const moddableVersion = readModdableVersion()
-  const version = firmwareDescriptorVersion(moddableVersion)
-  const versionedSdkconfig = renderVersionSdkconfig(sdkconfig, moddableVersion)
-  mkdirSync(directory, { recursive: true })
-  if (!existsSync(filePath) || readFileSync(filePath, 'utf8') !== versionedSdkconfig) writeFileSync(filePath, versionedSdkconfig)
-  return { directory, version }
+function selectWakewordUiOverrides(manifestPath, platformName) {
+  const wakewordUiPath = path.join(firmwareDirectory, 'host/app/manifest_m5stackchan_cores3_wakeword_ui.json')
+  const overrides = new Set()
+  let selected = false
+  for (const { filename, manifest, platform } of localManifests(manifestPath, platformName)) {
+    if (filename === wakewordUiPath) selected = true
+    for (const key of Object.keys({ ...manifest.esp32Config, ...platform?.esp32Config })) overrides.add(key)
+  }
+  return selected ? overrides : undefined
 }
 
 /**

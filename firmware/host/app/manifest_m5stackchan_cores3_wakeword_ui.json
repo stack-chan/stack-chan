@@ -2,8 +2,7 @@
   "include": ["./manifest_m5stackchan_cores3_wakeword.json"],
   "modules": {
     "stackchan/realtime-ui-performance": "../platforms/m5stackchan_cores3/session-ui-performance",
-    "screen-scheduler": "../platforms/m5stackchan_cores3/screen-scheduler",
-    "stackchan/touch-polling": "../platforms/m5stackchan_cores3/host/ft6206_async_m5stackchan"
+    "screen-scheduler": "../platforms/m5stackchan_cores3/screen-scheduler"
   },
   "esp32Config": {
     "CONFIG_SPIRAM_SPEED_40M": "n",

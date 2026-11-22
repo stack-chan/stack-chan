@@ -96,7 +96,7 @@ function fixture(maxBytes = 64) {
 }
 
 for (const maxBytes of [512, 16384]) {
-  test(`Responses pauses reads while an SSE observer waits within ${maxBytes} bytes`, async () => {
+  test(`Responses bounds reads while an SSE observer waits to ${maxBytes} bytes`, async () => {
     const io = fixture(maxBytes)
     const held = deferred<void>()
     const seen: string[] = []
@@ -127,7 +127,8 @@ for (const maxBytes of [512, 16384]) {
     }
     const response = { id: 'response', status: 'completed', output: [] }
     io.push(event({ type: 'response.completed', response }))
-    assert.equal(io.reads.length, 1)
+    const readWhilePaused = io.reads.reduce((sum, count) => sum + count, 0)
+    assert.equal(readWhilePaused, Math.min(maxBytes, readWhilePaused + io.remaining))
     assert.equal(io.closes, 0)
     held.resolve()
     await turn()
@@ -246,6 +247,41 @@ test('HTTP abort and deadline settle while a consumer is held and never resume r
     assert.deepEqual(io.reads, [4])
     assert.equal(io.closes, 1)
   }
+})
+
+test('HTTP preserves a terminal SSE event received while its observer is waiting', async () => {
+  const io = fixture(512)
+  const held = deferred<void>()
+  const model = createResponsesLLM({ model: 'test', provider: 'test', send: io.send })
+  const task = model.createResponse({ input: [] }, { ...createVoiceScope(), onEvent: () => held.promise })
+  const outcome = task.catch((error) => error)
+  const event = (value: unknown) => new TextEncoder().encode(`data: ${JSON.stringify(value)}\n\n`)
+  const response = { id: 'response', status: 'completed', output: [] }
+  io.headers()
+  io.push(event({ type: 'response.output_text.delta', item_id: 'message', delta: 'hello' }))
+  await turn()
+  io.push(event({ type: 'response.completed', response }))
+  io.end(new Error('socket closed'))
+  held.resolve()
+  await turn()
+  io.tick()
+  assert.deepEqual(await outcome, { ...response, usage: undefined })
+})
+
+test('HTTP retains the first transport error if EOF is reported afterwards', async () => {
+  const io = fixture()
+  const held = deferred<void>()
+  const task = io.send(body, () => held.promise, createVoiceScope())
+  const outcome = assert.rejects(task, { code: 'provider_failed' })
+  io.headers()
+  io.push(Uint8Array.of(1))
+  await turn()
+  io.end(new Error('socket reset'))
+  io.end()
+  held.resolve()
+  await turn()
+  io.tick()
+  await outcome
 })
 
 test('HTTP consumer failure closes once without reading the retained remainder', async () => {

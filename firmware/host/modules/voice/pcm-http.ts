@@ -8,7 +8,7 @@ export function createPcmBodyReader(
   finish: (error?: unknown) => void,
 ) {
   const scratch = new Uint8Array(2048)
-  let reader: BodyReader,
+  let reader: BodyReader | undefined,
     available = 0,
     reading = false,
     ended = false,
@@ -16,8 +16,13 @@ export function createPcmBodyReader(
     carry = -1
   function settle(error?: unknown) {
     if (closed) return
-    closed = true
+    close()
     finish(error)
+  }
+  function close() {
+    closed = true
+    reader = undefined
+    available = 0
   }
   async function pump() {
     if (reading || closed) return
@@ -27,7 +32,7 @@ export function createPcmBodyReader(
         const offset = carry < 0 ? 0 : 1
         if (offset) scratch[0] = carry
         const size = Math.min(available, scratch.length - offset)
-        const count = reader.read(scratch.subarray(offset, offset + size)) ?? 0
+        const count = reader?.read(scratch.subarray(offset, offset + size)) ?? 0
         if (count <= 0 || count > size) throw voiceError('provider_failed', 'invalid PCM body read')
         available -= count
         const length = offset + count
@@ -47,20 +52,21 @@ export function createPcmBodyReader(
   }
   return {
     ready(body: BodyReader, count: number) {
-      if (closed) return
+      if (closed || ended || !count) return
       reader = body
       available = count
       void pump()
     },
     done(error?: unknown) {
-      if (error) settle(error)
-      else {
-        ended = true
+      if (closed || ended) return
+      ended = true
+      reader = undefined
+      if (error || available > 0) {
+        settle(error ?? voiceError('provider_failed', 'incomplete PCM body'))
+      } else {
         void pump()
       }
     },
-    close() {
-      closed = true
-    },
+    close,
   }
 }

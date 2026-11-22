@@ -75,17 +75,29 @@ test('the 24px font bundles UI glyphs and uppercase Latin letters', () => {
   assert.equal(wasmFont.characterFiles, undefined)
 })
 
-test('the CJK font bundles only glyphs used by localization catalogs', () => {
+test('the native, WASM and splash test CJK fonts bundle catalog and NTP address glyphs', () => {
   const font = findFont(manifest.resources?.['*-mask'], (resource) => resource.name === 'StackchanCJK')
 
   assert.ok(font, 'expected the StackchanCJK font resource')
   assert.equal(font.localization, true)
-  assert.equal(font.characters, ' ')
   assert.deepEqual(font.blocks, [])
+  const addressCharacters = Array.from({ length: 95 }, (_, index) => String.fromCharCode(index + 32)).filter(
+    (character) => /[ A-Za-z0-9.:%_[\]-]/u.test(character),
+  )
+  assert.deepEqual(
+    addressCharacters.filter((character) => !font.characters?.includes(character)),
+    [],
+  )
 
   const wasmFont = findFont(wasmManifest.resources?.['*-mask'], (resource) => resource.name === 'StackchanCJK')
   assert.ok(wasmFont, 'expected the WASM StackchanCJK font resource')
   assert.equal(wasmFont.localization, font.localization)
   assert.equal(wasmFont.characters, font.characters)
   assert.deepEqual(wasmFont.blocks, font.blocks)
+
+  const splashFont = findFont(splashTestManifest.resources?.['*-mask'], (resource) => resource.name === 'StackchanCJK')
+  assert.ok(splashFont, 'expected the splash test StackchanCJK font resource')
+  assert.equal(splashFont.localization, font.localization)
+  assert.equal(splashFont.characters, font.characters)
+  assert.deepEqual(splashFont.blocks, font.blocks)
 })

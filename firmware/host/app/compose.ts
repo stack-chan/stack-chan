@@ -30,6 +30,7 @@ import type { Container as PiuContainer } from 'piu/MC'
 import Preference from 'preference'
 import PY32Led from 'py32-led'
 import { RS30XDriver } from 'rs30x-driver'
+import { lazySpeechPlayback } from 'runtime-audio'
 import { StackchanRuntimeContext } from 'runtime-context'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
@@ -45,7 +46,7 @@ import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-
 import Touch, { type TouchOptions } from 'touch'
 import TouchPanel from 'touch-panel'
 import { canonicalizeVolume } from 'volume-model'
-import type { bindAudioRuntime, LeaseFactory, RuntimeOptions } from '../modules/voice/runtime.js'
+import type { CreateAudioRuntime, LeaseFactory, RuntimeOptions } from '../modules/voice/runtime-types.js'
 
 type DeviceButton = {
   read: () => number
@@ -186,10 +187,9 @@ export function createStackchanContext(
   const uiKey = uiPrefs.type ?? 'simple'
   const UI = uiControllers.get(uiKey)
 
-  if (!Driver || !createSpeechPlayback || !UI) {
+  if (!Driver || !UI) {
     for (const [key, klass] of [
       [driverKey, Driver],
-      [ttsKey, createSpeechPlayback],
       [uiKey, UI],
     ]) {
       if (klass == null) {
@@ -203,7 +203,10 @@ export function createStackchanContext(
 
   const driver = Driver(driverPrefs)
   const ui = UI(uiPrefs)
-  const speechPlayback = createSpeechPlayback(ttsPrefs)
+  const speechPlayback = lazySpeechPlayback(() => {
+    if (!createSpeechPlayback) throw new Error(`type "${ttsKey}" does not exist`)
+    return createSpeechPlayback(ttsPrefs)
+  })
 
   const touch = config.Touch ? new Touch(config.Touch, createTouchOptions()) : undefined
   const touchPanelConstructor = (config.TouchPanel ?? globalEnv.device?.sensor?.TouchPanel) as
@@ -267,7 +270,7 @@ export function createStackchanContext(
   const contextParams = {
     createVoiceRuntime(acquireExclusive: RuntimeOptions['acquireExclusive']) {
       const { createAudioRuntime } = Modules.importNow('stackchan/voice/device', true) as {
-        createAudioRuntime(options: RuntimeOptions): ReturnType<typeof bindAudioRuntime>
+        createAudioRuntime: CreateAudioRuntime
       }
       return createAudioRuntime({
         acquireExclusive,

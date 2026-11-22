@@ -1,9 +1,9 @@
 declare const setTimeout: (callback: () => void, delay?: number) => unknown
 
 import Resource from 'Resource'
+import type { SpeechCompletion, SpeechDoneListener, SpeechPlaybackListener } from 'speech-playback-types'
 import { renderStackchanVoiceKoeWav, renderStackchanVoiceWav } from 'stackchan-voice-wav'
 import StackchanVoice from 'stackchanvoice'
-import type { SpeechCompletion, SpeechDoneListener, SpeechPlaybackListener } from 'speech-playback-types'
 import type { WasmAudioOutputBridge } from './audio-bridge-contract.js'
 
 const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50

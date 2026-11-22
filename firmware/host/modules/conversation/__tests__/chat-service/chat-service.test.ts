@@ -1,4 +1,4 @@
-import { createChatConversation, createXiaozhiV1Connection } from 'chat'
+import { ChatConversation, XiaoZhiV1Connection } from 'chat'
 import type { ConversationEvent } from 'stackchan/voice/contracts'
 import { createVoiceScope } from 'stackchan/voice/scope'
 import { assert, equal } from 'testing/assert'
@@ -25,14 +25,14 @@ async function run() {
       closed = true
     }
   }
-  const connection = createXiaozhiV1Connection({
+  const connection = XiaoZhiV1Connection.create({
     endpoint: 'wss://example.test/ws',
     deviceId: 'device-1',
     clientId: 'client-1',
     listeningMode: 'manual',
     helloExtension: { robot: true },
   })
-  const conversation = createChatConversation({
+  const conversation = ChatConversation.create({
     connection,
     chatAudioIOCtor: WorkerIO as never,
     tools: {
@@ -77,11 +77,14 @@ async function run() {
     events.some((event) => event.type === 'input.transcript' && event.value.final),
     'observed final transcript',
   )
-  io.emitFunctionCall('call-1', 'echo', {})
-  io.emitFunctionCall('call-1', 'echo', {})
-  await Promise.resolve()
-  equal(executions, 1, 'duplicate tool event executes once')
-  equal(io.lastFunctionResult.call, 'call-1')
+  for (let i = 0; i < 300; i++) {
+    const call = 'mcp:number:' + i
+    io.emitFunctionCall(call, 'echo', {})
+    await Promise.resolve()
+    equal(io.lastFunctionResult.call, call)
+    equal(io.lastFunctionResult.result, 'ok')
+  }
+  equal(executions, 300, 'each distinct tool request executes')
   equal((await session.interrupt()).history, 'restart-required')
   equal(closed, true, 'old worker no longer forwards media')
   equal((await session.close({ mode: 'abort' })).remoteFinalization, 'confirmed')

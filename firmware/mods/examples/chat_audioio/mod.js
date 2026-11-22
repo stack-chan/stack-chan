@@ -1,12 +1,12 @@
 // biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
-import { createChatConversation, ChatState, chatStateToName } from 'chat'
-import { createToolSet } from 'stackchan/ai'
-import { createConversationPipeline } from 'stackchan/voice'
+import { ChatConversation, ChatState, chatStateToName } from 'chat'
 import { hasValidChatType, normalizeChatConfig } from 'chat-audioio-config'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
+import { ToolSet } from 'stackchan/ai'
+import { ConversationPipeline } from 'stackchan/voice'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -501,14 +501,14 @@ export function onContextCreated(robot) {
   let pipeline
   let closing
   const toolSet = () =>
-    createToolSet(
+    ToolSet.create(
       Object.values(tools).map(({ execute, ...schema }) => ({
         definition: { type: 'function', ...schema },
         execute,
       })),
     )
   const buildConversation = () =>
-    createChatConversation({
+    ChatConversation.create({
       config: chatConfig,
       tools: toolSet(),
       callbacks: {
@@ -547,11 +547,19 @@ export function onContextCreated(robot) {
     })
 
   const startChat = () => {
-    if (active || closing || !robot.audio.microphone) return
+    if (active) return
+    if (closing) {
+      queueBalloonText('終了を待っています', true)
+      return
+    }
+    if (!robot.audio.microphone) {
+      queueBalloonText('マイクを利用できません', true)
+      return
+    }
     active = true
     startUiTimers()
     robot.ui.drawer.setDrawerButtonState('toggleChat', true)
-    const current = createConversationPipeline({
+    const current = ConversationPipeline.create({
       conversation: buildConversation(),
       microphone: robot.audio.microphone,
       speaker: robot.audio.speaker,

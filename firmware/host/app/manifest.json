@@ -99,7 +99,7 @@
         "source": "../modules/ui/assets/fonts/StackchanCJK-Regular",
         "name": "StackchanCJK",
         "size": 12,
-        "characters": " ",
+        "characters": " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-.:_%[]",
         "blocks": [],
         "localization": true,
         "monochrome": true

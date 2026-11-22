@@ -3,8 +3,6 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { beforeEach, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-
-import type { Speaker } from '../../voice/contracts.js'
 import AudioOut, {
   getAudioOutInstances,
   resetAudioOut,
@@ -13,10 +11,12 @@ import AudioOut, {
 import {
   getMP3StreamerInstances,
   resetMP3Streamers,
+  setMP3StreamerConstructorCompletes,
   setMP3StreamerConstructorFailure,
 } from '../../testing/fakes/mp3streamer.js'
 import Timer from '../../testing/fakes/timer.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
+import type { Speaker } from '../../voice/contracts.js'
 
 type WebRadioModule = typeof import('../platforms/m5stackchan-cores3/web-radio-player.js')
 
@@ -305,7 +305,7 @@ test('a stale media handle cannot stop its replacement and foreground audio wait
   let pendingBackground: ReturnType<typeof deferred<() => void>> | undefined
   const runtime = bindAudioRuntime(
     {
-      acquireExclusive: (background) => {
+      acquireExclusive: (_kind, background) => {
         if (background && pendingBackground) return pendingBackground.promise
         claims++
         return () => {
@@ -401,6 +401,35 @@ test('permanent media failure rejects done after the worker closes', async () =>
   await done
 })
 
+test('a failed media retirement rejects once and allows the next playback', async () => {
+  const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+  const { createVoiceScope } = await import('../../voice/scope.js')
+  const player = new MediaPlayer(speaker)
+  const first = await player.open({ mode: 'finite', url: 'https://episodes.test/one' }, createVoiceScope())
+  getMP3StreamerInstances()[0].close = async () => {
+    throw new Error('decoder close failed')
+  }
+
+  await assert.rejects(player.stop(), /decoder close failed/)
+  await assert.rejects(first.done, /decoder close failed/)
+  await player.stop()
+  const next = await player.open({ mode: 'finite', url: 'https://episodes.test/two' }, createVoiceScope())
+  assert.equal(next.state, 'buffering')
+  await next.stop()
+})
+
+test('finite playback closes the streamer even if construction completes synchronously', async () => {
+  const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+  const { createVoiceScope } = await import('../../voice/scope.js')
+  const player = new MediaPlayer(speaker)
+  setMP3StreamerConstructorCompletes()
+
+  const media = await player.open({ mode: 'finite', url: 'https://episodes.test/one' }, createVoiceScope())
+  assert.equal(await media.done, 'ended')
+  assert.equal(getMP3StreamerInstances()[0].closed, true)
+  assert.equal(getAudioOutInstances()[0].closed, true)
+})
+
 test('pause reports a teardown failure through the control promise and session done', async () => {
   const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
   const { createVoiceScope } = await import('../../voice/scope.js')
@@ -448,3 +477,60 @@ test('seek supersedes a resume waiting for worker release and keeps playback act
   assert.equal(getMP3StreamerInstances()[1].options.seek?.target, 15)
   await media.stop()
 })
+
+for (const cancel of [false, true]) {
+  test(`Podcast controls wait for the previous worker to retire${cancel ? ' and can cancel the pending open' : ''}`, async () => {
+    const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+    const { createVoiceScope, deferred } = await import('../../voice/scope.js')
+    const { PodcastController } = await import(
+      new URL('../../../../../mods/examples/podcast/controller.js', import.meta.url).href
+    )
+    const media = new MediaPlayer(speaker)
+    const controller = new PodcastController(
+      {
+        audio: { media },
+        ui: { application: { distribute() {} }, setFaceMotionEnabled() {} },
+      },
+      [{ title: 'Show', url: 'https://show.test' }],
+      () => ({
+        promise: Promise.resolve({ episodes: [{ title: 'Episode', url: 'https://show.test/one.mp3' }] }),
+        cancel() {},
+      }),
+      { show() {}, hide() {} },
+      undefined,
+      [{ title: 'Radio', url: 'https://radio.test/live' }],
+      createVoiceScope,
+    )
+    let snapshot: { state: string; canPause: boolean } = controller.snapshot
+    controller.subscribe((value: typeof snapshot) => {
+      snapshot = value
+    })
+    await controller.refresh()
+    await controller.playRadio()
+    const retired = deferred<void>()
+    getMP3StreamerInstances()[0].close = () => retired.promise
+    const opening = controller.play()
+    try {
+      await tick()
+      assert.equal(snapshot.state, 'connecting')
+      assert.equal(snapshot.canPause, false, 'the view must not offer pause before a session exists')
+      assert.equal(getMP3StreamerInstances().length, 1, 'the old worker still owns playback')
+      if (cancel) controller.stop()
+      retired.resolve()
+      await opening
+      assert.equal(snapshot.state, cancel ? 'idle' : 'buffering')
+      assert.equal(snapshot.canPause, !cancel, 'session assignment must notify the subscribed view')
+      assert.equal(getMP3StreamerInstances().length, cancel ? 1 : 2)
+      if (!cancel) {
+        controller.pause()
+        await tick()
+        assert.equal(snapshot.state, 'paused', 'pause works once the view enables it')
+      }
+    } finally {
+      retired.resolve()
+      await opening
+      controller.close()
+      await media.stop()
+    }
+  })
+}

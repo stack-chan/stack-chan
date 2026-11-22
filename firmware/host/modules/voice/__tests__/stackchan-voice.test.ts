@@ -24,7 +24,7 @@ const { mono, readSource } = await import('../media.js')
 const { default: timer } = await import('../../testing/fakes/timer.js')
 hooks.deregister()
 
-test('StackchanVoice buffers one native block until accepted and tracks completed playback', async (t) => {
+test('StackchanVoice reuses each native block after acceptance and cancels borrowed output', async (t) => {
   t.mock.method(Date, 'now', () => 0)
   const tts = createStackchanVoiceTTS({ speed: 85, voice: 'cute' })
   const scope = createVoiceScope()
@@ -39,8 +39,8 @@ test('StackchanVoice buffers one native block until accepted and tracks complete
   })
   await session.write('こん')
   await session.write('にちは')
-  const done = session.finish()
-  assert.equal(session.finish(), done)
+  const done = session.endInput()
+  assert.equal(session.endInput(), done)
   assert.equal(blocks.length, 1)
   assert.equal(native.reads, 1)
   assert.equal(blocks[0].byteLength, 2048)
@@ -54,24 +54,17 @@ test('StackchanVoice buffers one native block until accepted and tracks complete
     [2048, 52],
   )
   assert.equal(blocks[0].buffer, blocks[1].buffer)
-  const cursor = { basis: 'device-clock' as const, renderedFrames: 1049, sampleRate: 24000 }
-  assert.equal(session.textAt(cursor).basis, 'unknown')
-  assert.deepEqual(session.textAt({ ...cursor, renderedFrames: 1050 }), {
-    basis: 'completed-segment',
-    text: 'こんにちは',
-  })
   await session.close()
 
   const song = await tts.openKoe({ ...args, voice: 'normal' })
   const neverReleased = deferred<void>()
   readSource(song.output, () => neverReleased.promise)
   await song.write('a')
-  const singing = song.finish()
+  const singing = song.endInput()
   scope.abort()
   await assert.rejects(singing, { code: 'cancelled' })
   assert.deepEqual(native.starts.at(-1), { method: 'koe', text: 'a', speed: 85, preset: 0 })
   assert.equal(native.instances, 1)
-  assert.equal(song.textAt({ ...cursor, renderedFrames: 5000 }).basis, 'unknown')
   const next = await tts.open({ ...args, ...createVoiceScope() })
   const reads = native.reads
   neverReleased.resolve()
@@ -90,15 +83,47 @@ test('StackchanVoice rejects incompatible formats, truncated Koe and invalid nat
   const session = await tts.openKoe(args)
   await assert.rejects(session.write('a'.repeat(2048)), { code: 'resource_exhausted' })
   await session.write('あ'.repeat(683))
-  await assert.rejects(session.finish(), { code: 'resource_exhausted' })
+  await assert.rejects(session.endInput(), { code: 'resource_exhausted' })
   const invalid = await tts.open(args)
   native.invalidCount = true
   try {
     await invalid.write('音')
-    await assert.rejects(invalid.finish(), { code: 'provider_failed' })
+    await assert.rejects(invalid.endInput(), { code: 'provider_failed' })
   } finally {
     native.invalidCount = false
   }
+})
+
+test('StackchanVoice flushes accepted segments and emits the tail before ending output', async () => {
+  const tts = createStackchanVoiceTTS()
+  const session = await tts.open({ ...createVoiceScope(), voice: 'normal', format: mono(24000) })
+  const accepted = deferred<void>()
+  const { subscribePcmSource } = await import('../media.js')
+  let ended = false
+  let blocks = 0
+  subscribePcmSource(session.output, {
+    write() {
+      if (++blocks === 1) return accepted.promise
+    },
+    end() {
+      ended = true
+    },
+  })
+  await session.write('一')
+  const flushing = session.flush()
+  await session.write('二')
+  await assert.rejects(session.flush(), { code: 'device_busy' })
+  assert.equal(ended, false)
+  const finishing = session.endInput()
+  await assert.rejects(session.write('遅い'), { code: 'cancelled' })
+  accepted.resolve()
+  await flushing
+  await finishing
+  assert.deepEqual(
+    native.starts.slice(-2).map((item) => item.text),
+    ['一', '二'],
+  )
+  assert.equal(ended, true)
 })
 
 test('StackchanVoice yields between bounded batches even without backpressure', async () => {
@@ -124,7 +149,7 @@ test('StackchanVoice yields between bounded batches even without backpressure', 
         })
       await synthesis.write('声')
       const before = native.reads
-      const done = synthesis.finish()
+      const done = synthesis.endInput()
       await new Promise((ok) => setImmediate(ok))
       assert.equal(native.reads - before, mode === 'slow-reader' ? 1 : 4)
       scope.abort()

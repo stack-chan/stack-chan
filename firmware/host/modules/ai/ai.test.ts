@@ -1,18 +1,20 @@
 import assert from 'node:assert/strict'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { inflateSync } from 'node:zlib'
+import { writeAliasPackage } from '../testing/node-alias-package.js'
 import type { FunctionCall, InputItem, LLM, ModelResponse } from '../voice/contracts.js'
 import { createVoiceScope } from '../voice/scope.js'
 import type { ResponseConnection } from './ai-http-stream.js'
-import { writeAliasPackage } from '../testing/node-alias-package.js'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const directory = dirname(fileURLToPath(import.meta.url))
 for (const name of ['ai-core', 'ai-image', 'ai-wire', 'ai-responses']) {
   writeAliasPackage(resolve(directory, '../../..'), 'stackchan-' + name, resolve(directory, name + '.js'))
 }
-const { asDelegateAgent, createAgent, createToolSet, createVision, outputText } = await import('./ai-core.js')
+const { asDelegateAgent, createAgent, createToolSet, createVision, outputText, toolsFromMCP } = await import(
+  './ai-core.js'
+)
 const { createResponsesLLM, prepareBody } = await import('./ai-responses.js')
 const { streamResponse } = await import('./ai-http-stream.js')
 const { createChatLLM } = await import('./ai-chat.js')
@@ -48,6 +50,283 @@ const tool = {
   },
   execute: () => 'moved',
 }
+
+test('ToolSet executes every request across a long session', async () => {
+  let executions = 0
+  const tools = createToolSet([{ ...tool, execute: () => String(++executions) }])
+  for (let i = 0; i < 260; i++) {
+    const callId = 'call-' + i
+    const output = await tools.execute(
+      { ...call, call_id: callId },
+      { ...createVoiceScope(), sessionId: 'long-session', turnId: 'turn-' + i, callId },
+    )
+    assert.equal(output.call_id, callId)
+    assert.equal(output.output, String(i + 1))
+  }
+  assert.equal(executions, 260)
+})
+
+test('ToolSet executes independent requests even when their identifiers and arguments match', async () => {
+  let executions = 0
+  const tools = createToolSet([{ ...tool, execute: () => String(++executions) }])
+  const context = { ...createVoiceScope(), sessionId: 'independent', turnId: 'turn', callId: call.call_id }
+  assert.equal((await tools.execute(call, context)).output, '1')
+  assert.equal((await tools.execute(call, context)).output, '2')
+  assert.equal(executions, 2)
+})
+
+test('ToolSet keeps argument and result budgets and rejects cancelled requests before effects', async () => {
+  let executions = 0
+  const tools = createToolSet(
+    [
+      {
+        ...tool,
+        execute: () => {
+          executions++
+          return 'too long'
+        },
+      },
+    ],
+    { maxOutputChars: 2 },
+  )
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  await assert.rejects(tools.execute({ ...call, arguments: ' '.repeat(8193) }, context), { code: 'tool_failed' })
+  context.abort()
+  await assert.rejects(tools.execute(call, context), { code: 'cancelled' })
+  assert.equal(executions, 0)
+  await assert.rejects(tools.execute(call, { ...context, ...createVoiceScope() }), { code: 'resource_exhausted' })
+  assert.equal(executions, 1)
+})
+
+test('MCP schemas need explicit validators for unsupported keywords and forward the call scope', async () => {
+  const calls: string[] = []
+  let receivedScope: unknown
+  const client = {
+    async listTools() {
+      return {
+        tools: [
+          { name: 'simple', inputSchema: tool.definition.parameters },
+          {
+            name: 'formatted',
+            inputSchema: { type: 'object', properties: { email: { type: 'string', format: 'email' } } },
+          },
+          {
+            name: 'choice',
+            inputSchema: { type: 'object', oneOf: [{ required: ['angle'] }, { required: ['email'] }] },
+          },
+        ],
+      }
+    },
+    async callTool(name: string, _input: unknown, scope?: unknown) {
+      calls.push(name)
+      receivedScope = scope
+      return 'ok'
+    },
+  }
+  await assert.rejects(toolsFromMCP(client), { code: 'unsupported_capability', message: /formatted/ })
+  const adapted = await toolsFromMCP(client, {
+    validators: {
+      formatted: (input) => typeof input.email === 'string' && input.email.includes('@'),
+      choice: (input) => Object.hasOwn(input, 'angle') !== Object.hasOwn(input, 'email'),
+    },
+  })
+  const tools = createToolSet(adapted)
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  assert.equal((await tools.execute({ ...call, name: 'simple' }, context)).output, 'ok')
+  await assert.rejects(tools.execute({ ...call, name: 'formatted', arguments: '{"email":"invalid"}' }, context), {
+    code: 'tool_failed',
+  })
+  await assert.rejects(tools.execute({ ...call, name: 'choice', arguments: '{"angle":1,"email":"a@b"}' }, context), {
+    code: 'tool_failed',
+  })
+  assert.equal(
+    (await tools.execute({ ...call, name: 'formatted', arguments: '{"email":"a@b"}' }, context)).output,
+    'ok',
+  )
+  assert.equal((receivedScope as { signal: unknown }).signal, context.signal)
+  assert.deepEqual(calls, ['simple', 'formatted'])
+})
+
+test('ToolSet releases a cancelled wait and handles a late provider rejection', async () => {
+  const scope = createVoiceScope()
+  let rejectPending!: (error: unknown) => void
+  let listeners = 0
+  const signal = {
+    get aborted() {
+      return scope.signal.aborted
+    },
+    addEventListener(type: 'abort', listener: () => void) {
+      listeners++
+      scope.signal.addEventListener(type, listener)
+    },
+    removeEventListener(type: 'abort', listener: () => void) {
+      listeners--
+      scope.signal.removeEventListener(type, listener)
+    },
+  }
+  let executions = 0
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute: () =>
+        ++executions === 1
+          ? new Promise((_resolve, reject) => {
+              rejectPending = reject
+            })
+          : 'reused',
+    },
+  ])
+  const waiting = tools.execute(call, { signal, sessionId: 's', turnId: 't', callId: call.call_id })
+  assert.equal(listeners, 1)
+  scope.abort()
+  await assert.rejects(waiting, { code: 'cancelled_unconfirmed' })
+  assert.equal(listeners, 0)
+  const fresh = { ...createVoiceScope(), sessionId: 's', turnId: 'next', callId: call.call_id }
+  await assert.rejects(tools.execute(call, fresh), { code: 'cancelled_unconfirmed' })
+  assert.equal(executions, 1)
+  rejectPending(new Error('late provider failure'))
+  await Promise.resolve()
+  assert.equal((await tools.execute(call, fresh)).output, 'reused')
+})
+
+test('Agent preserves uncertainty when an asynchronous tool is still running after cancellation', async () => {
+  const scope = createVoiceScope()
+  let started!: () => void
+  const entered = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  let finish!: (value: unknown) => void
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute: () => {
+        started()
+        return new Promise((resolve) => {
+          finish = resolve
+        })
+      },
+    },
+  ])
+  const agent = createAgent({
+    llm: {
+      capabilities: { tools: true, image: false },
+      async createResponse() {
+        return { ...result, output: [call] }
+      },
+    },
+    tools,
+    instructions: '',
+    maxToolRounds: 1,
+  })
+  const run = agent.run({ input: [], sessionId: 's', turnId: 't' }, scope)
+  await entered
+  scope.abort()
+  const cancelled = await run
+  assert.equal(cancelled.status, 'cancelled')
+  assert.equal('error' in cancelled && cancelled.error.code, 'cancelled_unconfirmed')
+  assert.equal(cancelled.appended.at(-1)?.type, 'function_call_output')
+  finish('done')
+})
+
+test('tool output preserves ordinary JSON values with an exact escaped-character budget', async () => {
+  const shared = { x: 1 }
+  const value = {
+    quotes: '"\\\b\f\n\r\t\u0000',
+    unicode: '\ud800\udc00\ud800x\udc00',
+    items: [undefined, () => {}, Symbol('x'), NaN, Infinity, -0, Object(2)],
+    sparse: new Array(2),
+    omit: undefined,
+    hidden: () => {},
+    date: new Date('2026-01-01T00:00:00.000Z'),
+    custom: {
+      toJSON(key: string) {
+        return { key }
+      },
+    },
+    first: shared,
+    second: shared,
+  }
+  const expected = JSON.stringify(value)
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  const tools = createToolSet([{ ...tool, execute: () => value }], { maxOutputChars: expected.length })
+  assert.equal((await tools.execute(call, context)).output, expected)
+  const short = createToolSet([{ ...tool, execute: () => value }], { maxOutputChars: expected.length - 1 })
+  await assert.rejects(short.execute(call, context), { code: 'resource_exhausted' })
+})
+
+test('tool output stops before traversing oversized objects, arrays, keys, cycles, and deep results', async () => {
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  const execute = (value: unknown, maxOutputChars = 32) =>
+    createToolSet([{ ...tool, execute: () => value }], { maxOutputChars }).execute(call, context)
+  let visited = 0
+  const huge: Record<string, unknown> = {}
+  for (let i = 0; i < 1000; i++)
+    Object.defineProperty(huge, String(i), {
+      enumerable: true,
+      get() {
+        visited++
+        return i
+      },
+    })
+  await assert.rejects(execute(huge), { code: 'resource_exhausted' })
+  assert.ok(visited < 20)
+  await assert.rejects(execute(new Array(1000000)), { code: 'resource_exhausted' })
+  await assert.rejects(execute({ value: '\\'.repeat(100000) }), { code: 'resource_exhausted' })
+  await assert.rejects(execute({ ['x'.repeat(100000)]: 1 }), { code: 'resource_exhausted' })
+  const circular: { self?: unknown } = {}
+  circular.self = circular
+  await assert.rejects(execute(circular), { code: 'tool_failed' })
+  let deep: unknown = 1
+  for (let i = 0; i < 100; i++) deep = [deep]
+  await assert.rejects(execute(deep, 4096), { code: 'resource_exhausted' })
+  assert.equal((await execute({ omitted: undefined, kept: 1 })).output, '{"kept":1}')
+  await assert.rejects(execute(1n), { code: 'tool_failed' })
+  await assert.rejects(execute(Object(1n)), { code: 'tool_failed' })
+})
+
+test('Agent stops tool rounds even when the model ignores tool_choice none', async () => {
+  let executions = 0
+  const choices: unknown[] = []
+  const agent = createAgent({
+    llm: {
+      capabilities: { tools: true, image: false },
+      async createResponse(request) {
+        choices.push(request.tool_choice)
+        return { ...result, output: [call] }
+      },
+    },
+    tools: createToolSet([{ ...tool, execute: () => String(++executions) }]),
+    instructions: '',
+    maxToolRounds: 1,
+  })
+  const response = await agent.run({ input: [], sessionId: 's', turnId: 't' }, createVoiceScope())
+  assert.equal(response.status, 'failed')
+  assert.equal('error' in response && response.error.code, 'resource_exhausted')
+  assert.equal(executions, 1)
+  assert.deepEqual(choices, [undefined, 'none'])
+  assert.deepEqual(response.appended.at(-1), {
+    type: 'function_call_output',
+    call_id: call.call_id,
+    output: '{"status":"not_executed"}',
+  })
+})
+
+test('Agent exposes its LLM image capability to conversation strategies', () => {
+  for (const image of [false, true]) {
+    const agent = createAgent({
+      llm: {
+        capabilities: { image, tools: false },
+        async createResponse() {
+          return result
+        },
+      },
+      tools: createToolSet([]),
+      instructions: '',
+      maxToolRounds: 0,
+    })
+    assert.equal(agent.capabilities?.image, image)
+  }
+})
 
 test('Responses sends exact PNG colors from both RGB565 byte orders without materializing a base64 image', () => {
   for (const format of ['rgb565le', 'rgb565be'] as const) {
@@ -150,11 +429,6 @@ test('Agent records an already executed tool when barge-in aborts before the nex
   assert.equal(response.status, 'cancelled')
   assert.deepEqual(response.appended, [call, { type: 'function_call_output', call_id: 'call', output: 'moved' }])
   assert.equal(count, 1)
-  assert.equal(
-    (await tools.execute(call, { sessionId: 's', turnId: 't', callId: 'call', ...createVoiceScope() })).output,
-    'moved',
-  )
-  assert.equal(count, 1)
 })
 
 test('incomplete tool call never moves the head; validated tool calls continue with original item order', async () => {
@@ -195,7 +469,7 @@ test('incomplete tool call never moves the head; validated tool calls continue w
   assert.equal(count, 1)
 })
 
-test('client delegation returns the completed final answer and waits for running effects before releasing the journal', async () => {
+test('client delegation returns only the completed final answer and rejects cancelled work', async () => {
   let status: ModelResponse['status'] = 'completed'
   const llm: LLM = {
     capabilities: { image: true, tools: true },
@@ -222,7 +496,6 @@ test('client delegation returns the completed final answer and waits for running
   const wait = new Promise<void>((resolve) => {
     settle = resolve
   })
-  const released: string[] = []
   const scope = createVoiceScope()
   const slow = asDelegateAgent({
     async run(received, options) {
@@ -231,17 +504,11 @@ test('client delegation returns the completed final answer and waits for running
       await wait
       return { status: 'completed', response: result, appended: [message] }
     },
-    releaseSession(id) {
-      released.push(id)
-    },
   })
   const pending = slow.run(request, scope)
   scope.abort()
-  slow.releaseSession?.('s')
-  assert.deepEqual(released, [])
   settle()
   await assert.rejects(pending, { code: 'cancelled' })
-  assert.deepEqual(released, ['s'])
 })
 
 test('Vision releases the borrowed frame after success and a provider error', async () => {
@@ -384,7 +651,7 @@ test('HTTP drains accepted response callbacks and honors each writable credit re
   assert.equal(io.closes, 1)
 })
 
-test('HTTP abort and input overflow close once and stop reading the camera buffer', async () => {
+test('HTTP abort and invalid reads close once and stop reading the camera buffer', async () => {
   for (const abort of [false, true]) {
     const io = httpFixture(4)
     const scope = createVoiceScope()
@@ -412,7 +679,7 @@ test('HTTP abort and input overflow close once and stop reading the camera buffe
     else io.handlers.onReadable.call(source, 8)
     io.handlers.onWritable.call(source, 10)
     io.handlers.onDone()
-    await assert.rejects(task, { code: abort ? 'cancelled' : 'resource_exhausted' })
+    await assert.rejects(task, abort ? { code: 'cancelled' } : /short HTTP read/)
     assert.equal(io.closes, 1)
     assert.equal(reads, 0)
   }

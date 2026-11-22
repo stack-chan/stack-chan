@@ -30,7 +30,7 @@ export type {
 } from 'local-peer-types'
 export { LocalPeerError } from 'local-peer-types'
 
-export type { SpeechPlayback } from 'speech-playback-types'
+export type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 
 export type UIEffect = PiuContent
 export type RobotLed = {
@@ -117,7 +117,8 @@ export type AudioCapability = {
   volume?: number
   speaker: VoiceSpeaker
   microphone?: VoiceMicrophone
-  useSpeechPlayback(playback: SpeechPlayback | SpeakerSpeechPlayback): void
+  /** Borrows the player while installed and returns the detached previous player for restoration. Audio must be idle. */
+  setSpeechPlayback(playback: SpeechPlayback | SpeakerSpeechPlayback): SpeechPlayback | SpeakerSpeechPlayback
   say(text: string, volume?: number): Promise<Maybe<string>>
   /** Sings raw koe notation. Returns a failure when the active player does not support singing. */
   sing(koe: string, volume?: number): Promise<Maybe<string>>
@@ -235,6 +236,7 @@ export type ShowBalloonOptions = {
 
 export type RuntimeUICapability = RobotUI & {
   controller: RobotUI
+  readonly faceMotionEnabled?: boolean
   drawer: DrawerCapability
   showBalloon(text: string, option?: ShowBalloonOptions): void
   /** Display pre-wrapped rows with fixed-height Labels; rows are reused. */
@@ -269,7 +271,7 @@ export type StackchanCapabilityNamespaces = {
 
 export type StackchanLegacyFlatCapability = FaceCapability &
   MotionCapability &
-  Omit<AudioCapability, 'useSpeechPlayback' | 'speaker' | 'microphone'> &
+  Omit<AudioCapability, 'setSpeechPlayback' | 'speaker' | 'microphone'> &
   InputCapability &
   LightingCapability &
   CameraCapability &

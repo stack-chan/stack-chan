@@ -1,5 +1,7 @@
 # API
 
+音声会話は[検証付き最小例](voice-quickstart.md)から始めてください。独自STT・TTSの作者向けに[PCMと音声の契約](stackchan-voice-adapters.md)、既存MOD向けに[API移行手順](voice-api-migration.md)を用意しています。
+
 [English](./api.md)
 
 APIの詳しいドキュメントは現在作成中です。
@@ -58,7 +60,7 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 
 - `context.audio.say(...)`、`context.audio.record(...)`、`context.audio.playAudio(...)`
 - `context.audio.microphone` と `context.audio.speaker` を音声対話のパイプラインに渡せます。[実装例](chat-audioio-integration.md)
-- 発話・歌唱の再生方式を切り替える `context.audio.useSpeechPlayback(...)`
+- 発話・歌唱の再生方式を切り替える `context.audio.setSpeechPlayback(...)`
 - `context.motion.lookAt(...)`、`context.motion.setPose(...)`、`context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`、`context.face.setColor(...)`
 - `context.i18n.locale`、`context.i18n.localize(...)`
@@ -122,9 +124,20 @@ wasm audio bridge は、現在の public capability 実装で唯一、非同期 
 
 ### Audio capability
 
-`context.audio.say(text)` は設定済みの `SpeechPlayback` を使って再生します。MOD は音声の使用を終えてから `context.audio.useSpeechPlayback(player)` で再生方式を切り替えられます。たとえば、同梱の音声素材を使うときは `speech-playback-local` の `SpeechPlayback` を渡します。
+`context.audio.say(text)`は設定済みの`SpeechPlayback`を使います。この方式は音声合成から再生完了までを一つの操作として扱います。音声が使われていないとき、`setSpeechPlayback(player)`で方式を差し替えられます。戻り値は取り外した方式です。同じメソッドに戻り値を渡すと元に戻せます。
 
-音声対話の `TTS` はテキストから音声を合成します。再生には会話パイプラインが確保したスピーカーを使います。
+```js
+const previous = context.audio.setSpeechPlayback(player)
+try {
+  await context.audio.say('こんにちは')
+} finally {
+  context.audio.setSpeechPlayback(previous)
+}
+```
+
+runtimeは取り付けた方式を借用し、口パクのコールバックを設定します。差し替え時は古いコールバックを外しますが、どちらの方式もcloseしません。取り付けた方式を別の場所から直接使ったり、コールバックを書き換えたりしないでください。同梱音声素材には`speech-playback-local`の`SpeechPlayback`を使います。
+
+音声会話の`TTS`はテキストから音声Sourceを生成します。再生と再生完了の管理には、会話パイプラインが確保したスピーカーを使います。
 
 `sing(koe, volume?)` は、使用中の SpeechPlayback が対応している場合に stackchan-voice の歌唱記法を再生します。
 歌唱非対応の provider では失敗結果を返し、歌唱記法を通常の文章として読み上げることはありません。

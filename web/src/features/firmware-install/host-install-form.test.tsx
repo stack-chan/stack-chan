@@ -54,6 +54,48 @@ afterEach(() => {
 })
 
 describe.each(['ja', 'en', 'zh-CN'] as const)('HostInstallForm in %s', (locale) => {
+  it('keeps retry disabled until cancellation releases the previous connection', async () => {
+    const { adapter, requestPort, user, t } = setup(locale)
+    let disconnect!: () => void
+    adapter.disconnect.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          disconnect = resolve
+        })
+    )
+    const trigger = screen.getByRole('button', { name: t('USBに接続して書き込む') })
+    await user.click(trigger)
+    await screen.findByRole('alertdialog')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledOnce())
+    expect(trigger).toBeDisabled()
+    await user.keyboard('{Escape}')
+    expect(requestPort).toHaveBeenCalledOnce()
+    disconnect()
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+    await user.click(trigger)
+    const next = await screen.findByRole('alertdialog')
+    await user.click(within(next).getByRole('button', { name: t('キャンセル') }))
+    await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledTimes(2))
+    expect(adapter.write).not.toHaveBeenCalled()
+  })
+
+  it('cancels with Escape, releases the connection, restores focus and can retry', async () => {
+    const { adapter, user, t } = setup(locale)
+    const trigger = screen.getByRole('button', { name: t('USBに接続して書き込む') })
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      await user.click(trigger)
+      await screen.findByRole('alertdialog')
+      await user.keyboard('{Escape}')
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(adapter.disconnect).toHaveBeenCalledTimes(attempt))
+      await waitFor(() => expect(trigger).toHaveFocus())
+      expect(adapter.write).not.toHaveBeenCalled()
+      expect(adapter.resetToRunApp).toHaveBeenCalledTimes(attempt)
+    }
+  })
+
   it.each([false, true])('confirms the selected mode and passes eraseAll=%s to the writer', async (eraseAll) => {
     const { adapter, user, t } = setup(locale)
     const checkbox = screen.getByRole('checkbox', { name: t('フラッシュ全体を消去してから書き込む') })

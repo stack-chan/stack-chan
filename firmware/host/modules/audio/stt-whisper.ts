@@ -1,12 +1,13 @@
-import { createMultipartUpload, type MultipartPart } from 'whisper-multipart'
+import { createClosingClient } from 'realtimeConversation/http-core'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
-import Timer from 'timer'
-import type { VoiceSignal } from '../voice/contracts.js'
 import type { Maybe } from 'stackchan-util'
+import Timer from 'timer'
 import { URL } from 'url'
 import UUID from 'uuid'
+import { createMultipartUpload, type MultipartPart } from 'whisper-multipart'
+import type { VoiceSignal } from '../voice/contracts.js'
 
 declare const device: {
   network: {
@@ -27,12 +28,14 @@ type MultipartResponse = {
 }
 
 /** Post multipart audio using the HTTPS provider and collect the transcription response. */
-function postMultipart(
+async function postMultipart(
   url: string,
   headers: Headers,
   parts: MultipartPart[],
   signal?: VoiceSignal,
 ): Promise<MultipartResponse> {
+  // HTTPSの初期化を呼び出し元のnativeスタックから切り離す
+  await Promise.resolve()
   return new Promise((resolve, reject) => {
     const endpoint = new URL(url)
     const path = `${endpoint.pathname}${endpoint.search}`
@@ -40,7 +43,7 @@ function postMultipart(
     const upload = createMultipartUpload(parts)
     uploadHeaders.set('content-length', String(upload.byteLength))
 
-    let client: HTTPClient | undefined
+    let client: Pick<HTTPClient, 'request' | 'close'> | undefined
     let responseStatus = 0
     let responseStatusText: string | undefined
     let responseBody: ArrayBuffer | undefined
@@ -80,7 +83,7 @@ function postMultipart(
     signal?.addEventListener('abort', abort)
     deadline = Timer.set(() => fail(new Error('speech request timed out')), 30000)
     try {
-      client = new device.network.https.client.io({
+      client = createClosingClient(device.network.https.client.io, {
         ...device.network.https.client,
         host: endpoint.hostname,
         port: endpoint.port ? Number(endpoint.port) : 443,

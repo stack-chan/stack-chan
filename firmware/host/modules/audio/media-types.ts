@@ -51,7 +51,7 @@ export type MediaCapability = MediaPlayer & {
   readonly state: MediaState
   start(options: MediaStartOptions): Promise<void>
   readonly progress: MediaProgress
-  pause(): void
+  pause(): Promise<void> | void
   resume(): Promise<void>
   seek(seconds: number): Promise<void>
   stop(): Promise<void> | void

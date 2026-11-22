@@ -4,7 +4,7 @@ import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behav
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
 import { installLaunchShortcut, type LaunchShortcutButton, prepareAppLaunch } from 'app-launch'
-import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
+import { type BootWiFiRecoveryStatus, startHostBootServices } from 'boot-services'
 import type { StackchanContext } from 'capabilities'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
@@ -64,7 +64,7 @@ function installModManagerShortcut(): void {
   })
 }
 
-function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string }): Promise<'retry' | 'offline'> {
+function waitForBootWiFiRecoveryChoice(status: BootWiFiRecoveryStatus): Promise<'retry' | 'offline'> {
   return new Promise((resolve) => {
     let resolved = false
     const previousAHandler = globalEnv.button?.a?.onChanged
@@ -85,9 +85,11 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
       resolve(choice)
     }
 
-    trace(`[network] ${status.message}: ${status.reason}\n`)
+    const server = status.sntpHost ? `\n${status.sntpHost}` : ''
+    trace(`[network] ${status.message}${server}: ${status.reason}\n`)
     showWiFiRecoveryChoice({
       message: status.message,
+      sntpHost: status.sntpHost,
       onRetry: () => choose('retry'),
       onOffline: () => choose('offline'),
     })

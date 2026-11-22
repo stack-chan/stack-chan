@@ -1,12 +1,13 @@
+import type { RobotCamera } from '../camera/camera.js'
 import type {
   Agent,
   AgentOptions,
   AgentResult,
+  Camera,
   DelegateAgent,
   Failure,
   FunctionCall,
   FunctionDefinition,
-  FunctionOutput,
   InputItem,
   Json,
   ModelResponse,
@@ -15,9 +16,7 @@ import type {
   ToolSet,
   Vision,
   VisionOptions,
-  Camera,
 } from '../voice/contracts.js'
-import type { RobotCamera } from '../camera/camera.js'
 
 export function failure(code: Failure['code'], message: string): Error & Failure {
   return Object.assign(new Error(message), { code })
@@ -38,35 +37,14 @@ export function outputText(response: ModelResponse): string {
 }
 
 export function asDelegateAgent(agent: Agent): DelegateAgent {
-  const sessions = new Map<string, { active: number; retiring: boolean }>()
   return {
-    releaseSession(id) {
-      const session = sessions.get(id)
-      if (session) session.retiring = true
-      else agent.releaseSession?.(id)
-    },
     async run(request, scope) {
       checkScope(scope)
-      const id = request.sessionId
-      if (!sessions.has(id) && sessions.size >= 16)
-        throw failure('resource_exhausted', 'too many active delegation sessions')
-      const session = sessions.get(id) ?? { active: 0, retiring: false }
-      if (session.retiring) throw failure('cancelled', 'delegated session closed')
-      sessions.set(id, session)
-      session.active++
-      try {
-        const result = await agent.run(request, scope)
-        checkScope(scope)
-        if (session.retiring) throw failure('cancelled', 'delegated session closed')
-        if ('error' in result) throw failure(result.error.code, result.error.message)
-        if (result.status !== 'completed') throw failure('provider_failed', 'incomplete delegated response')
-        return result.response.output.filter((item) => item.type === 'message' && item.phase !== 'commentary')
-      } finally {
-        if (--session.active === 0) {
-          sessions.delete(id)
-          if (session.retiring) agent.releaseSession?.(id)
-        }
-      }
+      const result = await agent.run(request, scope)
+      checkScope(scope)
+      if ('error' in result) throw failure(result.error.code, result.error.message)
+      if (result.status !== 'completed') throw failure('provider_failed', 'incomplete delegated response')
+      return result.response.output.filter((item) => item.type === 'message' && item.phase !== 'commentary')
     },
   }
 }
@@ -77,16 +55,28 @@ export type Tool = {
   validate?(input: Record<string, Json>): boolean
 }
 
-export async function toolsFromMCP(client: {
-  listTools(): Promise<{
-    tools: readonly { name: string; description?: string; inputSchema: FunctionDefinition['parameters'] }[]
-  }>
-  callTool(name: string, input: Record<string, Json>): Promise<unknown>
-}): Promise<Tool[]> {
-  return (await client.listTools()).tools.map(({ name, description, inputSchema }) => ({
-    definition: { type: 'function', name, description: description ?? name, parameters: inputSchema, strict: false },
-    execute: (input) => client.callTool(name, input),
-  }))
+export async function toolsFromMCP(
+  client: {
+    listTools(): Promise<{
+      tools: readonly { name: string; description?: string; inputSchema: FunctionDefinition['parameters'] }[]
+    }>
+    callTool(name: string, input: Record<string, Json>, scope?: Scope): Promise<unknown>
+  },
+  options: { validators?: Readonly<Record<string, NonNullable<Tool['validate']>>> } = {},
+): Promise<Tool[]> {
+  return (await client.listTools()).tools.map(({ name, description, inputSchema }) => {
+    const validator = Object.hasOwn(options.validators ?? {}, name) ? options.validators?.[name] : undefined
+    try {
+      checkSchema(inputSchema, Boolean(validator))
+    } catch (error) {
+      throw failure('unsupported_capability', `MCP tool ${name}: ${String(error)}`)
+    }
+    return {
+      definition: { type: 'function', name, description: description ?? name, parameters: inputSchema, strict: false },
+      validate: validator,
+      execute: (input, context) => client.callTool(name, input, { signal: context.signal }),
+    }
+  })
 }
 
 function validate(value: Json, schema: Json, depth = 0): boolean {
@@ -119,7 +109,6 @@ function validate(value: Json, schema: Json, depth = 0): boolean {
   return true
 }
 
-type Execution = { sessionId: string; invocation: string; retained: number; result: Promise<FunctionOutput> }
 const checkedKeywords = new Set([
   '$schema',
   'title',
@@ -157,35 +146,129 @@ function freezeTree<T>(value: T): T {
   return value
 }
 
-export function createToolSet(
-  tools: readonly Tool[] = [],
-  options: { maxCalls?: number; maxOutputChars?: number; maxLogChars?: number } = {},
-): ToolSet & { releaseSession(id: string): void } {
-  const maxCalls = options.maxCalls ?? 128
+function copyForJSON(value: object): object {
+  const copies = new Map<object, object>()
+  const pending: object[] = []
+  const allocate = (source: object) => {
+    const target = Array.isArray(source) ? new Array(source.length) : Object.create(null)
+    copies.set(source, target)
+    pending.push(source)
+    return target
+  }
+  const result = allocate(value)
+  for (let index = 0; index < pending.length; index++) {
+    const source = pending[index]
+    const target = copies.get(source) as Record<string, unknown>
+    for (const key of Object.keys(source)) {
+      const child = (source as Record<string, unknown>)[key]
+      target[key] = child && typeof child === 'object' ? (copies.get(child) ?? allocate(child)) : child
+    }
+  }
+  return result
+}
+
+function toolOutput(value: unknown, maxChars: number): string {
+  const exceeded = () => failure('resource_exhausted', 'tool result exceeds budget')
+  if (typeof value === 'string') {
+    if (value.length > maxChars) throw exceeded()
+    return value
+  }
+  let output = '',
+    visits = 0
+  const ancestors = new Set<object>()
+  const append = (text: string) => {
+    if (text.length > maxChars - output.length) throw exceeded()
+    output += text
+  }
+  const quote = (text: string) => {
+    const available = maxChars - output.length
+    if (text.length + 2 > available) throw exceeded()
+    let length = 2
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i)
+      if (code === 34 || code === 92 || code === 8 || code === 9 || code === 10 || code === 12 || code === 13)
+        length += 2
+      else if (code < 32) length += 6
+      else if (
+        code >= 0xd800 &&
+        code <= 0xdbff &&
+        text.charCodeAt(i + 1) >= 0xdc00 &&
+        text.charCodeAt(i + 1) <= 0xdfff
+      ) {
+        length += 2
+        i++
+      } else if (code >= 0xd800 && code <= 0xdfff) length += 6
+      else length++
+      if (length > available) throw exceeded()
+    }
+    append(JSON.stringify(text))
+  }
+  const prepare = (item: unknown, key: string): unknown => {
+    if (++visits > maxChars) throw exceeded()
+    if (item && (typeof item === 'object' || typeof item === 'bigint')) {
+      const toJSON = (item as { toJSON?: unknown }).toJSON
+      if (typeof toJSON === 'function') item = toJSON.call(item, key)
+    }
+    if (item instanceof Number || item instanceof String || item instanceof Boolean || item instanceof BigInt)
+      item = item.valueOf()
+    return item
+  }
+  const omitted = (item: unknown) => item === undefined || typeof item === 'function' || typeof item === 'symbol'
+  const write = (item: unknown, depth: number) => {
+    if (depth > 40) throw exceeded()
+    if (typeof item === 'string') quote(item)
+    else if (item === null || typeof item === 'number' || typeof item === 'boolean') append(JSON.stringify(item))
+    else if (item && typeof item === 'object') {
+      if (ancestors.has(item)) throw failure('tool_failed', 'circular tool result')
+      ancestors.add(item)
+      if (Array.isArray(item)) {
+        append('[')
+        const length = item.length
+        for (let i = 0; i < length; i++) {
+          if (i) append(',')
+          const child = prepare(item[i], String(i))
+          write(omitted(child) ? null : child, depth + 1)
+        }
+        append(']')
+      } else {
+        append('{')
+        let first = true
+        for (const key in item) {
+          if (!Object.hasOwn(item, key)) continue
+          const child = prepare((item as Record<string, unknown>)[key], key)
+          if (omitted(child)) continue
+          if (!first) append(',')
+          first = false
+          quote(key)
+          append(':')
+          write(child, depth + 1)
+        }
+        append('}')
+      }
+      ancestors.delete(item)
+    } else throw failure('tool_failed', 'tool result is not JSON serializable')
+  }
+  write(prepare(value ?? null, ''), 0)
+  return output
+}
+
+export function createToolSet(tools: readonly Tool[] = [], options: { maxOutputChars?: number } = {}): ToolSet {
   const maxOutput = options.maxOutputChars ?? 4096
-  const maxLog = options.maxLogChars ?? 32768
-  if (!Number.isSafeInteger(maxLog) || maxLog < maxOutput) throw RangeError('invalid tool log budget')
-  if (!Number.isSafeInteger(maxCalls) || maxCalls < 1 || !Number.isSafeInteger(maxOutput) || maxOutput < 1)
-    throw RangeError('invalid tool budget')
+  if (!Number.isSafeInteger(maxOutput) || maxOutput < 1) throw RangeError('invalid tool budget')
   const byName = new Map<string, Tool>()
+  let unconfirmed = 0
   for (const tool of tools) {
     checkSchema(tool.definition.parameters, Boolean(tool.validate))
     if (byName.has(tool.definition.name)) throw Error('duplicate tool: ' + tool.definition.name)
-    byName.set(tool.definition.name, { ...tool, definition: freezeTree(JSON.parse(JSON.stringify(tool.definition))) })
+    // XSのJSON.stringifyはpreloadされたROM配列を走査できないため、参照をRAMへ写す
+    const definition = freezeTree(JSON.parse(JSON.stringify(copyForJSON(tool.definition))))
+    byName.set(tool.definition.name, { ...tool, definition })
   }
-  const executions = new Map<string, Execution>()
-  let logSize = 0
   return {
     definitions: Object.freeze([...byName.values()].map((tool) => tool.definition)),
-    releaseSession(id) {
-      for (const [key, entry] of executions)
-        if (entry.sessionId === id) {
-          logSize -= entry.retained
-          executions.delete(key)
-        }
-    },
     async execute(call, context) {
       checkScope(context)
+      if (unconfirmed) throw failure('cancelled_unconfirmed', 'previous tool effect is still pending')
       if (
         call.arguments.length > 8192 ||
         call.name.length > 128 ||
@@ -193,16 +276,6 @@ export function createToolSet(
         context.callId !== call.call_id
       )
         throw failure('tool_failed', 'invalid tool call identifier or argument size')
-      const key = JSON.stringify([context.sessionId, context.turnId, call.call_id])
-      const invocation = JSON.stringify([call.name, call.arguments])
-      const existing = executions.get(key)
-      if (existing) {
-        if (existing.invocation !== invocation) throw failure('tool_failed', 'call ID reused with different arguments')
-        return existing.result
-      }
-      const retained = key.length + invocation.length + maxOutput
-      if (executions.size >= maxCalls || logSize + retained > maxLog)
-        throw failure('resource_exhausted', 'tool execution log full')
       const tool = byName.get(call.name)
       if (!tool) throw failure('tool_failed', 'invalid tool call: ' + call.name)
       const input = JSON.parse(call.arguments)
@@ -214,22 +287,40 @@ export function createToolSet(
         (tool.validate && !tool.validate(input))
       )
         throw failure('tool_failed', 'invalid arguments: ' + call.name)
-      const result = Promise.resolve().then(async () => {
-        checkScope(context)
-        const value = await tool.execute(input, context)
-        const output = typeof value === 'string' ? value : JSON.stringify(value ?? null)
-        if (output.length > maxOutput) throw failure('resource_exhausted', 'tool result exceeds budget')
-        if (executions.get(key) === entry) {
-          const released = maxOutput - output.length
-          entry.retained -= released
-          logSize -= released
-        }
-        return { type: 'function_call_output' as const, call_id: call.call_id, output }
-      })
-      const entry = { sessionId: context.sessionId, invocation, retained, result }
-      logSize += retained
-      executions.set(key, entry)
-      return result
+      checkScope(context)
+      let value = tool.execute(input, context)
+      if (value && typeof (value as PromiseLike<unknown>).then === 'function') {
+        const pending = value
+        let settled = false,
+          abandoned = false
+        let onAbort = () => {}
+        value = await new Promise<unknown>((resolve, reject) => {
+          onAbort = () => {
+            if (settled || abandoned) return
+            abandoned = true
+            unconfirmed++
+            reject(failure('cancelled_unconfirmed', 'tool wait cancelled; effect may continue'))
+          }
+          context.signal.addEventListener('abort', onAbort)
+          const finish = () => {
+            settled = true
+            if (abandoned) unconfirmed--
+          }
+          Promise.resolve(pending).then(
+            (result) => {
+              finish()
+              resolve(result)
+            },
+            (error) => {
+              finish()
+              reject(error)
+            },
+          )
+          if (context.signal.aborted) onAbort()
+        }).finally(() => context.signal.removeEventListener('abort', onAbort))
+      }
+      const output = toolOutput(value, maxOutput)
+      return { type: 'function_call_output', call_id: call.call_id, output }
     },
   }
 }
@@ -239,9 +330,7 @@ export function createAgent({ llm, tools, instructions, maxToolRounds }: AgentOp
   if (tools.definitions.length && !llm.capabilities.tools)
     throw failure('unsupported_capability', 'model does not accept tools')
   return {
-    releaseSession(id) {
-      tools.releaseSession?.(id)
-    },
+    capabilities: { image: llm.capabilities.image },
     async run(request, options): Promise<AgentResult> {
       const appended: InputItem[] = []
       try {
@@ -292,9 +381,15 @@ export function createAgent({ llm, tools, instructions, maxToolRounds }: AgentOp
           if (problem) throw problem
         }
       } catch (error) {
-        const code = options.signal.aborted ? 'cancelled' : ((error as Partial<Failure>)?.code ?? 'provider_failed')
+        const reason = (error as Partial<Failure>)?.code
+        const code =
+          reason === 'cancelled_unconfirmed'
+            ? reason
+            : options.signal.aborted
+              ? 'cancelled'
+              : (reason ?? 'provider_failed')
         return {
-          status: code === 'cancelled' ? 'cancelled' : 'failed',
+          status: code === 'cancelled' || code === 'cancelled_unconfirmed' ? 'cancelled' : 'failed',
           error: { code, message: String(error) },
           appended,
         }

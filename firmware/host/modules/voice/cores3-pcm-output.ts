@@ -1,58 +1,24 @@
 import AudioOut from 'embedded:io/audio/out'
-import { pcmEnergy } from 'stackchan/voice/pcm-energy'
+import { pcmMagnitudeSum } from 'stackchan/voice/pcm-magnitude'
 import { deferred, voiceError } from 'stackchan/voice/scope'
+import type { PcmOutput } from './runtime-types.js'
 
 // CoreS3 sets I2S_DMA_BUFFER_MAX_SIZE to 2048. The ESP32 ECMA-419 driver exposes five writable descriptors.
 const dmaBlockBytes = 2048
 export const minimumOutputBytes = dmaBlockBytes * 5
 
-function playbackMeter(onPlayed: (power: number) => void) {
-  const powers: number[] = []
-  let measured = 0
-  let energy = 0
-  let reported = 0
-  return {
-    accept(bytes: Uint8Array, offset: number, size: number) {
-      while (size) {
-        const count = Math.min(size, dmaBlockBytes - (measured % dmaBlockBytes))
-        energy += pcmEnergy(bytes, offset, count)
-        measured += count
-        offset += count
-        size -= count
-        if (!(measured % dmaBlockBytes)) {
-          powers.push(Math.sqrt(energy / (dmaBlockBytes / 2)))
-          energy = 0
-        }
-      }
-    },
-    discard() {
-      powers.length = 0
-      reported = measured
-    },
-    confirm(confirmed: number, final = false) {
-      while (powers.length && reported + dmaBlockBytes <= confirmed) {
-        reported += dmaBlockBytes
-        const power = powers[0]
-        powers.shift()
-        onPlayed(power)
-      }
-      if (final && confirmed >= measured && measured > reported) {
-        const frames = (measured - reported) / 2
-        reported = measured
-        onPlayed(Math.sqrt(energy / frames))
-      }
-    },
-  }
-}
-
-export function openOutput(sampleRate: number, volume: number, limit: number, onPlayed?: (power: number) => void) {
-  const meter = onPlayed ? playbackMeter(onPlayed) : undefined
+export function openOutput(
+  sampleRate: number,
+  volume: number,
+  limit: number,
+  onLevel?: (value: number) => void,
+): PcmOutput {
+  const levels: { end: number; sum: number; count: number }[] = []
   let capacity = 0
   let writable = 0
   let submitted = 0
   let audioBytes = 0
   let confirmed = 0
-  let sealed = false
   let closed = false
   let change: ReturnType<typeof deferred<void>> | undefined
   const signal = () => {
@@ -62,6 +28,17 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
   const wait = () => {
     change ??= deferred<void>()
     return change.promise
+  }
+  function emitLevel(value: number) {
+    try {
+      onLevel?.(value)
+    } catch {}
+  }
+  function publishLevels() {
+    while (levels.length && levels[0].end <= confirmed) {
+      const level = levels.shift()
+      if (level) emitLevel(level.sum / level.count)
+    }
   }
   const requireOpen = () => {
     if (closed) throw voiceError('cancelled')
@@ -75,8 +52,8 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
       if (!capacity) capacity = size
       writable = size
       confirmed = Math.max(confirmed, Math.min(audioBytes, submitted - (capacity - writable) - dmaBlockBytes))
+      publishLevels()
       signal()
-      meter?.confirm(confirmed, sealed)
     },
   })
   try {
@@ -100,7 +77,23 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
       writable -= size
       submitted += size
       audioBytes += size
-      meter?.accept(bytes, offset, size)
+      if (onLevel) {
+        let start = audioBytes - size
+        while (start < audioBytes) {
+          const end = Math.min(audioBytes, (Math.floor(start / dmaBlockBytes) + 1) * dmaBlockBytes)
+          const count = end - start
+          const from = offset + start - (audioBytes - size)
+          const sum = (pcmMagnitudeSum(bytes, from, count) / 32768) * volume
+          const frames = count / 2
+          const previous = levels[levels.length - 1]
+          if (previous && Math.floor((previous.end - 1) / dmaBlockBytes) === Math.floor(start / dmaBlockBytes)) {
+            previous.end = end
+            previous.sum += sum
+            previous.count += frames
+          } else levels.push({ end, sum, count: frames })
+          start = end
+        }
+      }
       onAccepted?.(size)
     }
     return offset + size
@@ -125,13 +118,12 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
       return confirmed / 2
     },
     setVolume(gain: number) {
+      volume = gain
       audio.volume = gain
     },
     async drain() {
       requireOpen()
       if (!audioBytes) return
-      sealed = true
-      meter?.confirm(confirmed, sealed)
       // Flush the partial native block, then replace the DMA ring with silence. Only a subsequent
       // hardware credit confirms the last real descriptor has left the peripheral.
       let padding = capacity + dmaBlockBytes + ((dmaBlockBytes - (audioBytes % dmaBlockBytes)) % dmaBlockBytes)
@@ -151,12 +143,14 @@ export function openOutput(sampleRate: number, volume: number, limit: number, on
       await wait()
       requireOpen()
       confirmed = audioBytes
-      meter?.confirm(confirmed, true)
+      publishLevels()
+      emitLevel(0)
     },
     close() {
       if (closed) return
       closed = true
-      meter?.discard()
+      levels.length = 0
+      emitLevel(0)
       signal()
       try {
         audio.stop()

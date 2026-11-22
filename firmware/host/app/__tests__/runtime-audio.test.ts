@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import type { BorrowedAudioBuffer } from '../../modules/audio/audio-buffer.js'
+import type { SpeechPlayback } from '../../modules/audio/speech-playback-types.js'
 import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
 
 type RuntimeAudioModule = typeof import('../runtime-audio.js')
@@ -24,6 +25,44 @@ function fakeSpeechPlayback() {
     streamKoe: (_koe: string, _volume?: number, callback?: (error?: unknown) => void) => callback?.(),
   }
 }
+
+test('replacing speech playback returns the detached player and allows restoring it', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const spoken: string[] = []
+  const original: SpeechPlayback = {
+    ...fakeSpeechPlayback(),
+    stream: (_text: string, _volume?: number, done?: () => void) => {
+      spoken.push('original')
+      done?.()
+    },
+  }
+  const replacement: SpeechPlayback = {
+    ...fakeSpeechPlayback(),
+    stream: (_text: string, _volume?: number, done?: () => void) => {
+      spoken.push('replacement')
+      done?.()
+    },
+  }
+  const mouths: number[] = []
+  const runtime = new StackchanRuntimeAudio(
+    { speechPlayback: original },
+    { onMouthOpenChanged: (value) => mouths.push(value) },
+  )
+  const previous = runtime.setSpeechPlayback(replacement)
+  assert.equal(previous, original)
+  previous.onPlayed?.(2000)
+  previous.onDone?.()
+  assert.deepEqual(mouths, [])
+  await runtime.say('first')
+  assert.equal(runtime.setSpeechPlayback(previous), replacement)
+  await runtime.say('second')
+  assert.deepEqual(spoken, ['replacement', 'original'])
+  const release = await runtime.acquireExclusive()
+  assert.throws(() => runtime.setSpeechPlayback(replacement), /audio busy/)
+  release()
+  assert.equal(runtime.setSpeechPlayback(original), original)
+})
 
 test('exclusive native audio blocks host playback/recording until its idempotent release', async () => {
   installBareSpecifierPackages()
@@ -94,7 +133,7 @@ test('native ownership never interrupts active SpeechPlayback or a pending recor
     microphone,
   })
   const speech = runtime.say('hello')
-  assert.throws(() => runtime.useSpeechPlayback(fakeSpeechPlayback()), /audio busy/)
+  assert.throws(() => runtime.setSpeechPlayback(fakeSpeechPlayback()), /audio busy/)
   assert.throws(() => runtime.acquireExclusive(), /audio busy/)
   finishSpeech?.()
   await speech
@@ -232,7 +271,7 @@ test('StackchanRuntimeAudio close stops the microphone and detaches SpeechPlayba
     { speechPlayback, microphone },
     { onMouthOpenChanged: (value) => (mouthOpen = value) },
   )
-  await runtime.close()
+  runtime.close()
 
   assert.equal(stopped, true)
   const callbacks = speechPlayback as { onPlayed?: (volume: number) => void; onDone?: () => void }
@@ -371,7 +410,7 @@ test('StackchanRuntimeAudio close stops WebRadio', async () => {
       setVolume: () => {},
     },
   })
-  await runtime.close()
+  runtime.close()
   assert.equal(stopped, true)
 })
 
@@ -517,6 +556,7 @@ test('shared volume supports a speaker without mutable volume, as used by WASM',
 test('exclusive media ownership preserves shared volume without starting audio until release', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const controls: string[] = []
   const starts: (number | undefined)[] = [],
     gains: number[] = [],
     spoken: (number | undefined)[] = []
@@ -530,7 +570,20 @@ test('exclusive media ownership preserves shared volume without starting audio u
     },
     media: {
       async open() {
-        throw new Error('unused')
+        return {
+          state: 'paused' as const,
+          progress: { position: 0, estimated: false, seekable: true },
+          done: Promise.resolve('stopped' as const),
+          async stop() {},
+          setVolume() {},
+          async pause() {},
+          async resume() {
+            controls.push('resume')
+          },
+          async seek(seconds: number) {
+            controls.push(`seek ${seconds}`)
+          },
+        }
       },
       state: 'idle',
       progress: { position: 0, estimated: false, seekable: false },
@@ -548,12 +601,20 @@ test('exclusive media ownership preserves shared volume without starting audio u
   })
   await runtime.media?.start({ url: 'http://example.test/episode', mode: 'finite' })
   assert.deepEqual(starts, [0.35 * 0.2])
+  const session = await runtime.media?.open(
+    { mode: 'finite', url: 'http://example.test/episode' },
+    { signal: new AbortController().signal },
+  )
+  assert.ok(session)
   const release = await runtime.acquireExclusive()
   runtime.volume = 0.25
   await assert.rejects(runtime.media?.start({ url: 'http://example.test/episode', mode: 'finite' }), /audio busy/)
   await assert.rejects(runtime.webRadio?.start({ url: 'http://example.test/live' }), /audio busy/)
   await assert.rejects(runtime.media?.resume(), /audio busy/)
   await assert.rejects(runtime.media?.seek(10), /audio busy/)
+  await assert.rejects(session.resume(), /audio busy/)
+  await assert.rejects(session.seek(10), /audio busy/)
+  assert.deepEqual(controls, [])
   assert.equal((await runtime.say('reserved')).success, false)
   assert.deepEqual(spoken, [])
   assert.deepEqual(gains, [0.25 * 0.2])
@@ -565,22 +626,147 @@ test('exclusive media ownership preserves shared volume without starting audio u
   await runtime.say('released')
   assert.deepEqual(starts, [0.35 * 0.2, 0.25 * 0.2, 0.25 * 0.2])
   assert.deepEqual(spoken, [0.25])
+  await session.resume()
+  await session.seek(10)
+  assert.deepEqual(controls, ['resume', 'seek 10'])
+  await runtime.close()
+  await assert.rejects(session.seek(30), /audio busy/)
+  assert.deepEqual(controls, ['resume', 'seek 10'])
 })
-test('shutdown waits for standalone speech and propagates a speaker teardown failure', async () => {
+
+test('lazy TTS is not initialized by exclusive conversations or replacement', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio, lazySpeechPlayback } = await import('../runtime-audio.js')
+  let attempts = 0
+  const lazy = lazySpeechPlayback(() => {
+    attempts++
+    throw new Error('unavailable TTS')
+  })
+  const runtime = new StackchanRuntimeAudio({ speechPlayback: lazy })
+  const release = await runtime.acquireExclusive()
+  release()
+  assert.equal(runtime.setSpeechPlayback(fakeSpeechPlayback()), lazy)
+  assert.equal((await runtime.say('explicit')).success, true)
+  runtime.close()
+  assert.equal(attempts, 0)
+})
+
+test('lazy TTS initializes once and forwards current listeners', async () => {
+  installBareSpecifierPackages()
+  const { lazySpeechPlayback } = await import('../runtime-audio.js')
+  let attempts = 0
+  const player: SpeechPlayback = fakeSpeechPlayback()
+  const lazy = lazySpeechPlayback(() => {
+    attempts++
+    return player
+  })
+  const levels: number[] = []
+  let done = 0
+  lazy.onPlayed = (power) => levels.push(power)
+  lazy.onDone = () => done++
+  lazy.stream('first')
+  player.onPlayed?.(100)
+  player.onDone?.()
+  lazy.onPlayed = (power) => levels.push(power * 2)
+  lazy.streamKoe?.('second')
+  player.onPlayed?.(100)
+  assert.equal(attempts, 1)
+  assert.deepEqual(levels, [100, 200])
+  assert.equal(done, 1)
+})
+
+test('lazy TTS reports initialization failure on use and supports retry', async () => {
+  installBareSpecifierPackages()
+  const { lazySpeechPlayback } = await import('../runtime-audio.js')
+  let attempts = 0
+  const lazy = lazySpeechPlayback(() => {
+    if (++attempts === 1) throw new Error('unavailable TTS')
+    return { stream: (_text, _volume, callback) => callback?.() }
+  })
+  assert.throws(() => lazy.stream('first'), /unavailable TTS/)
+  let completed = false
+  lazy.stream('retry', 0.5, () => {
+    completed = true
+  })
+  assert.equal(completed, true)
+  assert.equal(attempts, 2)
+  assert.throws(() => lazy.streamKoe?.('song'), /does not support singing/)
+})
+
+test('lazy speaker playback keeps its lease path after replacement and restoration', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio, lazySpeechPlayback } = await import('../runtime-audio.js')
+  const levels: number[] = []
+  const kinds: string[] = []
+  let created = 0
+  const speaker = {
+    id: 'speaker',
+    runtime: {
+      async acquire() {
+        throw new Error('unused')
+      },
+      async acquirePlayback() {
+        throw new Error('unused')
+      },
+    },
+  }
+  const lazy = lazySpeechPlayback(() => {
+    created++
+    return {
+      playUtterance(value, kind, _text, _gain, onLevel) {
+        assert.equal(value, speaker)
+        kinds.push(kind)
+        onLevel({ direction: 'output', value: 1000 / 32768 })
+        return { done: Promise.resolve(), async close() {} }
+      },
+    }
+  })
+  const runtime = new StackchanRuntimeAudio(
+    { speechPlayback: lazy },
+    { getVoiceSpeaker: () => speaker, onMouthOpenChanged: (value) => levels.push(value) },
+  )
+  const old = runtime.setSpeechPlayback(fakeSpeechPlayback())
+  runtime.setSpeechPlayback(old)
+  assert.equal(created, 0)
+  assert.deepEqual(await runtime.say('hello'), { success: true, value: 'hello' })
+  assert.deepEqual(await runtime.sing('ki'), { success: true, value: 'ki' })
+  assert.equal(created, 1)
+  assert.deepEqual(kinds, ['text', 'koe'])
+  assert.deepEqual(levels, [0.5, 0, 0.5, 0])
+  await runtime.close()
+})
+
+test('runtime shutdown waits for the utterance and reports its teardown error', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
-  let rejectPlayback!: (error: Error) => void
-  let cancelled = false
+  let finish!: () => void
+  const stopped = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  let closeStarted!: () => void
+  const closingUtterance = new Promise<void>((resolve) => {
+    closeStarted = resolve
+  })
+  const failure = new Error('speaker close failed')
   const runtime = new StackchanRuntimeAudio(
     {
+      speaker: {
+        async tone() {},
+        async play() {
+          return true
+        },
+      },
+      webRadio: { state: 'idle', async start() {}, stop() {}, setVolume() {} },
       speechPlayback: {
         playUtterance() {
+          const done = stopped.then(() => {
+            throw failure
+          })
           return {
-            done: new Promise<void>((_resolve, reject) => {
-              rejectPlayback = reject
-            }),
-            cancel() {
-              cancelled = true
+            done,
+            close() {
+              closeStarted()
+              return done
             },
           }
         },
@@ -601,49 +787,15 @@ test('shutdown waits for standalone speech and propagates a speaker teardown fai
     },
   )
   const speech = runtime.say('test')
+  assert.throws(() => runtime.acquireExclusive(), /audio busy/)
+  await assert.rejects(runtime.record(), /audio busy/)
+  await assert.rejects(runtime.tone(440, 20), /audio busy/)
+  assert.equal(await runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer), false)
+  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/live' }), /audio busy/)
   const closing = runtime.close()
-  assert.equal(cancelled, true)
-  assert.equal((await runtime.sing('busy')).success, false)
-  rejectPlayback(new Error('speaker close failed'))
-  await assert.rejects(closing, /speaker close failed/)
-  assert.equal((await speech).success, false)
-})
-
-test('standalone lip sync preserves playback success and the original speaker error', async () => {
-  installBareSpecifierPackages()
-  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
-  const levels: number[] = []
-  const runtime = new StackchanRuntimeAudio(
-    {
-      speechPlayback: {
-        playUtterance(_speaker, kind, _text, _gain, onPlayed) {
-          onPlayed(1000)
-          return {
-            done: kind === 'text' ? Promise.resolve() : Promise.reject(new Error('speaker close failed')),
-            cancel() {},
-          }
-        },
-      },
-    },
-    {
-      getVoiceSpeaker: () => ({
-        id: 'speaker',
-        runtime: {
-          async acquire() {
-            throw new Error('unused')
-          },
-          async acquirePlayback() {
-            throw new Error('unused')
-          },
-        },
-      }),
-      onMouthOpenChanged(level) {
-        levels.push(level)
-        if (level === 0) throw new Error('face update failed')
-      },
-    },
-  )
-  assert.deepEqual(await runtime.say('hello'), { success: true, value: 'hello' })
-  assert.deepEqual(await runtime.sing('a'), { success: false, reason: 'Error: speaker close failed' })
-  assert.deepEqual(levels, [0.5, 0, 0.5, 0])
+  await closingUtterance
+  assert.deepEqual(await runtime.sing('busy'), { success: false, reason: 'audio busy' })
+  finish()
+  await assert.rejects(closing, failure)
+  assert.deepEqual(await speech, { success: false, reason: 'Error: speaker close failed' })
 })

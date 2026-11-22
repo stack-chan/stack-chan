@@ -38,21 +38,40 @@ TypeScript MODs use the public Stack-chan capability types and Moddable module s
 To install a MOD from a local environment, specify its manifest from the `firmware` directory:
 
 ```console
-npm run mod -- mods/examples/look_around/manifest.json
+npm run mod -- mods/examples/hello_balloon/manifest.json
 ```
 
 See [Build and flash programs](../docs/flashing-firmware.md) for setup, target-specific commands, and installation details.
 
 ## MOD runtime model
 
-Installing a MOD makes the host run that MOD instead of its default behavior.
-Button and screen behavior therefore depends on the installed MOD.
+The host reads [hooks](../host/app/app-behavior.ts) from the named exports of the `mod` module.
+For each hook that the MOD defines, the host runs the MOD's hook in place of the default hook.
+If the MOD omits a hook or exports it as `undefined`, the host uses the default hook when one exists.
+If there is no `mod` module or the host fails to import it, the host runs the default behavior.
 
 A MOD must be built for the target device and the XS version used by its host.
 For the WASM host, load an `.xsb` or archive built with a target that supports TypeScript, such as `lin`.
 
 Add localized UI text as described in [Firmware localization](../docs/localization.md) through `context.i18n`.
 To add a Piu UI while retaining the face screen and host AppBar, use the experimental [mini-app framework (Japanese)](../docs/mini-apps_ja.md).
+
+### Example with one hook
+
+The [`hello_balloon` MOD](./examples/hello_balloon/mod.js) exports only `onContextCreated`.
+The host shows its default startup screen and boots through the default `onLaunch`.
+Once the context is ready, the MOD's `onContextCreated` displays `Hello from a MOD!` in a speech balloon.
+
+To run the example on Linux with the Moddable SDK and Xvfb, run the existing simulator smoke test from `firmware`.
+The test loads the example archive and checks for the trace emitted after the MOD shows the balloon.
+
+```sh
+STACKCHAN_LIN_SMOKE_ARCHIVE_MANIFEST="$PWD/mods/examples/hello_balloon/manifest.json" \
+STACKCHAN_LIN_SMOKE_EXPECT="[hello_balloon] balloon shown" \
+npm run smoke:lin
+```
+
+The [host behavior tests](../host/app/__tests__/app-behavior.test.ts), run by `npm run test:unit`, also check that an `onContextCreated`-only MOD keeps the default `onLaunch` and that the host falls back when the MOD is absent or fails to import.
 
 ## Representative source examples
 

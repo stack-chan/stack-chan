@@ -19,6 +19,7 @@ export default class WebRadioAudioOut {
   #onWritten?: () => void
   #onError: (error: unknown) => void
   #pumping = false
+  #pumpPromise = Promise.resolve()
   #closed = false
 
   constructor(lease: PlaybackLease, onError: (error: unknown) => void) {
@@ -42,7 +43,7 @@ export default class WebRadioAudioOut {
   pumpSharedOutput() {
     if (!this.#sink || !this.#output || this.#pumping || this.#closed) return
     this.#pumping = true
-    void this.#pump(this.#sink, this.#output)
+    this.#pumpPromise = this.#pump(this.#sink, this.#output)
   }
 
   async #pump(sink: RingSink, output: SharedOutputRing) {
@@ -92,7 +93,7 @@ export default class WebRadioAudioOut {
     let timer: ReturnType<typeof Timer.set> | undefined
     try {
       const receipt = await Promise.race([
-        this.#lease.output.finish('media'),
+        this.#pumpPromise.then(() => this.#lease.output.finish('media')),
         new Promise<never>((_, reject) => {
           timer = Timer.set(() => reject(new Error('Audio drain timed out')), 5000)
         }),

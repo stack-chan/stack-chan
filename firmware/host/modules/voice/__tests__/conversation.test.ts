@@ -16,20 +16,19 @@ import type {
   TTS,
 } from '../contracts.js'
 
-import './pcm-energy-fake.js'
-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const local = resolve(root, 'voice')
 writeAliasPackage(local, 'timer', resolve(root, 'testing/fakes/timer.js'), { hasDefaultExport: true })
 writeAliasPackage(local, 'modules', resolve(root, 'testing/fakes/modules.js'), { hasDefaultExport: true })
-writeAliasPackageSubpath(local, 'stackchan', 'voice/pcm-energy', resolve(local, '__tests__/pcm-energy-fake.js'))
-for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime']) {
+for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime', 'levels', 'play-speech']) {
   writeAliasPackageSubpath(local, 'stackchan', `voice/${module}`, resolve(local, `${module}.js`))
 }
+writeAliasPackageSubpath(local, 'stackchan', 'voice/pcm-magnitude', resolve(local, '__tests__/pcm-magnitude-fake.js'))
 const { createPcmSink, createPcmSource, mono, pcmMedia } = await import('../media.js')
 const { createConversationPipeline } = await import('../pipeline.js')
 const { bindAudioRuntime } = await import('../runtime.js')
 const { createVoiceScope, deferred } = await import('../scope.js')
+const { playSpeech } = await import('../play-speech.js')
 const timer = (await import('../../testing/fakes/timer.js')).default
 const { createCascadedConversation, createPushToTalk } = await import('../cascaded.js')
 const budget = { maxBufferedMs: 250, maxBufferedBytes: 24000 }
@@ -91,6 +90,814 @@ function successfulAgent(): Agent {
   }
 }
 const tick = () => new Promise<void>((ok) => setImmediate(ok))
+
+function silentSpeech(spoken: string[]): TTS {
+  return {
+    capabilities: { input: 'segmented', output: 'streaming' },
+    async open({ format }) {
+      const source = createPcmSource(format)
+      return {
+        output: source.output,
+        async write(text) {
+          spoken.push(text)
+        },
+        async flush() {},
+        async endInput() {
+          source.end()
+        },
+        async close() {
+          source.end()
+        },
+      }
+    },
+  }
+}
+
+test('submitted turn receipt waits for playback and permits a second completed turn', async () => {
+  const device = makeLease()
+  const played = deferred<void>()
+  const reachedPlayback = deferred<void>()
+  const finish = device.lease.output.finish
+  device.lease.output.finish = async (id) => {
+    reachedPlayback.resolve()
+    await played.promise
+    return finish(id)
+  }
+  const conversation = createCascadedConversation({
+    agent: successfulAgent(),
+    tts: silentSpeech([]),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  const events: ConversationEvent[] = []
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent: (e) => events.push(e),
+  })
+  const message = {
+    type: 'message' as const,
+    role: 'user' as const,
+    content: [{ type: 'input_text' as const, text: 'hi' }],
+  }
+  try {
+    const first = await session.submit(message, scope)
+    assert.equal(first.completion, 'playback')
+    if (first.completion !== 'playback') throw new Error('missing completion')
+    let completed = false
+    void first.done.then(() => {
+      completed = true
+    })
+    await reachedPlayback.promise
+    assert.equal(completed, false)
+    await assert.rejects(session.submit(message, scope), { code: 'device_busy' })
+    played.resolve()
+    assert.deepEqual(await first.done, { turnId: first.id, status: 'completed' })
+    const second = await session.submit(message, scope)
+    if (second.completion !== 'playback') throw new Error('missing completion')
+    assert.notEqual(second.id, first.id)
+    assert.deepEqual(await second.done, { turnId: second.id, status: 'completed' })
+    assert.deepEqual(
+      events.filter((e) => e.type === 'turn.ended').map((e) => e.turnId),
+      [first.id, second.id],
+    )
+  } finally {
+    played.resolve()
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('speech segmentation bounds punctuation-free chunks and preserves Unicode and the final tail', async () => {
+  const device = makeLease()
+  const spoken: string[] = []
+  const text = 'a'.repeat(239) + '😀' + 'b'.repeat(350) + '。tail'
+  const reply: OutputMessage = {
+    type: 'message',
+    role: 'assistant',
+    id: 'reply',
+    phase: 'final_answer',
+    content: [{ type: 'output_text', text }],
+  }
+  const conversation = createCascadedConversation({
+    agent: {
+      async run(_request, options) {
+        await options.onEvent?.({
+          type: 'response.output_text.delta',
+          item_id: reply.id,
+          phase: 'final_answer',
+          delta: text.slice(0, -4),
+        })
+        return {
+          status: 'completed',
+          response: { id: 'response', status: 'completed', output: [reply] },
+          appended: [reply],
+        }
+      },
+    },
+    tts: silentSpeech(spoken),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({ ...scope, media: device.lease, history: [], onEvent() {} })
+  try {
+    const turn = await session.submit(
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] },
+      scope,
+    )
+    if (turn.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await turn.done).status, 'completed')
+    assert.equal(spoken.join(''), text)
+    assert.ok(spoken.every((part) => part.length <= 240 && !/[\uD800-\uDBFF]$/.test(part)))
+    assert.equal(spoken.at(-1), 'tail')
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('interrupt cancels remaining speech segments and a settled cascaded session accepts another turn', async () => {
+  const device = makeLease()
+  const spoken: string[] = []
+  const reply: OutputMessage = {
+    type: 'message',
+    role: 'assistant',
+    id: 'reply',
+    content: [{ type: 'output_text', text: 'First.Second.tail' }],
+  }
+  const conversation = createCascadedConversation({
+    agent: {
+      async run() {
+        return {
+          status: 'completed',
+          response: { id: 'response', status: 'completed', output: [reply] },
+          appended: [reply],
+        }
+      },
+    },
+    tts: silentSpeech(spoken),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  let interrupted: ReturnType<import('../contracts.js').ConversationSession['interrupt']> | undefined
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent(event) {
+      if (event.type === 'output.playback' && !interrupted) interrupted = session.interrupt()
+    },
+  })
+  const message = {
+    type: 'message' as const,
+    role: 'user' as const,
+    content: [{ type: 'input_text' as const, text: 'hello' }],
+  }
+  try {
+    const first = await session.submit(message, scope)
+    if (first.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await first.done).status, 'interrupted')
+    assert.equal((await interrupted)?.history, 'conservative')
+    assert.deepEqual(spoken, ['First.'])
+    const second = await session.submit(message, scope)
+    if (second.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await second.done).status, 'completed')
+    assert.deepEqual(spoken, ['First.', 'First.', 'Second.', 'tail'])
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('history finalization failure settles the receipt and event as failed', async () => {
+  const device = makeLease()
+  const events: ConversationEvent[] = []
+  const conversation = createCascadedConversation({
+    agent: {
+      async run() {
+        return {
+          status: 'completed',
+          response: { id: 'response', status: 'completed', output: [] },
+          appended: [{ type: 'provider_item', id: 'oversized', provider: 'test', value: 'x'.repeat(40000) }],
+        }
+      },
+    },
+    tts: silentSpeech([]),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent: (event) => events.push(event),
+  })
+  try {
+    const result = await session.submit(
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] },
+      scope,
+    )
+    if (result.completion !== 'playback') throw new Error('missing completion')
+    assert.deepEqual(await result.done, { turnId: result.id, status: 'failed' })
+    assert.ok(events.some((event) => event.type === 'turn.ended' && event.status === 'failed'))
+    assert.ok(events.some((event) => event.type === 'error' && event.fatal && event.code === 'resource_exhausted'))
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+for (const operation of ['drain', 'interrupt'] as const) {
+  test(`a failed turn still releases the microphone and speaker during ${operation}`, async () => {
+    const device = makeLease()
+    const running = deferred<void>()
+    const answer = deferred<AgentResult>()
+    let detectorClosed = false
+    const conversation = createCascadedConversation({
+      agent: {
+        run() {
+          running.resolve()
+          return answer.promise
+        },
+      },
+      tts: silentSpeech([]),
+      stt: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      turnDetector: {
+        async start() {
+          return {
+            async close() {
+              detectorClosed = true
+            },
+            updateTranscript() {},
+          }
+        },
+      },
+      voice: '',
+    })
+    const runtime = bindAudioRuntime({ acquireExclusive: () => () => {} }, () => device.lease)
+    const pipeline = createConversationPipeline({
+      microphone: runtime.microphone,
+      speaker: runtime.speaker,
+      conversation,
+      mediaBudget: budget,
+    })
+    await pipeline.start()
+    const submitted = await pipeline.submit({
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_text', text: 'hello' }],
+    })
+    if (submitted.completion !== 'playback') throw new Error('missing completion')
+    await running.promise
+    const stopping = operation === 'drain' ? pipeline.close({ mode: 'drain' }) : pipeline.interrupt()
+    await tick()
+    answer.resolve({
+      status: 'completed',
+      response: { id: 'response', status: 'completed', output: [] },
+      appended: [{ type: 'provider_item', id: 'oversized', provider: 'test', value: 'x'.repeat(40000) }],
+    })
+    assert.deepEqual(await submitted.done, { turnId: submitted.id, status: 'failed' })
+    const result = await stopping
+    if ('reason' in result) assert.equal(result.reason, 'drained')
+    else assert.equal(result.history, 'restart-required')
+    assert.equal(detectorClosed, true)
+    assert.equal(device.closes(), 1)
+  })
+}
+
+test('abort close cancels STT startup while microphone muting awaits the pending utterance', async () => {
+  const device = makeLease()
+  const talk = createPushToTalk()
+  const opening = deferred<import('../contracts.js').VoiceSignal>()
+  const muting = deferred<void>()
+  const stopped = deferred<void>()
+  const backend = createCascadedConversation({
+    agent: successfulAgent(),
+    tts: silentSpeech([]),
+    stt: {
+      open({ signal }) {
+        opening.resolve(signal)
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            stopped.resolve()
+            reject(signal.reason)
+          })
+        })
+      },
+    },
+    turnDetector: talk.detector,
+    voice: '',
+  })
+  const conversation: Conversation = {
+    ...backend,
+    async open(options) {
+      const session = await backend.open(options)
+      return {
+        ...session,
+        setInputEnabled(enabled) {
+          if (!enabled) muting.resolve()
+          return session.setInputEnabled(enabled)
+        },
+      }
+    },
+  }
+  const runtime = bindAudioRuntime({ acquireExclusive: () => () => {} }, () => device.lease)
+  const pipeline = createConversationPipeline({
+    microphone: runtime.microphone,
+    speaker: runtime.speaker,
+    conversation,
+    mediaBudget: budget,
+  })
+  await pipeline.start()
+  talk.press()
+  const signal = await opening.promise
+  const muted = pipeline.setMicrophoneMuted(true)
+  await muting.promise
+  assert.equal(signal.aborted, false)
+  assert.equal(device.closes(), 0)
+  const closing = pipeline.close({ mode: 'abort' })
+  await stopped.promise
+  await muted
+  assert.equal((await closing).reason, 'aborted')
+  assert.equal(signal.aborted, true)
+  assert.equal(device.closes(), 1)
+  await pipeline.close({ mode: 'abort' })
+  assert.equal(device.closes(), 1)
+})
+
+for (const oldResult of ['completed', 'failed'] as const) {
+  test(`a new press records immediately while cancelling an older transcription whose late result is ${oldResult}`, async () => {
+    const device = makeLease()
+    const talk = createPushToTalk()
+    const firstFinishing = deferred<void>()
+    const firstResult = deferred<void>()
+    const recordings: number[][] = []
+    const transcripts: string[] = []
+    const events: ConversationEvent[] = []
+    let active = 0
+    let peak = 0
+    let lateTranscript: (() => void) | undefined
+    const backend = createCascadedConversation({
+      agent: {
+        async run({ input }) {
+          const message = input.at(-1)
+          if (message?.type === 'message')
+            transcripts.push(message.content.map((part) => ('text' in part ? part.text : '')).join(''))
+          return { status: 'completed', response: { id: 'reply', status: 'completed', output: [] }, appended: [] }
+        },
+      },
+      tts: silentSpeech([]),
+      stt: {
+        async open({ format, utteranceId, onTranscript, signal }) {
+          const index = recordings.length
+          const samples: number[] = []
+          recordings.push(samples)
+          active++
+          peak = Math.max(peak, active)
+          let closed = false
+          if (index === 0) lateTranscript = () => onTranscript({ utteranceId, text: 'stale', final: true })
+          return {
+            input: createPcmSink(format, (bytes) => {
+              samples.push(...bytes)
+            }),
+            async finish() {
+              if (index === 0) {
+                firstFinishing.resolve()
+                await firstResult.promise
+                onTranscript({ utteranceId, text: 'stale', final: true })
+              } else onTranscript({ utteranceId, text: 'second', final: true })
+            },
+            async close() {
+              assert.equal(signal.aborted, true)
+              if (!closed) active--
+              closed = true
+            },
+          }
+        },
+      },
+      turnDetector: talk.detector,
+      voice: '',
+    })
+    const session = await backend.open({
+      ...createVoiceScope(),
+      media: device.lease,
+      history: [],
+      onEvent: (event) => events.push(event),
+    })
+    try {
+      talk.press()
+      await tick()
+      await device.capture.push(new Uint8Array(3200).fill(1))
+      talk.release()
+      await firstFinishing.promise
+      talk.press()
+      await tick()
+      assert.equal(recordings.length, 2, 'a pending HTTP transcription must not hold the next microphone attachment')
+      assert.equal(active, 1)
+      assert.equal(peak, 1, 'close the previous STT before allocating its replacement')
+      await device.capture.push(new Uint8Array(6000).fill(2))
+      assert.deepEqual(
+        recordings[1].slice(-6000),
+        Array(6000).fill(2),
+        'capture the whole utterance beyond 80 ms pre-roll',
+      )
+      lateTranscript?.()
+      if (oldResult === 'completed') firstResult.resolve()
+      else firstResult.reject(new Error('late old transcription failure'))
+      await tick()
+      assert.equal(active, 1, 'late completion must not close the current STT')
+      assert.equal(events.filter((event) => event.type === 'error').length, 0)
+      talk.release()
+      await tick()
+      await tick()
+      assert.deepEqual(transcripts, ['second'])
+      assert.equal(active, 0)
+    } finally {
+      firstResult.resolve()
+      await session.close({ mode: 'abort' })
+    }
+  })
+}
+
+test('a final transcript does not commit before its asynchronous finish succeeds', async () => {
+  const device = makeLease()
+  const talk = createPushToTalk()
+  const finishing = deferred<void>()
+  const result = deferred<void>()
+  let turns = 0
+  const backend = createCascadedConversation({
+    agent: {
+      async run() {
+        turns++
+        return { status: 'completed', response: { id: 'reply', status: 'completed', output: [] }, appended: [] }
+      },
+    },
+    tts: silentSpeech([]),
+    stt: {
+      async open({ format, utteranceId, onTranscript }) {
+        return {
+          input: createPcmSink(format, () => {}),
+          async finish() {
+            onTranscript({ utteranceId, text: 'complete', final: true })
+            finishing.resolve()
+            await result.promise
+          },
+          async close() {},
+        }
+      },
+    },
+    turnDetector: talk.detector,
+    voice: '',
+  })
+  const session = await backend.open({ ...createVoiceScope(), media: device.lease, history: [], onEvent() {} })
+  try {
+    talk.press()
+    await tick()
+    talk.release()
+    await finishing.promise
+    await tick()
+    assert.equal(turns, 0)
+    result.resolve()
+    await tick()
+    await tick()
+    assert.equal(turns, 1)
+    talk.press()
+    await tick()
+    talk.release()
+    await tick()
+    await tick()
+    assert.equal(turns, 2, 'a completed transcription remains committed when the next press starts')
+  } finally {
+    result.resolve()
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('failed STT cleanup quarantines the microphone lease and never opens a replacement', async () => {
+  const device = makeLease()
+  const talk = createPushToTalk()
+  const finishing = deferred<void>()
+  const result = deferred<void>()
+  const failure = new Error('STT release unconfirmed')
+  const events: ConversationEvent[] = []
+  let opens = 0
+  let closes = 0
+  const conversation = createCascadedConversation({
+    agent: successfulAgent(),
+    tts: silentSpeech([]),
+    stt: {
+      async open({ format }) {
+        opens++
+        return {
+          input: createPcmSink(format, () => {}),
+          async finish() {
+            finishing.resolve()
+            await result.promise
+          },
+          async close() {
+            closes++
+            throw failure
+          },
+        }
+      },
+    },
+    turnDetector: talk.detector,
+    voice: '',
+  })
+  const runtime = bindAudioRuntime({ acquireExclusive: () => () => {} }, () => device.lease)
+  const pipeline = createConversationPipeline({
+    microphone: runtime.microphone,
+    speaker: runtime.speaker,
+    conversation,
+    mediaBudget: budget,
+    onEvent: (event) => events.push(event),
+  })
+  await pipeline.start()
+  talk.press()
+  await tick()
+  talk.release()
+  await finishing.promise
+  talk.press()
+  await tick()
+  assert.equal(opens, 1)
+  assert.equal(closes, 1)
+  assert.ok(events.some((event) => event.type === 'error' && event.fatal))
+  talk.release()
+  talk.press()
+  await tick()
+  assert.equal(opens, 1)
+  await assert.rejects(pipeline.close({ mode: 'abort' }), failure)
+  await assert.rejects(pipeline.close({ mode: 'abort' }), failure)
+  assert.equal(device.closes(), 0, 'a failed backend release must not return the audio lease for reuse')
+  assert.equal(closes, 1)
+  result.resolve()
+  await tick()
+})
+
+test('a failed capture link reports its error and closes the transcription before the next utterance', async () => {
+  const device = makeLease()
+  const talk = createPushToTalk()
+  const capture = deferred<void>()
+  const connected = deferred<void>()
+  const failed = deferred<ConversationEvent>()
+  let closed = false
+  const conversation = createCascadedConversation({
+    agent: successfulAgent(),
+    tts: silentSpeech([]),
+    stt: {
+      async open({ format }) {
+        return {
+          input: createPcmSink(format, () => {}),
+          async finish() {},
+          async close() {
+            closed = true
+          },
+        }
+      },
+    },
+    turnDetector: talk.detector,
+    voice: '',
+  })
+  const session = await conversation.open({
+    ...createVoiceScope(),
+    media: {
+      ...device.lease,
+      media: {
+        async connect() {
+          connected.resolve()
+          return { done: capture.promise, async close() {} }
+        },
+      },
+    },
+    history: [],
+    onEvent(event) {
+      if (event.type === 'error') failed.resolve(event)
+    },
+  })
+  try {
+    talk.press()
+    await connected.promise
+    capture.reject(Object.assign(new Error('capture frame exceeded the link budget'), { code: 'resource_exhausted' }))
+    assert.deepEqual(await failed.promise, { type: 'error', code: 'resource_exhausted', fatal: false })
+    assert.equal(closed, true)
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('interrupting a production Agent with an unsettled ToolSet operation requires a new session', async () => {
+  const { createAgent, createToolSet } = await import('../../ai/ai-core.js')
+  const work = deferred<string>()
+  const started = deferred<void>()
+  let active = 0
+  const tools = createToolSet([
+    {
+      definition: {
+        type: 'function',
+        name: 'work',
+        description: 'work',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute() {
+        active++
+        started.resolve()
+        return work.promise.finally(() => {
+          active--
+        })
+      },
+    },
+  ])
+  const device = makeLease()
+  const conversation = createCascadedConversation({
+    agent: createAgent({
+      llm: {
+        capabilities: { image: false, tools: true },
+        async createResponse() {
+          return {
+            status: 'completed',
+            id: 'response',
+            output: [{ type: 'function_call', id: 'item', call_id: 'call', name: 'work', arguments: '{}' }],
+          }
+        },
+      },
+      tools,
+      instructions: '',
+      maxToolRounds: 1,
+    }),
+    tts: silentSpeech([]),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({ ...scope, media: device.lease, history: [], onEvent() {} })
+  const message = {
+    type: 'message' as const,
+    role: 'user' as const,
+    content: [{ type: 'input_text' as const, text: 'work' }],
+  }
+  try {
+    const first = await session.submit(message, scope)
+    assert.equal(first.completion, 'playback')
+    await started.promise
+    const interruption = await session.interrupt()
+    assert.equal(interruption.history, 'restart-required')
+    assert.equal(active, 1, 'interrupting the wait does not claim that the real operation stopped')
+    if (first.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await first.done).status, 'interrupted')
+    await assert.rejects(session.submit(message, scope), { code: 'provider_failed' })
+    work.resolve('done')
+    await tick()
+    assert.equal(active, 0)
+    await assert.rejects(session.submit(message, scope), { code: 'provider_failed' })
+    assert.equal((await session.close({ mode: 'abort' })).remoteFinalization, 'unknown')
+  } finally {
+    work.resolve('done')
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('text-only agents reject images before retaining input and accept the next text turn', async () => {
+  for (const capabilities of [undefined, { image: false }]) {
+    const device = makeLease()
+    const received: import('../contracts.js').InputItem[][] = []
+    const conversation = createCascadedConversation({
+      agent: {
+        capabilities,
+        async run({ input }) {
+          received.push([...input])
+          return { status: 'completed', response: { id: 'text', status: 'completed', output: [] }, appended: [] }
+        },
+      },
+      tts: silentSpeech([]),
+      stt: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      turnDetector: createPushToTalk().detector,
+      voice: '',
+    })
+    assert.equal(conversation.capabilities.imageInput, false)
+    const scope = createVoiceScope()
+    const image: import('../contracts.js').InputMessage = {
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_image', image_url: 'https://example.test/image.png' }],
+    }
+    await assert.rejects(conversation.open({ ...scope, media: device.lease, history: [image], onEvent() {} }), {
+      code: 'unsupported_capability',
+    })
+    const session = await conversation.open({ ...scope, media: device.lease, history: [], onEvent() {} })
+    try {
+      await assert.rejects(session.submit(image, scope), { code: 'unsupported_capability' })
+      await assert.rejects(
+        session.submit(
+          { ...image, content: [{ type: 'input_image', image: { format: 'jpeg', data: new Uint8Array(65536) } }] },
+          scope,
+        ),
+        { code: 'unsupported_capability' },
+      )
+      assert.equal(received.length, 0)
+      const text: import('../contracts.js').InputMessage = {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'hello' }],
+      }
+      const submitted = await session.submit(text, scope)
+      if (submitted.completion !== 'playback') throw new Error('missing completion')
+      assert.equal((await submitted.done).status, 'completed')
+      assert.deepEqual(JSON.parse(JSON.stringify(received)), [[text]])
+    } finally {
+      await session.close({ mode: 'abort' })
+    }
+  }
+})
+
+test('image-capable agents opt in while image ownership and history budgets remain enforced', async () => {
+  const device = makeLease()
+  let received: readonly import('../contracts.js').InputItem[] = []
+  const conversation = createCascadedConversation({
+    agent: {
+      capabilities: { image: true },
+      async run({ input }) {
+        received = input
+        return { status: 'completed', response: { id: 'image', status: 'completed', output: [] }, appended: [] }
+      },
+    },
+    tts: silentSpeech([]),
+    stt: {
+      async open() {
+        throw new Error('unused')
+      },
+    },
+    turnDetector: createPushToTalk().detector,
+    voice: '',
+  })
+  assert.equal(conversation.capabilities.imageInput, true)
+  const scope = createVoiceScope()
+  const seed: import('../contracts.js').InputMessage = {
+    type: 'message',
+    role: 'user',
+    content: [{ type: 'input_image', image_url: 'https://example.test/seed.png' }],
+  }
+  const session = await conversation.open({ ...scope, media: device.lease, history: [seed], onEvent() {} })
+  try {
+    await assert.rejects(
+      session.submit(
+        { ...seed, content: [{ type: 'input_image', image: { format: 'jpeg', data: new Uint8Array(65536) } }] },
+        scope,
+      ),
+      { code: 'resource_exhausted' },
+    )
+    const pixels = Uint8Array.of(1, 2)
+    const submitted = session.submit(
+      { ...seed, content: [{ type: 'input_image', image: { format: 'jpeg', data: pixels } }] },
+      scope,
+    )
+    pixels[0] = 9
+    const turn = await submitted
+    if (turn.completion !== 'playback') throw new Error('missing completion')
+    assert.equal((await turn.done).status, 'completed')
+    assert.equal(received.length, 2)
+    const message = received[1]
+    assert.ok(message.type === 'message' && message.role === 'user')
+    const part = message.content[0]
+    assert.ok(part.type === 'input_image' && 'image' in part)
+    assert.deepEqual([...part.image.data], [1, 2])
+  } finally {
+    await session.close({ mode: 'abort' })
+  }
+})
 
 test('device lease bounds pending audio, retains queued samples and fences stale producers', async () => {
   const { createAudioRuntime } = await import('../pcm-device.js')
@@ -229,12 +1036,12 @@ test('speaker-only lease uses the full budget, excludes capture and reports only
   })
   const scope = createVoiceScope()
   const smallBudget = { maxBufferedMs: 1, maxBufferedBytes: 8 }
-  const powers: number[] = []
+  const levels: number[] = []
   const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
     ...scope,
     budget: smallBudget,
-    onPlayed(power) {
-      powers.push(power)
+    onLevel({ value }) {
+      levels.push(value)
       throw new Error('mouth observer failed')
     },
   })
@@ -250,22 +1057,95 @@ test('speaker-only lease uses the full budget, excludes capture and reports only
   )
   const writer = lease.output.begin('speech', 0)
   await writeSink(writer, Uint8Array.of(0, 128, 0, 128, 0, 0, 0, 0))
-  assert.deepEqual(powers, [])
+  assert.deepEqual(levels, [])
   assert.ok(device)
   device.callback(1)
-  assert.deepEqual(powers, [32768])
+  assert.deepEqual(levels, [0.5])
   const blocked = writeSink(writer, new Uint8Array(8))
   scope.abort()
   await assert.rejects(blocked, /cancelled/)
+  assert.equal(releases, 0)
+  await assert.rejects(runtime.acquirePlayback(runtime.speaker, [mono(24000)], { ...createVoiceScope(), budget }), {
+    code: 'device_busy',
+  })
   await lease.close()
   device.callback(2)
-  assert.deepEqual(powers, [32768])
+  assert.deepEqual(levels, [0.5, 0])
   assert.equal(releases, 1)
   const again = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], { ...createVoiceScope(), budget })
   await again.close()
 })
 
-async function coreS3Output() {
+test('cancelling an utterance silences output and keeps the lease until synthesis closes', async () => {
+  const device = makeLease()
+  const runtime = bindAudioRuntime(
+    { acquireExclusive: () => () => {} },
+    () => device.lease,
+    () => device.lease,
+  )
+  const starting = deferred<void>()
+  const stopping = deferred<void>()
+  const stopped = deferred<void>()
+  const utterance = playSpeech(
+    runtime.speaker,
+    async ({ signal, format }) => {
+      const pcm = createPcmSource(format)
+      return {
+        output: pcm.output,
+        async write() {},
+        async flush() {},
+        async endInput() {
+          starting.resolve()
+          return new Promise<void>((_resolve, reject) => {
+            signal.addEventListener('abort', () => reject(signal.reason))
+          })
+        },
+        async close() {
+          stopping.resolve()
+          await stopped.promise
+        },
+      }
+    },
+    'hello',
+    0.5,
+    () => {},
+  )
+  const cancelled = assert.rejects(utterance.done, { code: 'cancelled' })
+  await starting.promise
+  const closing = utterance.close()
+  await stopping.promise
+  assert.equal(device.closes(), 1)
+  const acquire = () => runtime.acquirePlayback(runtime.speaker, [mono(24000)], { ...createVoiceScope(), budget })
+  await assert.rejects(acquire(), { code: 'device_busy' })
+  stopped.resolve()
+  await closing
+  await cancelled
+  await (await acquire()).close()
+})
+
+test('a synthesis failure is reported to the speaker caller but does not fail clean shutdown', async () => {
+  const device = makeLease()
+  const runtime = bindAudioRuntime(
+    { acquireExclusive: () => () => {} },
+    () => device.lease,
+    () => device.lease,
+  )
+  const failure = new Error('dictionary missing')
+  const utterance = playSpeech(
+    runtime.speaker,
+    async () => {
+      throw failure
+    },
+    'hello',
+    0.5,
+    () => {},
+  )
+  await assert.rejects(utterance.done, failure)
+  await utterance.close()
+  assert.equal(device.closes(), 1)
+})
+
+test('CoreS3 output grants ring credit after write and drains a final partial DMA block', async () => {
   const hook = registerHooks({
     resolve(specifier, context, next) {
       if (specifier === 'embedded:io/audio/out')
@@ -273,15 +1153,8 @@ async function coreS3Output() {
       return next(specifier, context)
     },
   })
-  try {
-    return await import('../cores3-pcm-output.js')
-  } finally {
-    hook.deregister()
-  }
-}
-
-test('CoreS3 output grants ring credit after write and drains a final partial DMA block', async () => {
-  const driver = await coreS3Output()
+  const driver = await import('../cores3-pcm-output.js')
+  hook.deregister()
   const { resetModules } = await import('../../testing/fakes/modules.js')
   const { getAudioOutInstances } = await import('../../testing/fakes/audio-out.js')
   const { createAudioRuntime } = await import('../pcm-device.js')
@@ -358,53 +1231,6 @@ test('CoreS3 output grants ring credit after write and drains a final partial DM
   }
 })
 
-test('CoreS3 speaker-only power follows confirmed blocks and the drained tail', async () => {
-  const { resetModules } = await import('../../testing/fakes/modules.js')
-  const { getAudioOutInstances } = await import('../../testing/fakes/audio-out.js')
-  const { createAudioRuntime } = await import('../pcm-device.js')
-  const { writeSink } = await import('../media.js')
-  const driver = await coreS3Output()
-  resetModules({ 'stackchan/voice/cores3-pcm-output': driver })
-  const runtime = createAudioRuntime({ acquireExclusive: () => () => {} })
-  const powers: number[] = []
-  const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
-    ...createVoiceScope(),
-    budget,
-    onPlayed(power) {
-      powers.push(power)
-      throw new Error('mouth observer failed')
-    },
-  })
-  const writer = lease.output.begin('speech', 0)
-  const credit = getAudioOutInstances().at(-1)?.options.onWritable
-  assert.ok(credit)
-  credit(10240)
-  const pcm = new Int16Array(2049).fill(-10000)
-  pcm[2048] = 32767
-  await writeSink(writer, new Uint8Array(pcm.buffer))
-  pcm.fill(0)
-  assert.deepEqual(powers, [])
-  credit(10240)
-  assert.deepEqual(powers, [10000])
-  let drained = false
-  const done = lease.output.finish('speech').then((receipt) => {
-    drained = true
-    return receipt
-  })
-  await tick()
-  credit(10240)
-  await tick()
-  assert.deepEqual(powers, [10000, 10000, 32767])
-  assert.equal(drained, false)
-  await tick()
-  credit(10240)
-  await tick()
-  credit(10240)
-  assert.deepEqual((await done).position, { basis: 'estimate', sampleRate: 24000, renderedFrames: 2049 })
-  assert.deepEqual(powers, [10000, 10000, 32767])
-  await lease.close()
-})
-
 test('button utterance carries pre-roll into STT and plays synthesized PCM through the borrowed sink', async () => {
   const device = makeLease(),
     talk = createPushToTalk(),
@@ -424,6 +1250,7 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
     },
   }
   const tts: TTS = {
+    capabilities: { input: 'segmented', output: 'streaming' },
     async open({ format }) {
       const source = createPcmSource(format)
       return {
@@ -432,11 +1259,9 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
           assert.equal(text, 'はい。')
           await source.push(Uint8Array.of(4, 5))
         },
-        async finish() {
+        async flush() {},
+        async endInput() {
           source.end()
-        },
-        textAt() {
-          return { text: '', basis: 'unknown' }
         },
         async close() {},
       }
@@ -500,6 +1325,7 @@ test('only a confirmed final-answer sentence starts early and the completed repl
     },
   }
   const tts: TTS = {
+    capabilities: { input: 'segmented', output: 'streaming' },
     async open({ format }) {
       const source = createPcmSource(format)
       return {
@@ -508,13 +1334,11 @@ test('only a confirmed final-answer sentence starts early and the completed repl
           speaking.push(s)
           await source.push(Uint8Array.of(0, 0))
         },
-        async finish() {
+        async flush() {},
+        async endInput() {
           source.end()
         },
         async close() {},
-        textAt() {
-          return { text: '', basis: 'unknown' }
-        },
       }
     },
   }
@@ -547,6 +1371,268 @@ test('only a confirmed final-answer sentence starts early and the completed repl
   await session.close({ mode: 'drain' })
 })
 
+test('failed agent results preserve recognized error codes without publishing provider messages', async () => {
+  for (const code of ['deadline_exceeded', 'provider_failed'] as const) {
+    const device = makeLease()
+    const scope = createVoiceScope()
+    const ended = deferred<void>()
+    const events: ConversationEvent[] = []
+    let reason: unknown
+    const conversation = createCascadedConversation({
+      agent: {
+        async run(_request, { signal }) {
+          signal.addEventListener('abort', () => {
+            reason = signal.reason
+          })
+          return { status: 'failed', error: { code, message: 'private provider detail' }, appended: [] }
+        },
+      },
+      stt: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      tts: {
+        capabilities: { input: 'segmented', output: 'streaming' },
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      voice: '',
+      turnDetector: createPushToTalk().detector,
+    })
+    const session = await conversation.open({
+      ...scope,
+      media: device.lease,
+      history: [],
+      onEvent(event) {
+        events.push(event)
+        if (event.type === 'turn.ended') ended.resolve()
+      },
+    })
+    try {
+      await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] }, scope)
+      await ended.promise
+      assert.deepEqual(
+        events.filter((event) => event.type === 'error'),
+        [{ type: 'error', code, fatal: false }],
+      )
+      const last = events.at(-1)
+      assert.equal(last?.type, 'turn.ended')
+      assert.ok(last?.type === 'turn.ended' && last.status === 'failed')
+      assert.ok(reason instanceof Error)
+      assert.equal(reason.message, 'private provider detail')
+    } finally {
+      await session.close({ mode: 'abort' })
+    }
+  }
+})
+
+test('a failed agent turn cancels its detached speech consumer before fencing playback', async () => {
+  const device = makeLease()
+  const started = deferred<void>()
+  const cancelled = deferred<void>()
+  const ended = deferred<void>()
+  const events: ConversationEvent[] = []
+  const cleanup: string[] = []
+  let consumer: Promise<unknown> | undefined
+  const fence = device.lease.output.fence
+  device.lease.output.fence = async (generation) => {
+    cleanup.push('fence')
+    return fence(generation)
+  }
+  const agent: Agent = {
+    async run(_request, options) {
+      consumer = Promise.resolve(
+        options.onEvent?.({
+          type: 'response.output_text.delta',
+          item_id: 'reply',
+          phase: 'final_answer',
+          delta: '途中。',
+        }),
+      ).then(
+        () => undefined,
+        (error) => error,
+      )
+      await started.promise
+      return { status: 'failed', error: { code: 'provider_failed', message: 'connection failed' }, appended: [] }
+    },
+  }
+  const tts: TTS = {
+    capabilities: { input: 'segmented', output: 'streaming' },
+    async open({ signal, format }) {
+      const source = createPcmSource(format)
+      const abort = () => {
+        cleanup.push('cancel')
+        source.end(signal.reason)
+        cancelled.reject(signal.reason)
+      }
+      signal.addEventListener('abort', abort)
+      return {
+        output: source.output,
+        async write() {},
+        async flush() {},
+        endInput() {
+          started.resolve()
+          return cancelled.promise
+        },
+        async close() {
+          cleanup.push('close')
+          signal.removeEventListener('abort', abort)
+          source.end()
+        },
+      }
+    },
+  }
+  const conversation = createCascadedConversation({
+    agent,
+    tts,
+    stt: {
+      async open() {
+        throw Error('unused')
+      },
+    },
+    voice: '',
+    turnDetector: createPushToTalk().detector,
+  })
+  const scope = createVoiceScope()
+  const session = await conversation.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent(event) {
+      events.push(event)
+      if (event.type === 'turn.ended') ended.resolve()
+    },
+  })
+  try {
+    await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: '話して' }] }, scope)
+    await ended.promise
+    await tick()
+    assert.deepEqual(cleanup, ['cancel', 'fence', 'close'])
+    assert.equal(((await consumer) as { code?: string }).code, 'provider_failed')
+    assert.deepEqual(
+      events.filter((event) => event.type === 'error'),
+      [{ type: 'error', code: 'provider_failed', fatal: false }],
+    )
+    assert.ok(events.some((event) => event.type === 'turn.ended' && event.status === 'failed'))
+  } finally {
+    cancelled.reject(Error('test cleanup'))
+    await consumer
+    await session.close({ mode: 'abort' })
+  }
+})
+
+test('transcription failures preserve recognized codes and normalize provider-specific details', async () => {
+  const failures = [
+    {
+      error: Object.assign(new Error('private timeout detail'), { code: 'deadline_exceeded' }),
+      code: 'deadline_exceeded',
+    },
+    { error: Object.assign(new Error('private HTTP detail'), { code: 'http_429' }), code: 'provider_failed' },
+    { error: new Error('private provider detail'), code: 'provider_failed' },
+  ]
+  for (const stage of ['open', 'finish']) {
+    for (const failure of failures) {
+      const device = makeLease()
+      const talk = createPushToTalk()
+      const failed = deferred<ConversationEvent>()
+      const conversation = createCascadedConversation({
+        agent: successfulAgent(),
+        stt: {
+          async open({ format }) {
+            if (stage === 'open') throw failure.error
+            return {
+              input: createPcmSink(format, () => {}),
+              async finish() {
+                throw failure.error
+              },
+              async close() {},
+            }
+          },
+        },
+        tts: {
+          capabilities: { input: 'segmented', output: 'streaming' },
+          async open() {
+            throw new Error('unused')
+          },
+        },
+        voice: '',
+        turnDetector: talk.detector,
+      })
+      const session = await conversation.open({
+        ...createVoiceScope(),
+        media: device.lease,
+        history: [],
+        onEvent(event) {
+          if (event.type === 'error') failed.resolve(event)
+        },
+      })
+      try {
+        talk.press()
+        talk.release()
+        assert.deepEqual(await failed.promise, { type: 'error', code: failure.code, fatal: false })
+      } finally {
+        await session.close({ mode: 'abort' })
+      }
+    }
+  }
+})
+
+test('agent rejections normalize unknown provider codes without exposing their details', async () => {
+  for (const failure of [
+    new Error('private provider detail'),
+    { code: 'http_429', message: 'private HTTP detail' },
+    null,
+  ]) {
+    const device = makeLease()
+    const scope = createVoiceScope()
+    const ended = deferred<void>()
+    const events: ConversationEvent[] = []
+    const conversation = createCascadedConversation({
+      agent: {
+        async run() {
+          throw failure
+        },
+      },
+      stt: {
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      tts: {
+        capabilities: { input: 'segmented', output: 'streaming' },
+        async open() {
+          throw new Error('unused')
+        },
+      },
+      voice: '',
+      turnDetector: createPushToTalk().detector,
+    })
+    const session = await conversation.open({
+      ...scope,
+      media: device.lease,
+      history: [],
+      onEvent(event) {
+        events.push(event)
+        if (event.type === 'turn.ended') ended.resolve()
+      },
+    })
+    try {
+      await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] }, scope)
+      await ended.promise
+      assert.deepEqual(
+        events.filter((event) => event.type === 'error'),
+        [{ type: 'error', code: 'provider_failed', fatal: false }],
+      )
+      const last = events.at(-1)
+      assert.ok(last?.type === 'turn.ended' && last.status === 'failed')
+    } finally {
+      await session.close({ mode: 'abort' })
+    }
+  }
+})
+
 test('HTTP PCM waits for playback credit, carries a split sample, and rejects a truncated stream', async () => {
   const { createPcmBodyReader } = await import('../pcm-http.js')
   const credit = deferred<void>(),
@@ -560,9 +1646,9 @@ test('HTTP PCM waits for playback credit, carries a split sample, and rejects a 
     },
   }
   const receiver = createPcmBodyReader(
-    async (bytes) => {
+    (bytes) => {
       calls.push([...bytes])
-      if (calls.length === 1) await credit.promise
+      if (calls.length === 1) return credit.promise
     },
     (error) => {
       if (error) complete.reject(error)
@@ -571,9 +1657,10 @@ test('HTTP PCM waits for playback credit, carries a split sample, and rejects a 
   )
   receiver.ready(body, 3)
   receiver.ready(body, 3)
-  receiver.done()
   assert.equal(read, 3)
   credit.resolve()
+  await credit.promise
+  receiver.done()
   await complete.promise
   assert.deepEqual(calls, [
     [1, 2],
@@ -598,6 +1685,28 @@ test('HTTP PCM waits for playback credit, carries a split sample, and rejects a 
   stopped.close()
   stopped.ready(body, 2)
   assert.equal(read, 7)
+})
+
+test('HTTP PCM never reads from a completed request while waiting for playback credit', async () => {
+  const credit = deferred<void>()
+  const complete = deferred<unknown>()
+  const { createPcmBodyReader } = await import('../pcm-http.js')
+  const receiver = createPcmBodyReader(() => credit.promise, complete.resolve)
+  let reads = 0
+  receiver.ready(
+    {
+      read(target) {
+        reads++
+        return target.length
+      },
+    },
+    4096,
+  )
+  receiver.done()
+  credit.resolve()
+  const outcome = await complete.promise
+  assert.equal(reads, 1)
+  assert.match(String(outcome), /incomplete PCM body/)
 })
 
 test('HTTP PCM drains the current notification immediately while the speaker has credit', async () => {
@@ -631,12 +1740,23 @@ test('a restart-required interrupt releases the device before a replacement pipe
     () => makeLease().lease,
   )
   const conversation: Conversation = {
-    capabilities: { textInput: true, imageInput: false, interruption: 'local-only', historyRepair: 'restart' },
+    capabilities: {
+      textInput: true,
+      imageInput: false,
+      interruption: 'local-only',
+      historyRepair: 'restart',
+      interruptionReuse: 'restart-required',
+      inputRoles: ['user'],
+      turnControl: 'provider',
+      submitCompletion: 'unavailable',
+    },
     audio: { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
     async open() {
       return {
         id: 'backend',
-        async submit() {},
+        async submit() {
+          return { completion: 'unavailable' as const }
+        },
         async setInputEnabled() {},
         async interrupt() {
           return { playback: [], remote: 'unknown', history: 'restart-required' }
@@ -676,7 +1796,16 @@ test('closing while a native lease is opening waits for its release exactly once
     },
   )
   const conversation: Conversation = {
-    capabilities: { textInput: true, imageInput: false, historyRepair: 'restart', interruption: 'local-only' },
+    capabilities: {
+      textInput: true,
+      imageInput: false,
+      interruption: 'local-only',
+      historyRepair: 'restart',
+      interruptionReuse: 'restart-required',
+      inputRoles: ['user'],
+      turnControl: 'provider',
+      submitCompletion: 'unavailable',
+    },
     audio: { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
     async open() {
       opens++
@@ -701,20 +1830,17 @@ test('closing while a native lease is opening waits for its release exactly once
   assert.deepEqual([opens, device.closes(), releases], [0, 1, 1])
 })
 
-test('interrupt releases audio independently of a hung agent and forgets tool calls only after retirement', async () => {
+test('interrupt releases audio independently of a hung agent and requires a restart', async () => {
   timer.reset()
   const device = makeLease(),
     hung = deferred<AgentResult>(),
     running = deferred<void>(),
     talk = createPushToTalk()
-  const forgotten: string[] = []
+  const events: ConversationEvent[] = []
   const agent: Agent = {
     run() {
       running.resolve()
       return hung.promise
-    },
-    releaseSession(id) {
-      forgotten.push(id)
     },
   }
   const model = createCascadedConversation({
@@ -727,23 +1853,42 @@ test('interrupt releases audio independently of a hung agent and forgets tool ca
       },
     },
     tts: {
+      capabilities: { input: 'segmented', output: 'streaming' },
       async open() {
         throw Error('unused')
       },
     },
   })
   const scope = createVoiceScope()
-  const session = await model.open({ ...scope, media: device.lease, history: [], onEvent() {} })
-  await session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }, scope)
+  const session = await model.open({
+    ...scope,
+    media: device.lease,
+    history: [],
+    onEvent: (event) => events.push(event),
+  })
+  const submitted = await session.submit(
+    { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
+    scope,
+  )
+  if (submitted.completion !== 'playback') throw new Error('missing completion')
   await running.promise
   const interrupted = session.interrupt()
   timer.advance(500)
   assert.equal((await interrupted).history, 'restart-required')
+  assert.deepEqual(await submitted.done, { turnId: submitted.id, status: 'interrupted' })
+  await assert.rejects(
+    session.submit({ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'again' }] }, scope),
+    { code: 'provider_failed' },
+  )
+  assert.deepEqual(
+    events.filter((event) => event.type === 'error'),
+    [],
+  )
+  const last = events.at(-1)
+  assert.ok(last?.type === 'turn.ended' && last.status === 'interrupted')
   assert.equal((await session.close({ mode: 'abort' })).remoteFinalization, 'unknown')
-  assert.deepEqual(forgotten, [])
   hung.resolve({ status: 'cancelled', error: { code: 'cancelled', message: '' }, appended: [] })
   await tick()
-  assert.deepEqual(forgotten, [session.id])
 })
 
 test('a slow PCM consumer is cancelled while a synchronous sibling continues receiving samples', async () => {

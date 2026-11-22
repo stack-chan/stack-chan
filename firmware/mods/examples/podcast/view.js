@@ -363,7 +363,7 @@ export function createPodcastView(controller, context, i18n, radio = false) {
           else void controller.play()
         },
         { left: 8, width: half - 12, top: bottom, height: 36 },
-        !!state.episodes.length && !state.loading,
+        !!state.episodes.length && !state.loading && (!active || state.canPause),
       ),
     )
     root.add(
@@ -396,6 +396,7 @@ export function createPodcastView(controller, context, i18n, radio = false) {
       state.source,
       state.reason,
       state.state,
+      state.canPause,
       state.feedError,
       state.playbackError,
       state.artEnabled,

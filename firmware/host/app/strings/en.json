@@ -31,6 +31,7 @@
   "mods.restart": "Restart",
   "boot.wifiNotFound": "Saved Wi-Fi not found",
   "boot.wifiFailed": "Wi-Fi connection failed",
+  "boot.timeSyncFailed": "Wi-Fi connected; time sync failed",
   "settings.title": "Settings",
   "settings.scan": "Scan",
   "settings.scanning": "Scanning",

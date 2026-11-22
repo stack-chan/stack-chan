@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.test.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/minimal-voice-tests",
+    "rootDir": "../../..",
+    "types": ["node", "../../../typings/xs-runtime"]
+  },
+  "include": ["mod.ts", "workflow.test.ts"]
+}

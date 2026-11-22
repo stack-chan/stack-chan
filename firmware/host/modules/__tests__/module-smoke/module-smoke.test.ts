@@ -4,17 +4,17 @@ import { getAxp2101Power } from 'axp2101-power-capture'
 // Consolidated constructor smokes: each module only needs to prove it loads
 // and constructs in XS, so they share one manifest instead of paying a full
 // mcconfig build per module.
-import { createChatConversation, createXiaozhiV1Connection } from 'chat'
+import { ChatConversation, XiaoZhiV1Connection } from 'chat'
 import config from 'mc/config'
 import { NetworkService } from 'network-service'
-import STT from 'stt-whisper'
-import { equal } from 'testing/assert'
 import { SpeechPlayback as ElevenLabsPlayback } from 'speech-playback-elevenlabs'
 import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
 import { SpeechPlayback as OpenAIPlayback } from 'speech-playback-openai'
 import { SpeechPlayback as StackchanVoicePlayback } from 'speech-playback-stackchan-voice'
 import { SpeechPlayback as VoiceVoxPlayback } from 'speech-playback-voicevox'
 import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-web'
+import STT from 'stt-whisper'
+import { equal } from 'testing/assert'
 
 trace('=== module smoke test ===\n')
 
@@ -22,8 +22,8 @@ const token = (config.token as string) ?? 'test-token'
 const host = (config.host as string) ?? '127.0.0.1'
 let realtimeError = ''
 try {
-  createChatConversation({
-    connection: createXiaozhiV1Connection({
+  ChatConversation.create({
+    connection: XiaoZhiV1Connection.create({
       endpoint: `ws://${host}/xiaozhi-v1`,
       deviceId: 'test-device',
       clientId: 'test-client',

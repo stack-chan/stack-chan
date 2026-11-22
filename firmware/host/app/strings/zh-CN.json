@@ -31,6 +31,7 @@
   "mods.restart": "重新启动",
   "boot.wifiNotFound": "未找到已保存的Wi-Fi",
   "boot.wifiFailed": "Wi-Fi连接失败",
+  "boot.timeSyncFailed": "Wi-Fi已连接: 时间同步失败",
   "settings.title": "设置",
   "settings.scan": "扫描",
   "settings.scanning": "正在扫描",

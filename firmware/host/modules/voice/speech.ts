@@ -1,4 +1,4 @@
-import { createClosingClient } from 'realtimeConversation/http-core'
+import { createClosingClient, guardSocketCallbacks } from 'realtimeConversation/http-core'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
@@ -90,21 +90,34 @@ function streamSpeech(
       receiver.close()
       signal.removeEventListener('abort', abort)
       if (timer !== undefined) Timer.clear(timer)
-      client?.close()
-      if (error) reject(error)
-      else resolve()
+      // TLSのコールバックを抜けてからソケットを閉じる
+      Timer.set(() => {
+        try {
+          client?.close()
+        } catch (closeError) {
+          error ??= closeError
+        }
+        if (error) reject(error)
+        else resolve()
+      })
     }
     const abort = () => finish(signal.reason ?? voiceError('cancelled'))
     try {
       requireActive(signal)
       signal.addEventListener('abort', abort)
       timer = Timer.set(() => finish(voiceError('deadline_exceeded')), 45000)
-      client = createClosingClient(device.network.https.client.io, {
-        ...device.network.https.client,
+      const provider = device.network.https.client
+      const socket = provider.socket
+      client = createClosingClient(provider.io, {
+        ...provider,
         host: 'api.openai.com',
         port: 443,
-        onError: (error) => finish(error ?? voiceError('provider_failed')),
+        ...('TCP' in socket && socket.TCP
+          ? { socket: { ...socket, TCP: { ...socket.TCP, io: guardSocketCallbacks(socket.TCP.io) } } }
+          : {}),
+        onError: (error) => receiver.done(error ?? voiceError('provider_failed')),
       })
+      if (closed) return
       client.request({
         method: 'POST',
         path: '/v1/audio/speech',
@@ -120,8 +133,12 @@ function streamSpeech(
           if (closed) return
           const size = Math.min(count, body.byteLength - offset)
           if (size > 0) {
-            this.write(new DataView(body, offset, size))
-            offset += size
+            try {
+              this.write(new DataView(body, offset, size))
+              offset += size
+            } catch (error) {
+              finish(error)
+            }
           }
         },
         onReadable(count) {

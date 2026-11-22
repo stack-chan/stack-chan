@@ -1508,9 +1508,9 @@ test('HTTP PCM waits for playback credit, carries a split sample, and rejects a 
     },
   }
   const receiver = createPcmBodyReader(
-    async (bytes) => {
+    (bytes) => {
       calls.push([...bytes])
-      if (calls.length === 1) await credit.promise
+      if (calls.length === 1) return credit.promise
     },
     (error) => {
       if (error) complete.reject(error)
@@ -1519,9 +1519,10 @@ test('HTTP PCM waits for playback credit, carries a split sample, and rejects a 
   )
   receiver.ready(body, 3)
   receiver.ready(body, 3)
-  receiver.done()
   assert.equal(read, 3)
   credit.resolve()
+  await credit.promise
+  receiver.done()
   await complete.promise
   assert.deepEqual(calls, [
     [1, 2],
@@ -1546,6 +1547,28 @@ test('HTTP PCM waits for playback credit, carries a split sample, and rejects a 
   stopped.close()
   stopped.ready(body, 2)
   assert.equal(read, 7)
+})
+
+test('HTTP PCM never reads from a completed request while waiting for playback credit', async () => {
+  const credit = deferred<void>()
+  const complete = deferred<unknown>()
+  const { createPcmBodyReader } = await import('../pcm-http.js')
+  const receiver = createPcmBodyReader(() => credit.promise, complete.resolve)
+  let reads = 0
+  receiver.ready(
+    {
+      read(target) {
+        reads++
+        return target.length
+      },
+    },
+    4096,
+  )
+  receiver.done()
+  credit.resolve()
+  const outcome = await complete.promise
+  assert.equal(reads, 1)
+  assert.match(String(outcome), /incomplete PCM body/)
 })
 
 test('HTTP PCM drains the current notification immediately while the speaker has credit', async () => {

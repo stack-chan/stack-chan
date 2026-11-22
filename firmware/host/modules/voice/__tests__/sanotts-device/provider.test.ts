@@ -10,17 +10,22 @@ async function run() {
   const args = { signal: scope.signal, format: mono(24000), voice: 'default' }
   const synthesis = await tts.open(args)
   const gate = deferred<void>()
+  const started = deferred<void>()
   let count = 0
   let firstBuffer: ArrayBufferLike | undefined
   readSource(synthesis.output, (bytes) => {
     firstBuffer ??= bytes.buffer
     equal(bytes.buffer, firstBuffer)
     for (const sample of new Int16Array(bytes.buffer, bytes.byteOffset, bytes.length / 2)) equal(sample, count++)
-    if (count === 1024) return gate.promise
+    if (count === 1024) {
+      started.resolve()
+      return gate.promise
+    }
   })
   await synthesis.write('挨')
   await synthesis.write('拶')
-  const done = synthesis.finish()
+  const done = synthesis.endInput()
+  await started.promise
   equal(count, 1024)
   equal(Native.reads, 1)
   gate.resolve()
@@ -32,7 +37,7 @@ async function run() {
   const held = deferred<void>()
   readSource(pending.output, () => held.promise)
   await pending.write('かな')
-  const cancelled = pending.finish().then(
+  const cancelled = pending.endInput().then(
     () => false,
     () => true,
   )
@@ -45,7 +50,7 @@ async function run() {
   const again = await tts.openKana({ ...args, ...createVoiceScope() })
   await again.write('missing-model')
   equal(
-    await again.finish().then(
+    await again.endInput().then(
       () => '',
       (e) => e.message,
     ),
@@ -54,19 +59,19 @@ async function run() {
   equal(Native.active, 0)
   const retry = await tts.openKana({ ...args, ...createVoiceScope() })
   await retry.write('あ')
-  await retry.finish()
+  await retry.endInput()
   equal(Native.lastKana, 'あ')
   equal(Native.active, 0)
   const custom = createSanoTTS({ toKana: (text) => (text === '電車' ? 'でんしゃ' : '') })
   const train = await custom.open({ ...args, ...createVoiceScope() })
   await train.write('電車')
-  await train.finish()
+  await train.endInput()
   equal(Native.lastKana, 'でんしゃ')
   const invalidReader = createSanoTTS({ toKana: () => ({ includes: () => false }) as unknown as string })
   const invalidReading = await invalidReader.open({ ...args, ...createVoiceScope() })
   await invalidReading.write('あ')
   equal(
-    await invalidReading.finish().then(
+    await invalidReading.endInput().then(
       () => false,
       (cause) => cause instanceof TypeError,
     ),
@@ -85,7 +90,7 @@ async function run() {
     const session = await provider.open({ ...args, signal: stopping.signal })
     await session.write('あ')
     equal(
-      await session.finish().then(
+      await session.endInput().then(
         () => 'played',
         (cause) => cause.code,
       ),
@@ -94,6 +99,12 @@ async function run() {
     await session.close()
     equal(Native.active, 0)
   }
+  const releaseFailure = await tts.openKana({ ...args, ...createVoiceScope() })
+  Native.failClose = true
+  await releaseFailure.write('かな')
+  equal(await releaseFailure.endInput().catch((error) => error.message), 'native close failed')
+  equal(await releaseFailure.close().catch((error) => error.message), 'native close failed')
+  Native.failClose = false
 }
 run().then(
   () => trace('@@STACKCHAN_TEST:PASS@@\n'),

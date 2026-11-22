@@ -1,17 +1,17 @@
 import NativeSanoTTS from 'sanotts-native'
 import type { Synthesis, TTS } from 'stackchan/voice/contracts'
-import { createPcmSource } from 'stackchan/voice/media'
+import { createPcmSource, readSource } from 'stackchan/voice/media'
 import { toKana } from 'stackchan/voice/sanotts-reading'
-import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
+import { createVoiceScope, deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
 
 export function createSanoTTS(options: { toKana?: (text: string) => string } = {}): TTS & { openKana: TTS['open'] } {
   const readText = options.toKana ?? toKana
-  async function open({ signal, format, voice }: Parameters<TTS['open']>[0], kana: boolean): Promise<Synthesis> {
+  async function openSegment(
+    { signal, format }: Parameters<TTS['open']>[0],
+    kana: boolean,
+  ): Promise<Omit<Synthesis, 'flush'>> {
     requireActive(signal)
-    if (format.channels !== 1 || format.sampleRate !== 24000 || format.encoding !== 'pcm_s16le')
-      throw voiceError('unsupported_capability', 'sanoTTS requires mono 24 kHz PCM')
-    if (voice && voice !== 'default') throw voiceError('unsupported_capability', 'sanoTTS provides the default voice')
     const source = createPcmSource(format)
     let text = '',
       ended = false
@@ -29,7 +29,9 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
       if (timer !== undefined) Timer.clear(timer)
       const renderer = native
       native = undefined
-      released = deferred<void>()
+      const releaseResult = deferred<void>()
+      released = releaseResult
+      void releaseResult.promise.catch(() => {})
       function release() {
         try {
           if (renderer && !renderer.done) {
@@ -39,13 +41,14 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
           renderer?.close()
         } catch (failure) {
           error ??= failure
+          releaseResult.reject(failure)
         }
         try {
           source.end(error)
         } finally {
           if (error) completion?.reject(error)
           else completion?.resolve()
-          released?.resolve()
+          releaseResult.resolve()
         }
       }
       renderer?.stop()
@@ -94,7 +97,7 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
         if (part.includes('\0')) throw new TypeError('utterance contains NUL')
         text += part
       },
-      finish() {
+      endInput() {
         if (completion) return completion.promise
         if (ended) return Promise.reject(error)
         completion = deferred<void>()
@@ -112,5 +115,139 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
       },
     }
   }
-  return { open: (options) => open(options, false), openKana: (options) => open(options, true) }
+  async function open(options: Parameters<TTS['open']>[0], kana: boolean): Promise<Synthesis> {
+    const { signal, format, voice } = options
+    requireActive(signal)
+    if (format.channels !== 1 || format.sampleRate !== 24000 || format.encoding !== 'pcm_s16le')
+      throw voiceError('unsupported_capability', 'sanoTTS requires mono 24 kHz PCM')
+    if (voice && voice !== 'default') throw voiceError('unsupported_capability', 'sanoTTS provides the default voice')
+    const scope = createVoiceScope(signal)
+    const source = createPcmSource(format)
+    type Segment = Awaited<ReturnType<typeof openSegment>>
+    type Running = { segment: Promise<Segment>; done: Promise<void>; closing?: Promise<void> }
+    let text = ''
+    let active: Running | undefined
+    let ending: Promise<void> | undefined
+    let closing: Promise<void> | undefined
+    let failure: unknown
+    let releaseFailure: { cause: unknown } | undefined
+
+    function requireWritable() {
+      requireActive(scope.signal)
+      if (failure) throw failure
+      if (ending || closing) throw voiceError('cancelled')
+    }
+    function closeSegment(run: Running) {
+      run.closing ??= run.segment.then(
+        async (segment) => {
+          try {
+            await segment.close()
+          } catch (cause) {
+            releaseFailure = { cause }
+            throw cause
+          }
+        },
+        () => {},
+      )
+      return run.closing
+    }
+    async function render(run: Running, part: string) {
+      try {
+        const segment = await run.segment
+        requireActive(scope.signal)
+        let reader: ReturnType<typeof readSource> | undefined
+        try {
+          reader = readSource(segment.output, source.offer)
+          await segment.write(part)
+          await segment.endInput()
+        } finally {
+          try {
+            reader?.close()
+          } finally {
+            await closeSegment(run)
+          }
+        }
+      } catch (error) {
+        failure = error
+        source.end(error)
+        throw error
+      } finally {
+        active = undefined
+      }
+    }
+    function flushPending() {
+      if (!text) return Promise.resolve()
+      const part = text
+      text = ''
+      const segment = openSegment({ ...options, signal: scope.signal }, kana)
+      const run: Running = { segment, done: Promise.resolve() }
+      active = run
+      run.done = render(run, part)
+      return run.done
+    }
+    function dispose() {
+      scope.signal.removeEventListener('abort', abort)
+      scope.dispose()
+    }
+    function close() {
+      if (closing) return closing
+      const run = active
+      const reason = scope.signal.reason ?? voiceError('cancelled')
+      closing = Promise.resolve().then(async () => {
+        try {
+          try {
+            source.end(reason)
+          } finally {
+            if (run) {
+              await closeSegment(run).catch(() => {})
+              await run.done.catch(() => {})
+            }
+          }
+          if (releaseFailure) throw releaseFailure.cause
+        } finally {
+          dispose()
+        }
+      })
+      scope.abort(reason)
+      return closing
+    }
+    function abort() {
+      void close().catch(() => {})
+    }
+    scope.signal.addEventListener('abort', abort)
+    return {
+      output: source.output,
+      async write(part) {
+        requireWritable()
+        if (text.length + part.length > 512) throw voiceError('resource_exhausted', 'utterance exceeds 512 characters')
+        if (part.includes('\0')) throw new TypeError('utterance contains NUL')
+        text += part
+      },
+      async flush() {
+        requireWritable()
+        if (active) throw voiceError('device_busy', 'await the previous speech flush')
+        await flushPending()
+      },
+      endInput() {
+        ending ??= Promise.resolve().then(async () => {
+          try {
+            if (active) await active.done
+            requireActive(scope.signal)
+            if (failure) throw failure
+            await flushPending()
+            source.end()
+          } finally {
+            dispose()
+          }
+        })
+        return ending
+      },
+      close,
+    }
+  }
+  return {
+    capabilities: { input: 'segmented', output: 'streaming' },
+    open: (options) => open(options, false),
+    openKana: (options) => open(options, true),
+  }
 }

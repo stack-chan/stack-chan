@@ -89,6 +89,7 @@
     "mod:stackchan_rt": "node scripts/firmware.mjs mod stackchan_rt",
     "mod:takao_core2_sg90": "node scripts/firmware.mjs mod takao_core2_sg90",
     "setup": "xs-dev setup",
+    "setup:xsl": "node scripts/setup-xsl.mjs",
     "update": "xs-dev update",
     "doctor": "echo stack-chan environment info: && git rev-parse HEAD && git rev-parse --show-toplevel && xs-dev doctor",
     "scan": "xs-dev scan",

@@ -3,8 +3,6 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { beforeEach, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-
-import type { Speaker } from '../../voice/contracts.js'
 import AudioOut, {
   getAudioOutInstances,
   resetAudioOut,
@@ -13,10 +11,12 @@ import AudioOut, {
 import {
   getMP3StreamerInstances,
   resetMP3Streamers,
+  setMP3StreamerConstructorCompletes,
   setMP3StreamerConstructorFailure,
 } from '../../testing/fakes/mp3streamer.js'
 import Timer from '../../testing/fakes/timer.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
+import type { Speaker } from '../../voice/contracts.js'
 
 type WebRadioModule = typeof import('../platforms/m5stackchan-cores3/web-radio-player.js')
 
@@ -399,6 +399,35 @@ test('permanent media failure rejects done after the worker closes', async () =>
   assert.equal(failed, false)
   released.resolve()
   await done
+})
+
+test('a failed media retirement rejects once and allows the next playback', async () => {
+  const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+  const { createVoiceScope } = await import('../../voice/scope.js')
+  const player = new MediaPlayer(speaker)
+  const first = await player.open({ mode: 'finite', url: 'https://episodes.test/one' }, createVoiceScope())
+  getMP3StreamerInstances()[0].close = async () => {
+    throw new Error('decoder close failed')
+  }
+
+  await assert.rejects(player.stop(), /decoder close failed/)
+  await assert.rejects(first.done, /decoder close failed/)
+  await player.stop()
+  const next = await player.open({ mode: 'finite', url: 'https://episodes.test/two' }, createVoiceScope())
+  assert.equal(next.state, 'buffering')
+  await next.stop()
+})
+
+test('finite playback closes the streamer even if construction completes synchronously', async () => {
+  const { default: MediaPlayer } = await import('../platforms/m5stackchan-cores3/media-player.js')
+  const { createVoiceScope } = await import('../../voice/scope.js')
+  const player = new MediaPlayer(speaker)
+  setMP3StreamerConstructorCompletes()
+
+  const media = await player.open({ mode: 'finite', url: 'https://episodes.test/one' }, createVoiceScope())
+  assert.equal(await media.done, 'ended')
+  assert.equal(getMP3StreamerInstances()[0].closed, true)
+  assert.equal(getAudioOutInstances()[0].closed, true)
 })
 
 test('pause reports a teardown failure through the control promise and session done', async () => {

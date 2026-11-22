@@ -240,6 +240,7 @@ class StreamSession {
       this.#setState(this.#backoffIndex > 0 ? 'retrying' : 'buffering')
       if (!this.#isCurrent(generation)) return
       const path = `${url.pathname}${url.search}` || '/'
+      let completed = false
       const streamer = new MP3Streamer({
         protocol: url.protocol === 'https:' ? 'https' : 'http',
         http: url.protocol === 'https:' ? device.network.https.client : device.network.http.client,
@@ -296,10 +297,15 @@ class StreamSession {
           this.#networkRetrying = true
           this.#setState('retrying', reason)
         },
-        onDone: () => this.#onDone(generation),
+        onDone: () => {
+          if (session.streamer) void this.#onDone(generation)
+          else completed = true
+        },
       })
-      if (this.#isCurrent(generation)) session.streamer = streamer
-      else await streamer.close()
+      if (this.#isCurrent(generation)) {
+        session.streamer = streamer
+        if (completed) void this.#onDone(generation)
+      } else await streamer.close()
     } catch (error) {
       this.#fail(generation, String(error))
     }
@@ -503,12 +509,12 @@ export default class MediaPlayer implements MediaCapability {
   }
 
   #retire(stream?: StreamSession) {
-    if (stream) {
-      const stopped = deferred<void>()
-      this.#retiring = Promise.all([this.#retiring, stopped.promise]).then(() => {})
-      void stream.stop().then(stopped.resolve, stopped.reject)
-    }
-    return this.#retiring
+    if (!stream) return this.#retiring
+    const stopped = deferred<void>()
+    const retiring = Promise.all([this.#retiring, stopped.promise.catch(() => {})]).then(() => {})
+    this.#retiring = retiring
+    void stream.stop().then(stopped.resolve, stopped.reject)
+    return retiring.then(() => stopped.promise)
   }
   async start(options: MediaStartOptions) {
     validateOptions(options)

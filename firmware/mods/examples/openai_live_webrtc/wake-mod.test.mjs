@@ -37,13 +37,13 @@ const names = { wake: 'openai-live:wake', session: 'openai-live:session', mute: 
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 let nextId = 0
 async function fixture({
+  decisionsReactions = false,
+  wait = () => Promise.resolve(),
   hasDetector = true,
   apiKey = 'test-only',
   pendingNetwork,
   pendingDetectorClaim,
   lostRelease = false,
-  decisionsReactions = false,
-  wait = () => Promise.resolve(),
 } = {}) {
   const events = [],
     buttons = new Map(),
@@ -262,56 +262,6 @@ test('wake-initiated pending network can be stopped without waiting or reconnect
   await f.shutdown()
 })
 
-test('a runtime detector fault disarms, then manual start remains available after positive release', async () => {
-  const f = await fixture()
-  f.fire('wake')
-  await settle()
-  f.fault()
-  await settle()
-  assert.equal(f.states.get(names.wake), false)
-  assert.equal(f.events.at(-1), 'waiting released')
-  f.fire('session')
-  await settle()
-  assert.equal(f.events.at(-1), 'conversation started')
-  await f.shutdown()
-})
-
-test('unconfirmed detector close does not start a replacement even via the manual drawer', async () => {
-  const f = await fixture({ lostRelease: true })
-  f.fire('wake')
-  await settle()
-  f.wake()
-  await settle()
-  assert.equal(f.states.get(names.wake), false)
-  assert.equal(f.balloons.at(-1), '音声の解放を確認できません')
-  f.fire('session')
-  await settle()
-  assert.ok(!f.events.includes('conversation created'))
-  await f.shutdown()
-})
-
-test('late proven no-claim after manual handoff does not leave a stale Wake drawer toggle', async () => {
-  let rejectClaim
-  const f = await fixture({
-    pendingDetectorClaim: new Promise((_resolve, reject) => {
-      rejectClaim = reject
-    }),
-  })
-  f.fire('wake')
-  await settle()
-  assert.equal(f.states.get(names.wake), true)
-  f.fire('session')
-  rejectClaim(Object.assign(new Error('already owned by host'), { code: 'device_busy' }))
-  await settle()
-  assert.deepEqual(f.events, ['conversation created', 'conversation started'])
-  assert.equal(f.states.get(names.wake), false)
-  f.remoteClose()
-  await settle()
-  assert.equal(f.events.at(-1), 'conversation released')
-  assert.equal(f.states.get(names.wake), false)
-  await f.shutdown()
-})
-
 const inputTranscript = 'session.input_transcript.delta'
 const outputTranscript = 'session.output_transcript.delta'
 
@@ -415,4 +365,54 @@ test('a nod returns to the original pose and releases torque when the session st
     { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } },
     'torque off',
   ])
+})
+
+test('a runtime detector fault disarms, then manual start remains available after positive release', async () => {
+  const f = await fixture()
+  f.fire('wake')
+  await settle()
+  f.fault()
+  await settle()
+  assert.equal(f.states.get(names.wake), false)
+  assert.equal(f.events.at(-1), 'waiting released')
+  f.fire('session')
+  await settle()
+  assert.equal(f.events.at(-1), 'conversation started')
+  await f.shutdown()
+})
+
+test('unconfirmed detector close does not start a replacement even via the manual drawer', async () => {
+  const f = await fixture({ lostRelease: true })
+  f.fire('wake')
+  await settle()
+  f.wake()
+  await settle()
+  assert.equal(f.states.get(names.wake), false)
+  assert.equal(f.balloons.at(-1), '音声の解放を確認できません')
+  f.fire('session')
+  await settle()
+  assert.ok(!f.events.includes('conversation created'))
+  await f.shutdown()
+})
+
+test('late proven no-claim after manual handoff does not leave a stale Wake drawer toggle', async () => {
+  let rejectClaim
+  const f = await fixture({
+    pendingDetectorClaim: new Promise((_resolve, reject) => {
+      rejectClaim = reject
+    }),
+  })
+  f.fire('wake')
+  await settle()
+  assert.equal(f.states.get(names.wake), true)
+  f.fire('session')
+  rejectClaim(Object.assign(new Error('already owned by host'), { code: 'device_busy' }))
+  await settle()
+  assert.deepEqual(f.events, ['conversation created', 'conversation started'])
+  assert.equal(f.states.get(names.wake), false)
+  f.remoteClose()
+  await settle()
+  assert.equal(f.events.at(-1), 'conversation released')
+  assert.equal(f.states.get(names.wake), false)
+  await f.shutdown()
 })

@@ -44,7 +44,7 @@ export function streamResponse<T>(
         reading = false,
         status = 0
       let reader: ResponseWriter | undefined
-      let ended: { error?: unknown } | undefined
+      let ended: { error?: unknown; genericConnectionError?: boolean } | undefined
       let pending: { bytes: Uint8Array; length: number } | undefined
       let consumingBytes = 0
       let bytes: Uint8Array = new Uint8Array(0)
@@ -69,21 +69,29 @@ export function streamResponse<T>(
           else resolve()
         }, 0)
       }
-      function end(error?: unknown) {
-        if (finished || ended) return
+      function end(error?: unknown, genericConnectionError = false) {
+        if (finished) return
+        if (ended) {
+          if (ended.genericConnectionError && error && !genericConnectionError) ended = { error }
+          return
+        }
         // Moddable SDKはonDoneの呼び出し時点でrequest.read()を無効にする
         ended = {
           error: error ?? (available ? failure('provider_failed', 'incomplete HTTP response body') : undefined),
+          genericConnectionError,
         }
         reader = undefined
         available = 0
-        if (!reading) void pump()
+        if (!reading) void Promise.resolve().then(pump)
       }
-      function connectionFailure(error: unknown) {
+      function connectionFailed(error?: unknown) {
         const reason = error instanceof Error ? error.message : undefined
-        return failure(
-          'provider_failed',
-          reason ? `Responses connection failed: ${reason}` : 'Responses connection closed early',
+        end(
+          failure(
+            'provider_failed',
+            reason ? `Responses connection failed: ${reason}` : 'Responses connection closed early',
+          ),
+          !reason,
         )
       }
       function read(count: number) {
@@ -135,7 +143,7 @@ export function streamResponse<T>(
       }
       try {
         scope.signal.addEventListener('abort', abort)
-        client = platform.connect((error) => end(connectionFailure(error)))
+        client = platform.connect(connectionFailed)
         const headers = new Map<string, string>([
           ['content-type', 'application/json'],
           ['accept', 'text/event-stream'],
@@ -187,7 +195,8 @@ export function streamResponse<T>(
             }
           },
           onDone(error) {
-            end(error || !status ? connectionFailure(error) : undefined)
+            if (error || !status) connectionFailed(error)
+            else end()
           },
         })
       } catch (error) {

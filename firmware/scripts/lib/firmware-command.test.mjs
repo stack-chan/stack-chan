@@ -204,7 +204,18 @@ writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify({ profile, 
     )
 
     runFixture(fixture, 'build', profilePath)
-    assert.deepEqual(readInvocations(fixture.commandLog), [{ profile: profilePath, defaults: protectedDefaults }])
+    const invocations = readInvocations(fixture.commandLog)
+    assert.equal(invocations.length, 1)
+    assert.equal(invocations[0].profile, profilePath)
+    assert.equal(
+      invocations[0].defaults,
+      protectedDefaults +
+        '\\n# Generated from $MODDABLE/tools/VERSION and the Stack-chan host API generation.\\n' +
+        'CONFIG_APP_PROJECT_VER_FROM_CONFIG=y\\n' +
+        'CONFIG_APP_PROJECT_VER="8.3.1+stackchan.3"\\n',
+    )
+    assert.doesNotMatch(invocations[0].defaults, /CONFIG_SPIRAM_SPEED_80M=n/)
+    assert.equal((invocations[0].defaults.match(/CONFIG_APP_PROJECT_VER="/g) ?? []).length, 1)
     assert.equal(readFileSync(boardPath, 'utf8'), protectedDefaults + overriddenDefaults)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })

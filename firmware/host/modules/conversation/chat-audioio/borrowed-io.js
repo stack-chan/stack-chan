@@ -85,6 +85,7 @@ export function createBorrowedChatIO(io, options, states, level) {
       state(states.FAILED)
     },
     disconnect() {
+      stopDecoding()
       state(states.DISCONNECTING)
       io.worker.postMessage({ id: 'disconnect' })
     },
@@ -133,6 +134,7 @@ export function createBorrowedChatIO(io, options, states, level) {
     },
     async fence() {
       sealed = true
+      stopDecoding()
       const old = active
       active = undefined
       waiting = false
@@ -144,12 +146,10 @@ export function createBorrowedChatIO(io, options, states, level) {
     },
     close() {
       io.voiceClosed = true
+      stopDecoding()
       subscription?.close()
       subscription = undefined
       packets.length = 0
-      // Release a decoder blocked in its shared-buffer barrier before joining the worker.
-      Atomics.store(io.barrier, 1, 1)
-      Atomics.notify(io.barrier, 0)
       io.worker?.terminate()
       io.worker = undefined
     },
@@ -199,6 +199,10 @@ export function createBorrowedChatIO(io, options, states, level) {
       options.onGlyphPush?.({ source: m.source, text: m.text, payload: m.payload ?? {} })
     },
   })
+  function stopDecoding() {
+    Atomics.store(io.barrier, 1, 1)
+    Atomics.notify(io.barrier, 0)
+  }
   function state(value) {
     if (io.voiceClosed) return
     io.state = value

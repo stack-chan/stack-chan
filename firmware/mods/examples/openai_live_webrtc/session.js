@@ -1,6 +1,14 @@
 export class LiveSession {
-  constructor({ createConversation, createPipeline, networkReady, acquireLowLatency, settings, onState }) {
-    Object.assign(this, { createConversation, createPipeline, networkReady, acquireLowLatency, settings, onState })
+  constructor({ createConversation, createPipeline, networkReady, acquireLowLatency, settings, reactions, onState }) {
+    Object.assign(this, {
+      createConversation,
+      createPipeline,
+      networkReady,
+      acquireLowLatency,
+      settings,
+      reactions,
+      onState,
+    })
   }
 
   start(onEnded) {
@@ -44,6 +52,12 @@ export class LiveSession {
           kind: 'hosted',
           model: this.settings.backendModel ?? 'gpt-6-luna',
         },
+        ...(this.reactions && {
+          triggers: this.reactions.triggers,
+          onEvent: (event) => {
+            if (this.active === entry && !entry.cancelled) this.reactions.receive(event)
+          },
+        }),
         onError: () => {
           if (this.active !== entry) return
           entry.failure = 'error'
@@ -76,6 +90,7 @@ export class LiveSession {
     if (!entry) return Promise.resolve()
     if (entry.closing) return entry.closing
     entry.cancelled = true
+    this.reactions?.reset()
     this.onState('closing')
     entry.closing = this.finish(entry)
     return entry.closing

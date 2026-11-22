@@ -71,12 +71,14 @@ export default class Conversation {
     for (const name of ['onStateChanged', 'onTranscript', 'onEvent', 'onError', 'onToolResult'])
       if (options[name] !== undefined && typeof options[name] !== 'function')
         throw new TypeError(`${name} must be a function`)
+    if (options.triggers !== undefined && !Array.isArray(options.triggers)) throw new TypeError('Invalid Live triggers')
     this.#key = options.apiKey
     this.#options = {
       model: options.model ?? (this.#signaling ? undefined : 'gpt-live-1'),
       instructions: options.instructions ?? '',
       voice: options.voice ?? 'marin',
       delegation: options.delegation === undefined ? undefined : JSON.parse(JSON.stringify(options.delegation)),
+      triggers: options.triggers === undefined ? undefined : JSON.parse(JSON.stringify(options.triggers)),
       onStateChanged: options.onStateChanged,
       onTranscript: options.onTranscript,
       onEvent: options.onEvent,
@@ -246,6 +248,7 @@ export default class Conversation {
         instructions: options.instructions,
         audio: { output: { voice: options.voice } },
         delegation: options.delegation,
+        ...(options.triggers === undefined ? {} : { triggers: options.triggers }),
         store: false,
       }
       let response

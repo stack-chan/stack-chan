@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { liveConversation } from '../session.js'
 
-function fixture(delegation, clock = { setTimer: setTimeout, clearTimer: clearTimeout }) {
+function fixture(delegation, clock = { setTimer: setTimeout, clearTimer: clearTimeout }, options = {}) {
   const messages = [],
     events = [],
     operations = []
@@ -54,12 +54,15 @@ function fixture(delegation, clock = { setTimer: setTimeout, clearTimer: clearTi
       }
     },
   }
-  const conversation = liveConversation({ delegation }, platform)
+  const conversation = liveConversation({ delegation, ...options }, platform)
   return {
     messages,
     events,
     operations,
     receipt,
+    get settings() {
+      return settings
+    },
     open() {
       return conversation.open({
         media: { input: {}, output },
@@ -307,6 +310,44 @@ test('Live transcript deltas preserve one stream without inventing final utteran
     { type: 'input.transcript.delta', streamId: 'session-1/input', delta: 'world' },
   ])
   await assert.rejects(session.submit({}), { code: 'unsupported_capability' })
+  await session.close({ mode: 'abort' })
+})
+
+test('hosted Responses delegation forwards Decisions triggers and their results', async () => {
+  const triggers = [
+    {
+      type: 'decisions',
+      event_type: 'session.output_transcript.delta',
+      decisions: {
+        questions: [
+          {
+            type: 'choice',
+            name: 'gesture',
+            instructions: 'Choose a gesture.',
+            choices: [{ value: 'none' }, { value: 'nod' }],
+          },
+        ],
+      },
+    },
+  ]
+  const events = []
+  const f = fixture({ kind: 'hosted', model: 'test-model' }, undefined, { triggers, onEvent: (e) => events.push(e) })
+  const session = await f.open()
+  assert.deepEqual(f.settings.delegation, {
+    type: 'responses',
+    responses: { model: 'test-model', instructions: undefined },
+  })
+  assert.deepEqual(f.settings.triggers, triggers)
+  const result = {
+    type: 'decision.event',
+    delegation_id: null,
+    trigger_id: 'trigger-1',
+    source_event_type: 'session.output_transcript.delta',
+    source_event_id: 'transcript-1',
+    event: { type: 'decision.completed', decision: { answers: [{ type: 'choice', name: 'gesture', choice: 'nod' }] } },
+  }
+  f.receive(result)
+  assert.deepEqual(events, [result])
   await session.close({ mode: 'abort' })
 })
 

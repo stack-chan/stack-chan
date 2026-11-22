@@ -146,7 +146,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
         closing = false
       let stopTask: Promise<CloseResult> | undefined
       let pending = Promise.resolve()
-      let turn: { scope: ReturnType<typeof createVoiceScope>; done: Promise<void> } | undefined
+      let turn: { scope: ReturnType<typeof createVoiceScope>; done: Promise<TurnResult> } | undefined
       let utterance:
         | {
             id: string
@@ -247,13 +247,10 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
         const cancel = () => {
           if (turn === record) void interrupt().catch(() => {})
         }
-        caller.signal.addEventListener('abort', cancel)
         const turnId = `${id}/${++sequence}`,
           epoch = generation
-        const record = { scope, done: Promise.resolve() }
-        turn = record
         let status: TurnResult['status'] = 'failed'
-        record.done = Promise.resolve().then(async () => {
+        const run = Promise.resolve().then(async () => {
           let appended: readonly InputItem[] = []
           const playback = new Map<string, { heard: string; pending: string; segments: number; early: boolean }>()
           const stateFor = (item: string) => {
@@ -398,17 +395,18 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
           }
           if (historyFailed) throw historyError
         })
-        const done = record.done.then(
+        const done = run.then(
           () => ({ turnId, status }),
           (error) => {
             try {
               send({ type: 'error', code: errorCode(error), fatal: true })
-            } catch {
-              // Observer failures cannot leave the accepted turn without a terminal result.
-            }
+            } catch {}
             return { turnId, status: 'failed' as const }
           },
         )
+        const record = { scope, done }
+        turn = record
+        caller.signal.addEventListener('abort', cancel)
         return { completion: 'playback', id: turnId, done }
       }
       function interrupt(): Promise<Interruption> {
@@ -479,11 +477,10 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
               ready: false,
             }
             utterance = current
-            void link.done.catch(() => {
-              if (utterance === current && !scope.signal.aborted) {
-                scope.abort()
-                send({ type: 'error', code: 'input_overrun', fatal: false })
-              }
+            void link.done.catch((error) => {
+              enqueue(() => {
+                if (utterance === current && !scope.signal.aborted) throw error
+              })
             })
           } catch (error) {
             scope.abort()

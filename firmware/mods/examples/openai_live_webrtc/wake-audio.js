@@ -75,6 +75,7 @@ export async function openLocalWake(
         }
       },
       ended,
+      ended,
     )
   } catch (error) {
     await owner.close()

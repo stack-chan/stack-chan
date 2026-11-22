@@ -1,6 +1,6 @@
 import Headers from 'headers'
 import type { VoiceSignal } from 'stackchan/voice/contracts'
-import { requireActive } from 'stackchan/voice/scope'
+import { deferred, requireActive } from 'stackchan/voice/scope'
 import { equal } from 'testing/assert'
 
 function responseBody() {
@@ -10,14 +10,22 @@ function responseBody() {
 }
 
 export default class Whisper {
-  // biome-ignore lint/complexity/noUselessConstructor: 実際のWhisperと同じコンストラクター型で差し替える
-  constructor(_options: { apiKey: string; model?: string; language?: string }) {}
+  #model: string | undefined
+
+  constructor(options: { apiKey: string; model?: string; language?: string }) {
+    this.#model = options.model
+  }
 
   async transcribe(
     audio: Uint8Array,
     signal: VoiceSignal,
   ): Promise<{ success: true; value: string } | { success: false; reason: string }> {
     requireActive(signal)
+    if (this.#model === 'delayed') {
+      transcribing.resolve()
+      await releaseTranscription.promise
+      return { success: true, value: 'too late' }
+    }
     equal(audio.byteLength, 194560 + 44)
     const header = new DataView(audio.buffer, audio.byteOffset, 44)
     equal(header.getUint32(24, true), 16000)
@@ -34,3 +42,6 @@ export default class Whisper {
     return { success: true as const, value: 'recognized' }
   }
 }
+
+export const transcribing = deferred<void>()
+export const releaseTranscription = deferred<void>()

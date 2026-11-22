@@ -7,6 +7,7 @@ function fixture(opts = {}) {
   let current = true,
     feeding,
     erroring,
+    ending,
     reader,
     scopeAbrt = false
   const decoded = []
@@ -59,9 +60,10 @@ function fixture(opts = {}) {
         },
       }
     },
-    readSource(_input, consume, onError) {
+    readSource(_input, consume, onError, onEnd) {
       feeding = consume
       erroring = onError
+      ending = onEnd
       reader = {
         close() {
           events.push('detach')
@@ -82,6 +84,7 @@ function fixture(opts = {}) {
     decoded,
     feed: (bytes) => feeding(bytes),
     fail: () => erroring(),
+    end: () => ending?.(),
     isAborted: () => scopeAbrt,
     scope: { isCurrent: () => current },
     supersede: () => {
@@ -154,6 +157,26 @@ test('rejects an odd PCM fragment without forwarding it or permitting another de
   assert.deepEqual(f.decoded, [])
   assert.equal(f.events.filter((event) => event === 'end').length, 1)
   assert.ok(!f.events.includes('wake'))
+})
+
+test('clean microphone EOF disarms wake and allows release', async () => {
+  const f = fixture()
+  const owner = await openLocalWake(f.args, f.scope)
+  f.end()
+  f.feed(new Uint8Array([2, 0]))
+  f.fail()
+  await owner.close()
+  assert.deepEqual(f.decoded, [])
+  assert.deepEqual(f.events, [
+    'lease',
+    'detector',
+    'detector start',
+    'end',
+    'detach',
+    'abort',
+    'detector close',
+    'close lease',
+  ])
 })
 
 test('only a known pre-acquire busy rejection certifies no claim', async () => {

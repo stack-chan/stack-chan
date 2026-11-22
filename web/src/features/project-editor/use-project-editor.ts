@@ -64,6 +64,19 @@ type RecoveryRecord = {
   raw: string
 }
 
+type AssetEditSession = {
+  pendingWrites: Map<string, symbol>
+  faceSelectionRevision: number
+}
+
+function createAssetEditSession(): AssetEditSession {
+  return { pendingWrites: new Map(), faceSelectionRevision: 0 }
+}
+
+function projectAssetPath(file: File) {
+  return `assets/${file.name.replace(/[^\p{L}\p{N}._-]/gu, '_')}`
+}
+
 type SerialNavigator = Navigator & {
   serial?: {
     requestPort: () => Promise<unknown>
@@ -100,6 +113,7 @@ export function useProjectEditor() {
   const workspaceRef = useRef<BlocklyWorkspaceController | null>(null)
   const confirmationRef = useRef<Confirmation | null>(null)
   const buildGenerationRef = useRef(0)
+  const [assetEditSessionRef] = useState(() => ({ current: createAssetEditSession() }))
   const [project, setProject] = useState<VisualProject | null>(null)
   const [projects, setProjects] = useState<VisualProject[]>([])
   const [snapshot, setSnapshot] = useState<BlocklyWorkspaceSnapshot | null>(null)
@@ -285,6 +299,7 @@ export function useProjectEditor() {
   useEffect(
     () => () => {
       buildGenerationRef.current += 1
+      assetEditSessionRef.current = createAssetEditSession()
       confirmationRef.current?.resolve(false)
     },
     []
@@ -366,6 +381,7 @@ export function useProjectEditor() {
   const loadProject = useCallback(
     (next: VisualProject) => {
       invalidateBuild()
+      assetEditSessionRef.current = createAssetEditSession()
       projectRef.current = next
       persistProject(next)
       workspaceRef.current?.load(next.workspace)
@@ -425,55 +441,87 @@ export function useProjectEditor() {
 
   const addAssets = useCallback(
     async (files: File[]) => {
-      const current = projectRef.current
-      if (!current) return
-      if (current.assets.length + files.length > MAX_ASSET_COUNT) {
+      const initial = projectRef.current
+      if (!initial) return
+      const session = assetEditSessionRef.current
+      const faceSelectionRevision = session.faceSelectionRevision
+      const batch = Symbol()
+      const selected = files.flatMap((file) => {
+        if (file.size <= MAX_ASSET_BYTES) return [{ file, path: projectAssetPath(file) }]
+        appendLog(`${file.name}は${formatByteSize(MAX_ASSET_BYTES)}以下にしてください`, 'error', 'system')
+        return []
+      })
+      const paths = new Set(selected.map(({ path }) => path))
+      if (new Set([...initial.assets.map(({ path }) => path), ...paths]).size > MAX_ASSET_COUNT) {
         appendLog(`アセットは${MAX_ASSET_COUNT}個まで追加できます`, 'error', 'system')
         return
       }
-      const additions: ProjectAsset[] = []
-      for (const file of files) {
-        if (file.size > MAX_ASSET_BYTES) {
-          appendLog(`${file.name}は${formatByteSize(MAX_ASSET_BYTES)}以下にしてください`, 'error', 'system')
-          continue
-        }
-        const bytes = new Uint8Array(await file.arrayBuffer())
-        let mediaType = file.type || 'application/octet-stream'
-        let encoding: ProjectAsset['encoding'] = 'base64'
-        let data = ''
-        if (mediaType === FACE_ASSET_MEDIA_TYPE || file.name.toLowerCase().endsWith('.stackchan-face.json')) {
-          const face = parseFaceAsset(new TextDecoder().decode(bytes))
-          mediaType = FACE_ASSET_MEDIA_TYPE
-          encoding = 'utf8'
-          data = `${JSON.stringify(face, null, 2)}\n`
-        } else {
-          let binary = ''
-          for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-            binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000))
+      for (const path of paths) session.pendingWrites.set(path, batch)
+      const mayWrite = (path: string) =>
+        assetEditSessionRef.current === session && session.pendingWrites.get(path) === batch
+
+      const additions = new Map<string, ProjectAsset>()
+      let reading: { file: File; path: string } | undefined
+      try {
+        for (const entry of selected) {
+          if (!mayWrite(entry.path)) continue
+          reading = entry
+          const { file, path } = entry
+          let bytes: Uint8Array
+          try {
+            bytes = new Uint8Array(await file.arrayBuffer())
+          } catch (error) {
+            if (!mayWrite(path)) continue
+            throw error
           }
-          data = btoa(binary)
+          if (!mayWrite(path)) continue
+          let mediaType = file.type || 'application/octet-stream'
+          let encoding: ProjectAsset['encoding'] = 'base64'
+          let data = ''
+          if (mediaType === FACE_ASSET_MEDIA_TYPE || file.name.toLowerCase().endsWith('.stackchan-face.json')) {
+            const face = parseFaceAsset(new TextDecoder().decode(bytes))
+            mediaType = FACE_ASSET_MEDIA_TYPE
+            encoding = 'utf8'
+            data = `${JSON.stringify(face, null, 2)}\n`
+          } else {
+            let binary = ''
+            for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+              binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000))
+            }
+            data = btoa(binary)
+          }
+          additions.set(path, { path, mediaType, encoding, data })
         }
-        additions.push({
-          path: `assets/${file.name.replace(/[^\p{L}\p{N}._-]/gu, '_')}`,
-          mediaType,
-          encoding,
-          data,
+
+        const latest = projectRef.current
+        if (assetEditSessionRef.current !== session || !latest || latest.id !== initial.id) return
+        const matching = [...additions.values()].filter(({ path }) => mayWrite(path))
+        if (matching.length === 0) return
+        const assets = new Map(latest.assets.map((asset) => [asset.path, asset]))
+        for (const asset of matching) assets.set(asset.path, asset)
+        if (assets.size > MAX_ASSET_COUNT) {
+          appendLog(`アセットは${MAX_ASSET_COUNT}個まで追加できます`, 'error', 'system')
+          return
+        }
+
+        const firstFace = matching.find(({ mediaType }) => mediaType === FACE_ASSET_MEDIA_TYPE)
+        const maySelectFace =
+          session.faceSelectionRevision === faceSelectionRevision &&
+          latest.settings.faceAsset === initial.settings.faceAsset
+        const faceAsset = maySelectFace ? (firstFace?.path ?? latest.settings.faceAsset) : latest.settings.faceAsset
+        updateProject({
+          assets: [...assets.values()],
+          settings: { ...latest.settings, faceAsset },
         })
+      } catch (error) {
+        if (reading && mayWrite(reading.path)) {
+          appendLog(`${reading.file.name}をアセットとして読み込めませんでした: ${String(error)}`, 'error', 'system')
+        }
+      } finally {
+        for (const path of paths) {
+          if (session.pendingWrites.get(path) === batch) session.pendingWrites.delete(path)
+        }
       }
-      const assets = [...current.assets]
-      for (const addition of additions) {
-        const index = assets.findIndex((asset) => asset.path === addition.path)
-        if (index >= 0) assets[index] = addition
-        else assets.push(addition)
-      }
-      const firstFace = additions.find((asset) => asset.mediaType === FACE_ASSET_MEDIA_TYPE)
-      updateProject({
-        assets,
-        settings: {
-          ...current.settings,
-          faceAsset: firstFace?.path ?? current.settings.faceAsset,
-        },
-      } as Partial<VisualProject>)
     },
     [appendLog, updateProject]
   )
@@ -722,6 +770,7 @@ export function useProjectEditor() {
     selectFace: (faceAsset: string | null) => {
       const current = projectRef.current
       if (current) {
+        assetEditSessionRef.current.faceSelectionRevision += 1
         updateProject({
           settings: { ...current.settings, faceAsset },
         } as Partial<VisualProject>)
@@ -730,6 +779,8 @@ export function useProjectEditor() {
     removeAsset: (path: string) => {
       const current = projectRef.current
       if (!current) return
+      assetEditSessionRef.current.pendingWrites.delete(path)
+      if (current.settings.faceAsset === path) assetEditSessionRef.current.faceSelectionRevision += 1
       updateProject({
         assets: current.assets.filter((asset) => asset.path !== path),
         settings: {

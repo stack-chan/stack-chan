@@ -46,6 +46,13 @@ export function checkWorkerFlow() {
     write(bytes) {
       this.unsent.push(bytes)
     }
+    read() {
+      Atomics.store(this.parser.barrier, 1, 1)
+      this.parser.wait(0, 64, 1)
+    }
+    disconnect() {
+      worker.postMessage({ id: 'disconnected' })
+    }
   }
   startWorkerSession(worker, DelayedProvider, { id: 'configure', inputRate: 8000, outputRate: 24000 })
   worker.onmessage({ id: 'sendAudio', size: 1024, slot: 3 })
@@ -56,7 +63,9 @@ export function checkWorkerFlow() {
   model.ws.write(packet.subarray(128))
   equal(events[0].id, 'audioConsumed')
   equal(events[0].slot, 3)
-  Atomics.store(model.parser.barrier, 1, 1)
+  model.read()
+  worker.onmessage({ id: 'disconnect' })
+  equal(events[1].id, 'disconnected', 'A cancelled read leaves the worker able to disconnect')
   let cancelled = false
   try {
     model.parser.wait(0, 64, 1)
@@ -67,7 +76,7 @@ export function checkWorkerFlow() {
   worker.onmessage({ id: 'sendAudio', size: 65536, slot: 1 })
   worker.onmessage({ id: 'sendAudio', size: 1, slot: 2 })
   equal(model.unsent.length, 1, 'Stalled provider cannot queue bytes above the network limit')
-  equal(events[1].id, 'failed')
+  equal(events[2].id, 'failed')
 }
 
 export async function checkBorrowedAudio() {
@@ -158,6 +167,7 @@ async function checkDirectSpeaker(source, states) {
       return { outputId: id, state: 'played' }
     },
     async fence() {
+      equal(Atomics.load(io.barrier, 1), 1, 'Fencing wakes the decoder before speaker cleanup')
       rejectWrite(new Error('interrupted'))
       return []
     },

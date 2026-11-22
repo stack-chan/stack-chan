@@ -42,12 +42,11 @@ export function streamResponse<T>(
       let finished = false,
         available = 0,
         reading = false,
-        ended = false,
         status = 0
       let reader: ResponseWriter | undefined
-      let drain = Promise.resolve()
-      let bodyReceived = false
-      let connectionError: unknown
+      let ended: { error?: unknown } | undefined
+      let pending: { bytes: Uint8Array; length: number } | undefined
+      let consumingBytes = 0
       let bytes: Uint8Array = new Uint8Array(0)
       let offset = 0
       const chunks = body.read()[Symbol.iterator]()
@@ -56,6 +55,7 @@ export function streamResponse<T>(
         finished = true
         reader = undefined
         available = 0
+        pending = undefined
         platform.clear(timeout)
         scope.signal.removeEventListener('abort', abort)
         // ECMA-419のcallbackを抜けてからTLS socketを閉じる
@@ -70,33 +70,63 @@ export function streamResponse<T>(
         }, 0)
       }
       function end(error?: unknown) {
-        if (finished) return
-        // SDKはonDone後にrequestを無効にする。解析待ちのデータだけを完了まで待つ
-        ended = true
+        if (finished || ended) return
+        // Moddable SDKはonDoneの呼び出し時点でrequest.read()を無効にする
+        ended = {
+          error: error ?? (available ? failure('provider_failed', 'incomplete HTTP response body') : undefined),
+        }
         reader = undefined
         available = 0
-        if (error) connectionError = error
-        else bodyReceived = true
-        // SDKがソケットの切断を知らせた時点では、最後のSSEイベントが解析待ちの場合がある。
-        void drain.then(() => {
-          if (bodyReceived || isComplete?.()) finish()
-          else finish(connectionError)
-        })
+        if (!reading) void pump()
+      }
+      function connectionFailure(error: unknown) {
+        const reason = error instanceof Error ? error.message : undefined
+        return failure(
+          'provider_failed',
+          reason ? `Responses connection failed: ${reason}` : 'Responses connection closed early',
+        )
+      }
+      function read(count: number) {
+        const data = reader?.read(count)
+        if (!data || data.byteLength !== count) throw Error('short HTTP read')
+        available -= count
+        return new Uint8Array(data)
+      }
+      function prefetch() {
+        const capacity = maxPendingBytes - consumingBytes
+        const length = pending?.length ?? 0
+        const count = Math.min(available, capacity - length)
+        if (count <= 0) return
+        const chunk = read(count)
+        if (!pending) {
+          pending = { bytes: chunk, length: count }
+          return
+        }
+        if (pending.bytes.length < length + count) {
+          const next = new Uint8Array(Math.min(capacity, Math.max(length + count, pending.bytes.length * 2)))
+          next.set(pending.bytes.subarray(0, length))
+          pending.bytes = next
+        }
+        pending.bytes.set(chunk, length)
+        pending.length += count
       }
       async function pump() {
         reading = true
         try {
-          while (available > 0 && !finished) {
-            const count = Math.min(available, maxPendingBytes, 4096)
-            const data = reader?.read(count)
-            if (!data || data.byteLength !== count) throw Error('short HTTP read')
-            available -= count
-            // 最初のreadはcallback内で受け取り、SSE解析はTLSのnativeスタックを抜けてから行う
+          while (!finished && (pending || available > 0)) {
+            const chunk = pending
+              ? pending.bytes.subarray(0, pending.length)
+              : read(Math.min(available, maxPendingBytes))
+            pending = undefined
+            consumingBytes = chunk.byteLength
+            // TLSのコールバックを抜けてからSSEを解析する
             await Promise.resolve()
             if (finished) return
-            await consume(new Uint8Array(data))
-            if (isComplete?.()) finish()
+            await consume(chunk)
+            consumingBytes = 0
+            if (isComplete?.()) return finish()
           }
+          if (ended) finish(ended.error)
         } catch (error) {
           finish(error)
         } finally {
@@ -105,15 +135,7 @@ export function streamResponse<T>(
       }
       try {
         scope.signal.addEventListener('abort', abort)
-        client = platform.connect((error) => {
-          const reason = error instanceof Error ? error.message : undefined
-          end(
-            failure(
-              'provider_failed',
-              reason ? `Responses connection failed: ${reason}` : 'Responses connection failed',
-            ),
-          )
-        })
+        client = platform.connect((error) => end(connectionFailure(error)))
         const headers = new Map<string, string>([
           ['content-type', 'application/json'],
           ['accept', 'text/event-stream'],
@@ -152,12 +174,20 @@ export function streamResponse<T>(
           onReadable(count) {
             if (finished || ended || !count) return
             reader = this
-            // countは未読バイト数のsnapshot。consumerが止まっている間はTLS側に残す
+            // countは未読バイト数のスナップショット。前回通知の残量も含む
             available = count
-            if (!reading) drain = pump()
+            if (!reading) {
+              void pump()
+              return
+            }
+            try {
+              prefetch()
+            } catch (error) {
+              finish(error)
+            }
           },
           onDone(error) {
-            end(error || !status ? failure('provider_failed', 'Responses connection closed early') : undefined)
+            end(error || !status ? connectionFailure(error) : undefined)
           },
         })
       } catch (error) {

@@ -6,7 +6,7 @@ import { createRoute } from 'voice-path-routes'
 let check
 export function onContextCreated(robot) {
   const settings = (Modules.has('mod/config') ? Modules.importNow('mod/config').voicePathCheck : undefined) ?? {}
-  const { ConversationPipeline } = Modules.importNow('stackchan/voice')
+  const { ConversationPipeline } = Modules.importNow('stackchan/voice', true)
   check = new PathCheck({
     createRoute: () => createRoute(settings, (name) => Modules.importNow(name, true)),
     createPipeline: (conversation, onEvent) => {
@@ -16,7 +16,7 @@ export function onContextCreated(robot) {
         microphone: robot.audio.microphone,
         speaker: robot.audio.speaker,
         onEvent,
-        mediaBudget: { maxBufferedBytes: 128 * 1024, maxBufferedMs: 1000 },
+        mediaBudget: { maxBufferedBytes: 128 * 1024, maxBufferedMs: 2000 },
       })
       pipeline.setVolume(settings.volume ?? 0.25)
       return pipeline

@@ -1,5 +1,5 @@
-name: Diagnose PR 821 XS build
-run-name: Diagnose PR 821 XS build
+name: Diagnose PR 821 XS build debug controls
+run-name: Diagnose PR 821 XS build debug controls
 
 on:
   workflow_dispatch:
@@ -16,26 +16,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: "Wakeword control (#814, release)"
+          - label: "Standard host (#776, debug)"
+            ref: 72d3340f858f47872eb6e6f038120006cf8d019f
+            manifest: manifest_m5stackchan_cores3.json
+            mode: debug
+            wake: false
+          - label: "Wakeword control (#814, debug)"
             ref: 964d4b49fdd7ee4aad13b8dc698fb964ff85dc4e
             manifest: manifest_m5stackchan_cores3_wakeword.json
-            mode: release
-            wake: true
-          - label: "Standard host (#821, release)"
-            ref: bb4660bbf3b54eed6db2a56bd03251745ad06a9c
-            manifest: manifest_m5stackchan_cores3.json
-            mode: release
-            wake: false
-          - label: "WakeNet UI (#821, release)"
-            ref: bb4660bbf3b54eed6db2a56bd03251745ad06a9c
-            manifest: manifest_m5stackchan_cores3_wakeword_ui.json
-            mode: release
-            wake: true
-          - label: "WakeNet UI (#821, debug)"
-            ref: bb4660bbf3b54eed6db2a56bd03251745ad06a9c
-            manifest: manifest_m5stackchan_cores3_wakeword_ui.json
             mode: debug
             wake: true
+          - label: "Standard host (#821, debug)"
+            ref: bb4660bbf3b54eed6db2a56bd03251745ad06a9c
+            manifest: manifest_m5stackchan_cores3.json
+            mode: debug
+            wake: false
+
     steps:
       - uses: actions/checkout@v7
         with:

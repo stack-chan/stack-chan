@@ -153,12 +153,11 @@ async function fixture({
       async withTemporaryTorque(move) {
         motion.push('torque on')
         try {
-          await move()
+          await move((pose) => motion.push(pose))
         } finally {
           motion.push('torque off')
         }
       },
-      setPose: (pose) => motion.push(pose),
     },
     audio: { microphone: { runtime }, speaker: { runtime } },
     connectivity: { network: { ready: pendingNetwork ?? Promise.resolve({ status: 'connected' }) } },

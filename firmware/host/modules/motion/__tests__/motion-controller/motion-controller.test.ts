@@ -149,6 +149,14 @@ async function runTest() {
   equal(nextDriver.appliedRotation?.p, -0.1, 'setPose should delegate pitch to the active driver')
   equal(nextDriver.appliedTime, 0.25, 'setPose should pass motion time to the active driver')
 
+  const newerPose: Pose = { ...pose, rotation: { y: 0, p: 0.3, r: 0 } }
+  await controller.withTemporaryTorque(async (setPose) => {
+    await setPose(pose)
+    await waitForCompletion((callback) => controller.setPose(newerPose, undefined, callback))
+    await setPose(pose)
+  })
+  equal(nextDriver.appliedRotation, newerPose.rotation, 'A newer pose supersedes the temporary motion and its restore')
+
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 

@@ -18,6 +18,7 @@ export type ServoGoalTimeMilliseconds = number
 export type ServoGoalTimeCentiseconds = number
 export type MotionCompletion = (error?: unknown) => void
 export type MotionResultCallback<T> = (result: T) => void
+export type SetMotionPose = (pose: Pose, time?: MotionDurationSeconds) => Promise<void>
 
 export type MotionDriver = {
   applyRotation: (ori: RotationType, time?: MotionDurationSeconds, callback?: MotionCompletion) => void
@@ -100,7 +101,7 @@ export class MotionController {
   #driver!: MotionDriver
   #gazePoint: Vector3 | null = null
   #isMoving = false
-  #temporaryMotion = false
+  #temporaryMotion: { superseded: boolean } | undefined
   #torqueRequested = false
   #nextRotation: RotationType = { y: 0, p: 0, r: 0 }
   #options: MotionControllerOptions
@@ -138,6 +139,7 @@ export class MotionController {
 
   useDriver(driver: MotionDriver) {
     if (this.#driver != null) {
+      if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
       this.#driver.onDetached?.()
     }
     this.#driver = driver
@@ -160,23 +162,29 @@ export class MotionController {
   }
 
   setPose(pose: Pose, time?: number, callback?: MotionCompletion): void {
+    if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
     this.#driver.applyRotation(pose.rotation, time, callback)
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
     this.#torqueRequested = torque
-    this.#driver.setTorque(torque || this.#temporaryMotion, callback)
+    this.#driver.setTorque(torque || this.#temporaryMotion !== undefined, callback)
   }
 
-  async withTemporaryTorque(move: () => Promise<void>): Promise<void> {
+  async withTemporaryTorque(move: (setPose: SetMotionPose) => Promise<void>): Promise<void> {
     if (this.#temporaryMotion || this.#isMoving) return
-    this.#temporaryMotion = true
+    const owner = { superseded: false }
+    const driver = this.#driver
+    this.#temporaryMotion = owner
     try {
-      if (!this.#torqueRequested) await waitForCompletion((done) => this.#driver.setTorque(true, done))
-      await move()
+      if (!this.#torqueRequested) await waitForCompletion((done) => driver.setTorque(true, done))
+      await move(async (pose, time) => {
+        if (!owner.superseded) await waitForCompletion((done) => driver.applyRotation(pose.rotation, time, done))
+      })
     } finally {
-      this.#temporaryMotion = false
-      if (!this.#torqueRequested) await waitForCompletion((done) => this.#driver.setTorque(false, done))
+      this.#temporaryMotion = undefined
+      if (driver === this.#driver && !this.#torqueRequested)
+        await waitForCompletion((done) => driver.setTorque(false, done))
     }
   }
 

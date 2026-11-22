@@ -72,16 +72,13 @@ export function createDecisionsReactions(robot, wait) {
     const rotation = { ...body.rotation }
     const current = generation
     lastNodAt = Date.now()
-    await motion.withTemporaryTorque(async () => {
+    await motion.withTemporaryTorque(async (setPose) => {
       if (current !== generation) return
       try {
-        await motion.setPose(
-          { position, rotation: { ...rotation, p: rotation.p + NOD_PITCH_RADIANS } },
-          NOD_STEP_MS / 1000,
-        )
+        await setPose({ position, rotation: { ...rotation, p: rotation.p + NOD_PITCH_RADIANS } }, NOD_STEP_MS / 1000)
         await wait(NOD_STEP_MS)
       } finally {
-        await motion.setPose({ position, rotation }, NOD_STEP_MS / 1000)
+        await setPose({ position, rotation }, NOD_STEP_MS / 1000)
         await wait(NOD_STEP_MS)
       }
     })

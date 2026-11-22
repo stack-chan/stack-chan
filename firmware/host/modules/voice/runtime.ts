@@ -1,10 +1,10 @@
 import type {
+  AudioLevel,
   AudioRuntime,
   Microphone,
   PcmFormat,
   PlaybackLease,
   PlaybackOptions,
-  Scope,
   Speaker,
 } from 'stackchan/voice/contracts'
 import { requireActive, voiceError } from 'stackchan/voice/scope'
@@ -12,16 +12,57 @@ import type { LeaseFactory, RuntimeOptions } from './runtime-types.js'
 
 export type { LeaseFactory, LeaseOptions, RuntimeOptions } from './runtime-types.js'
 
-export type PlaybackFactory = (formats: readonly PcmFormat[], options: PlaybackOptions) => PlaybackLease
+type PlaybackFactory = (formats: readonly PcmFormat[], options: PlaybackOptions) => PlaybackLease
+
+function levelReporter({ signal, onLevel }: PlaybackOptions, directions: readonly AudioLevel['direction'][]) {
+  let observing = true
+  let inputEnabled = true
+  const last = { input: -Infinity, output: -Infinity }
+  const values = { input: -1, output: -1 }
+  function report(level: AudioLevel) {
+    try {
+      onLevel?.(level)
+    } catch {}
+  }
+  function observe({ direction, value: raw }: AudioLevel) {
+    if (!observing || signal.aborted) return
+    const value = direction === 'input' && !inputEnabled ? 0 : Math.min(1, Math.max(0, raw))
+    const now = Date.now()
+    if (
+      !Number.isFinite(value) ||
+      (value === 0 && values[direction] === 0) ||
+      (value !== 0 && now - last[direction] < 50)
+    )
+      return
+    values[direction] = value
+    last[direction] = now
+    report({ direction, value })
+  }
+  return {
+    observe: onLevel && observe,
+    setInputEnabled(enable: boolean) {
+      inputEnabled = enable
+      if (!enable) observe({ direction: 'input', value: 0 })
+    },
+    stop(notify = true) {
+      observing = false
+      if (notify) for (const direction of directions) report({ direction, value: 0 })
+    },
+  }
+}
 
 export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory, openPlayback?: PlaybackFactory) {
   let reserved: { interrupt?: () => Promise<void> } | undefined
   let interrupting = false
+
   async function reserve<T extends PlaybackLease>(
-    signal: Scope['signal'],
-    open: () => T | Promise<T>,
-    interrupt?: () => Promise<void>,
+    kind: 'conversation' | 'playback',
+    setup: PlaybackOptions,
+    directions: readonly AudioLevel['direction'][],
+    open: (onLevel: PlaybackOptions['onLevel']) => T | Promise<T>,
   ) {
+    const { signal } = setup
+    const interrupt = kind === 'playback' ? setup.interrupt : undefined
     requireActive(signal)
     if (interrupting) throw voiceError('device_busy')
     const owner = reserved
@@ -36,32 +77,41 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory,
       requireActive(signal)
       if (reserved) throw voiceError('device_busy')
     }
+
     reserved = { interrupt }
+    const levels = levelReporter(setup, directions)
     let release: (() => void) | undefined
     let lease: T
     try {
       try {
-        const claim = options.acquireExclusive(!!interrupt)
+        const claim = options.acquireExclusive(kind, !!interrupt)
         release = typeof claim === 'function' ? claim : await claim
       } catch (error) {
         if (error instanceof Error && error.message === 'audio busy') throw voiceError('device_busy')
         throw error
       }
       requireActive(signal)
-      lease = await open()
+      lease = await open(levels.observe)
     } catch (error) {
+      levels.stop(false)
       release?.()
       reserved = undefined
       throw error
     }
+    let stopping: Promise<void> | undefined
     let closing: Promise<void> | undefined
+    function stop() {
+      stopping ??= Promise.resolve().then(async () => {
+        levels.stop()
+        await lease.close()
+      })
+      return stopping
+    }
     function close() {
-      if (!closing)
-        closing = Promise.resolve().then(async () => {
-          await lease.close()
-          release?.()
-          reserved = undefined
-        })
+      closing ??= stop().then(() => {
+        release?.()
+        reserved = undefined
+      })
       return closing
     }
     try {
@@ -71,42 +121,52 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory,
       await close()
       throw error
     }
-    return { lease, close }
+    return { lease, levels, stop, close }
   }
+
   const runtime: AudioRuntime = {
-    async acquire(microphone, speaker, requirements, { budget, signal }) {
-      requireActive(signal)
+    async acquire(microphone, speaker, requirements, setup) {
+      requireActive(setup.signal)
       if (microphone !== mic || speaker !== spk) throw voiceError('unsupported_capability', 'unpaired audio ports')
       const open = requirements.nativeBackend ? options.openNativeLease : openPCM
       if (!open) throw voiceError('unsupported_capability', 'native audio backend unavailable')
-      const { lease, close } = await reserve(signal, () => open({ requirements, budget, signal, microphone, speaker }))
+      const { lease, levels, close } = await reserve('conversation', setup, ['input', 'output'], (onLevel) =>
+        open({ ...setup, requirements, microphone, speaker, onLevel }),
+      )
       return {
         input: lease.input,
         output: lease.output,
         media: lease.media,
-        setInputEnabled: (enable) => lease.setInputEnabled(enable),
+        async setInputEnabled(enable) {
+          levels.setInputEnabled(enable)
+          await lease.setInputEnabled(enable)
+        },
         setVolume: (value) => lease.setVolume(value),
         close,
       }
     },
-    async acquirePlayback(speaker, formats, options) {
-      requireActive(options.signal)
+    async acquirePlayback(speaker, formats, setup) {
+      const { signal } = setup
+      requireActive(signal)
       if (speaker !== spk || !openPlayback) throw voiceError('unsupported_capability', 'unavailable speaker')
-      const { lease, close } = await reserve(options.signal, () => openPlayback(formats, options), options.interrupt)
-      const stop = () => {
-        void close().catch(() => {})
+      const { lease, stop, close } = await reserve('playback', setup, ['output'], (onLevel) =>
+        openPlayback(formats, { ...setup, onLevel }),
+      )
+      const abort = () => {
+        void stop().catch(() => {})
       }
-      options.signal.addEventListener('abort', stop)
-      if (options.signal.aborted) {
+      signal.addEventListener('abort', abort)
+      if (signal.aborted) {
+        signal.removeEventListener('abort', abort)
         await close()
-        requireActive(options.signal)
+        requireActive(signal)
       }
       return {
         output: lease.output,
         media: lease.media,
         setVolume: (value) => lease.setVolume(value),
         close() {
-          options.signal.removeEventListener('abort', stop)
+          signal.removeEventListener('abort', abort)
           return close()
         },
       }

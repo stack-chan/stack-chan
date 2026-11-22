@@ -428,7 +428,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     const context = this
     let endpoints: ReturnType<typeof createRuntime>
     const getEndpoints = () =>
-      (endpoints ??= createRuntime((interruptible) => this.#audioRuntime.acquireExclusive(interruptible)))
+      (endpoints ??= createRuntime((kind, interruptible) => this.#audioRuntime.acquireExclusive(kind, interruptible)))
     return {
       get volume() {
         return context.#audioRuntime.volume
@@ -442,8 +442,8 @@ export class StackchanRuntimeContext implements StackchanContext {
       get speaker() {
         return getEndpoints().speaker
       },
-      useSpeechPlayback(playback) {
-        context.#audioRuntime.useSpeechPlayback(playback)
+      setSpeechPlayback(playback) {
+        return context.#audioRuntime.setSpeechPlayback(playback)
       },
       say(text, volume) {
         return context.say(text, volume)

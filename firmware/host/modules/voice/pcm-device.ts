@@ -1,6 +1,7 @@
 import Modules from 'modules'
 import type AudioOutput from 'pins/audioout'
 import type {
+  AudioLevel,
   AudioSink,
   DuplexLease,
   MediaBudget,
@@ -10,8 +11,8 @@ import type {
   PlaybackOptions,
   PlaybackReceipt,
 } from 'stackchan/voice/contracts'
+import { pcmLevel } from 'stackchan/voice/levels'
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
-import { pcmEnergy } from 'stackchan/voice/pcm-energy'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
@@ -59,7 +60,12 @@ type OutputSegment = {
   | { lengths: number[]; flush(): void; flushTimer?: ReturnType<typeof Timer.set> }
 )
 
-function createCapture(inputFormat: PcmFormat, chunkSize: number, preRoll: number) {
+function createCapture(
+  inputFormat: PcmFormat,
+  chunkSize: number,
+  preRoll: number,
+  onLevel?: (level: AudioLevel) => void,
+) {
   const AudioIn = Modules.importNow('audio-in') as CaptureConstructor
   const slots = [new Uint8Array(chunkSize), new Uint8Array(chunkSize)]
   const busy = [false, false]
@@ -71,6 +77,7 @@ function createCapture(inputFormat: PcmFormat, chunkSize: number, preRoll: numbe
     mic?.close()
     mic = undefined
     input.clearHistory()
+    onLevel?.({ direction: 'input', value: 0 })
   }
   function capture() {
     if (suspended || !enabled || mic) return
@@ -92,6 +99,7 @@ function createCapture(inputFormat: PcmFormat, chunkSize: number, preRoll: numbe
           const bytes = count === chunkSize ? slots[slot] : slots[slot].subarray(0, count)
           if (!this.read(bytes)) break
           remaining -= count
+          if (onLevel) onLevel({ direction: 'input', value: pcmLevel(bytes) })
           try {
             const writing = input.offer(bytes)
             if (writing) {
@@ -137,7 +145,7 @@ function createCapture(inputFormat: PcmFormat, chunkSize: number, preRoll: numbe
   }
 }
 
-function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLease {
+function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions): DuplexLease {
   requireActive(signal)
   if (requirements.duplex === 'full') throw voiceError('unsupported_capability', 'generic device supports half duplex')
   const inputFormat = monoFormat(requirements.input)
@@ -154,9 +162,16 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
   const outputLimit = Math.min(outputCapacity, budget.maxBufferedBytes - preRoll - 2 * chunkSize)
   if (preRoll < 0 || chunkSize < 2 || outputLimit < 2)
     throw voiceError('resource_exhausted', 'PCM lease exceeds budget')
-  const capture = createCapture(inputFormat, chunkSize, preRoll)
+  const capture = createCapture(inputFormat, chunkSize, preRoll, onLevel)
   const directLimit = Math.min(capacity(budget, outputFormat), budget.maxBufferedBytes - preRoll - 2 * chunkSize)
-  const playback = createPlayback(outputFormat, budget, outputLimit, directLimit, capture.setSuspended)
+  const playback = createPlayback(
+    outputFormat,
+    budget,
+    outputLimit,
+    directLimit,
+    capture.setSuspended,
+    onLevel && ((value) => onLevel({ direction: 'output', value })),
+  )
   capture.setSuspended(false)
   return {
     ...playback,
@@ -169,21 +184,18 @@ function openPcmLease({ requirements, budget, signal }: LeaseOptions): DuplexLea
   }
 }
 
-function openPlayback(formats: readonly PcmFormat[], { signal, budget, onPlayed }: PlaybackOptions): PlaybackLease {
+function openPlayback(formats: readonly PcmFormat[], { signal, budget, onLevel }: PlaybackOptions): PlaybackLease {
   requireActive(signal)
   const format = monoFormat(formats)
   const limit = capacity(budget, format)
-  const notify = onPlayed
-    ? (power: number) => {
-        if (signal.aborted) return
-        try {
-          onPlayed(power)
-        } catch {
-          // A presentation callback must not interrupt the hardware driver.
-        }
-      }
-    : undefined
-  return createPlayback(format, budget, limit, limit, undefined, notify)
+  return createPlayback(
+    format,
+    budget,
+    limit,
+    limit,
+    undefined,
+    onLevel && ((value) => onLevel({ direction: 'output', value })),
+  )
 }
 
 function createPlayback(
@@ -192,7 +204,7 @@ function createPlayback(
   outputLimit: number,
   directLimit: number,
   suspendCapture?: (value: boolean) => void,
-  onPlayed?: (power: number) => void,
+  onLevel?: (value: number) => void,
 ): PlaybackLease {
   const AudioOut = Modules.importNow('pins/audioout') as typeof AudioOutput
   const deviceOutput = Modules.has('stackchan/voice/cores3-pcm-output')
@@ -208,7 +220,6 @@ function createPlayback(
   if (slotBytes < 2) throw voiceError('resource_exhausted', 'output requires two PCM slots')
   const flushDelayMs = Math.min(12, Math.floor((slotBytes * 500) / outputFormat.sampleRate))
   const slotsOut = directOutput ? [] : [new SharedArrayBuffer(slotBytes), new SharedArrayBuffer(slotBytes)]
-  const meteredSlots = onPlayed ? slotsOut.map((buffer) => new Uint8Array(buffer)) : undefined
   let active: OutputSegment | undefined
   function wake(item: OutputSegment) {
     item.wake?.resolve()
@@ -234,6 +245,7 @@ function createPlayback(
     const item = active
     if (!item) return
     active = undefined
+    onLevel?.(0)
     if (!('direct' in item) && item.flushTimer !== undefined) Timer.clear(item.flushTimer)
     try {
       if ('direct' in item) {
@@ -272,7 +284,7 @@ function createPlayback(
     suspendCapture?.(true)
     try {
       if (directOutput) {
-        const direct = directOutput.openOutput(outputFormat.sampleRate, volume, directLimit, onPlayed)
+        const direct = directOutput.openOutput(outputFormat.sampleRate, volume, directLimit, onLevel)
         const item: OutputSegment = {
           id,
           generation,
@@ -339,10 +351,10 @@ function createPlayback(
         if (active !== item || !(item.lengths[slot] > 0)) return
         const frames = item.lengths[slot] / 2
         item.frames += frames
-        const power = meteredSlots ? Math.sqrt(pcmEnergy(meteredSlots[slot], 0, frames * 2) / frames) : 0
+        const level = onLevel && pcmLevel(new Uint8Array(slotsOut[slot], 0, item.lengths[slot])) * volume
         item.lengths[slot] = 0
         wake(item)
-        onPlayed?.(power)
+        if (level !== undefined) onLevel?.(level)
       }
       out.start()
       return createPcmSink(outputFormat, async (bytes) => {

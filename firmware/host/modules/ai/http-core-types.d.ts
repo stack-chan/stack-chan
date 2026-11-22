@@ -1,4 +1,6 @@
 declare module 'realtimeConversation/http-core' {
+  import type HTTPClient from 'embedded:network/http/client'
+  import type { ClientOptions } from 'embedded:network/http/client'
   export function requestHttps(
     request: {
       host: string
@@ -12,8 +14,5 @@ declare module 'realtimeConversation/http-core' {
     platform: object,
   ): Promise<{ status: number; body: ArrayBuffer }>
   export function guardSocketCallbacks<T>(Socket: T): T
-  export function createClosingClient(
-    Client: unknown,
-    options: object,
-  ): Pick<import('embedded:network/http/client').default, 'request' | 'close'>
+  export function createClosingClient(Client: unknown, options: ClientOptions): Pick<HTTPClient, 'request' | 'close'>
 }

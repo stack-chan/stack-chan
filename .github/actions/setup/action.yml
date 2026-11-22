@@ -2,13 +2,13 @@ name: Setup
 description: Setup Node.js, ModdableSDK, ESP-IDF and Emscripten environments
 outputs:
   moddable-cache-key:
-    description: "Cache key prefix for the resolved Moddable SDK commit"
+    description: "Cache key prefix for the resolved Moddable SDK and linker patch"
     value: ${{ steps.resolve_moddable.outputs.cache-key }}
 inputs:
   target-branch:
     description: "Target branch or tag to setup environment"
     required: false
-    default: "10.1.0"
+    default: "10.1.1"
   install-emscripten:
     description: "Install Emscripten for WASM builds"
     required: false
@@ -60,6 +60,7 @@ runs:
         GITHUB_TOKEN: ${{ github.token }}
         INPUT_TARGET_BRANCH: ${{ inputs.target-branch }}
         RUNNER_OS_NAME: ${{ runner.os }}
+        XSL_PATCH_HASH: ${{ hashFiles('firmware/patches/moddable-10.1.1-xsl-key-budget.patch') }}
       run: |
         set -euo pipefail
         github_api_get() {
@@ -94,7 +95,12 @@ runs:
         MODDABLE_CACHE_KEY="$RUNNER_OS_NAME-moddable-$MODDABLE_REF"
         echo "MODDABLE_TARGET_REF=$REF" >> "$GITHUB_ENV"
         echo "moddable_cache_key=$MODDABLE_CACHE_KEY" >> "$GITHUB_ENV"
-        echo "cache-key=$MODDABLE_CACHE_KEY" >> "$GITHUB_OUTPUT"
+        BUILD_CACHE_KEY="$MODDABLE_CACHE_KEY"
+        if [[ "$MODDABLE_SHA" == "61c84af99c4f6b4ee191862fa1d07cb284caaf50" ]]; then
+          echo "apply-xsl-patch=true" >> "$GITHUB_OUTPUT"
+          BUILD_CACHE_KEY="$BUILD_CACHE_KEY-xsl-$XSL_PATCH_HASH"
+        fi
+        echo "cache-key=$BUILD_CACHE_KEY" >> "$GITHUB_OUTPUT"
       shell: bash
     - name: Restore cache of Moddable and ESP32
       id: restore-cache-moddable
@@ -141,3 +147,8 @@ runs:
           /home/runner/.local/share
           /home/runner/.espressif
         key: ${{ env.moddable_cache_key }}-fontbm2
+    - name: Build the patched Moddable linker
+      if: steps.resolve_moddable.outputs.apply-xsl-patch == 'true'
+      working-directory: ./firmware
+      shell: bash
+      run: source "$HOME/.local/share/xs-dev-export.sh" && npm run setup:xsl

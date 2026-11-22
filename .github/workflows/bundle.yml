@@ -72,7 +72,7 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
         with:
-          target-branch: "10.1.0"
+          target-branch: "10.1.1"
       - name: Prepare pinned WebRTC sources
         if: matrix.target == 'm5stack_cores3' || matrix.target == 'm5stackchan_cores3'
         working-directory: ./firmware
@@ -106,7 +106,7 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
         with:
-          target-branch: "10.1.0"
+          target-branch: "10.1.1"
           install-emscripten: "true"
       - name: Install web dependencies
         working-directory: ./firmware

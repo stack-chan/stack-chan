@@ -73,7 +73,7 @@ export default class Conversation {
         throw new TypeError(`${name} must be a function`)
     this.#key = options.apiKey
     this.#options = {
-      model: options.model ?? 'gpt-live-1',
+      model: options.model ?? (this.#signaling ? undefined : 'gpt-live-1'),
       instructions: options.instructions ?? '',
       voice: options.voice ?? 'marin',
       delegation: options.delegation === undefined ? undefined : JSON.parse(JSON.stringify(options.delegation)),
@@ -84,7 +84,11 @@ export default class Conversation {
       onToolResult: options.onToolResult,
     }
     for (const name of ['model', 'instructions', 'voice'])
-      if (typeof this.#options[name] !== 'string') throw new TypeError(`invalid ${name}`)
+      if (
+        !(name === 'model' && this.#signaling && this.#options[name] === undefined) &&
+        typeof this.#options[name] !== 'string'
+      )
+        throw new TypeError(`invalid ${name}`)
     this.#platform = platform
     this.#toolTimeout = options.toolTimeout
     if (options.tools !== undefined && !Array.isArray(options.tools)) throw new TypeError('Invalid tools')
@@ -238,7 +242,7 @@ export default class Conversation {
     try {
       const options = this.#options
       const session = {
-        model: options.model,
+        ...(options.model === undefined ? {} : { model: options.model }),
         instructions: options.instructions,
         audio: { output: { voice: options.voice } },
         delegation: options.delegation,

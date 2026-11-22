@@ -1,0 +1,12 @@
+diff --git a/xs/tools/xsl.c b/xs/tools/xsl.c
+--- a/xs/tools/xsl.c
++++ b/xs/tools/xsl.c
+@@ -145,7 +145,7 @@ int main(int argc, char* argv[])
+ 		4 * 1024 * 1024, 	/* initialHeapCount */
+ 		1 * 1024 * 1024,	/* incrementalHeapCount */
+ 		1024 * 16,			/* stackCount */
+-		2048 * 4,			/* initialKeyCount */
++		2048 * 8,			/* initialKeyCount */
+ 		0,					/* incrementalKeyCount */
+ 		1993,				/* nameModulo */
+ 		127,				/* symbolModulo */

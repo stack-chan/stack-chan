@@ -1,5 +1,5 @@
 import { emotionNames } from 'rom-tool-schema'
-import { createToolSet, toolsFromMCP } from 'stackchan/ai'
+import { ToolSet, toolsFromMCP } from 'stackchan/ai'
 import { assert, equal } from 'testing/assert'
 
 trace('=== mcp-chat-tools test ===\n')
@@ -18,7 +18,7 @@ async function runTest() {
     required: ['emotion'],
     additionalProperties: false,
   }
-  const snapshot = createToolSet([
+  const snapshot = ToolSet.create([
     {
       definition: { type: 'function', name: 'emotion', description: 'Choose emotion', parameters },
       execute: () => null,
@@ -36,7 +36,7 @@ async function runTest() {
   )
   equal(emotionNames[0], 'HAPPY', 'source schema stays unchanged')
   const namedProperties = JSON.parse('{"__proto__":{"type":"string"}}')
-  const special = createToolSet([
+  const special = ToolSet.create([
     {
       definition: {
         type: 'function',
@@ -54,7 +54,7 @@ async function runTest() {
   circular.self = circular
   let rejectedCycle = false
   try {
-    createToolSet([
+    ToolSet.create([
       {
         definition: {
           type: 'function',
@@ -94,8 +94,16 @@ async function runTest() {
   if (!remoteEcho?.execute) {
     throw new Error('MCP remoteEcho tool should exist')
   }
-  const result = (await remoteEcho.execute({ value: 'ok' }, {} as never)) as { content: { text: string }[] }
-  equal(result.content[0].text, 'remoteEcho:ok', 'MCP tool preserves the remote response')
+  const result = await ToolSet.create(mcpTools).execute(
+    { type: 'function_call', id: 'item', call_id: 'call', name: 'remoteEcho', arguments: '{"value":"ok"}' },
+    {
+      signal: { aborted: false, addEventListener() {}, removeEventListener() {} },
+      sessionId: 'session',
+      turnId: 'turn',
+      callId: 'call',
+    },
+  )
+  equal(JSON.parse(result.output).content[0].text, 'remoteEcho:ok', 'MCP result survives bounded JSON serialization')
 
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }

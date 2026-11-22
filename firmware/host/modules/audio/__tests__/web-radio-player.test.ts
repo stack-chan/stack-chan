@@ -305,7 +305,7 @@ test('a stale media handle cannot stop its replacement and foreground audio wait
   let pendingBackground: ReturnType<typeof deferred<() => void>> | undefined
   const runtime = bindAudioRuntime(
     {
-      acquireExclusive: (background) => {
+      acquireExclusive: (_kind, background) => {
         if (background && pendingBackground) return pendingBackground.promise
         claims++
         return () => {

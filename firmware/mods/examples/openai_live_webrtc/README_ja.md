@@ -1,6 +1,6 @@
 # OpenAI GPT-Live WebRTC 会話 MOD
 
-CoreS3の内蔵マイクとスピーカーでGPT-Liveと会話します。`createLiveConversation`が接続を管理し、`createConversationPipeline`が音声デバイスを予約します。録音と再生はCoreS3のWebRTC処理内で行います。このMODは既存の録音・再生リングとFIFOに合わせて128KiB、1000msのメディア予算を指定します。通信・コーデック・DMAを含む実測メモリ使用量は別途計測が必要です。
+CoreS3の内蔵マイクとスピーカーでGPT-Liveと会話します。`LiveConversation`が接続を管理し、`ConversationPipeline`が音声デバイスを予約します。録音と再生はCoreS3のWebRTC処理内で行います。このMODは既存の録音・再生リングとFIFOに合わせて128KiB、1000msのメディア予算を指定します。通信・コーデック・DMAを含む実測メモリ使用量は別途計測が必要です。
 
 設定例のAPIキーは空です。自動接続しません。ドロワーの「OpenAI 会話」で開始／終了、「マイクミュート」でミュート／解除します。接続失敗後は同じ会話ボタンで新しいセッションを開始できます。課金セッション作成を自動再試行しません。
 
@@ -19,17 +19,17 @@ cp mods/examples/openai_live_webrtc/manifest.local.example.json \
 
 ## CPUビルド
 
-無改修Moddable SDK **10.1.0**、対応するESP-IDF **6.1**、`esp-webrtc-solution`基準コミット **c8650846b512e6e1375e5f78c1c41619b8d645eb**を使用します。既存SDKのチェックアウトや版を変更せず、それぞれのパスを設定してください。Wi-Fiの登録は通常のホスト設定を使います。
+無改修Moddable SDK **10.1.1**、対応するESP-IDF **6.1**、`esp-webrtc-solution`基準コミット **c8650846b512e6e1375e5f78c1c41619b8d645eb**を使用します。既存SDKのチェックアウトや版を変更せず、それぞれのパスを設定してください。Wi-Fiの登録は通常のホスト設定を使います。
 
 ```sh
-export MODDABLE=/path/to/moddable-10.1.0
+export MODDABLE=/path/to/moddable-10.1.1
 export PATH="$MODDABLE/build/bin/lin/release:$PATH"
 export IDF_PATH=/path/to/esp-idf-6.1
 . "$IDF_PATH/export.sh"
 export ESP_WEBRTC_SOLUTION=/path/to/esp-webrtc-solution
 
 npm ci
-npm run build -- --mode=release
+npm run build:m5stackchan_cores3 -- --mode=release
 
 # 空キーの例をコンパイルするだけ。APIへの接続は行わない。
 npm run mod:build -- --mode=release mods/examples/openai_live_webrtc/manifest.json
@@ -44,7 +44,7 @@ npm run mod:build -- --mode=release mods/examples/openai_live_webrtc/manifest.js
 ホスト書込みとMOD書込みはCPUビルドとは別です。必要な端末を接続し、ホストを入れ替えてよいことを確認してから実行してください。
 
 ```sh
-npm run flash -- --mode=release
+npm run flash:m5stackchan_cores3 -- --mode=release
 npm run mod -- --mode=release mods/examples/openai_live_webrtc/manifest.local.json
 ```
 

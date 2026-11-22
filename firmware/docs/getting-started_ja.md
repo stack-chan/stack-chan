@@ -45,6 +45,14 @@ $ npm run setup -- --device=esp32
 
 内部で[`xs-dev`](https://github.com/HipsterBrown/xs-dev)を使ってModdableSDKやESP-IDFのセットアップを自動化しています。
 
+### デバッグビルド用にModdableリンカーを再ビルドする
+
+ｽﾀｯｸﾁｬﾝのデバッグビルドでは、Moddable SDK 10.1.1のリンカーのキー上限を超えることがあります。
+SDK 10.1.1をセットアップして環境変数を読み込んだ後、`firmware`で `npm run setup:xsl` を実行してください。
+`MODDABLE` が指すSDKに同梱パッチを適用し、`xsl` を再ビルドします。同じコマンドは再実行できます。
+上流のリンカーも使う場合は、別のSDKチェックアウトを用意してください。
+Windowsでは `nmake` を使えるVisual Studio Developer Shellで、Dockerではコンテナ内で実行してください。
+
 ### Dockerイメージを使う（Linuxのみ）
 
 このリポジトリはDockerfileによるビルド環境を提供しています。

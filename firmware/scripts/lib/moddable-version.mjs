@@ -87,9 +87,9 @@ export function prepareVersionSdkconfig({
   outputDirectory = buildOutputDirectory,
   sourceDirectory,
   partitionSourcePath,
+  manifestOverrides,
   realtime = false,
   memoryPerformance = false,
-  manifestOverrides,
 }) {
   if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)

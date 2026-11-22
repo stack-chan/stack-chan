@@ -16,6 +16,7 @@ const pages = [
   ['preference', '/preference/'],
   ['mod-gallery', '/mod-gallery/'],
   ['mediapipe', '/mediapipe/'],
+  ['strider', '/strider/'],
   ['editor', '/editor/'],
   ['tutorial', '/editor/tutorial.html'],
   ['face-editor', '/face-editor/'],

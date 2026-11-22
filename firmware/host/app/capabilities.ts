@@ -108,12 +108,19 @@ export type FaceCapability = {
   setMouthOpen(value: number, immediate?: boolean): void
 }
 
+export type ContinuousYawSession = {
+  setPower(power: number, timeoutMs: number): Promise<void>
+  readRawPosition(): Promise<number>
+  close(): Promise<void>
+}
+
 export type MotionCapability = {
   pose: MotionControllerPose
   lookAt(position: Vector3): void
   lookAway(): void
   setPose(pose: Pose, time?: MotionDurationSeconds): Promise<void>
   setTorque(torque: boolean): Promise<void>
+  startContinuousYaw?(): Promise<ContinuousYawSession | undefined>
 }
 
 export type AudioCapability = {
@@ -322,7 +329,7 @@ export type StackchanCapabilityNamespaces = {
 }
 
 export type StackchanLegacyFlatCapability = FaceCapability &
-  MotionCapability &
+  Omit<MotionCapability, 'startContinuousYaw'> &
   Omit<AudioCapability, 'acquireExclusive'> &
   InputCapability &
   LightingCapability &

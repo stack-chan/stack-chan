@@ -2,6 +2,7 @@ import {
   Blocks,
   Box,
   CircleHelp,
+  Compass,
   Cpu,
   Home,
   ScanFace,
@@ -17,6 +18,7 @@ export type NavigationId =
   | 'preference'
   | 'mod-gallery'
   | 'mediapipe'
+  | 'strider'
   | 'simulator'
   | 'editor'
   | 'face-editor'
@@ -60,6 +62,13 @@ export const TOOL_NAVIGATION_ITEMS: readonly NavigationItem[] = [
     label: 'MediaPipe BLE追従',
     description: '顔と手の動きをBLEで送る',
     icon: ScanFace,
+  },
+  {
+    id: 'strider',
+    href: 'strider/',
+    label: 'Strider',
+    description: '歩行と旋回をBLEで操作する',
+    icon: Compass,
   },
   {
     id: 'simulator',

@@ -9,6 +9,7 @@ export type LocalPeerRadioOptions = {
   offlineChannel: number
   sharedKey?: string
   onReceive: (event: LocalPeerRadioReceiveEvent) => void
+  onDisconnect?: () => void
 }
 
 export interface LocalPeerRadio {

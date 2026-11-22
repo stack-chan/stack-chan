@@ -1,0 +1,12 @@
+{
+  "include": ["../startup-error/manifest.harness.json"],
+  "modules": {
+    "~": ["$(MODDABLE)/modules/embedded/system/sim/system"],
+    "embedded:system": "./system-stub",
+    "main": "./startup-mod-manager.test",
+    "mod-manager": "./mod-manager-stub"
+  },
+  "config": {
+    "startupErrorPhase": "success"
+  }
+}

@@ -59,6 +59,7 @@ export default defineConfig({
         preference: page('./preference/index.html'),
         gallery: page('./mod-gallery/index.html'),
         mediapipe: page('./mediapipe/index.html'),
+        strider: page('./strider/index.html'),
         simulator: page('./simulator/index.html'),
         editor: page('./editor/index.html'),
         tutorial: page('./editor/tutorial.html'),

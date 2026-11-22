@@ -63,6 +63,7 @@ class BLELocalPeerServer extends UARTServer {
 class BLELocalPeerRadio implements LocalPeerRadio {
   readonly id: string
   #onReceive: LocalPeerRadioOptions['onReceive']
+  #onDisconnect: LocalPeerRadioOptions['onDisconnect']
   #authenticationKey?: Uint8Array
   #server: BLELocalPeerServer
   #decoder = new BLELocalPeerRecordDecoder()
@@ -73,6 +74,7 @@ class BLELocalPeerRadio implements LocalPeerRadio {
   constructor(id: string, options: LocalPeerRadioOptions) {
     this.id = id
     this.#onReceive = options.onReceive
+    this.#onDisconnect = options.onDisconnect
     this.#authenticationKey = options.sharedKey ? deriveLocalPeerAuthenticationKey(options.sharedKey) : undefined
     this.#server = new BLELocalPeerServer(this)
   }
@@ -125,7 +127,7 @@ class BLELocalPeerRadio implements LocalPeerRadio {
 
   onDisconnected(): void {
     if (this.#closed) return
-    this.#resetConnection()
+    this.#loseLink()
   }
 
   onNotificationsEnabled(characteristic): void {
@@ -142,12 +144,12 @@ class BLELocalPeerRadio implements LocalPeerRadio {
     )
   }
 
-  onNotificationsDisabled(characteristic): void {
-    if (this.#txCharacteristic === characteristic) this.#resetConnection()
+  onNotificationsDisabled(characteristic: { handle: number }): void {
+    if (this.#txCharacteristic?.handle === characteristic.handle) this.#loseLink()
   }
 
   onRX(data: ArrayBuffer): void {
-    if (this.#closed) return
+    if (this.#closed || !this.#txCharacteristic) return
     for (const record of this.#decoder.push(data)) {
       if (record.sourceId === this.id) continue
       if (record.kind === BLELocalPeerRecordKind.HELLO) {
@@ -201,6 +203,12 @@ class BLELocalPeerRadio implements LocalPeerRadio {
     this.#remoteId = undefined
     this.#txCharacteristic = undefined
     this.#decoder.reset()
+  }
+
+  #loseLink(): void {
+    const hadLink = this.#txCharacteristic !== undefined
+    this.#resetConnection()
+    if (hadLink) this.#onDisconnect?.()
   }
 
   #assertOpen(): void {

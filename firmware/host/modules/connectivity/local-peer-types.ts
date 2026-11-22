@@ -56,6 +56,8 @@ export type LocalPeerOpenOptions = {
   displayName?: string
   /** Optional pre-shared passphrase used to protect point-to-point messages. */
   sharedKey?: string
+  /** Called when a BLE Serial link is lost. The session stays open for reconnection. */
+  onDisconnect?: () => void
 }
 
 export type LocalPeerDeliveryReceipt = {

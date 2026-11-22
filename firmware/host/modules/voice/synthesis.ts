@@ -1,208 +1,169 @@
 import type { Synthesis, TTS } from 'stackchan/voice/contracts'
 import { createPcmSource, readSource } from 'stackchan/voice/media'
-import { createVoiceScope, deferred, requireActive, voiceError } from 'stackchan/voice/scope'
+import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
 
-type SegmentSynthesis = Omit<Synthesis, 'flush'>
 type OpenOptions = Parameters<TTS['open']>[0]
+type Segment = Omit<Synthesis, 'flush'>
+const maxSessionCharacters = 4096
+const maxSegments = 64
 
 export async function openStreamingSynthesis(
   options: OpenOptions,
-  openSegment: (options: OpenOptions) => Promise<SegmentSynthesis>,
+  openSegment: (options: OpenOptions) => Promise<Segment>,
   maxSegmentCharacters: number,
   onRelease?: () => void,
 ): Promise<Synthesis> {
-  const scope = createVoiceScope(options.signal)
-  const source = createPcmSource(options.format)
-  let current: SegmentSynthesis | undefined
-  let subscription: ReturnType<typeof readSource> | undefined
-  let active: { kind: 'write' | 'flush'; promise: Promise<void> } | undefined
-  let finishing: Promise<void> | undefined
+  const { signal, format } = options
+  let source: ReturnType<typeof createPcmSource>
+  let scope: ReturnType<typeof createVoiceScope>
+  try {
+    requireActive(signal)
+    if (
+      format.encoding !== 'pcm_s16le' ||
+      (format.channels !== 1 && format.channels !== 2) ||
+      !Number.isSafeInteger(format.sampleRate) ||
+      format.sampleRate <= 0
+    )
+      throw new RangeError('invalid synthesis PCM format')
+    source = createPcmSource(format)
+    scope = createVoiceScope(signal)
+  } catch (error) {
+    onRelease?.()
+    throw error
+  }
+  type Running = { segment: Promise<Segment>; done: Promise<void>; closing?: Promise<void> }
+  let text = ''
+  let acceptedCharacters = 0
+  let segments = 0
+  let released = false
+  let active: Running | undefined
+  let ending: Promise<void> | undefined
   let closing: Promise<void> | undefined
-  let textCharacters = 0,
-    segmentCharacters = 0,
-    segments = 0,
-    ended = false,
-    released = false
   let failure: unknown
-  let releaseFailure: { error: unknown } | undefined
+  let releaseFailure: { cause: unknown } | undefined
 
-  function release() {
-    if (released) return
-    released = true
+  function requireWritable() {
+    requireActive(scope.signal)
+    if (failure) throw failure
+    if (ending || closing) throw voiceError('cancelled')
+    if (active) throw voiceError('device_busy', 'await the previous speech flush')
+  }
+  function closeSegment(run: Running) {
+    run.closing ??= run.segment.then(
+      async (segment) => {
+        try {
+          await segment.close()
+        } catch (cause) {
+          releaseFailure = { cause }
+          throw cause
+        }
+      },
+      () => {},
+    )
+    return run.closing
+  }
+  async function render(run: Running, part: string) {
+    try {
+      const segment = await run.segment
+      let reader: ReturnType<typeof readSource> | undefined
+      try {
+        requireActive(scope.signal)
+        reader = readSource(segment.output, source.offer)
+        await segment.write(part)
+        requireActive(scope.signal)
+        await segment.endInput()
+      } finally {
+        try {
+          reader?.close()
+        } finally {
+          await closeSegment(run)
+        }
+      }
+    } catch (error) {
+      failure = error
+      source.end(error)
+      throw error
+    } finally {
+      active = undefined
+    }
+  }
+  function flushPending() {
+    if (!text) return Promise.resolve()
+    const part = text
+    text = ''
+    segments++
+    const segment = Promise.resolve().then(() => openSegment({ ...options, signal: scope.signal }))
+    const run: Running = { segment, done: Promise.resolve() }
+    active = run
+    run.done = render(run, part)
+    return run.done
+  }
+  function dispose() {
     scope.signal.removeEventListener('abort', abort)
     scope.dispose()
-    onRelease?.()
-  }
-  async function open() {
-    requireActive(scope.signal)
-    const segment = await openSegment({ ...options, signal: scope.signal })
-    if (scope.signal.aborted || ended) {
-      await disposeSegment(segment)
-      throw scope.signal.reason ?? voiceError('cancelled')
+    if (!released && !releaseFailure) {
+      released = true
+      onRelease?.()
     }
-    current = segment
-    return segment
-  }
-  async function disposeSegment(segment: SegmentSynthesis) {
-    try {
-      await segment.close()
-    } catch (error) {
-      releaseFailure ??= { error }
-      throw error
-    }
-  }
-  async function closeSegment() {
-    subscription?.close()
-    subscription = undefined
-    const segment = current
-    current = undefined
-    if (segment) await disposeSegment(segment)
   }
   function close() {
     if (closing) return closing
-    ended = true
-    failure ??= voiceError('cancelled')
-    const result = deferred<void>()
-    closing = result.promise
-    scope.abort(failure)
-    source.end(failure)
-    const operation = active?.promise
-    async function releaseResources() {
+    const run = active
+    const reason = scope.signal.reason ?? voiceError('cancelled')
+    closing = Promise.resolve().then(async () => {
       try {
-        // abort通知中の同期的な再入でXSのスタックを使い切らないよう、資源の回収は通知が戻ってから始める
-        await Promise.resolve()
-        await closeSegment().catch(() => {})
-        await operation?.catch(() => {})
-        await closeSegment().catch(() => {})
-        if (releaseFailure) throw releaseFailure.error
-        release()
-        result.resolve()
-      } catch (error) {
-        result.reject(error)
+        try {
+          source.end(reason)
+        } finally {
+          if (run) {
+            await closeSegment(run).catch(() => {})
+            await run.done.catch(() => {})
+          }
+        }
+        if (releaseFailure) throw releaseFailure.cause
+      } finally {
+        dispose()
       }
-    }
-    void releaseResources()
+    })
+    scope.abort(reason)
     return closing
   }
   function abort() {
-    failure ??= scope.signal.reason ?? voiceError('cancelled')
     void close().catch(() => {})
   }
-  function run(kind: 'write' | 'flush', operation: () => Promise<void>) {
-    const result = deferred<void>()
-    const record = { kind, promise: result.promise }
-    active = record
-    void operation().then(
-      () => {
-        if (active === record) active = undefined
-        result.resolve()
-      },
-      (error) => {
-        if (active === record) active = undefined
-        result.reject(error)
-      },
-    )
-    return result.promise
-  }
-  function requireWritable() {
-    requireActive(scope.signal)
-    if (ended || finishing) throw failure ?? voiceError('cancelled', 'synthesis input closed')
-    if (active) throw voiceError('device_busy', 'await the previous synthesis operation')
-  }
-  function flush() {
-    try {
-      requireWritable()
-    } catch (error) {
-      return Promise.reject(error)
-    }
-    return flushPending()
-  }
-  function flushPending() {
-    if (!segmentCharacters) return Promise.resolve()
-    if (segments >= 64) return Promise.reject(voiceError('resource_exhausted', 'too many speech segments'))
-    return run('flush', async () => {
-      const segment = current
-      segments++
-      try {
-        if (!segment) throw voiceError('cancelled')
-        subscription = readSource(segment.output, (bytes) => {
-          requireActive(scope.signal)
-          return source.offer(bytes)
-        })
-        await segment.finish()
-        requireActive(scope.signal)
-        segmentCharacters = 0
-        await closeSegment()
-      } catch (error) {
-        failure = error
-        ended = true
-        scope.abort(error)
-        source.end(error)
-        throw error
-      }
-    })
-  }
-
-  try {
-    requireActive(scope.signal)
-    await open()
-    requireActive(scope.signal)
-    scope.signal.addEventListener('abort', abort)
-  } catch (error) {
-    failure = error
-    await close()
-    throw error
-  }
-
+  scope.signal.addEventListener('abort', abort)
   return {
     output: source.output,
-    write(part) {
-      try {
-        requireWritable()
-        if (textCharacters + part.length > 4096 || segmentCharacters + part.length > maxSegmentCharacters)
-          throw voiceError('resource_exhausted', 'speech text too long')
-      } catch (error) {
-        return Promise.reject(error)
-      }
-      return run('write', async () => {
-        const segment = current ?? (await open())
-        await segment.write(part)
-        requireActive(scope.signal)
-        textCharacters += part.length
-        segmentCharacters += part.length
-      })
+    async write(part) {
+      requireWritable()
+      if (!part.length) return
+      if (part.includes('\0')) throw new TypeError('utterance contains NUL')
+      if (
+        segments >= maxSegments ||
+        text.length + part.length > maxSegmentCharacters ||
+        acceptedCharacters + part.length > maxSessionCharacters
+      )
+        throw voiceError('resource_exhausted', 'speech segment budget exceeded')
+      acceptedCharacters += part.length
+      text += part
     },
-    flush,
-    finish() {
-      if (finishing) return finishing
-      if (active?.kind === 'write') return Promise.reject(voiceError('device_busy'))
-      const result = deferred<void>()
-      finishing = result.promise
-      let pending: Promise<void>
-      try {
-        requireActive(scope.signal)
-        if (ended) throw failure ?? voiceError('cancelled')
-        pending = active?.promise ?? flushPending()
-      } catch (error) {
-        pending = Promise.reject(error)
-      }
-      async function finishOutput() {
+    async flush() {
+      requireWritable()
+      await flushPending()
+    },
+    endInput() {
+      ending ??= Promise.resolve().then(async () => {
         try {
-          await pending
+          if (active) await active.done
           requireActive(scope.signal)
-          await closeSegment()
-          ended = true
+          if (failure) throw failure
+          await flushPending()
           source.end()
-          release()
-          result.resolve()
-        } catch (error) {
-          failure = error
-          await close().catch(() => {})
-          result.reject(error)
+        } finally {
+          dispose()
         }
-      }
-      void finishOutput()
-      return finishing
+      })
+      return ending
     },
     close,
   }

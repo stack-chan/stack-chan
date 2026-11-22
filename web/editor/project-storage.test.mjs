@@ -4,7 +4,7 @@ import test from 'node:test'
 import { createVisualProject } from './project-format.mjs'
 import { createProjectStorage, migrateLegacyProjectState, serializedProjectStateSize } from './project-storage.mjs'
 
-function createFakeIndexedDB() {
+function createFakeIndexedDB(complete = (transaction) => transaction.oncomplete?.()) {
   const databases = new Map()
 
   function request(result, upgrade = false) {
@@ -25,19 +25,23 @@ function createFakeIndexedDB() {
         database = {
           objectStoreNames: { contains: (storeName) => stores.has(storeName) },
           createObjectStore: (storeName) => stores.set(storeName, new Map()),
-          transaction: (storeName) => ({
-            objectStore: () => ({
-              get: (key) => request(stores.get(storeName).get(key)),
-              put: (value, key) => {
-                stores.get(storeName).set(key, structuredClone(value))
-                return request(undefined)
-              },
-              delete: (key) => {
-                stores.get(storeName).delete(key)
-                return request(undefined)
-              },
-            }),
-          }),
+          transaction: (storeName) => {
+            const transaction = {
+              objectStore: () => ({
+                get: (key) => request(stores.get(storeName).get(key)),
+                put: (value, key) => {
+                  stores.get(storeName).set(key, structuredClone(value))
+                  return request(undefined)
+                },
+                delete: (key) => {
+                  stores.get(storeName).delete(key)
+                  return request(undefined)
+                },
+              }),
+            }
+            queueMicrotask(() => queueMicrotask(() => complete(transaction)))
+            return transaction
+          },
           close() {},
         }
         databases.set(name, database)
@@ -52,6 +56,28 @@ function createFakeIndexedDB() {
 }
 
 const workspace = { blocks: { languageVersion: 0, blocks: [] } }
+
+test('a write remains pending until commit and rejects an abort after request success', async () => {
+  let transaction
+  const indexedDB = createFakeIndexedDB((value) => {
+    transaction = value
+  })
+  const storage = createProjectStorage({ indexedDB, databaseName: 'commit-test' })
+  const project = createVisualProject({ workspace })
+  let finished = false
+  const saving = storage.saveState({ currentProject: project, projects: [project] }).then(() => {
+    finished = true
+  })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(finished, false)
+  transaction.error = new Error('transaction aborted')
+  transaction.onabort()
+  await assert.rejects(saving, /transaction aborted/)
+  const retry = storage.saveState({ currentProject: project, projects: [project] })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  transaction.oncomplete()
+  await retry
+})
 
 test('IndexedDB storage keeps the current project, recent projects, and recovery data', async () => {
   const indexedDB = createFakeIndexedDB()

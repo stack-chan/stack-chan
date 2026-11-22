@@ -38,7 +38,7 @@ test('deployment requires a supported SDK independently of archive compatibility
 })
 
 test('deployment keeps SDK9.5 and SDK10 archive ranges separate', () => {
-  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1', '10.1.0', '10.1.0+stackchan.2']) {
+  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1', '10.1.0', '10.1.0+stackchan.2', '10.1.1', '10.1.1+stackchan.2']) {
     for (const minor of [6, 7, 8, 9, 10]) {
       for (const patch of [0, 2, 255]) {
         const result = inspectDeploymentCompatibility('m5stackchan-cores3', {

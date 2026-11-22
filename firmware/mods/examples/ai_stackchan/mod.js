@@ -3,14 +3,9 @@ import { Emoticon } from 'effects/emoticon'
 import { Emotion, EmotionNames, emotionFromName } from 'face-state'
 import Modules from 'modules'
 import { Behavior, Container, Label, Skin, Style } from 'piu/MC'
-import { adaptRobotCamera, createAgent, createToolSet, createVision, OpenAIResponsesLLM } from 'stackchan/ai'
-import {
-  createCascadedConversation,
-  createConversationPipeline,
-  createPushToTalk,
-  createVoiceScope,
-} from 'stackchan/voice'
-import { createOpenAISpeechTTS, createWhisperSTT } from 'stackchan/voice/speech'
+import { Agent, adaptRobotCamera, OpenAIResponsesLLM, ToolSet, Vision } from 'stackchan/ai'
+import { CascadedConversation, ConversationPipeline, PushToTalk, VoiceScope } from 'stackchan/voice'
+import { OpenAISpeechTTS, WhisperSTT } from 'stackchan/voice/speech'
 import Timer from 'timer'
 
 let stop
@@ -44,7 +39,7 @@ export function onClose() {
 export function onContextCreated(robot, option) {
   DefaultBehavior.onContextCreated(robot, option)
   const prefs = option.config.ai
-  const llm = new OpenAIResponsesLLM({ apiKey: prefs.token, model: prefs.model ?? 'gpt-4o-mini' })
+  const llm = OpenAIResponsesLLM.create({ apiKey: prefs.token, model: prefs.model ?? 'gpt-4o-mini' })
   /** @type {import('stackchan/ai').Tool[]} */
   const registered = [
     {
@@ -68,7 +63,7 @@ export function onContextCreated(robot, option) {
     },
   ]
   if (robot.camera && robot.camera.available !== false) {
-    const vision = createVision({ camera: adaptRobotCamera(robot.camera), llm })
+    const vision = Vision.create({ camera: adaptRobotCamera(robot.camera), llm })
     registered.push({
       definition: {
         type: 'function',
@@ -84,43 +79,31 @@ export function onContextCreated(robot, option) {
       execute: ({ question }, context) => vision.observe({ question: String(question) }, context),
     })
   }
-  const tools = createToolSet(registered)
-  const agent = createAgent({
+  const tools = ToolSet.create(registered)
+  const agent = Agent.create({
     llm,
     tools,
     maxToolRounds: 4,
     instructions:
       'あなたは手のひらサイズのスタックチャンです。絵文字や読み上げ用でない記号を使わず、短い日本語のひとことで話してください。気持ちはset_emotionで顔に表してください。',
   })
-  const pushToTalk = createPushToTalk()
-  const localSpeech = option.config.tts?.type === 'sanotts'
-  const usesSanoVoice = localSpeech && Modules.has('stackchan/voice/sanotts')
-  let tts
-  if (localSpeech) {
-    tts = usesSanoVoice
-      ? Modules.importNow('stackchan/voice/sanotts', true).createSanoTTS()
-      : Modules.importNow('stackchan/voice/stackchan-voice', true).createStackchanVoiceTTS()
-  } else {
-    tts = createOpenAISpeechTTS({ apiKey: prefs.token })
-  }
-  const speech = tts
-  tts = {
+  const pushToTalk = PushToTalk.create()
+  const prefersSano = option.config.tts?.type === 'sanotts'
+  const usesSanoVoice = prefersSano && Modules.has('stackchan/voice/sanotts')
+  const usesStackchanVoice = prefersSano && !usesSanoVoice && Modules.has('stackchan/voice/stackchan-voice')
+  const speech = usesSanoVoice
+    ? Modules.importNow('stackchan/voice/sanotts', true).createSanoTTS()
+    : usesStackchanVoice
+      ? Modules.importNow('stackchan/voice/stackchan-voice', true).createStackchanVoiceTTS()
+      : OpenAISpeechTTS.create({ apiKey: prefs.token })
+  const tts = {
+    capabilities: speech.capabilities,
     async open(options) {
       const synthesis = await speech.open(options)
       const generation = inputGeneration
       const turnId = activeTurn
       let motion,
         closed = false
-      async function synthesize(method) {
-        try {
-          const done = synthesis[method]()
-          if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
-          return await done
-        } catch (error) {
-          motion?.stop()
-          throw error
-        }
-      }
       return {
         get output() {
           return synthesis.output
@@ -128,11 +111,25 @@ export function onContextCreated(robot, option) {
         write(text) {
           return synthesis.write(text)
         },
-        flush() {
-          return synthesize('flush')
+        async flush() {
+          try {
+            const done = synthesis.flush()
+            if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
+            return await done
+          } catch (error) {
+            motion?.stop()
+            throw error
+          }
         },
-        finish() {
-          return synthesize('finish')
+        async endInput() {
+          try {
+            const done = synthesis.endInput()
+            if (!closed) motion ??= startLipMotion(options.signal, turnId, generation)
+            return await done
+          } catch (error) {
+            motion?.stop()
+            throw error
+          }
         },
         async close() {
           closed = true
@@ -142,14 +139,14 @@ export function onContextCreated(robot, option) {
       }
     },
   }
-  const conversation = createCascadedConversation({
+  const conversation = CascadedConversation.create({
     agent,
     turnDetector: pushToTalk.detector,
-    stt: createWhisperSTT({ apiKey: prefs.token, maxAudioBytes: 192000 + 2560 }),
+    stt: WhisperSTT.create({ apiKey: prefs.token, maxAudioBytes: 192000 + 2560 }),
     tts,
-    voice: localSpeech ? 'default' : (prefs.voice ?? 'alloy'),
+    voice: usesSanoVoice || usesStackchanVoice ? 'default' : (prefs.voice ?? 'alloy'),
   })
-  const scope = createVoiceScope()
+  const scope = VoiceScope.create()
   const heart = new Emoticon({ key: 'heart', left: 20, top: 20 })
   const button = robot.input.button?.a
   const previous = button?.onEvent
@@ -161,7 +158,7 @@ export function onContextCreated(robot, option) {
       name: 'sano-voice-credit',
       left: 0,
       right: 0,
-      top: 24,
+      bottom: 0,
       height: 32,
       skin: new Skin({ fill: 'black' }),
       contents: [
@@ -274,17 +271,23 @@ export function onContextCreated(robot, option) {
     stopLipMotion()
     if (closing || !pipeline) return closing
     const target = pipeline
-    closing = target.close({ mode: 'abort' }).then(() => {
-      if (pipeline === target) {
-        pipeline = undefined
-        opening = undefined
-      }
-      closing = undefined
-    })
+    closing = target
+      .close({ mode: 'abort' })
+      .catch((error) => {
+        if (!scope.signal.aborted) robot.ui.showBalloon(String(error))
+        throw error
+      })
+      .finally(() => {
+        if (pipeline === target) {
+          pipeline = undefined
+          opening = undefined
+        }
+        closing = undefined
+      })
     return closing
   }
   function startPipeline() {
-    const next = createConversationPipeline({
+    const next = ConversationPipeline.create({
       microphone: robot.audio.microphone,
       speaker: robot.audio.speaker,
       conversation,

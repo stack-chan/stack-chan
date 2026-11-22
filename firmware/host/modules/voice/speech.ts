@@ -1,12 +1,11 @@
-import { createClosingClient } from 'realtimeConversation/http-core'
+import { createClosingClient, guardSocketCallbacks } from 'realtimeConversation/http-core'
 import type HTTPClient from 'embedded:network/http/client'
 import type { HTTPClientProvider } from 'embedded:network/http/client'
 import Headers from 'headers'
-import type { PcmFormat, STT, Synthesis, TTS, VoiceSignal } from 'stackchan/voice/contracts'
+import type { PcmFormat, STT, TTS, VoiceSignal } from 'stackchan/voice/contracts'
 import { createPcmSink, createPcmSource } from 'stackchan/voice/media'
 import { createPcmBodyReader } from 'stackchan/voice/pcm-http'
-import { createVoiceScope, deferred, requireActive, voiceError } from 'stackchan/voice/scope'
-import { openStreamingSynthesis } from 'stackchan/voice/synthesis'
+import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
 import Whisper from 'stt-whisper'
 import Timer from 'timer'
 
@@ -31,12 +30,7 @@ function waveHeader(bytes: Uint8Array, format: PcmFormat, length: number) {
   header.setUint32(40, length, true)
 }
 
-export function createWhisperSTT(options: {
-  apiKey: string
-  model?: string
-  language?: string
-  maxAudioBytes?: number
-}): STT {
+function createWhisperSTT(options: { apiKey: string; model?: string; language?: string; maxAudioBytes?: number }): STT {
   const whisper = new Whisper(options)
   const limit = options.maxAudioBytes ?? 192000
   if (!Number.isSafeInteger(limit) || limit <= 0) throw new RangeError('invalid speech buffer size')
@@ -46,23 +40,18 @@ export function createWhisperSTT(options: {
       // 録音PCMで固定容量のXS chunk領域を使い切らず、HTTPや応答解析の領域を残す
       let recording: Uint8Array = new Uint8Array(new SharedArrayBuffer(44 + limit))
       const scope = createVoiceScope(signal)
-      let used = 44,
-        ended = false
+      let used = 44
       let completion: Promise<void> | undefined
       return {
         input: createPcmSink(format, (bytes) => {
           requireActive(scope.signal)
-          if (ended || used + bytes.length > recording.length) throw voiceError('input_overrun')
+          if (completion || used + bytes.length > recording.length) throw voiceError('input_overrun')
           recording.set(bytes, used)
           used += bytes.length
         }),
         finish() {
-          if (completion) return completion
-          ended = true
-          const done = deferred<void>()
-          completion = done.promise
-          async function transcribe() {
-            try {
+          completion ??= Promise.resolve()
+            .then(async () => {
               requireActive(scope.signal)
               if (used === 44) {
                 onTranscript({ utteranceId, text: '', final: true })
@@ -73,11 +62,8 @@ export function createWhisperSTT(options: {
               requireActive(scope.signal)
               if (result.success === false) throw voiceError('provider_failed', result.reason)
               onTranscript({ utteranceId, text: result.value, final: true })
-            } finally {
-              scope.dispose()
-            }
-          }
-          void transcribe().then(done.resolve, done.reject)
+            })
+            .finally(scope.dispose)
           return completion
         },
         async close() {
@@ -108,21 +94,34 @@ function streamSpeech(
       receiver.close()
       signal.removeEventListener('abort', abort)
       if (timer !== undefined) Timer.clear(timer)
-      client?.close()
-      if (error) reject(error)
-      else resolve()
+      // TLSのコールバックを抜けてからソケットを閉じる
+      Timer.set(() => {
+        try {
+          client?.close()
+        } catch (closeError) {
+          error ??= closeError
+        }
+        if (error) reject(error)
+        else resolve()
+      })
     }
     const abort = () => finish(signal.reason ?? voiceError('cancelled'))
     try {
       requireActive(signal)
       signal.addEventListener('abort', abort)
       timer = Timer.set(() => finish(voiceError('deadline_exceeded')), 45000)
-      client = createClosingClient(device.network.https.client.io, {
-        ...device.network.https.client,
+      const provider = device.network.https.client
+      const socket = provider.socket
+      client = createClosingClient(provider.io, {
+        ...provider,
         host: 'api.openai.com',
         port: 443,
-        onError: (error) => finish(error ?? voiceError('provider_failed')),
+        ...('TCP' in socket && socket.TCP
+          ? { socket: { ...socket, TCP: { ...socket.TCP, io: guardSocketCallbacks(socket.TCP.io) } } }
+          : {}),
+        onError: (error) => receiver.done(error ?? voiceError('provider_failed')),
       })
+      if (closed) return
       client.request({
         method: 'POST',
         path: '/v1/audio/speech',
@@ -138,8 +137,12 @@ function streamSpeech(
           if (closed) return
           const size = Math.min(count, body.byteLength - offset)
           if (size > 0) {
-            this.write(new DataView(body, offset, size))
-            offset += size
+            try {
+              this.write(new DataView(body, offset, size))
+              offset += size
+            } catch (error) {
+              finish(error)
+            }
           }
         },
         onReadable(count) {
@@ -155,41 +158,94 @@ function streamSpeech(
   })
 }
 
-export function createOpenAISpeechTTS(options: { apiKey: string; model?: string }): TTS {
-  async function open({ signal, format, voice }: Parameters<TTS['open']>[0]): Promise<Omit<Synthesis, 'flush'>> {
-    requireActive(signal)
-    if (format.sampleRate !== 24000 || format.channels !== 1)
-      throw voiceError('unsupported_capability', 'OpenAI PCM uses 24 kHz mono')
-    const scope = createVoiceScope(signal),
-      source = createPcmSource(format)
-    let text = '',
-      finished = false
-    return {
-      output: source.output,
-      async write(part) {
+function createOpenAISpeechTTS(options: { apiKey: string; model?: string }): TTS {
+  return {
+    capabilities: { input: 'segmented', output: 'streaming' },
+    async open({ signal, format, voice }) {
+      requireActive(signal)
+      if (format.sampleRate !== 24000 || format.channels !== 1)
+        throw voiceError('unsupported_capability', 'OpenAI PCM uses 24 kHz mono')
+      const scope = createVoiceScope(signal),
+        source = createPcmSource(format)
+      let text = '',
+        sealed = false
+      let active: Promise<void> | undefined
+      let ending: Promise<void> | undefined
+      let failure: unknown
+      const abort = () => {
+        sealed = true
+        text = ''
+        source.end(scope.signal.reason ?? voiceError('cancelled'))
+      }
+      scope.signal.addEventListener('abort', abort)
+      function requireWritable() {
         requireActive(scope.signal)
-        if (finished || text.length + part.length > 4096) throw voiceError('resource_exhausted', 'speech text too long')
-        text += part
-      },
-      async finish() {
-        if (finished) return
-        finished = true
-        try {
-          const body = ArrayBuffer.fromString(
-            JSON.stringify({ model: options.model ?? 'tts-1', voice, input: text, response_format: 'pcm' }),
-          )
-          await streamSpeech(options.apiKey, body, scope.signal, source.offer)
-          source.end()
-        } catch (error) {
-          source.end(error)
-          throw error
-        }
-      },
-      async close() {
-        scope.abort()
-        source.end()
-      },
-    }
+        if (failure) throw failure
+        if (sealed) throw voiceError('cancelled', 'speech input has ended')
+      }
+      function synthesize() {
+        requireActive(scope.signal)
+        if (failure) throw failure
+        if (active) throw voiceError('device_busy', 'await the previous speech flush')
+        if (!text) return Promise.resolve()
+        const segment = text
+        text = ''
+        const body = ArrayBuffer.fromString(
+          JSON.stringify({ model: options.model ?? 'tts-1', voice, input: segment, response_format: 'pcm' }),
+        )
+        active = streamSpeech(options.apiKey, body, scope.signal, source.offer).then(
+          () => {
+            active = undefined
+          },
+          (error) => {
+            active = undefined
+            failure = error
+            text = ''
+            source.end(error)
+            throw error
+          },
+        )
+        return active
+      }
+      return {
+        output: source.output,
+        async write(part) {
+          requireWritable()
+          if (text.length + part.length > 4096) throw voiceError('resource_exhausted', 'speech text too long')
+          text += part
+        },
+        async flush() {
+          requireWritable()
+          await synthesize()
+        },
+        endInput() {
+          if (ending) return ending
+          sealed = true
+          ending = (async () => {
+            try {
+              if (active) await active
+              await synthesize()
+              source.end()
+              scope.signal.removeEventListener('abort', abort)
+              scope.dispose()
+            } catch (error) {
+              source.end(error)
+              throw error
+            }
+          })()
+          return ending
+        },
+        async close() {
+          sealed = true
+          text = ''
+          scope.abort()
+          source.end(voiceError('cancelled'))
+          if (active) await active.catch(() => {})
+        },
+      }
+    },
   }
-  return { open: (args) => openStreamingSynthesis(args, open, 4096) }
 }
+
+export const WhisperSTT = { create: createWhisperSTT }
+export const OpenAISpeechTTS = { create: createOpenAISpeechTTS }

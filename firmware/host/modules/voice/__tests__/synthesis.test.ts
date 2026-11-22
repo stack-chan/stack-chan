@@ -45,7 +45,7 @@ function renderer() {
       async write(part) {
         state.text += part
       },
-      finish() {
+      endInput() {
         if (completion) return completion.promise
         completion = deferred<void>()
         state.started = true
@@ -111,7 +111,7 @@ test('flush transfers PCM by reference with backpressure and keeps one output op
   assert.equal(ended, false)
   assert.equal(native.segments[0].closed, 1)
   await synthesis.write('second')
-  await synthesis.finish()
+  await synthesis.endInput()
   await link.done
   assert.equal(synthesis.output, output)
   assert.deepEqual(
@@ -130,8 +130,8 @@ test('finish joins a pending flush once and closes input before PCM acceptance',
   readSource(synthesis.output, () => accepted.promise)
   await synthesis.write('one')
   const flushing = synthesis.flush()
-  const finish = synthesis.finish()
-  assert.equal(synthesis.finish(), finish)
+  const finish = synthesis.endInput()
+  assert.equal(synthesis.endInput(), finish)
   await assert.rejects(synthesis.write('two'), { code: 'cancelled' })
   let finished = false
   void finish.then(() => {
@@ -150,12 +150,12 @@ test('finish is memoized before a PCM consumer can reenter it', async () => {
   const synthesis = await openStreamingSynthesis({ ...createVoiceScope(), format, voice: '' }, native.open, 512)
   let reentered: Promise<void> | undefined
   readSource(synthesis.output, () => {
-    reentered = synthesis.finish()
+    reentered = synthesis.endInput()
   })
   await synthesis.write('one')
-  const finish = synthesis.finish()
-  assert.equal(reentered, finish)
+  const finish = synthesis.endInput()
   await finish
+  assert.equal(reentered, finish)
   assert.equal(native.segments.length, 1)
 })
 
@@ -177,9 +177,9 @@ test('failed resource release rejects finish and retains provider ownership', as
     },
   )
   await synthesis.write('one')
-  const finish = synthesis.finish()
+  const finish = synthesis.endInput()
   await assert.rejects(finish, failure)
-  assert.equal(synthesis.finish(), finish)
+  assert.equal(synthesis.endInput(), finish)
   await assert.rejects(synthesis.close(), failure)
   assert.equal(releases, 0)
 })
@@ -196,8 +196,9 @@ test('close aborts blocked PCM and awaits a late-opened segment and its resource
   const opened = deferred<void>()
   const released = deferred<void>()
   native.gateNext(opened.promise, released.promise)
-  const writing = synthesis.write('two')
-  const writingRejected = assert.rejects(writing, { code: 'cancelled' })
+  await synthesis.write('two')
+  const flushingLate = assert.rejects(synthesis.flush(), { code: 'cancelled' })
+  await turn()
   let closed = false
   const closing = synthesis.close().then(() => {
     closed = true
@@ -210,7 +211,7 @@ test('close aborts blocked PCM and awaits a late-opened segment and its resource
   assert.equal(closed, false)
   assert.equal(native.segments[1].started, false)
   released.resolve()
-  await Promise.all([closing, writingRejected])
+  await Promise.all([closing, flushingLate])
   assert.equal(releases, 1)
   await synthesis.close()
   assert.equal(releases, 1)
@@ -230,48 +231,95 @@ test('close aborts blocked PCM and awaits a late-opened segment and its resource
 test('bounded text and segment counts reject additional input without queuing synthesis', async () => {
   const native = renderer()
   const synthesis = await openStreamingSynthesis({ ...createVoiceScope(), format, voice: '' }, native.open, 512)
+  await assert.rejects(synthesis.write('invalid\0input'), TypeError)
+  assert.equal(native.segments.length, 0)
   await assert.rejects(synthesis.write('a'.repeat(513)), { code: 'resource_exhausted' })
   for (let index = 0; index < 8; index++) {
     await synthesis.write('a'.repeat(512))
     await synthesis.flush()
   }
   await assert.rejects(synthesis.write('a'), { code: 'resource_exhausted' })
-  await synthesis.finish()
+  await synthesis.endInput()
   assert.equal(native.segments.length, 8)
   const short = await openStreamingSynthesis({ ...createVoiceScope(), format, voice: '' }, native.open, 512)
   for (let index = 0; index < 64; index++) {
     await short.write('a')
     await short.flush()
   }
-  await short.write('a')
-  await assert.rejects(short.flush(), { code: 'resource_exhausted' })
+  await short.write('')
+  await short.flush()
+  assert.equal(native.segments.length, 72, 'An empty write and flush do not open a renderer')
+  await assert.rejects(short.write('a'), { code: 'resource_exhausted' })
   await short.close()
 })
 
-test('initial validation errors and abort during first open release ownership', async () => {
+test('initial format validation and segment open failures release ownership', async () => {
   let releases = 0
   const scope = createVoiceScope()
+  const invalidFormat = { ...format, channels: 0 } as unknown as typeof format
+  await assert.rejects(
+    openStreamingSynthesis({ ...scope, format: invalidFormat, voice: '' }, renderer().open, 512, () => {
+      releases++
+    }),
+    RangeError,
+  )
+  assert.equal(releases, 1)
+  const failure = new Error('listener registration failed')
   await assert.rejects(
     openStreamingSynthesis(
-      { ...scope, format, voice: '' },
-      async () => {
-        throw voiceError('unsupported_capability')
+      {
+        format,
+        voice: '',
+        signal: {
+          ...scope.signal,
+          addEventListener() {
+            throw failure
+          },
+        },
       },
+      renderer().open,
       512,
       () => {
         releases++
       },
     ),
-    { code: 'unsupported_capability' },
+    failure,
   )
-  assert.equal(releases, 1)
+  assert.equal(releases, 2)
+  const failed = await openStreamingSynthesis(
+    { ...scope, format, voice: '' },
+    async () => {
+      throw voiceError('unsupported_capability')
+    },
+    512,
+    () => {
+      releases++
+    },
+  )
+  await failed.write('first')
+  await assert.rejects(failed.endInput(), { code: 'unsupported_capability' })
+  assert.equal(releases, 3)
+})
+
+test('concurrent close joins an in-flight native release and retains ownership if it fails', async () => {
   const native = renderer()
-  const opened = deferred<void>()
-  native.gateNext(opened.promise)
-  const opening = openStreamingSynthesis({ ...scope, format, voice: '' }, native.open, 512)
-  const rejected = assert.rejects(opening, { code: 'cancelled' })
-  scope.abort()
-  opened.resolve()
-  await rejected
+  const release = deferred<void>()
+  native.gateNext(Promise.resolve(), release.promise)
+  let released = false
+  const synthesis = await openStreamingSynthesis({ ...createVoiceScope(), format, voice: '' }, native.open, 512, () => {
+    released = true
+  })
+  await synthesis.write('once')
+  const ending = synthesis.endInput()
+  await turn()
   assert.equal(native.segments[0].closed, 1)
+  const closing = synthesis.close()
+  await turn()
+  assert.equal(released, false)
+  const failure = new Error('native release failed')
+  const result = Promise.all([assert.rejects(ending, failure), assert.rejects(closing, failure)])
+  release.reject(failure)
+  await result
+  assert.equal(native.segments[0].closed, 1)
+  assert.equal(released, false)
 })

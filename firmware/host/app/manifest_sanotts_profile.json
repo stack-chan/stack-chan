@@ -1,8 +1,7 @@
 {
   "build": {
-    "NAME": "stack-chan-sanotts",
     "PARTITIONS_FILE": "./../modules/audio/sanotts-jp/partitions.csv",
-    "SDKCONFIGPATH": "./../../dist/generated/sdkconfig/m5stackchan_cores3"
+    "SDKCONFIGPATH": "./../../dist/generated/sdkconfig/m5stackchan_cores3_sanotts"
   },
   "esp32Config": {
     "CONFIG_ESP32S3_INSTRUCTION_CACHE_16KB": "n",

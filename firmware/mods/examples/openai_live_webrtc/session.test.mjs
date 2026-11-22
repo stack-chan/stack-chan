@@ -33,7 +33,7 @@ function fixture(overrides = {}) {
       events.push('native closed')
       return { remoteFinalization: 'confirmed' }
     }
-    async setMuted(value) {
+    async setMicrophoneMuted(value) {
       if (mute) await mute.promise
       this.muted = value
     }
@@ -89,7 +89,7 @@ test('start, acknowledged mute and close reuse Conversation and release only aft
     kind: 'hosted',
     model: f.session.settings.backendModel,
   })
-  assert.equal(await f.session.setMuted(true), true)
+  assert.equal(await f.session.setMicrophoneMuted(true), true)
   const closing = f.closePending()
   const stop = f.session.stop()
   assert.equal(stop, f.session.stop())
@@ -160,7 +160,7 @@ test('a late failed mute from a closed session cannot close its replacement', as
   const f = fixture()
   await f.session.start()
   const pending = f.mutePending(),
-    muting = f.session.setMuted(true)
+    muting = f.session.setMicrophoneMuted(true)
   await f.session.stop()
   await f.session.start()
   pending.reject(new Error('old mute timeout'))

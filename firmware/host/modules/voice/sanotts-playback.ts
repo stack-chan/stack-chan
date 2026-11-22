@@ -1,5 +1,5 @@
-import type { SpeakerSpeechPlayback, SpeechPlaybackListener } from 'speech-playback-types'
-import type { Speaker } from 'stackchan/voice/contracts'
+import type { SpeakerSpeechPlayback } from 'speech-playback-types'
+import type { AudioLevel, Speaker } from 'stackchan/voice/contracts'
 import { playSpeech } from 'stackchan/voice/play-speech'
 import { createSanoTTS } from 'stackchan/voice/sanotts'
 import { voiceError } from 'stackchan/voice/scope'
@@ -15,9 +15,9 @@ export class SpeechPlayback implements SpeakerSpeechPlayback {
     kind: 'text' | 'koe',
     text: string,
     volume: number | undefined,
-    onPlayed: SpeechPlaybackListener,
+    onLevel: (level: AudioLevel) => void,
   ) {
     if (kind === 'koe') throw voiceError('unsupported_capability', 'sanoTTS does not support singing')
-    return playSpeech(speaker, this.#tts.open, text, volume ?? this.#volume, onPlayed)
+    return playSpeech(speaker, this.#tts.open, text, volume ?? this.#volume, onLevel)
   }
 }

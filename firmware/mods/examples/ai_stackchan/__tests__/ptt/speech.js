@@ -1,25 +1,29 @@
-export const state = { writes: [], flushes: 0, finishes: 0, closes: 0 }
+export const state = { writes: [], finishes: 0, flushes: 0, closes: 0 }
 class Synthesis {
   output = {}
   async write(text) {
     state.writes.push(text)
   }
+  async endInput() {
+    state.finishes++
+    await state.onFinish?.()
+  }
   async flush() {
     state.flushes++
     await state.onFlush?.()
-  }
-  async finish() {
-    state.finishes++
-    await state.onFinish?.()
   }
   async close() {
     state.closes++
     await state.onClose?.()
   }
 }
-export const createOpenAISpeechTTS = () => ({
+const createOpenAISpeechTTS = () => ({
+  capabilities: { input: 'segmented', output: 'streaming' },
   async open() {
     return new Synthesis()
   },
 })
-export const createWhisperSTT = () => ({})
+const createWhisperSTT = () => ({})
+
+export const OpenAISpeechTTS = { create: createOpenAISpeechTTS }
+export const WhisperSTT = { create: createWhisperSTT }

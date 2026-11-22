@@ -4,6 +4,7 @@ export default class Native {
   static active = 0
   static lastKana = ''
   static reads = 0
+  static failClose = false
   #remaining = 0
   #failed = false
   #stopping = false
@@ -40,5 +41,6 @@ export default class Native {
   close() {
     if (!this.done) throw Error('premature close')
     Native.active--
+    if (Native.failClose) throw Error('native close failed')
   }
 }

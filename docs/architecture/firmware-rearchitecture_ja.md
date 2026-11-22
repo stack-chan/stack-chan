@@ -24,7 +24,8 @@
 
 製品既定動作は `firmware/host/app/default-behavior` に置く。
 
-installed MOD が存在する場合、製品既定動作は実行しない。
+移行計画では、MODをインストールすると製品既定動作全体を置き換える方針だった。
+現在のフック単位の上書きは[MODの実行モデル](../../firmware/mods/README_ja.md#modの実行モデル)を参照してください。
 
 `firmware/stackchan` は移行元としてだけ扱い、移行後の目標構成には残さない。
 

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildOutputDirectory } from './build-output.mjs'
+import { localManifests } from './webrtc-solution.mjs'
 
 const libraryDirectory = path.dirname(fileURLToPath(import.meta.url))
 export const coreS3SdkconfigSourceDirectory = path.resolve(
@@ -53,12 +54,17 @@ export function firmwareDescriptorVersion(moddableVersion, hostApiVersion = STAC
  * @param {string} version - Moddable SDK version for esp_app_desc.
  * @returns {string} Generated sdkconfig.defaults contents.
  */
-export function renderVersionSdkconfig(source, version) {
+export function renderVersionSdkconfig(source, version, manifestOverrides = new Set()) {
   const descriptorVersion = firmwareDescriptorVersion(version)
   const base = source
     .replaceAll('\r\n', '\n')
     .split('\n')
-    .filter((line) => !/^CONFIG_APP_PROJECT_VER(?:_FROM_CONFIG)?=/.test(line))
+    .filter((line) => {
+      const key = /^(?:#\s+)?(CONFIG_[A-Z0-9_]+)(?:=|\s+is not set\s*$)/.exec(line.trimStart())?.[1]
+      return (
+        key !== 'CONFIG_APP_PROJECT_VER' && key !== 'CONFIG_APP_PROJECT_VER_FROM_CONFIG' && !manifestOverrides.has(key)
+      )
+    })
     .join('\n')
     .trimEnd()
 
@@ -83,6 +89,7 @@ export function prepareVersionSdkconfig({
   partitionSourcePath,
   realtime = false,
   memoryPerformance = false,
+  manifestOverrides,
 }) {
   if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
@@ -105,7 +112,7 @@ export function prepareVersionSdkconfig({
   // Only explicitly selected performance profiles change memory bus timing.
   if (memoryPerformance)
     source = source.replace(/^CONFIG_(?:SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=.*\n?/gm, '')
-  const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
+  const sdkconfig = renderVersionSdkconfig(source, moddableVersion, manifestOverrides)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')
   const partitionFilePath = path.join(directory, 'partitions.csv')
@@ -132,6 +139,7 @@ export function prepareCoreS3VersionSdkconfig({
   sourceDirectory = coreS3SdkconfigSourceDirectory,
   realtime = false,
   memoryPerformance = false,
+  manifestPath,
   partitionSourcePath = path.join(
     moddableDirectory ?? '',
     'build',
@@ -143,14 +151,27 @@ export function prepareCoreS3VersionSdkconfig({
     'partitions.csv',
   ),
 } = {}) {
+  let sanotts = false
+  const overrides = new Set()
+  if (manifestPath) {
+    const app = path.resolve(libraryDirectory, '../../host/app')
+    for (const { filename, manifest, platform } of localManifests(manifestPath, 'm5stackchan_cores3')) {
+      sanotts ||= filename === path.join(app, 'manifest_sanotts_profile.json')
+      memoryPerformance ||= filename === path.join(app, 'manifest_openai_live.json')
+      for (const key of Object.keys({ ...manifest.esp32Config, ...platform?.esp32Config })) overrides.add(key)
+    }
+  }
   return prepareVersionSdkconfig({
-    platformName: 'm5stackchan_cores3',
+    platformName: sanotts ? 'm5stackchan_cores3_sanotts' : 'm5stackchan_cores3',
     moddableDirectory,
     outputDirectory,
     sourceDirectory,
-    partitionSourcePath,
+    partitionSourcePath: sanotts
+      ? path.resolve(libraryDirectory, '../../host/modules/audio/sanotts-jp/partitions.csv')
+      : partitionSourcePath,
     realtime,
     memoryPerformance,
+    manifestOverrides: sanotts ? overrides : undefined,
   })
 }
 

@@ -8,14 +8,12 @@ import Timer from 'timer'
 
 export function createSanoTTS(options: { toKana?: (text: string) => string } = {}): TTS & { openKana: TTS['open'] } {
   const readText = options.toKana ?? toKana
-  async function open(
-    { signal, format, voice }: Parameters<TTS['open']>[0],
+  let reserved = false
+  async function openSegment(
+    { signal, format }: Parameters<TTS['open']>[0],
     kana: boolean,
   ): Promise<Omit<Synthesis, 'flush'>> {
     requireActive(signal)
-    if (format.channels !== 1 || format.sampleRate !== 24000 || format.encoding !== 'pcm_s16le')
-      throw voiceError('unsupported_capability', 'sanoTTS requires mono 24 kHz PCM')
-    if (voice && voice !== 'default') throw voiceError('unsupported_capability', 'sanoTTS provides the default voice')
     const source = createPcmSource(format)
     let text = '',
       ended = false
@@ -33,7 +31,9 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
       if (timer !== undefined) Timer.clear(timer)
       const renderer = native
       native = undefined
-      released = deferred<void>()
+      const releaseResult = deferred<void>()
+      released = releaseResult
+      void releaseResult.promise.catch(() => {})
       function release() {
         try {
           if (renderer && !renderer.done) {
@@ -43,13 +43,14 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
           renderer?.close()
         } catch (failure) {
           error ??= failure
+          releaseResult.reject(failure)
         }
         try {
           source.end(error)
         } finally {
           if (error) completion?.reject(error)
           else completion?.resolve()
-          released?.resolve()
+          releaseResult.resolve()
         }
       }
       renderer?.stop()
@@ -98,7 +99,7 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
         if (part.includes('\0')) throw new TypeError('utterance contains NUL')
         text += part
       },
-      finish() {
+      endInput() {
         if (completion) return completion.promise
         if (ended) return Promise.reject(error)
         completion = deferred<void>()
@@ -116,8 +117,26 @@ export function createSanoTTS(options: { toKana?: (text: string) => string } = {
       },
     }
   }
+  async function open(options: Parameters<TTS['open']>[0], kana: boolean): Promise<Synthesis> {
+    const { signal, format, voice } = options
+    requireActive(signal)
+    if (format.channels !== 1 || format.sampleRate !== 24000 || format.encoding !== 'pcm_s16le')
+      throw voiceError('unsupported_capability', 'sanoTTS requires mono 24 kHz PCM')
+    if (voice && voice !== 'default') throw voiceError('unsupported_capability', 'sanoTTS provides the default voice')
+    if (reserved) throw voiceError('device_busy')
+    reserved = true
+    return openStreamingSynthesis(
+      options,
+      (segment) => openSegment(segment, kana),
+      512,
+      () => {
+        reserved = false
+      },
+    )
+  }
   return {
-    open: (options) => openStreamingSynthesis(options, (args) => open(args, false), 512),
-    openKana: (options) => openStreamingSynthesis(options, (args) => open(args, true), 512),
+    capabilities: { input: 'segmented', output: 'streaming' },
+    open: (options) => open(options, false),
+    openKana: (options) => open(options, true),
   }
 }

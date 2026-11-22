@@ -4,6 +4,8 @@
 
 The detailed API document is under construction.
 
+For voice conversations, start with the [tested minimal example](voice-quickstart.md). Adapter authors can use the [PCM and speech contracts](stackchan-voice-adapters.md). Existing voice MODs need the [API migration](voice-api-migration.md).
+
 Stack-chan firmware sources include `TSDoc` style comments.
 The repository keeps `firmware/tsconfig.json` for Node-side checks and API document generation.
 
@@ -54,7 +56,7 @@ Correspondence with the coordinate system can also be referenced in the actual s
 
 - `context.audio.say(...)`, `context.audio.record(...)`, `context.audio.playAudio(...)`
 - `context.audio.microphone` and `context.audio.speaker` supply the paired endpoints for a voice conversation pipeline. See the [working examples](chat-audioio-integration.md).
-- `context.audio.useSpeechPlayback(...)` for replacing the speech engine when a MOD owns that choice
+- `context.audio.setSpeechPlayback(...)` for replacing the speech engine when a MOD owns that choice
 - `context.motion.lookAt(...)`, `context.motion.setPose(...)`, `context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`, `context.face.setColor(...)`
 - `context.i18n.locale`, `context.i18n.localize(...)`
@@ -116,7 +118,18 @@ Low-level driver objects are internal to `host/modules/motion` and are not expos
 
 ### Audio capability
 
-`context.audio.say(text)` uses the configured `SpeechPlayback` provider. A MOD can install a different player with `context.audio.useSpeechPlayback(player)` when audio is idle. For example, import `SpeechPlayback` from `speech-playback-local` to play bundled voice clips. Voice conversations take a synthesis-only `TTS`. Its output feeds the speaker acquired by the pipeline.
+`context.audio.say(text)` uses the configured `SpeechPlayback` provider, which owns synthesis and playback as one operation. A MOD can replace it while audio is idle. `setSpeechPlayback(player)` returns the previous player; pass that player back to restore it. The runtime borrows the installed player, installs its mouth-animation callbacks, and detaches those callbacks on replacement. It does not close either player. Do not use or change the installed player independently while the runtime owns its callbacks.
+
+```js
+const previous = context.audio.setSpeechPlayback(player)
+try {
+  await context.audio.say('Hello')
+} finally {
+  context.audio.setSpeechPlayback(previous)
+}
+```
+
+For bundled clips, import `SpeechPlayback` from `speech-playback-local`. Voice conversations instead take a synthesis-only `TTS` that produces an audio source. The pipeline's speaker owns playback and its completion.
 
 `sing(koe, volume?)` plays stackchan-voice singing notation when the active speech player supports it.
 It returns a failed result for providers without singing support; it never sends the notation to ordinary speech synthesis as text.

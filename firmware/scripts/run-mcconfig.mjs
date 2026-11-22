@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
   buildOutputDirectory,
@@ -54,7 +53,7 @@ if (targetsM5StackChanCoreS3(args)) {
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
       realtime: usesWebRtc,
-      memoryPerformance: path.basename(manifest ?? '') === 'manifest_openai_live.json',
+      manifestPath: manifest,
     })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {

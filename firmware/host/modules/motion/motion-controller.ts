@@ -179,7 +179,8 @@ export class MotionController {
     try {
       if (!this.#torqueRequested) await waitForCompletion((done) => driver.setTorque(true, done))
       await move(async (pose, time) => {
-        if (!owner.superseded) await waitForCompletion((done) => driver.applyRotation(pose.rotation, time, done))
+        if (this.#temporaryMotion === owner && !owner.superseded)
+          await waitForCompletion((done) => driver.applyRotation(pose.rotation, time, done))
       })
     } finally {
       this.#temporaryMotion = undefined

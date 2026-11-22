@@ -208,7 +208,7 @@ self.onmessage = (message) => {
         onCheckpoint: (value) => self.postMessage({ id: 'checkpoint', value }),
         onOutputStart: (seconds, estimated) => self.postMessage({ id: 'position', seconds, estimated }),
         onSeekInfo: (value) => self.postMessage({ id: 'seek-info', value }),
-        onSeekInvalid: () => self.postMessage({ id: 'seek-invalid' }),
+        onSeekInvalid: (reason) => self.postMessage({ id: 'seek-invalid', reason }),
         audio: { out: audio, stream: 0, sampleRate: message.sampleRate },
         onReady: (value) => self.postMessage({ id: 'ready', value }),
         onError: (reason) => self.postMessage({ id: 'error', reason: String(reason) }),

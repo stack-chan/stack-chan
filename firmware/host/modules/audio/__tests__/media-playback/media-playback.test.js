@@ -1,7 +1,4 @@
 import 'podcast-rss-tests'
-import { createAudioRuntime } from 'stackchan/voice/device'
-import { createVoiceScope } from 'stackchan/voice/scope'
-import { mono } from 'stackchan/voice/media'
 import { outputs } from 'embedded:io/audio/out'
 import Core from 'buffered-mp3streamer-core'
 import MediaHttpStream, { mediaRedirectURL } from 'media-http'
@@ -9,6 +6,9 @@ import MediaPlayer from 'media-player'
 import { PodcastController } from 'podcast-controller'
 import { loadFeed } from 'podcast-feed'
 import { loadFeed as loadWorkerFeed } from 'podcast-feed-proxy'
+import { createAudioRuntime } from 'stackchan/voice/device'
+import { mono } from 'stackchan/voice/media'
+import { createVoiceScope } from 'stackchan/voice/scope'
 import Client, { clients } from 'test-http'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -437,6 +437,31 @@ async function runTests() {
     equal(audio.frames, 0)
     core.close()
   }
+  {
+    const input = SharedByteRing.allocate(8192),
+      audio = new Sink(),
+      outcomes = []
+    put(input, new Uint8Array(4096))
+    const core = new Core({
+      input: input.buffers,
+      mode: 'finite',
+      seekSeconds: 120,
+      audio: { out: audio },
+      onSeekInvalid: () => outcomes.push('seek invalid'),
+      onError: (reason) => outcomes.push(reason),
+    })
+    core.source({
+      offset: 1000,
+      seconds: 118,
+      estimated: true,
+      synchronize: true,
+      cbr: { offset: 0, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 },
+    })
+    core.end('connection reset')
+    core.pump()
+    equal(outcomes.join(), 'connection reset', 'network errors before synchronization never retry the range')
+    core.close()
+  }
   for (const estimated of [false, true]) {
     const input = SharedByteRing.allocate(131072),
       audio = new Sink(),
@@ -712,12 +737,13 @@ async function runTests() {
   }
   const cbr = { offset: 34, bitRate: 128000, sampleRate: 44100, version: 3, layer: 1 }
   const totalBytes = 4587136
-  async function approximateSession(accuracy = 'approximate') {
+  async function approximateSession(accuracy = 'approximate', onProgress) {
     const player = new MediaPlayer(getSpeaker)
     await player.start({
       url: 'https://example.test/audio',
       mode: 'finite',
       duration: 280,
+      onProgress,
       ...(accuracy === 'default' ? {} : { seekAccuracy: accuracy }),
     })
     tick()
@@ -777,6 +803,65 @@ async function runTests() {
       )
       assert(!player.progress.positionEstimated)
     }
+    await player.stop()
+  }
+  {
+    const player = await approximateSession()
+    const range = lastClient().callbacks.headers.get('range')
+    await player.pause()
+    await player.resume()
+    tick()
+    equal(lastClient().callbacks.headers.get('range'), range, 'resume before the first checkpoint retries the range')
+    assert(player.progress.positionEstimated)
+    await player.stop()
+  }
+  {
+    const player = await approximateSession()
+    const client = lastClient()
+    const offset = Number(client.callbacks.headers.get('range').slice(6, -1))
+    client.headers(206, {
+      'content-length': String(totalBytes - offset),
+      'content-range': `bytes ${offset}-${totalBytes - 1}/${totalBytes}`,
+      etag: '"episode"',
+    })
+    const worker = workers.at(-1)
+    const observed = offset + 10000
+    worker.send({ id: 'checkpoint', value: { offset: observed, seconds: 123, estimated: true } })
+    worker.send({ id: 'position', seconds: 125, estimated: true })
+    worker.send({ id: 'seek-info', value: null })
+    await player.pause()
+    await player.resume()
+    tick()
+    lastClient().headers(206, {
+      'content-length': String(totalBytes - observed),
+      'content-range': `bytes ${observed}-${totalBytes - 1}/${totalBytes}`,
+    })
+    await player.pause()
+    await player.seek(150)
+    await player.resume()
+    tick()
+    equal(lastClient().callbacks.headers.get('if-range'), '"episode"')
+    equal(
+      lastClient().callbacks.headers.get('range'),
+      'bytes=160530-',
+      'omitted validation metadata keeps the exact index',
+    )
+    assert(!player.progress.positionEstimated)
+    await player.stop()
+  }
+  {
+    const progress = []
+    const player = await approximateSession('approximate', (value) => progress.push(value))
+    Timer.advance(250)
+    assert(progress.at(-1).positionEstimated)
+    workers.at(-1).send({ id: 'seek-invalid', reason: 'short-tail' })
+    assert(!progress.at(-1).positionEstimated, 'switching to the exact index immediately clears the approximation')
+    await settle()
+    tick()
+    equal(lastClient().callbacks.headers.get('range'), 'bytes=160530-', 'short tail retries from the exact index')
+    await player.seek(150)
+    tick()
+    assert(player.progress.positionEstimated, 'a short tail does not rule out later CBR jumps')
     await player.stop()
   }
   for (const action of ['fallback', 'stop', 'ignored', 'changed']) {

@@ -14,7 +14,7 @@ export type FakeMP3StreamerOptions = {
   onCheckpoint?: (point: { offset: number; seconds: number; estimated?: boolean }) => void
   onOutputStart?: (seconds: number, estimated?: boolean) => void
   onSeekInfo?: (info: CBRSeekInfo | null) => void
-  onSeekInvalid?: () => void
+  onSeekInvalid?: (reason: 'short-tail' | 'invalid-sync') => void
   reconnect?: boolean
   audio: { out: unknown; stream: number; sampleRate?: number }
   onReady?: (ready: boolean) => void

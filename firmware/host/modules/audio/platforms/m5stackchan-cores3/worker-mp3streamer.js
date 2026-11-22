@@ -148,7 +148,8 @@ export default class {
           const expected = this.#source?.validator
           const returned = expected && _headers.get(expected.startsWith('"') ? 'etag' : 'last-modified')
           if (info.start && returned && returned !== expected) throw new Error('Media changed while seeking')
-          const source = { url, totalBytes: info.totalBytes, validator: info.validator }
+          const validator = info.start ? (expected ?? info.validator) : info.validator
+          const source = { url, totalBytes: info.totalBytes, validator }
           this.#callbacks.onSource?.(source, this.#seek.offset > 0 && info.start === 0)
           if (this.#closed || generation !== this.#networkGeneration) return
           if (this.#finite)
@@ -251,7 +252,7 @@ export default class {
         this.#callbacks.onSeekInfo?.(message.value)
         break
       case 'seek-invalid':
-        this.#callbacks.onSeekInvalid?.()
+        this.#callbacks.onSeekInvalid?.(message.reason)
         break
       case 'output':
         this.#audio.pumpSharedOutput()

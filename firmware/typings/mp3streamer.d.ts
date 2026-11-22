@@ -19,7 +19,7 @@ declare module "mp3streamer" {
     onCheckpoint?: (point: { offset: number; seconds: number; estimated?: boolean }) => void
     onOutputStart?: (seconds: number, estimated?: boolean) => void
     onSeekInfo?: (info: CBRSeekInfo | null) => void
-    onSeekInvalid?: () => void
+    onSeekInvalid?: (reason: 'short-tail' | 'invalid-sync') => void
     audio: {
       out: Output,
       sampleRate?: number,

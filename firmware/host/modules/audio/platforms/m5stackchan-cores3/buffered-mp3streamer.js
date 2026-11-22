@@ -5,8 +5,8 @@
  */
 
 import MP3 from 'esp32-mp3-decoder'
-import { id3Size, mp3Duration } from 'mp3-metadata'
 import { synchronizedFrame } from 'mp3-frames'
+import { id3Size, mp3Duration } from 'mp3-metadata'
 import { SharedByteRing } from 'web-radio-byte-ring'
 
 const MP3_MAX_SAMPLES_PER_FRAME = 1152
@@ -191,6 +191,12 @@ export default class {
   #fillQueue() {
     const readBuffer = this.#readBuffer
     if (!readBuffer || !this.#sourceReady || this.#seekRejected) return
+    if (this.#synchronizing && this.#doneError) {
+      this.#consumeReadBuffer(this.#readLength)
+      this.#input.advanceRead(this.#input.readableBytes)
+      this.#notifyDone()
+      return
+    }
     let budget = 64
     for (;;) {
       this.#fillReadBuffer(this.#synchronizing)
@@ -203,8 +209,9 @@ export default class {
           this.#cbr,
         )
         if (!frame) {
-          if (this.#readLength < SEEK_SYNC_BYTES && !this.#info.done) return
-          this.#rejectSeek()
+          const shortTail = this.#readLength < SEEK_SYNC_BYTES
+          if (shortTail && !this.#info.done) return
+          this.#rejectSeek(shortTail ? 'short-tail' : 'invalid-sync')
           return
         }
         const skipped = frame.position - this.#readOffset
@@ -363,8 +370,8 @@ export default class {
     this.#playing.push(slice)
   }
 
-  #rejectSeek() {
+  #rejectSeek(reason = 'invalid-sync') {
     this.#seekRejected = true
-    this.#callbacks.onSeekInvalid?.()
+    this.#callbacks.onSeekInvalid?.(reason)
   }
 }

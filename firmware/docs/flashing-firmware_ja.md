@@ -237,8 +237,7 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json --port /dev/ttyACM1
 ESP32 と lin target では、Moddable toolchain 経由で TypeScript module も扱えます。
 WASM host で確認する場合も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
 
-書き込み後は、MOD が製品既定動作の代わりに実行されます。
-ボタンや画面操作の意味は、インストールした MOD の実装で決まります。
+ホストがMODのフックと既定の動作を組み合わせる規則は、[MODの実行モデル](../mods/README_ja.md#modの実行モデル)を参照してください。
 
 **例: [`mods/examples/look_around`](../mods/examples/look_around/)をインストールする**
 

@@ -77,6 +77,7 @@ class HTTP {
     this.requestOptions.onHeaders(200)
     this.requestOptions.onReadable.call(this, pcm.length)
     this.requestOptions.onDone()
+    Timer.advance(0)
   }
   close() {
     this.closed++
@@ -176,7 +177,9 @@ test('speech flush waits for consumer release; close aborts the pending operatio
   HTTP.clients[0].respond(Uint8Array.of(1, 0))
   await Promise.resolve()
   assert.equal(delivered, false)
-  await synthesis.close()
+  const closing = synthesis.close()
+  Timer.advance(0)
+  await closing
   await rejected
   await synthesis.close()
   release()
@@ -195,10 +198,47 @@ test('empty speech closes without issuing HTTP, and failed flush cannot silently
   await broken.write('fail')
   const failing = assert.rejects(broken.flush(), { code: 'provider_failed' })
   HTTP.clients[0].requestOptions.onHeaders(500)
+  Timer.advance(0)
   await failing
   await assert.rejects(broken.write('late'), { code: 'provider_failed' })
   await assert.rejects(broken.endInput(), { code: 'provider_failed' })
   await broken.close()
+})
+
+test('speech defers socket closure until after its HTTP callback returns', async () => {
+  const synthesis = await OpenAISpeechTTS.create({ apiKey: 'test' }).open({
+    ...createVoiceScope(),
+    format: mono(24000),
+    voice: 'alloy',
+  })
+  await synthesis.write('first')
+  const failing = assert.rejects(synthesis.flush(), { code: 'provider_failed' })
+  const client = HTTP.clients[0]
+  client.requestOptions.onHeaders(500)
+  assert.equal(client.closed, 0)
+  Timer.advance(0)
+  await failing
+  assert.equal(client.closed, 1)
+  await synthesis.close()
+})
+
+test('speech settles an exception thrown by the HTTP write callback', async () => {
+  const synthesis = await OpenAISpeechTTS.create({ apiKey: 'test' }).open({
+    ...createVoiceScope(),
+    format: mono(24000),
+    voice: 'alloy',
+  })
+  await synthesis.write('first')
+  const error = new Error('TLS write failed')
+  const failing = assert.rejects(synthesis.flush(), error)
+  const client = HTTP.clients[0]
+  client.write = () => {
+    throw error
+  }
+  client.requestOptions.onWritable.call(client, 4096)
+  Timer.advance(0)
+  await failing
+  assert.equal(client.closed, 1)
 })
 
 test('aborting an idle synthesis ends its source, and closing endInput cannot start a queued request', async () => {
@@ -222,7 +262,9 @@ test('aborting an idle synthesis ends its source, and closing endInput cannot st
   const flushing = assert.rejects(synthesis.flush(), { code: 'cancelled' })
   await synthesis.write('tail')
   const ending = assert.rejects(synthesis.endInput(), { code: 'cancelled' })
-  await Promise.all([synthesis.close(), synthesis.close()])
+  const closing = Promise.all([synthesis.close(), synthesis.close()])
+  Timer.advance(0)
+  await closing
   await Promise.all([flushing, ending])
   assert.equal(HTTP.clients.length, 1)
   DNS.pending[0].onResolved('api.openai.com', '127.0.0.1')
@@ -235,7 +277,7 @@ beforeEach(() => {
   HTTP.clients = []
   HTTP.activeSockets = 0
   Object.assign(globalThis, {
-    device: { network: { https: { client: { io: HTTP, dns: { io: DNS } } } } },
+    device: { network: { https: { client: { io: HTTP, dns: { io: DNS }, socket: {} } } } },
   })
 })
 
@@ -250,8 +292,11 @@ for (const termination of ['abort', 'deadline'] as const) {
     })
     assert.equal(DNS.pending.length, 1)
     const late = DNS.pending[0]
-    if (termination === 'abort') await synthesis.close()
-    else Timer.advance(45000)
+    if (termination === 'abort') {
+      const closing = synthesis.close()
+      Timer.advance(0)
+      await closing
+    } else Timer.advance(45000)
     await outcome
     assert.equal(HTTP.clients[0].closed, 1)
     late.onResolved('api.openai.com', '127.0.0.1')

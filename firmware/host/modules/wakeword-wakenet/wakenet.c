@@ -75,7 +75,10 @@ void xs_stackchan_wakenet_start(xsMachine *the)
 	}
 	const char *error = "WakeNet could not load the built-in model";
 	wake->models = srmodel_load(model);
+	if (wake->models && !wake->models->model_name)
+		wake->models->num = 0;
 	if (!wake->models || wake->models->num != 1 ||
+		!wake->models->model_name[0] ||
 		strcmp(wake->models->model_name[0], WAKE_MODEL_NAME))
 		goto fail;
 

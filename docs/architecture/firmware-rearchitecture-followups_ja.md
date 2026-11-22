@@ -122,6 +122,10 @@ Moddable manifest は include、platform 条件、resources の pseudo target、
 
 ## 5. `default-behavior` と MOD の置換規則
 
+この節はファームウェア再構成の途中で検討した設計を記録しています。
+[#497の取り込み時](https://github.com/stack-chan/stack-chan/pull/497)には、フックごとに上書きする実装が入っています。
+現在の規則は[MODの実行モデル](../../firmware/mods/README_ja.md#modの実行モデル)を参照してください。
+
 ### 起きた問題
 
 旧 `default-mods` は名前に `mods` を含むが、実際には利用者が導入する MOD ではなく、製品組み込みの default behavior だった。

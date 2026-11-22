@@ -173,11 +173,17 @@ export function createPcmSource(format: PcmFormat, historyBytes = 0): PcmProduce
 export function subscribePcmSource(source: AudioSource, consumer: PcmConsumer) {
   return (source as PcmReader).attach({ write: (bytes) => consumer.write(bytes), end: (error) => consumer.end(error) })
 }
-export function readSource(source: AudioSource, write: Reader['write'], onError?: (error: unknown) => void) {
+export function readSource(
+  source: AudioSource,
+  write: Reader['write'],
+  onError?: (error: unknown) => void,
+  onEnd?: () => void,
+) {
   return (source as PcmReader).attach({
     write,
     end(error) {
       if (error) onError?.(error)
+      else onEnd?.()
     },
   })
 }

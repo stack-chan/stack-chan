@@ -32,7 +32,7 @@ export function lazySpeechPlayback(create: () => StandalonePlayback): LazySpeech
   const lazy: LazySpeechPlayback = {
     get playUtterance() {
       const player = getPlayback()
-      if ('playUtterance' in player) return player.playUtterance.bind(player)
+      return 'playUtterance' in player ? player.playUtterance.bind(player) : undefined
     },
     stream(text, volume, callback) {
       const player = getPlayback()

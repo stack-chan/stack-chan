@@ -11,8 +11,7 @@
 Stack-chan's firmware consists of a program that provide the basic operation of Stack-chan (host), and a user application (mod).
 Once the host is written, the mod can be installed in a short time for fast development.
 First write the host, and then write the mods as needed.
-When no MOD is installed, the host runs the product default behavior.
-When a MOD is installed, that MOD replaces the product default behavior and receives the runtime context through `onContextCreated`.
+See the [MOD runtime model](../mods/README.md#mod-runtime-model) for how the host combines MOD hooks with its default behavior.
 
 ### Manifest File
 

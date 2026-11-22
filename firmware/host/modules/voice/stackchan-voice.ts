@@ -26,7 +26,8 @@ export function createStackchanVoiceTTS(
     const source = createPcmSource(format)
     let text = '',
       ended = false
-    let result: ReturnType<typeof deferred<void>> | undefined
+    let segment: { done: ReturnType<typeof deferred<void>>; length: number } | undefined
+    let completion: Promise<void> | undefined
     let failure: unknown
     let timer: ReturnType<typeof Timer.set> | undefined
     let block: { buffer: ArrayBuffer; bytes: Uint8Array } | undefined
@@ -40,8 +41,13 @@ export function createStackchanVoiceTTS(
       if (timer !== undefined) Timer.clear(timer)
       signal.removeEventListener('abort', abort)
       source.end(error)
-      if (error) result?.reject(error)
-      else result?.resolve()
+      if (error) segment?.done.reject(error)
+      else segment?.done.resolve()
+      segment = undefined
+    }
+    function finishSegment() {
+      segment?.done.resolve()
+      segment = undefined
     }
     async function render() {
       timer = undefined
@@ -53,7 +59,7 @@ export function createStackchanVoiceTTS(
           const samples = engine.read24(block.buffer)
           if (!Number.isInteger(samples) || samples < 0 || samples > bytes.length / 2)
             throw voiceError('provider_failed', 'invalid StackchanVoice PCM length')
-          if (!samples) return end()
+          if (!samples) return finishSegment()
           const last = samples * 2 < bytes.length
           const pending = source.offer(last ? bytes.subarray(0, samples * 2) : bytes)
           blocks++
@@ -64,7 +70,7 @@ export function createStackchanVoiceTTS(
             if (Date.now() - waiting >= 8) started = Date.now()
           }
           if (ended) return
-          if (last) return end()
+          if (last) return finishSegment()
           if (blocks >= 4 || Date.now() - started >= 8) {
             timer = Timer.set(render, 0)
             return
@@ -74,44 +80,70 @@ export function createStackchanVoiceTTS(
         end(error)
       }
     }
+    function renderPending(): Promise<void> {
+      if (ended) return Promise.reject(failure ?? voiceError('cancelled'))
+      if (!text) return Promise.resolve()
+      const part = text
+      text = ''
+      const done = deferred<void>()
+      segment = { done, length: part.length }
+      try {
+        if (koe && ArrayBuffer.fromString(part).byteLength > 2047)
+          throw voiceError('resource_exhausted', 'StackchanVoice Koe exceeds 2047 bytes')
+        const selected = preset === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
+        if (engine) engine.setVoice(selected)
+        else engine = new StackchanVoice(selected, new Resource('stackchan-ja.aqd'))
+        if (koe) engine.koe(part, speed)
+        else engine.say(part, speed)
+        if (!block) {
+          const bytes = new Uint8Array(2048)
+          block = { bytes, buffer: bytes.buffer }
+        }
+        void render()
+      } catch (error) {
+        end(error)
+      }
+      return done.promise
+    }
     busy = true
     signal.addEventListener('abort', abort)
     return {
       output: source.output,
       async write(part) {
-        if (ended || result) throw failure ?? voiceError('cancelled', 'synthesis input closed')
-        if (text.length + part.length > 2047)
+        if (ended || completion) throw failure ?? voiceError('cancelled', 'synthesis input closed')
+        if (text.length + part.length + (segment?.length ?? 0) > 2047)
           throw voiceError('resource_exhausted', 'StackchanVoice utterance too long')
         if (part.includes('\0')) throw new TypeError('utterance contains NUL')
         text += part
       },
-      finish() {
-        if (result) return result.promise
-        if (ended) return Promise.reject(failure)
-        result = deferred<void>()
-        try {
-          if (!text) end()
-          else {
-            if (koe && ArrayBuffer.fromString(text).byteLength > 2047)
-              throw voiceError('resource_exhausted', 'StackchanVoice Koe exceeds 2047 bytes')
-            const selected = preset === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
-            if (engine) engine.setVoice(selected)
-            else engine = new StackchanVoice(selected, new Resource('stackchan-ja.aqd'))
-            if (koe) engine.koe(text, speed)
-            else engine.say(text, speed)
-            const bytes = new Uint8Array(2048)
-            block = { bytes, buffer: bytes.buffer }
-            render()
+      flush() {
+        if (completion) return Promise.reject(voiceError('cancelled', 'synthesis input closed'))
+        if (segment) return Promise.reject(voiceError('device_busy', 'StackchanVoice is flushing'))
+        return renderPending()
+      },
+      endInput() {
+        if (completion) return completion
+        const done = deferred<void>()
+        completion = done.promise
+        const flushed = segment ? segment.done.promise.then(renderPending) : renderPending()
+        void flushed.then(() => {
+          if (failure) {
+            done.reject(failure)
+          } else {
+            end()
+            done.resolve()
           }
-        } catch (error) {
-          end(error)
-        }
-        return result.promise
+        }, done.reject)
+        return completion
       },
       async close() {
         end(voiceError('cancelled'))
       },
     }
   }
-  return { open: (options) => open(options, false), openKoe: (options) => open(options, true) }
+  return {
+    capabilities: { input: 'segmented', output: 'streaming' },
+    open: (options) => open(options, false),
+    openKoe: (options) => open(options, true),
+  }
 }

@@ -1,5 +1,5 @@
 import { SpeechPlayback } from 'speech-playback-stackchan-voice'
-import type { Speaker } from 'stackchan/voice/contracts'
+import type { AudioLevel, Speaker } from 'stackchan/voice/contracts'
 import { createPcmSink, mono, pcmMedia } from 'stackchan/voice/media'
 import { state } from 'stackchan-voice-test-state'
 import { equal } from 'testing/assert'
@@ -19,7 +19,7 @@ async function run() {
       async acquire() {
         throw Error('standalone playback requested a microphone')
       },
-      async acquirePlayback(_speaker, formats, { budget, onPlayed }) {
+      async acquirePlayback(_speaker, formats, { budget, onLevel }) {
         equal(formats[0].sampleRate, 24000)
         return {
           output: {
@@ -28,7 +28,7 @@ async function run() {
             begin: () => sink,
             async finish(outputId) {
               drains++
-              onPlayed?.(1000)
+              onLevel?.({ direction: 'output', value: 0.25 })
               return { outputId, generation: 0, state: 'played', position: { basis: 'unknown' } }
             },
             async fence() {
@@ -47,12 +47,12 @@ async function run() {
     },
   }
   const player = new SpeechPlayback({ speed: 130, voice: 'cute', volume: 0.25 })
-  const onPlayed = (value: number) => {
+  const onLevel = ({ value }: AudioLevel) => {
     levels += value
   }
-  await player.playUtterance(speaker, 'text', 'デバイス再生', 0.75, onPlayed).done
+  await player.playUtterance(speaker, 'text', 'デバイス再生', 0.75, onLevel).done
   equal(volume, 0.75)
-  await player.playUtterance(speaker, 'koe', '#C4,500ki', undefined, onPlayed).done
+  await player.playUtterance(speaker, 'koe', '#C4,500ki', undefined, onLevel).done
   equal(volume, 0.25)
   equal(state.says[0].text, 'デバイス再生')
   equal(state.koes[0].koe, '#C4,500ki')
@@ -60,16 +60,16 @@ async function run() {
   equal(bytes, 8, 'both two-frame utterances arrive without padding')
   equal(drains, 2)
   equal(closes, 2)
-  equal(levels, 2000)
+  equal(levels, 0.5)
   equal(state.constructors[0].preset, 1)
 
   const savedVoice = new SpeechPlayback({ speed: 0, voice: 'alloy' })
-  await savedVoice.playUtterance(speaker, 'text', 'こんにちは', undefined, onPlayed).done
+  await savedVoice.playUtterance(speaker, 'text', 'こんにちは', undefined, onLevel).done
   equal(state.constructors[1].preset, 0)
   equal(state.says[1].speed, 100)
 
   const emptyVoice = new SpeechPlayback({ speed: 65537.5, voice: '' })
-  await emptyVoice.playUtterance(speaker, 'koe', 'ki', undefined, onPlayed).done
+  await emptyVoice.playUtterance(speaker, 'koe', 'ki', undefined, onLevel).done
   equal(state.constructors[2].preset, 0)
   equal(state.koes[1].speed, 1)
 }

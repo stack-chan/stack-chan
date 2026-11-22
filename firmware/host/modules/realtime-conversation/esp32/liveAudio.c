@@ -416,14 +416,18 @@ void liveAudioStats(LiveAudio *a, LiveAudioStats *s)
 }
 
 void xs_io_audio_levels(xsMachine *the) {
-  unsigned level = 0, idle = 10000;
+  unsigned level = 0, idle = 10000, mic = 0, clean = 0;
   portENTER_CRITICAL(&audioLock);
   if (activeAudio) {
     level = atomic_load(&activeAudio->referenceLevel);
+    mic = atomic_load(&activeAudio->micLevel);
+    clean = atomic_load(&activeAudio->cleanLevel);
     idle = atomic_load(&activeAudio->outputIdleMs);
   }
   portEXIT_CRITICAL(&audioLock);
   xsmcVars(1); xsmcSetNewObject(xsResult);
   xsmcSetInteger(xsVar(0),level); xsmcSet(xsResult,xsID("referenceLevel"),xsVar(0));
   xsmcSetInteger(xsVar(0),idle); xsmcSet(xsResult,xsID("outputIdleMs"),xsVar(0));
+  xsmcSetInteger(xsVar(0),mic); xsmcSet(xsResult,xsID("micLevel"),xsVar(0));
+  xsmcSetInteger(xsVar(0),clean); xsmcSet(xsResult,xsID("cleanLevel"),xsVar(0));
 }

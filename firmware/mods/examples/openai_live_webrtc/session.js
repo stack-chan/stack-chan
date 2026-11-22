@@ -84,12 +84,12 @@ export class LiveSession {
     }
   }
 
-  async setMuted(muted) {
+  async setMicrophoneMuted(muted) {
     const entry = this.active,
       pipeline = entry?.pipeline
     if (!pipeline || entry.cancelled) return false
     try {
-      await pipeline.setMuted(muted)
+      await pipeline.setMicrophoneMuted(muted)
       entry.muted = muted
       return this.active === entry && !entry.cancelled && entry.muted
     } catch {

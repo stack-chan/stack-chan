@@ -1,18 +1,18 @@
 # Stack-chan の音声会話
 
-MOD はマイク、会話、スピーカーを選んで `createConversationPipeline` に渡す。パイプラインは開始時に音声デバイスの使用権を取り、会話の終了処理を待って返す。1回の接続につき1個のパイプラインを作る。
+MOD はマイク、会話、スピーカーを選んで `ConversationPipeline` に渡す。パイプラインは開始時に音声デバイスの使用権を取り、会話の終了処理を待って返す。1回の接続につき1個のパイプラインを作る。
 
 ```js
-import { createConversationPipeline } from 'stackchan/voice'
-import { createChatConversation } from 'chat'
+import { ConversationPipeline } from 'stackchan/voice'
+import { ChatConversation } from 'chat'
 
 const microphone = robot.audio.microphone
 if (!microphone) throw new Error('この端末にはマイクがありません')
 
-const pipeline = createConversationPipeline({
+const pipeline = ConversationPipeline.create({
   microphone,
   speaker: robot.audio.speaker,
-  conversation: createChatConversation({ config: chatConfig, tools }),
+  conversation: ChatConversation.create({ config: chatConfig, tools }),
   mediaBudget: { maxBufferedMs: 2000, maxBufferedBytes: 128 * 1024 },
 })
 await pipeline.start()
@@ -24,11 +24,11 @@ await pipeline.close({ mode: 'abort' })
 
 | 構成 | 会話の作り方 | 音声の経路 |
 | --- | --- | --- |
-| STT → LLM → TTS | `createCascadedConversation({ turnDetector, stt, agent, tts, voice })` | マイクから STT に PCM を渡し、TTS の PCM をスピーカーへ送る。 |
-| ChatAudioIO | `createChatConversation({ config, tools, callbacks })` | provider の Worker が借用した PCM 入出力を使う。入力の空き容量を超えた場合はエラーを通知する。 |
-| OpenAI Live | `createLiveConversation(options)` | CoreS3 の native WebRTC transport が借用した I2S を使う。JS では制御、transcript、tool call を処理する。 |
+| STT → LLM → TTS | `CascadedConversation.create({ turnDetector, stt, agent, tts, voice })` | マイクから STT に PCM を渡し、TTS の PCM をスピーカーへ送る。 |
+| ChatAudioIO | `ChatConversation.create({ config, tools, callbacks })` | provider の Worker が借用した PCM 入出力を使う。入力の空き容量を超えた場合はエラーを通知する。 |
+| OpenAI Live | `LiveConversation.create(options)` | CoreS3 の native WebRTC transport が借用した I2S を使う。JS では制御、transcript、tool call を処理する。 |
 
-`mediaBudget` は音声をキューに保持する時間とバイト数の上限。モデルの履歴、HTTP、コーデック、WebRTC 自体が使うメモリはそれぞれの実装で管理する。`setMuted` は音声入力を切り替え、`interrupt` は再生済みの範囲と会話履歴の状態を返す。端末で聞こえた位置を特定できる精度はバックエンドによって異なる。
+`mediaBudget` は音声をキューに保持する時間とバイト数の上限。モデルの履歴、HTTP、コーデック、WebRTC 自体が使うメモリはそれぞれの実装で管理する。`setMicrophoneMuted` は音声入力を切り替え、`interrupt` は再生済みの範囲と会話履歴の状態を返す。端末で聞こえた位置を特定できる精度はバックエンドによって異なる。
 
 カスケード方式では、LLM が最終回答と明示したテキストを文単位で先に読み上げる。最終回答か判別できないモデルでは応答の完了を待つ。割り込まれたときは再生を終えた文までを履歴に残す。WebRTC の連続した音声には文と再生位置の対応がないため、割り込みは接続を終了し、`restart-required` を返す。続けて話すときは、新しいパイプラインを作って開始する。
 
@@ -44,11 +44,13 @@ await pipeline.close({ mode: 'abort' })
 
 ## カメラとツール
 
-`stackchan/ai` の LLM はテキスト・画像・関数定義を含むリクエストから1回の応答を生成する。`createToolSet` で関数定義と実装を対応づけ、`createAgent` に渡すとツールの実行結果を次の推論に渡せる。会話履歴はセッションが管理する。
+`stackchan/ai` の LLM はテキスト・画像・関数定義を含むリクエストから1回の応答を生成する。`ToolSet` で関数定義と実装を対応づけ、`Agent` に渡すとツールの実行結果を次の推論に渡せる。会話履歴はセッションが管理する。
 
-`createVision({ camera: adaptRobotCamera(robot.camera), llm })` は質問を受けるたびに撮影し、画像と質問を LLM に送る。MOD が `observe` ツールとして登録すると、会話からも使える。
+`Vision.create({ camera: adaptRobotCamera(robot.camera), llm })` は質問を受けるたびに撮影し、画像と質問を LLM に送る。MOD が `observe` ツールとして登録すると、会話からも使える。
 
 ## 実装例
+
+生成名とMODの再ビルドについては[音声APIの移行](voice-api-migration.md)を参照する。
 
 - [ボタンを押して話し、カメラで観察する](../mods/examples/ai_stackchan/mod.js)
 - [ChatAudioIO の設定、顔や吹き出しへの反映](../mods/examples/chat_audioio/mod.js)

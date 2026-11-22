@@ -1,5 +1,6 @@
 export function startWorkerSession(self, Model, configuration) {
   const pending = []
+  const decodingCancelled = new Error('Chat worker closing')
   let requested = 0,
     written = 0,
     socket,
@@ -35,6 +36,14 @@ export function startWorkerSession(self, Model, configuration) {
       requested += data.byteLength
       super.write(data, options)
     }
+    read(data, options) {
+      if (parser?.barrier && Atomics.load(parser.barrier, 1)) return
+      try {
+        super.read(data, options)
+      } catch (error) {
+        if (error !== decodingCancelled) throw error
+      }
+    }
     get parser() {
       return parser
     }
@@ -51,7 +60,7 @@ export function startWorkerSession(self, Model, configuration) {
           }
           const deadline = Date.now() + 5000
           for (;;) {
-            if (Atomics.load(this.barrier, 1)) throw new Error('Chat worker closing')
+            if (Atomics.load(this.barrier, 1)) throw decodingCancelled
             const tail = Atomics.load(this.barrier, 0)
             if (((tail - (head + 1)) & (size - 1)) >= space) return
             if (Date.now() >= deadline) {

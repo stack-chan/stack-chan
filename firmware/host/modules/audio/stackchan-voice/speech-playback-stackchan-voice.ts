@@ -1,5 +1,4 @@
-import type { SpeakerSpeechPlayback, SpeechPlaybackListener } from 'speech-playback-types'
-import type { Speaker } from 'stackchan/voice/contracts'
+import type { SpeakerSpeechPlayback } from 'speech-playback-types'
 import { playSpeech } from 'stackchan/voice/play-speech'
 import { createStackchanVoiceTTS } from 'stackchan/voice/stackchan-voice'
 
@@ -16,14 +15,8 @@ export class SpeechPlayback implements SpeakerSpeechPlayback {
     this.#volume = options.volume ?? 0.1
   }
 
-  playUtterance(
-    speaker: Speaker,
-    kind: 'text' | 'koe',
-    text: string,
-    volume: number | undefined,
-    onPlayed: SpeechPlaybackListener,
-  ) {
+  playUtterance(...[speaker, kind, text, volume, onLevel]: Parameters<SpeakerSpeechPlayback['playUtterance']>) {
     const open = kind === 'koe' ? this.#tts.openKoe : this.#tts.open
-    return playSpeech(speaker, open, text, volume ?? this.#volume, onPlayed)
+    return playSpeech(speaker, open, text, volume ?? this.#volume, onLevel)
   }
 }

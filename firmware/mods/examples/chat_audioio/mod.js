@@ -1,12 +1,12 @@
 // biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
-import { ChatState, chatStateToName, createChatConversation } from 'chat'
+import { ChatConversation, ChatState, chatStateToName } from 'chat'
 import { hasValidChatType, normalizeChatConfig } from 'chat-audioio-config'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
-import { createToolSet } from 'stackchan/ai'
-import { createConversationPipeline } from 'stackchan/voice'
+import { ToolSet } from 'stackchan/ai'
+import { ConversationPipeline } from 'stackchan/voice'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -501,14 +501,14 @@ export function onContextCreated(robot) {
   let pipeline
   let closing
   const toolSet = () =>
-    createToolSet(
+    ToolSet.create(
       Object.values(tools).map(({ execute, ...schema }) => ({
         definition: { type: 'function', ...schema },
         execute,
       })),
     )
   const buildConversation = () =>
-    createChatConversation({
+    ChatConversation.create({
       config: chatConfig,
       tools: toolSet(),
       callbacks: {
@@ -559,7 +559,7 @@ export function onContextCreated(robot) {
     active = true
     startUiTimers()
     robot.ui.drawer.setDrawerButtonState('toggleChat', true)
-    const current = createConversationPipeline({
+    const current = ConversationPipeline.create({
       conversation: buildConversation(),
       microphone: robot.audio.microphone,
       speaker: robot.audio.speaker,

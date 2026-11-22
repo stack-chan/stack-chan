@@ -35,12 +35,17 @@ async function run() {
   equal(Native.active, 0)
   const pending = await tts.openKana(args)
   const held = deferred<void>()
-  readSource(pending.output, () => held.promise)
+  const playing = deferred<void>()
+  readSource(pending.output, () => {
+    playing.resolve()
+    return held.promise
+  })
   await pending.write('かな')
   const cancelled = pending.endInput().then(
     () => false,
     () => true,
   )
+  await playing.promise
   scope.abort()
   await pending.close()
   equal(await cancelled, true)

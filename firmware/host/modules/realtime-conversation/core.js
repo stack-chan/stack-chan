@@ -78,7 +78,7 @@ export default class Conversation {
       instructions: options.instructions ?? '',
       voice: options.voice ?? 'marin',
       delegation: options.delegation === undefined ? undefined : JSON.parse(JSON.stringify(options.delegation)),
-      triggers: options.triggers === undefined ? undefined : JSON.parse(JSON.stringify(options.triggers)),
+      triggers: options.triggers?.length ? JSON.parse(JSON.stringify(options.triggers)) : undefined,
       onStateChanged: options.onStateChanged,
       onTranscript: options.onTranscript,
       onEvent: options.onEvent,

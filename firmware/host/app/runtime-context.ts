@@ -420,6 +420,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       setTorque(torque) {
         return context.setTorque(torque)
       },
+      withTemporaryTorque(move) {
+        return context.#motionController.withTemporaryTorque(move)
+      },
     }
   }
 

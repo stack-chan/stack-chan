@@ -128,6 +128,18 @@ async function runTest() {
   await waitForCompletion((callback) => controller.setTorque(true, callback))
   equal(nextDriver.torqueStates[0], true, 'setTorque should delegate to the active driver')
 
+  let moves = 0
+  const move = async () => {
+    moves++
+    equal(nextDriver.torqueStates.at(-1), true)
+  }
+  await controller.withTemporaryTorque(move)
+  equal(nextDriver.torqueStates.join(','), 'true', 'A nod preserves torque already held by another feature')
+  await waitForCompletion((callback) => controller.setTorque(false, callback))
+  await controller.withTemporaryTorque(move)
+  equal(moves, 2)
+  equal(nextDriver.torqueStates.join(','), 'true,false,true,false', 'A nod releases its own torque hold')
+
   const pose: Pose = {
     position: { x: 0, y: 0, z: 0 },
     rotation: { y: 0.2, p: -0.1, r: 0 },

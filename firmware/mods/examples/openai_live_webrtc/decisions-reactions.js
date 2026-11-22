@@ -42,9 +42,10 @@ export function createDecisionsReactions(robot, wait) {
     [OUTPUT_TRANSCRIPT, { transcript: new Map(), latest: undefined }],
   ])
   let sequence = 0
+  let latestDirection
   let emotion
   let generation = 0
-  let nodding = false
+  let nodding
   let lastNodAt = -Infinity
 
   function setEmotion(next) {
@@ -57,16 +58,21 @@ export function createDecisionsReactions(robot, wait) {
 
   async function nod() {
     const motion = robot.motion
-    if (!motion || nodding || Date.now() - lastNodAt < NOD_INTERVAL_MS) return
+    if (!motion?.withTemporaryTorque || Date.now() - lastNodAt < NOD_INTERVAL_MS) return
     const body = motion.pose?.body
-    if (!body || !Number.isFinite(body.rotation?.p)) return
+    if (
+      !body?.position ||
+      !body.rotation ||
+      ![body.position.x, body.position.y, body.position.z, body.rotation.y, body.rotation.p, body.rotation.r].every(
+        Number.isFinite,
+      )
+    )
+      return
     const position = { ...body.position }
     const rotation = { ...body.rotation }
     const current = generation
-    nodding = true
     lastNodAt = Date.now()
-    try {
-      await motion.setTorque(true)
+    await motion.withTemporaryTorque(async () => {
       if (current !== generation) return
       try {
         await motion.setPose(
@@ -78,13 +84,7 @@ export function createDecisionsReactions(robot, wait) {
         await motion.setPose({ position, rotation }, NOD_STEP_MS / 1000)
         await wait(NOD_STEP_MS)
       }
-    } finally {
-      try {
-        await motion.setTorque(false)
-      } finally {
-        nodding = false
-      }
-    }
+    })
   }
 
   return {
@@ -93,6 +93,7 @@ export function createDecisionsReactions(robot, wait) {
       trigger(OUTPUT_TRANSCRIPT, 'while speaking to the user'),
     ],
     receive(message) {
+      if (!message || typeof message !== 'object') return
       const source = directions.get(message.type)
       if (source) {
         const id = message.event_id
@@ -105,6 +106,7 @@ export function createDecisionsReactions(robot, wait) {
         )
           return
         source.transcript.set(id, { end: message.end_ms, sequence: ++sequence })
+        latestDirection = source
         if (source.transcript.size > TRANSCRIPT_HISTORY) source.transcript.delete(source.transcript.keys().next().value)
         return
       }
@@ -122,6 +124,7 @@ export function createDecisionsReactions(robot, wait) {
       const latest = direction?.latest
       if (
         !fragment ||
+        direction !== latestDirection ||
         (latest && (fragment.end < latest.end || (fragment.end === latest.end && fragment.sequence <= latest.sequence)))
       )
         return
@@ -135,7 +138,13 @@ export function createDecisionsReactions(robot, wait) {
 
       direction.latest = fragment
       if (hasExpression) setEmotion(EXPRESSION[expression])
-      if (gesture === 'nod') void nod().catch(() => {})
+      if (gesture === 'nod' && !nodding) {
+        nodding = nod()
+          .catch(() => {})
+          .finally(() => {
+            nodding = undefined
+          })
+      }
     },
     reset() {
       generation++
@@ -144,8 +153,10 @@ export function createDecisionsReactions(robot, wait) {
         direction.latest = undefined
       }
       sequence = 0
+      latestDirection = undefined
       if (emotion !== undefined) setEmotion(Emotion.NEUTRAL)
       emotion = undefined
+      return nodding
     },
   }
 }

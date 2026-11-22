@@ -4,6 +4,7 @@ import {
   type Rotation as RotationType,
   randomBetween,
   type Vector3,
+  waitForCompletion,
   writeBodyRelativeVector3,
   writeRotationFromVector3,
 } from 'stackchan-util'
@@ -99,6 +100,8 @@ export class MotionController {
   #driver!: MotionDriver
   #gazePoint: Vector3 | null = null
   #isMoving = false
+  #temporaryMotion = false
+  #torqueRequested = false
   #nextRotation: RotationType = { y: 0, p: 0, r: 0 }
   #options: MotionControllerOptions
   #pendingMotionTime = 0
@@ -161,7 +164,20 @@ export class MotionController {
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
-    this.#driver.setTorque(torque, callback)
+    this.#torqueRequested = torque
+    this.#driver.setTorque(torque || this.#temporaryMotion, callback)
+  }
+
+  async withTemporaryTorque(move: () => Promise<void>): Promise<void> {
+    if (this.#temporaryMotion || this.#isMoving) return
+    this.#temporaryMotion = true
+    try {
+      if (!this.#torqueRequested) await waitForCompletion((done) => this.#driver.setTorque(true, done))
+      await move()
+    } finally {
+      this.#temporaryMotion = false
+      if (!this.#torqueRequested) await waitForCompletion((done) => this.#driver.setTorque(false, done))
+    }
   }
 
   updatePose(_id?: unknown): void {
@@ -188,7 +204,7 @@ export class MotionController {
       }
 
       const gazePoint = this.#gazePoint
-      if (!this.#isMoving && gazePoint != null) {
+      if (!this.#isMoving && !this.#temporaryMotion && gazePoint != null) {
         writeBodyRelativeVector3(this.#relativeGazePoint, gazePoint, this.#pose.body.rotation)
         writeRotationFromVector3(this.#relativeGazeRotation, this.#relativeGazePoint)
         const y = this.#relativeGazeRotation.y
@@ -254,7 +270,7 @@ export class MotionController {
   #releaseTorque = () => {
     this.#releaseTorqueHandler = undefined
     try {
-      this.#driver.setTorque(false, this.#handleTorqueReleased)
+      this.#driver.setTorque(this.#torqueRequested, this.#handleTorqueReleased)
     } catch (error) {
       trace(`[MotionController] release torque failed: ${String(error)}\n`)
       this.#isMoving = false

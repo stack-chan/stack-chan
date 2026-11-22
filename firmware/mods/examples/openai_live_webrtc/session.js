@@ -90,13 +90,13 @@ export class LiveSession {
     if (!entry) return Promise.resolve()
     if (entry.closing) return entry.closing
     entry.cancelled = true
-    this.reactions?.reset()
+    entry.closing = Promise.resolve().then(() => this.finish(entry))
     this.onState('closing')
-    entry.closing = this.finish(entry)
     return entry.closing
   }
 
   async finish(entry) {
+    const motion = this.reactions?.reset()
     try {
       const result = await entry.pipeline?.close({ mode: 'abort' })
       entry.localReleased = true
@@ -104,6 +104,7 @@ export class LiveSession {
     } catch {
       entry.failure = 'error'
     } finally {
+      await motion
       try {
         entry.radio?.close()
       } catch {

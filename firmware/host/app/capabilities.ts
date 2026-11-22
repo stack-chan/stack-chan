@@ -109,6 +109,7 @@ export type MotionCapability = {
   lookAway(): void
   setPose(pose: Pose, time?: MotionDurationSeconds): Promise<void>
   setTorque(torque: boolean): Promise<void>
+  withTemporaryTorque?(move: () => Promise<void>): Promise<void>
 }
 
 export type AudioCapability = {

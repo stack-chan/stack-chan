@@ -150,7 +150,14 @@ async function fixture({
     face: { setEmotion: (emotion) => emotions.push(emotion) },
     motion: {
       pose: { body: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } } },
-      setTorque: (enabled) => motion.push(enabled ? 'torque on' : 'torque off'),
+      async withTemporaryTorque(move) {
+        motion.push('torque on')
+        try {
+          await move()
+        } finally {
+          motion.push('torque off')
+        }
+      },
       setPose: (pose) => motion.push(pose),
     },
     audio: { microphone: { runtime }, speaker: { runtime } },
@@ -326,6 +333,10 @@ test('reactions use matched Decisions results and ignore stale, duplicate and cl
   assert.deepEqual(f.emotions, [Emotion.HAPPY])
   assert.deepEqual(f.motion, [])
   transcript(conversation, outputTranscript, 'reply', 500)
+  transcript(conversation, inputTranscript, 'new-input', 520)
+  transcript(conversation, outputTranscript, 'next-reply', 540)
+  conversation.onEvent(null)
+  decision(conversation, inputTranscript, 'new-input', { expression: 'sad' })
   decision(conversation, outputTranscript, 'reply', { expression: 'concerned' })
   assert.deepEqual(f.emotions, [Emotion.HAPPY, Emotion.DOUBTFUL])
   await f.shutdown()
@@ -357,10 +368,15 @@ test('a nod returns to the original pose and releases torque when the session st
   assert.ok(f.motion[1].rotation.p > 0)
   transcript(conversation, outputTranscript, 'second', 200)
   decision(conversation, outputTranscript, 'second', { gesture: 'nod' })
-  await f.shutdown()
+  let closed = false
+  const closing = f.shutdown().then(() => {
+    closed = true
+  })
+  await settle()
+  assert.equal(closed, false)
   assert.equal(f.motion.length, 2)
   releaseStep()
-  await settle()
+  await closing
   assert.deepEqual(f.motion.slice(2), [
     { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } },
     'torque off',

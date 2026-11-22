@@ -40,32 +40,36 @@ function createWhisperSTT(options: { apiKey: string; model?: string; language?: 
       // 録音PCMで固定容量のXS chunk領域を使い切らず、HTTPや応答解析の領域を残す
       let recording: Uint8Array = new Uint8Array(new SharedArrayBuffer(44 + limit))
       const scope = createVoiceScope(signal)
-      let used = 44,
-        ended = false
+      let used = 44
+      let completion: Promise<void> | undefined
       return {
         input: createPcmSink(format, (bytes) => {
           requireActive(scope.signal)
-          if (ended || used + bytes.length > recording.length) throw voiceError('input_overrun')
+          if (completion || used + bytes.length > recording.length) throw voiceError('input_overrun')
           recording.set(bytes, used)
           used += bytes.length
         }),
-        async finish() {
-          if (ended) return
-          ended = true
-          requireActive(scope.signal)
-          if (used === 44) {
-            onTranscript({ utteranceId, text: '', final: true })
-            return
-          }
-          waveHeader(recording, format, used - 44)
-          const result = await whisper.transcribe(recording.subarray(0, used), scope.signal)
-          requireActive(scope.signal)
-          if (result.success === false) throw voiceError('provider_failed', result.reason)
-          onTranscript({ utteranceId, text: result.value, final: true })
+        finish() {
+          completion ??= Promise.resolve()
+            .then(async () => {
+              requireActive(scope.signal)
+              if (used === 44) {
+                onTranscript({ utteranceId, text: '', final: true })
+                return
+              }
+              waveHeader(recording, format, used - 44)
+              const result = await whisper.transcribe(recording.subarray(0, used), scope.signal)
+              requireActive(scope.signal)
+              if (result.success === false) throw voiceError('provider_failed', result.reason)
+              onTranscript({ utteranceId, text: result.value, final: true })
+            })
+            .finally(scope.dispose)
+          return completion
         },
         async close() {
           scope.abort()
           recording = new Uint8Array(0)
+          await completion?.catch(() => {})
         },
       }
     },

@@ -1,6 +1,7 @@
-const TASKS_VISION_VERSION = '0.10.35'
-const TASKS_VISION_MODULE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/+esm`
-const TASKS_VISION_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/wasm`
+import simdLoader from '@mediapipe/tasks-vision/vision_wasm_internal.js?url'
+import simdBinary from '@mediapipe/tasks-vision/vision_wasm_internal.wasm?url'
+import fallbackLoader from '@mediapipe/tasks-vision/vision_wasm_nosimd_internal.js?url'
+import fallbackBinary from '@mediapipe/tasks-vision/vision_wasm_nosimd_internal.wasm?url'
 const FACE_MODEL =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
 const HAND_MODEL =
@@ -35,8 +36,12 @@ async function createLandmarkers(tasks, fileset, delegate) {
 }
 
 export async function loadMediaPipe() {
-  const tasks = await import(TASKS_VISION_MODULE)
-  const fileset = await tasks.FilesetResolver.forVisionTasks(TASKS_VISION_WASM)
+  const tasks = await import('@mediapipe/tasks-vision')
+  const simd = await tasks.FilesetResolver.isSimdSupported()
+  const fileset = {
+    wasmLoaderPath: simd ? simdLoader : fallbackLoader,
+    wasmBinaryPath: simd ? simdBinary : fallbackBinary,
+  }
   let landmarkers
   try {
     landmarkers = await createLandmarkers(tasks, fileset, 'GPU')

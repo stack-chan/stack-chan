@@ -6,24 +6,34 @@ export function liveConversation(options, platform) {
   if (options.tools) throw unsupported('GPT-Live tools belong to the delegated agent')
   if (delegation.kind === 'client' && typeof delegation.delegate?.run !== 'function')
     throw new TypeError('Missing delegate')
-  if (delegation.kind === 'hosted' && !delegation.model) throw new TypeError('Missing hosted model')
+  if (delegation.kind === 'hosted' && !delegation.model && !options.signaling)
+    throw new TypeError('Missing hosted model')
   return {
     audio: platform.audio,
-    capabilities: { interruption: 'local-only', historyRepair: 'restart', textInput: false, imageInput: false },
+    capabilities: {
+      interruption: 'local-only',
+      interruptionReuse: 'restart-required',
+      historyRepair: 'restart',
+      textInput: false,
+      imageInput: false,
+      inputRoles: [],
+      turnControl: 'provider',
+      submitCompletion: 'unavailable',
+    },
     async open({ media, history = [], onEvent = (_event) => {}, signal }) {
       if (history.length) throw unsupported('GPT-Live cannot import a conversation history')
       if (signal?.aborted) throw signal.reason ?? new Error('Cancelled')
       const handle = platform.borrowLiveAudio(media.input, media.output)
       const scope = platform.createVoiceScope(signal)
       const fragments = [],
-        delegated = new Set()
+        inFlight = new Set(),
+        completed = new Set()
       let chars = 0,
         closing,
         fenced,
         sessionId,
         protocol,
         outputId,
-        ongoing = 0,
         serial = 0
       const snapshot = (offset) =>
         fragments
@@ -33,28 +43,66 @@ export function liveConversation(options, platform) {
               ? { type: 'message', role: 'user', content: [{ type: 'input_text', text: f.delta }] }
               : { type: 'message', id: f.id, role: 'assistant', content: [{ type: 'output_text', text: f.delta }] },
           )
+      function rememberDelegation(id) {
+        completed.add(id)
+        if (completed.size > 256) completed.delete(completed.values().next().value)
+      }
+      function failDelegation(id, code) {
+        if (closing || scope.signal.aborted) return
+        protocol.appendDelegationResult(id, JSON.stringify({ status: 'failed', error: code }))
+        onEvent({ type: 'error', code: 'delegation_failed', fatal: false })
+      }
       async function delegate(event) {
         const id = event.delegation?.id
-        if (delegation.kind !== 'client' || event.delegation?.target !== 'client' || !id || delegated.has(id)) return
-        if (delegated.size >= 256 || ongoing >= 4) throw new Error('Live delegation limit exceeded')
-        delegated.add(id)
-        ongoing++
+        if (
+          closing ||
+          scope.signal.aborted ||
+          delegation.kind !== 'client' ||
+          event.delegation?.target !== 'client' ||
+          !id ||
+          inFlight.has(id) ||
+          completed.has(id)
+        )
+          return
+        if (inFlight.size >= 4) {
+          rememberDelegation(id)
+          failDelegation(id, 'device_busy')
+          return
+        }
+        inFlight.add(id)
         const child = platform.createVoiceScope(scope.signal)
-        let timer, onAbort
+        let timer,
+          onAbort,
+          job,
+          timedOut = false
+        const release = () => {
+          inFlight.delete(id)
+          rememberDelegation(id)
+        }
         try {
-          timer = platform.setTimer(() => child.abort(new Error('Delegation deadline exceeded')), 30000)
           const aborted = new Promise((_, reject) => {
             onAbort = () => reject(child.signal.reason ?? new Error('Cancelled'))
             child.signal.addEventListener('abort', onAbort)
           })
-          const result = await Promise.race([
-            delegation.delegate.run(
-              { delegationId: id, sessionId, turnId: id, input: snapshot(event.offset_ms) },
-              { signal: child.signal },
-            ),
-            aborted,
-          ])
-          if (child.signal.aborted) return
+          timer = platform.setTimer(() => {
+            timedOut = true
+            child.abort(new Error('Delegation deadline exceeded'))
+          }, 30000)
+          try {
+            job = Promise.resolve(
+              delegation.delegate.run(
+                { delegationId: id, sessionId, turnId: id, input: snapshot(event.offset_ms) },
+                { signal: child.signal },
+              ),
+            )
+          } catch (error) {
+            job = Promise.reject(error)
+          }
+          // An uncooperative delegate retains its slot after timeout until its actual work settles.
+          void job.then(release, release)
+          const result = await Promise.race([job, aborted])
+          if (closing || scope.signal.aborted) return
+          if (child.signal.aborted) throw child.signal.reason ?? new Error('Cancelled')
           let content = ''
           for (const item of result) {
             if (item.type !== 'message' || item.role !== 'assistant' || item.phase === 'commentary') continue
@@ -69,11 +117,13 @@ export function liveConversation(options, platform) {
           const points = Array.from(content)
           for (let start = 0; start < points.length; start += 120)
             protocol.appendDelegationResult(id, points.slice(start, start + 120).join(''))
+        } catch {
+          failDelegation(id, timedOut ? 'deadline_exceeded' : 'provider_failed')
         } finally {
           if (timer !== undefined) platform.clearTimer(timer)
           if (onAbort) child.signal.removeEventListener('abort', onAbort)
           child.dispose()
-          ongoing--
+          if (!job) release()
         }
       }
       const callback = (name, value) => options[name]?.(value)
@@ -103,7 +153,13 @@ export function liveConversation(options, platform) {
                       name: definition.name,
                       arguments: JSON.stringify(args),
                     },
-                    { sessionId, turnId: ctx.responseId, callId: ctx.callId, signal: scope.signal },
+                    {
+                      sessionId,
+                      turnId: ctx.responseId,
+                      callId: ctx.callId,
+                      delegationId: ctx.delegationId,
+                      signal: scope.signal,
+                    },
                   )
                   if (scope.signal.aborted || ctx.isCancelled()) throw new Error('Tool execution cancelled')
                   return output.output
@@ -130,7 +186,7 @@ export function liveConversation(options, platform) {
             while (chars > 8192 || fragments.length > 128) chars -= fragments.shift().delta.length
           }
           if (fragment.role === 'user')
-            onEvent({ type: 'input.transcript', value: { utteranceId: id, text: fragment.delta, final: false } })
+            onEvent({ type: 'input.transcript.delta', streamId: sessionId + '/input', delta: fragment.delta })
           else onEvent({ type: 'output.text', outputId, delta: fragment.delta })
         },
         onEvent(event) {

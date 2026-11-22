@@ -713,3 +713,26 @@ await test('late injected session creation is finalized through its signaling ad
   equal(h.requests.length, 0)
 })
 console.log(`${count} tests passed`)
+
+await test('authoritative signaling can supply hosted configuration without a local model', async () => {
+  let settings
+  const h = harness({
+    apiKey: undefined,
+    delegation: { type: 'responses', responses: {} },
+    signaling: {
+      async createSession({ session, starting }) {
+        settings = session
+        starting()
+        return brokerReply()
+      },
+      async hangup() {},
+    },
+  })
+  await h.connect()
+  equal(settings.delegation.responses, {})
+  check(!('model' in settings))
+  equal(h.requests.length, 0)
+  const closing = h.c.close()
+  h.message({ type: 'session.closed', usage: { seconds: 1 } })
+  await closing
+})

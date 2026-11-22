@@ -1,4 +1,4 @@
-import type { Speaker } from '../voice/contracts.js'
+import type { AudioLevel, Speaker } from '../voice/contracts.js'
 
 export type SpeechCompletion = (error?: unknown) => void
 export type SpeechPlaybackListener = (power: number) => void
@@ -13,7 +13,7 @@ export type SpeechPlayback = {
 
 export type UtterancePlayback = {
   done: Promise<void>
-  cancel(): void
+  close(): Promise<void>
 }
 
 export interface SpeakerSpeechPlayback {
@@ -22,6 +22,6 @@ export interface SpeakerSpeechPlayback {
     kind: 'text' | 'koe',
     text: string,
     volume: number | undefined,
-    onPlayed: SpeechPlaybackListener,
+    onLevel: (level: AudioLevel) => void,
   ): UtterancePlayback
 }

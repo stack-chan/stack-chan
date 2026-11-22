@@ -14,6 +14,7 @@ export type InstallState =
   | { status: 'selecting-port' }
   | { status: 'inspecting-device' }
   | { status: 'confirming'; device: FirmwareDeviceInfo }
+  | { status: 'cancelling'; device: FirmwareDeviceInfo }
   | { status: 'installing'; progress: number }
   | { status: 'success'; result: FirmwareInstallResult }
   | { status: 'cancelled' }
@@ -101,9 +102,11 @@ export function useFirmwareInstall(onLog: (message: string, level?: 'info' | 'wa
 
   const resolveConfirmation = useCallback((approved: boolean) => {
     const resolve = confirmation.current
+    if (!resolve) return
     confirmation.current = null
     resolve?.(approved)
-    if (!approved) setState({ status: 'cancelled' })
+    if (!approved)
+      setState((current) => (current.status === 'confirming' ? { ...current, status: 'cancelling' } : current))
     else setState({ status: 'installing', progress: 0 })
   }, [])
 

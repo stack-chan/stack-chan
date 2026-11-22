@@ -13,11 +13,12 @@ const param = {
 export function onContextCreated(robot) {
   const targetLoop = () => {
     const sample = sensor.sample()
-    robot.ui.showBalloon(
-      `Temperature: ${sample.thermometer.temperature.toFixed(2)} C.
-      Humidity: ${sample.hygrometer.humidity.toFixed(2)} %`,
-      param,
-    )
+    const temperature = sample?.thermometer?.temperature
+    const humidity = sample?.hygrometer?.humidity
+    const temperatureText = Number.isFinite(temperature) ? `${temperature.toFixed(2)} C` : '--'
+    const humidityText =
+      Number.isFinite(humidity) && humidity >= 0 && humidity <= 1 ? `${(humidity * 100).toFixed(2)} %` : '--'
+    robot.ui.showBalloon(`Temperature: ${temperatureText}\nHumidity: ${humidityText}`, param)
     Timer.set((_id) => robot.ui.hideBalloon(), 10 * 1000)
   }
   Timer.set(targetLoop, 3 * 1000, 60 * 1000)

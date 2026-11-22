@@ -1,7 +1,7 @@
 import { onClose, onContextCreated } from 'ai-mod'
 import { state as defaults } from 'app-default-behavior'
 import { Application } from 'piu/MC'
-import { createVoiceScope, state as voice } from 'stackchan/voice'
+import { VoiceScope, state as voice } from 'stackchan/voice'
 import { state as speech } from 'stackchan/voice/speech'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -11,6 +11,7 @@ const settle = () => new Promise((resolve) => Timer.set(resolve, 1))
 const menus = new Map()
 const balloons = []
 let visibleBalloon
+let onBalloon
 let mouth = 1
 const mouthUpdates = []
 const robot = {
@@ -38,6 +39,7 @@ const robot = {
     showBalloon(message) {
       balloons.push(message)
       visibleBalloon = message
+      onBalloon?.(message)
     },
     hideBalloon() {
       visibleBalloon = undefined
@@ -255,7 +257,7 @@ const pause = (ms) => new Promise((resolve) => Timer.set(resolve, ms))
 onContextCreated(robot, options)
 await utterance()
 startTurn('lips')
-const synthesisScope = createVoiceScope()
+const synthesisScope = VoiceScope.create()
 const synthesis = await voice.tts.open({ signal: synthesisScope.signal })
 const output = synthesis.output
 await synthesis.write('hello')
@@ -268,7 +270,7 @@ speech.onFinish = () =>
   new Promise((resolve) => {
     finishSpeech = resolve
   })
-const finishing = synthesis.finish()
+const finishing = synthesis.endInput()
 mark = mouthUpdates.length
 await pause(350)
 const frames = mouthUpdates.slice(mark)
@@ -297,12 +299,12 @@ equal(robot.ui.faceMotionEnabled, true)
 
 await utterance()
 startTurn('lip-failure')
-const broken = await voice.tts.open({ signal: createVoiceScope().signal })
+const broken = await voice.tts.open({ signal: VoiceScope.create().signal })
 speech.onFinish = () => {
   throw new Error('synthesis failed')
 }
 assert(
-  await broken.finish().then(
+  await broken.endInput().then(
     () => false,
     () => true,
   ),
@@ -318,9 +320,9 @@ voice.pipeline.onEvent({ type: 'turn.ended', turnId: 'lip-failure', status: 'fai
 
 await utterance()
 startTurn('lip-cancel')
-const cancelScope = createVoiceScope()
+const cancelScope = VoiceScope.create()
 const cancelled = await voice.tts.open({ signal: cancelScope.signal })
-await cancelled.finish()
+await cancelled.endInput()
 await pause(120)
 assert(mouth > 0)
 cancelScope.abort()
@@ -332,8 +334,8 @@ voice.pipeline.onEvent({ type: 'turn.ended', turnId: 'lip-cancel', status: 'inte
 
 await utterance()
 startTurn('lip-end')
-const endingSpeech = await voice.tts.open({ signal: createVoiceScope().signal })
-await endingSpeech.finish()
+const endingSpeech = await voice.tts.open({ signal: VoiceScope.create().signal })
+await endingSpeech.endInput()
 await pause(120)
 assert(mouth > 0)
 await menus.get('ai-end-conversation').callback()
@@ -343,8 +345,8 @@ await pause(220)
 equal(mouthUpdates.length, mark, 'end conversation clears its lip timer')
 await utterance()
 startTurn('lip-new')
-const newest = await voice.tts.open({ signal: createVoiceScope().signal })
-await newest.finish()
+const newest = await voice.tts.open({ signal: VoiceScope.create().signal })
+await newest.endInput()
 await endingSpeech.close()
 await pause(120)
 assert(mouth > 0, 'late close from an old synthesis cannot stop the new mouth timer')
@@ -355,4 +357,46 @@ await pause(220)
 equal(mouthUpdates.length, mark, 'shutdown leaves no delayed mouth update')
 await newest.close()
 await cancelled.close()
+
+onContextCreated(robot, options)
+await utterance()
+const quarantined = voice.pipeline
+const startsBeforeCloseFailure = voice.starts
+const pressesBeforeCloseFailure = voice.presses
+voice.onClose = () => {
+  throw new Error('cleanup failed')
+}
+assert(
+  await menus
+    .get('ai-end-conversation')
+    .callback()
+    .then(
+      () => false,
+      () => true,
+    ),
+  'failed cleanup remains observable to the caller',
+)
+equal(visibleBalloon, 'Error: cleanup failed', 'failed cleanup is reported to the user')
+voice.onClose = undefined
+voice.onStart = () => {
+  throw new Error('device_busy')
+}
+const retryMessage = new Promise((resolve, reject) => {
+  const timeout = Timer.set(() => reject(new Error('retry must report its reservation failure')), 5000)
+  onBalloon = (message) => {
+    Timer.clear(timeout)
+    onBalloon = undefined
+    resolve(message)
+  }
+})
+robot.input.button.a.onEvent({ pressed: true })
+equal(await retryMessage, 'Error: device_busy', 'the retry reports its own reservation failure')
+equal(voice.starts, startsBeforeCloseFailure + 1, 'a later request reaches a fresh pipeline after cleanup failure')
+equal(voice.presses, pressesBeforeCloseFailure, 'the quarantined device does not start recording')
+equal(visibleBalloon, 'Error: device_busy', 'the new reservation failure replaces the old close error')
+quarantined.onEvent({ type: 'turn.started', turnId: 'quarantined-stale' })
+equal(robot.ui.faceMotionEnabled, true, 'callbacks from failed cleanup cannot change the next presentation')
+robot.input.button.a.onEvent({ pressed: false })
+voice.onStart = undefined
+await onClose()
 trace('@@STACKCHAN_TEST:PASS@@\n')

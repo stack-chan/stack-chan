@@ -245,7 +245,14 @@ test('9.5 MOD preflight rejects an out-of-range archive before writing', () => {
 })
 
 test('CLI MOD preflight uses the detected SDK archive range before any write', () => {
-  for (const firmwareVersion of ['9.5.0+stackchan.1', '10.0.0+stackchan.1', '10.1.0', '10.1.0+stackchan.2']) {
+  for (const firmwareVersion of [
+    '9.5.0+stackchan.1',
+    '10.0.0+stackchan.1',
+    '10.1.0',
+    '10.1.0+stackchan.2',
+    '10.1.1',
+    '10.1.1+stackchan.2',
+  ]) {
     for (const minor of [6, 7, 8, 9, 10]) {
       const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-flash-range-'))
       try {

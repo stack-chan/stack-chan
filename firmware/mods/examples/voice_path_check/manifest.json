@@ -1,0 +1,11 @@
+{
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "modules": {
+    "*": ["./mod"],
+    "voice-path-controller": "./controller",
+    "voice-path-routes": "./routes"
+  },
+  "config": {
+    "voicePathCheck": { "route": "cascade", "maxMs": 90000, "volume": 0.25 }
+  }
+}

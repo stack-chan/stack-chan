@@ -1,8 +1,8 @@
-# Moddable SDK 10.1.0
+# Moddable SDK 10.1.1
 
 The firmware, typings, CI setup, Docker setup and browser compiler/simulator use
-Moddable SDK **10.1.0** (upstream commit
-`2d54ac4308501a03f45d4fcfe33beee45ee44ac4`). Emscripten remains **5.0.1**.
+Moddable SDK **10.1.1** (upstream commit
+`61c84af99c4f6b4ee191862fa1d07cb284caaf50`). Emscripten remains **5.0.1**.
 Use a separate SDK checkout when evaluating this migration so existing SDK and
 ESP-IDF installations are preserved.
 
@@ -24,6 +24,29 @@ SDK 9.5 remains limited to 17.7–17.8; SDK 10.0 remains at 17.7–17.9. Unknown
 series remain rejected. Archive acceptance does not guarantee that a host exports
 all modules or capabilities used by a MOD. The host API generation remains 2.
 
+## 10.1.1 network behavior
+
+The [10.1.1 release](https://github.com/Moddable-OpenSource/moddable/releases/tag/10.1.1)
+and [upstream diff](https://github.com/Moddable-OpenSource/moddable/compare/10.1.0...10.1.1)
+include network protocol fixes found during Node-RED MCU Edition testing:
+
+- Fetch rejects on a network error before response headers. After headers, the
+  body-reading Promise rejects instead. `ChatGPTDialogue.post()` already awaits
+  the complete request and body within its error handler; it returns a failed
+  result and can accept another message without clearing the last successful
+  response ID.
+- Fetch stops reusing clients for `Connection: close`, resolves relative
+  redirects, and supports empty POST/PUT bodies. The HTTP client forwards the
+  original error to completion callbacks.
+- Existing timeout, DNS cancellation, TLS and redirect safeguards in the direct
+  HTTP users remain necessary. This update does not change the native ESP
+  WebRTC backend or Wi-Fi drivers.
+
+The `chatgpt-fetch` XS regression uses the real SDK fetch, URL and Headers with a
+scripted HTTP transport. It exercises errors before/after headers, dialogue
+recovery, connection reuse, relative redirects and empty POST/PUT. It does not
+validate real DNS, sockets or TLS on ESP32.
+
 ## Source migration
 
 ECMA-419 IO, storage, system and network manifests now point directly to
@@ -43,11 +66,11 @@ Core2/CoreS3 audio to 16 kHz.
 
 ## Browser compiler
 
-Rebuild with `cd firmware && npm run build:editor-tools`, using SDK 10.1.0 and
+Rebuild with `cd firmware && npm run build:editor-tools`, using SDK 10.1.1 and
 Emscripten 5.0.1. The generated `tools.js` is unchanged; `tools.wasm` changes.
 
 SHA-256 of `web/editor/vendor/tools.wasm`:
-`4e0c4081cf736f9facb468304bc8b8213baebe6eed3ee25e4cb45ee34cdf0d29`.
+`d638b8235e6f2742568134e3251685fb6c93b7128109e0ce2a73e495d94ffe4b`.
 
 The real WASM compiler regression tests compile and inspect generated MOD
 archives against the supported firmware ranges, including 10.1 hosts. Separate
@@ -67,7 +90,8 @@ physical IO or TLS communication on ESP32.
 No device flash or erase is part of this migration validation. Before release,
 verify HTTPS/WSS success and certificate-error handling on Core2/CoreS3, audio
 record/play/stop/reconnect, USB audio, camera, touch, IMU, SD and servo operation,
-and compare startup/free heap against 10.0.2. RAM savings are not claimed.
+and compare startup/free heap against 10.1.0. Also interrupt an HTTPS response
+after its headers and confirm the next dialogue request succeeds. RAM savings are not claimed.
 
 Release impact: patch. Product versions are left for the normal release process;
 the pending Changeset covers firmware and Web tools.

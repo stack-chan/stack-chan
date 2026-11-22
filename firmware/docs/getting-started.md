@@ -45,6 +45,15 @@ $ npm run setup -- --device=esp32
 
 The script internally uses [`xs-dev`](https://github.com/HipsterBrown/xs-dev) to automate the setup of ModdableSDK and ESP-IDF.
 
+### Rebuilding the Moddable linker for debug builds
+
+Stack-chan's debug build can exceed the Moddable SDK 10.1.1 linker key limit.
+After setting up SDK 10.1.1 and loading its environment, run `npm run setup:xsl`
+from `firmware`. This applies the bundled patch in the SDK pointed to by
+`MODDABLE` and rebuilds `xsl`. The command can be rerun. Use a separate SDK
+checkout if you also need the stock linker. On Windows, run the command from a
+Visual Studio developer shell with `nmake`. In Docker, run it inside the container.
+
 ### Using Docker images (for Linux only)
 
 This repository provides a Dockerfile build environment.

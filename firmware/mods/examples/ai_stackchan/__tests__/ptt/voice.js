@@ -1,5 +1,5 @@
 export const state = { presses: 0, releases: 0, starts: 0, closes: 0 }
-export const createPushToTalk = () => ({
+const createPushToTalk = () => ({
   detector: {},
   press() {
     state.presses++
@@ -9,11 +9,11 @@ export const createPushToTalk = () => ({
     state.onRelease?.()
   },
 })
-export const createCascadedConversation = (options) => {
+const createCascadedConversation = (options) => {
   state.tts = options.tts
   return options
 }
-export const createVoiceScope = () => {
+const createVoiceScope = () => {
   const listeners = new Set()
   const signal = {
     aborted: false,
@@ -32,12 +32,13 @@ export const createVoiceScope = () => {
     },
   }
 }
-export const createConversationPipeline = (options) => {
+const createConversationPipeline = (options) => {
   state.pipeline = options
   return {
     setVolume() {},
     async start() {
       state.starts++
+      await state.onStart?.()
     },
     async close() {
       state.closes++
@@ -45,3 +46,8 @@ export const createConversationPipeline = (options) => {
     },
   }
 }
+
+export const PushToTalk = { create: createPushToTalk }
+export const CascadedConversation = { create: createCascadedConversation }
+export const VoiceScope = { create: createVoiceScope }
+export const ConversationPipeline = { create: createConversationPipeline }

@@ -1,254 +1,81 @@
-name: Build Stack-chan Firmware
+name: Diagnose PR 821 XS build
+run-name: Diagnose PR 821 XS build
 
 on:
-  push:
-    branches:
-      - develop
-      - feat/moddable-v10-foundation
-      - main
-    paths:
-      - "firmware/**"
-      - "web/**"
-      - "docs/specs/**"
-      - "docs/operations/visual-programming-validation.md"
-      - "docs/operations/visual-programming-acceptance.md"
-      - ".github/actions/setup/action.yml"
-      - ".github/workflows/build.yml"
-      - "lefthook.yml"
-  pull_request:
-    branches:
-      - develop
-      - feat/webrtc-runtime-coexistence
-      - feat/moddable-v10-foundation
-      - main
-    paths:
-      - "firmware/**"
-      - "web/**"
-      - "docs/specs/**"
-      - "docs/operations/visual-programming-validation.md"
-      - "docs/operations/visual-programming-acceptance.md"
-      - ".github/actions/setup/action.yml"
-      - ".github/workflows/build.yml"
-      - "lefthook.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: read
-
-concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      firmware: ${{ steps.filter.outputs.firmware }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Detect firmware-related changes
-        if: github.event_name != 'workflow_dispatch'
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            firmware:
-              - "firmware/**"
-              - ".github/actions/setup/action.yml"
-              - ".github/workflows/build.yml"
-              - "lefthook.yml"
-
-  biome:
-    needs: changes
-    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup
-        with:
-          install-moddable: "false"
-      - name: Run Biome
-        working-directory: ./firmware
-        run: npx biome ci . --error-on-warnings
-
-  test-fast:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup
-        with:
-          install-moddable: "false"
-      - name: Install web dependencies
-        working-directory: ./firmware
-        run: npm --prefix ../web ci
-      - name: Run firmware tests
-        working-directory: ./firmware
-        run: npm run test
-      - name: Verify native AVDS engine and sanitizers
-        working-directory: ./firmware
-        run: npm run test:avatar-dsl:native && AVDS_SANITIZE=1 npm run test:avatar-dsl:native
-      - name: Verify AVDS strict clip and continuous damage planning
-        working-directory: ./firmware
-        run: npm run test:avatar-dsl:damage && AVDS_SANITIZE=1 npm run test:avatar-dsl:damage
-      - name: Run legacy name checks
-        working-directory: ./firmware
-        run: npm run check:legacy-names
-      - name: Run architecture checks
-        working-directory: ./firmware
-        run: npm run check:architecture
-      - name: Run web tool tests
-        working-directory: ./firmware
-        run: npm --prefix ../web test && npm --prefix ../web run check:editor-artifacts
-
-  test-moddable:
-    needs: changes
-    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
+  firmware:
+    name: ${{ matrix.label }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1]
+        include:
+          - label: "Wakeword control (#814, release)"
+            ref: 964d4b49fdd7ee4aad13b8dc698fb964ff85dc4e
+            manifest: manifest_m5stackchan_cores3_wakeword.json
+            mode: release
+            wake: true
+          - label: "Standard host (#821, release)"
+            ref: bb4660bbf3b54eed6db2a56bd03251745ad06a9c
+            manifest: manifest_m5stackchan_cores3.json
+            mode: release
+            wake: false
+          - label: "WakeNet UI (#821, release)"
+            ref: bb4660bbf3b54eed6db2a56bd03251745ad06a9c
+            manifest: manifest_m5stackchan_cores3_wakeword_ui.json
+            mode: release
+            wake: true
+          - label: "WakeNet UI (#821, debug)"
+            ref: bb4660bbf3b54eed6db2a56bd03251745ad06a9c
+            manifest: manifest_m5stackchan_cores3_wakeword_ui.json
+            mode: debug
+            wake: true
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ matrix.ref }}
           persist-credentials: false
-      - uses: ./.github/actions/setup
-        id: setup
-      - name: Restore incremental Linux test builds
-        uses: actions/cache@v6
-        with:
-          path: |
-            ./firmware/dist/tmp/lin
-            ./firmware/dist/bin/lin
-          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v2-shard-${{ matrix.shard }}-${{ github.sha }}
-          restore-keys: |
-            ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v2-shard-${{ matrix.shard }}-
-      - name: Run manifest preflight
-        if: matrix.shard == 0
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run check:manifest
-      - name: Run Moddable module tests
-        working-directory: ./firmware
-        env:
-          STACKCHAN_MODULE_TEST_SHARD_INDEX: ${{ matrix.shard }}
-          STACKCHAN_MODULE_TEST_SHARD_TOTAL: 2
-          STACKCHAN_MODULE_TEST_LOG_DIR: dist/test-logs
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
-
-      - name: Build package MOD regression fixtures
-        if: matrix.shard == 0
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:package-mod
-
-      - name: Upload simulator test logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: moddable-simulator-logs-${{ matrix.shard }}
-          path: |
-            firmware/dist/test-logs
-            firmware/dist/package-mod-regression/**/build.log
-          if-no-files-found: warn
-
-  test-smoke:
-    needs: changes
-    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
-    runs-on: ubuntu-24.04
-    env:
-      STACKCHAN_LIN_SMOKE_CLEAN: "0"
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup
-        id: setup
-      - name: Restore incremental Linux smoke builds
-        uses: actions/cache@v6
-        with:
-          path: |
-            ./firmware/dist/tmp/lin
-            ./firmware/dist/bin/lin
-          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-smoke-v1-${{ github.sha }}
-          restore-keys: |
-            ${{ steps.setup.outputs.moddable-cache-key }}-lin-smoke-v1-
-      - name: Smoke test Linux simulator startup
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:lin
-      - name: Compare native Avatar DSL pixels and lifecycle
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:avatar-dsl:native:render
-      - name: Compare strict groups, continuous damage, and historical preset pixels
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:avatar-dsl:groups:rotations
-      - name: Smoke test mini app on Linux simulator
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:mini-app:lin
-
-  test:
-    if: always()
-    needs:
-      - changes
-      - test-fast
-      - test-moddable
-      - test-smoke
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify test job results
-        env:
-          CHANGES_RESULT: ${{ needs.changes.result }}
-          FAST_RESULT: ${{ needs.test-fast.result }}
-          MODDABLE_RESULT: ${{ needs.test-moddable.result }}
-          SMOKE_RESULT: ${{ needs.test-smoke.result }}
-        run: |
-          if [[ "$CHANGES_RESULT" != "success" || "$FAST_RESULT" != "success" ]]; then
-            echo "Required test job failed: changes=$CHANGES_RESULT fast=$FAST_RESULT"
-            exit 1
-          fi
-          for result in "$MODDABLE_RESULT" "$SMOKE_RESULT"; do
-            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-              echo "Firmware test job failed: moddable=$MODDABLE_RESULT smoke=$SMOKE_RESULT"
-              exit 1
-            fi
-          done
-
-  web-visual:
-    # Match the Ubuntu 24.04 / Python 3.12 ESP-IDF toolchain cache.
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup
+      - name: Set up the pinned firmware toolchain
+        uses: ./.github/actions/setup
         with:
           target-branch: "10.1.1"
-          install-emscripten: "true"
-      - name: Install web test dependencies
-        working-directory: ./firmware
-        run: npm --prefix ../web ci
-      - name: Audit web dependencies
-        working-directory: ./firmware
-        run: npm --prefix ../web audit --audit-level=high
-      - name: Build WebAssembly simulator
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
-      - name: Run responsive and editor browser tests
-        working-directory: ./firmware
+      - name: Prepare pinned WebRTC sources
+        working-directory: firmware
+        run: npm run setup:webrtc
+      - name: Verify and package the official WakeNet model
+        if: matrix.wake
+        working-directory: firmware
         run: |
-          npm --prefix ../web run test:visual
-          npm --prefix ../web run test:i18n-visual
-      - name: Upload browser screenshots
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: web-visual-screenshots
-          path: /tmp/stackchan-*.png
-          if-no-files-found: ignore
+          set -euo pipefail
+          curl --fail --show-error --silent --location --retry 3 \
+            'https://components.espressif.com/api/downloads/?object_type=component&object_id=dd49ba92-a9e8-4b05-a69e-9cdb787fd256' \
+            --output "$RUNNER_TEMP/esp-sr.zip"
+          unzip -q "$RUNNER_TEMP/esp-sr.zip" -d "$RUNNER_TEMP/esp-sr"
+          suffix='/model/wakenet_model/wn9l_histackchan_tts3/wn9_index'
+          index="$(find "$RUNNER_TEMP/esp-sr" -type f -path "*$suffix" -print -quit)"
+          test -n "$index"
+          node scripts/package-wakeword-model.mjs "${index%"$suffix"}"
+      - name: Build the CoreS3 host
+        working-directory: firmware
+        env:
+          BUILD_MODE: ${{ matrix.mode }}
+          BUILD_MANIFEST: ${{ matrix.manifest }}
+        run: |
+          set -eo pipefail
+          source "$HOME/.local/share/xs-dev-export.sh"
+          git rev-parse HEAD
+          npm run build -- m5stackchan_cores3 --mode="$BUILD_MODE" --manifest "host/app/$BUILD_MANIFEST"
+      - name: Build the OpenAI Live WebRTC MOD with its default config
+        working-directory: firmware
+        env:
+          BUILD_MODE: ${{ matrix.mode }}
+        run: |
+          set -eo pipefail
+          source "$HOME/.local/share/xs-dev-export.sh"
+          npm run mod:build -- --mode="$BUILD_MODE" mods/examples/openai_live_webrtc/manifest.json

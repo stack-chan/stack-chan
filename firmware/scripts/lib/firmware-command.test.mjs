@@ -631,3 +631,71 @@ function assertMainCommand(invocation, command, manifestPath) {
 function count(source, value) {
   return source.split(value).length - 1
 }
+
+test('both wrappers layer the sanoTTS profile over Stack-chan defaults', { skip: process.platform === 'win32' }, () => {
+  const fixture = createFirmwareWrapperFixture()
+  try {
+    const profile = 'host/app/manifest_sanotts_profile.json'
+    cpSync(path.join(firmwareDirectory, profile), path.join(fixture.firmware, profile))
+    const partitions = 'host/modules/audio/sanotts-jp/partitions.csv'
+    mkdirSync(path.dirname(path.join(fixture.firmware, partitions)), { recursive: true })
+    cpSync(path.join(firmwareDirectory, partitions), path.join(fixture.firmware, partitions))
+    const manifest = path.join(fixture.firmware, 'host/app/custom.json')
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        include: ['./manifest_sanotts_profile.json'],
+        modules: { realtimeConversation: './conversation' },
+      }),
+    )
+    writeFileSync(
+      path.join(fixture.fakeBin, 'mcconfig'),
+      `#!/usr/bin/env node
+const {readFileSync,writeFileSync}=require('node:fs')
+const path=require('node:path')
+const directory = process.env.SDKCONFIGPATH
+writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify({
+  sdkconfig: readFileSync(path.join(directory, 'sdkconfig.defaults'), 'utf8'),
+  partitions: readFileSync(path.join(directory, 'partitions.csv'), 'utf8'),
+}))
+`,
+    )
+    const run = (input, helper = false) => {
+      const result = spawnSync(
+        process.execPath,
+        helper
+          ? ['scripts/run-mcconfig.mjs', '-i', '-p', 'esp32:./host/platforms/m5stackchan_cores3', '-t', 'build', input]
+          : ['scripts/firmware.mjs', 'build', '--mode=instrument', '--manifest', input],
+        {
+          cwd: fixture.firmware,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            MODDABLE: fixture.fakeModdable,
+            ESP_WEBRTC_SOLUTION: fixture.solutionDirectory,
+            PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+            STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
+          },
+        },
+      )
+      assert.equal(result.status, 0, result.stderr)
+      return JSON.parse(readFileSync(fixture.commandLog, 'utf8'))
+    }
+    const standard = run(fixture.normalManifest)
+    assert.match(standard.sdkconfig, /^CONFIG_SPIRAM_SPEED_40M=y$/m)
+    assert.match(standard.sdkconfig, /^CONFIG_ESPTOOLPY_FLASHMODE_DIO=y$/m)
+    const optional = run(manifest)
+    assert.doesNotMatch(optional.sdkconfig, /^CONFIG_(SPIRAM_SPEED_(?:40M|80M)|ESPTOOLPY_FLASHMODE_(?:DIO|QIO))=/m)
+    assert.equal(
+      optional.sdkconfig.match(/^CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=.*$/m)?.[0],
+      standard.sdkconfig.match(/^CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=.*$/m)?.[0],
+    )
+    assert.match(optional.sdkconfig, /^CONFIG_AUDIO_ENCODER_OPUS_SUPPORT=y$/m)
+    assert.match(optional.sdkconfig, /^CONFIG_AUDIO_DECODER_OPUS_SUPPORT=y$/m)
+    assert.equal(optional.partitions, readFileSync(path.join(firmwareDirectory, partitions), 'utf8'))
+    assert.deepEqual(run(manifest, true), optional)
+    assert.deepEqual(run(fixture.normalManifest), standard)
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})

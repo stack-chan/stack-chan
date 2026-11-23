@@ -1,6 +1,7 @@
 import DefaultBehavior from 'app-default-behavior'
 import { Emoticon } from 'effects/emoticon'
 import { Emotion, EmotionNames, emotionFromName } from 'face-state'
+import Modules from 'modules'
 import { Behavior, Container, Label, Skin, Style } from 'piu/MC'
 import { Agent, adaptRobotCamera, OpenAIResponsesLLM, ToolSet, Vision } from 'stackchan/ai'
 import { CascadedConversation, ConversationPipeline, PushToTalk, VoiceScope } from 'stackchan/voice'
@@ -87,7 +88,14 @@ export function onContextCreated(robot, option) {
       'あなたは手のひらサイズのスタックチャンです。絵文字や読み上げ用でない記号を使わず、短い日本語のひとことで話してください。気持ちはset_emotionで顔に表してください。',
   })
   const pushToTalk = PushToTalk.create()
-  const speech = OpenAISpeechTTS.create({ apiKey: prefs.token })
+  const prefersSano = option.config.tts?.type === 'sanotts'
+  const usesSanoVoice = prefersSano && Modules.has('stackchan/voice/sanotts')
+  const usesStackchanVoice = prefersSano && !usesSanoVoice && Modules.has('stackchan/voice/stackchan-voice')
+  const speech = usesSanoVoice
+    ? Modules.importNow('stackchan/voice/sanotts', true).createSanoTTS()
+    : usesStackchanVoice
+      ? Modules.importNow('stackchan/voice/stackchan-voice', true).createStackchanVoiceTTS()
+      : OpenAISpeechTTS.create({ apiKey: prefs.token })
   const tts = {
     capabilities: speech.capabilities,
     async open(options) {
@@ -136,13 +144,44 @@ export function onContextCreated(robot, option) {
     turnDetector: pushToTalk.detector,
     stt: WhisperSTT.create({ apiKey: prefs.token, maxAudioBytes: 192000 + 2560 }),
     tts,
-    voice: prefs.voice ?? 'alloy',
+    voice: usesSanoVoice || usesStackchanVoice ? 'default' : (prefs.voice ?? 'alloy'),
   })
   const scope = VoiceScope.create()
   const heart = new Emoticon({ key: 'heart', left: 20, top: 20 })
   const button = robot.input.button?.a
   const previous = button?.onEvent
   let talkButton
+  let credit
+  if (usesSanoVoice) {
+    const style = new Style({ font: 'k8x12-12', color: 'white', horizontal: 'center' })
+    credit = new Container(null, {
+      name: 'sano-voice-credit',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 32,
+      skin: new Skin({ fill: 'black' }),
+      contents: [
+        new Label(null, {
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 16,
+          style,
+          string: '音声：つくよみちゃんコーパス (C) 夢前黎',
+        }),
+        new Label(null, {
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 16,
+          style,
+          string: 'https://tyc.rei-yumesaki.net/material/corpus/',
+        }),
+      ],
+    })
+    robot.ui.addEffect(credit)
+  }
   let pipeline,
     opening,
     closing,
@@ -392,6 +431,7 @@ export function onContextCreated(robot, option) {
       robot.ui.removeEffect(talkButton)
     }
     robot.ui.drawer.removeDrawerButton('ai-end-conversation')
+    if (credit) robot.ui.removeEffect(credit)
     scope.abort()
     await endConversation()
     if (stop === shutdown) stop = undefined

@@ -108,6 +108,14 @@ async function main() {
   let context: StackchanContext | undefined
   let phase: StartupPhase = 'initialization'
   try {
+    if (Modules.has('stackchan/realtime-ui-performance')) {
+      try {
+        const performance = Modules.importNow('stackchan/realtime-ui-performance') as { prepare(): void }
+        performance.prepare()
+      } catch {
+        trace('[main] realtime UI scheduling unavailable\n')
+      }
+    }
     dockRuntime = startStackchanDock(Modules, loadModConfig())
     if (dockRuntime) trace('[main] Stackchan Dock started\n')
     installPlatformInputBridge()

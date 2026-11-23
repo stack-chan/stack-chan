@@ -119,6 +119,7 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
       manifestPath: manifest,
     })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
+    if (versionSdkconfig.wakewordUi) expectedDescriptorVersion = versionSdkconfig.version
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
     process.exit(1)

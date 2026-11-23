@@ -1,15 +1,36 @@
 export class LiveSession {
-  constructor({ createConversation, createPipeline, networkReady, acquireLowLatency, settings, onState }) {
-    Object.assign(this, { createConversation, createPipeline, networkReady, acquireLowLatency, settings, onState })
+  constructor({ createConversation, createPipeline, networkReady, acquireLowLatency, settings, reactions, onState }) {
+    Object.assign(this, {
+      createConversation,
+      createPipeline,
+      networkReady,
+      acquireLowLatency,
+      settings,
+      reactions,
+      onState,
+    })
   }
 
-  start() {
+  start(onEnded) {
     if (this.active) return this.active.starting
-    const entry = { cancelled: false }
+    const entry = { cancelled: false, onEnded }
     this.active = entry
     this.onState('connecting')
     entry.starting = this.connect(entry)
     return entry.starting
+  }
+
+  /** Dispatch synchronously; the owner can close while network readiness is pending. */
+  startOwned(onEnded) {
+    if (this.active) throw new Error('Conversation already owns audio')
+    this.start(onEnded)
+    const entry = this.active
+    return {
+      close: async () => {
+        await this.stopEntry(entry)
+        if (!entry.localReleased) throw new Error('Conversation audio release unconfirmed')
+      },
+    }
   }
 
   async connect(entry) {
@@ -31,6 +52,12 @@ export class LiveSession {
           kind: 'hosted',
           model: this.settings.backendModel ?? 'gpt-6-luna',
         },
+        ...(this.reactions && {
+          triggers: this.reactions.triggers,
+          onEvent: (event) => {
+            if (this.active === entry && !entry.cancelled) this.reactions.receive(event)
+          },
+        }),
         onError: () => {
           if (this.active !== entry) return
           entry.failure = 'error'
@@ -56,22 +83,28 @@ export class LiveSession {
   }
 
   stop() {
-    const entry = this.active
+    return this.stopEntry(this.active)
+  }
+
+  stopEntry(entry) {
     if (!entry) return Promise.resolve()
     if (entry.closing) return entry.closing
     entry.cancelled = true
+    entry.closing = Promise.resolve().then(() => this.finish(entry))
     this.onState('closing')
-    entry.closing = this.finish(entry)
     return entry.closing
   }
 
   async finish(entry) {
+    const motion = this.reactions?.reset()
     try {
       const result = await entry.pipeline?.close({ mode: 'abort' })
+      entry.localReleased = true
       if (result?.remoteFinalization === 'unknown') entry.failure = 'error'
     } catch {
       entry.failure = 'error'
     } finally {
+      await motion
       try {
         entry.radio?.close()
       } catch {
@@ -80,6 +113,7 @@ export class LiveSession {
       if (this.active === entry) {
         this.active = undefined
         this.onState(entry.failure ?? 'idle')
+        entry.onEnded?.(entry.failure ? 'error' : 'completed')
       }
     }
   }

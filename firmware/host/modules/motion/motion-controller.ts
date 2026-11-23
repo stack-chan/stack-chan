@@ -17,6 +17,7 @@ export type ServoGoalTimeMilliseconds = number
 export type ServoGoalTimeCentiseconds = number
 export type MotionCompletion = (error?: unknown) => void
 export type MotionResultCallback<T> = (result: T) => void
+type WriteMotionPose = (pose: Pose, time: MotionDurationSeconds | undefined, callback: MotionCompletion) => void
 
 export type MotionDriver = {
   applyRotation: (ori: RotationType, time?: MotionDurationSeconds, callback?: MotionCompletion) => void
@@ -24,6 +25,12 @@ export type MotionDriver = {
   setTorque: (torque: boolean, callback?: MotionCompletion) => void
   onAttached?: () => void
   onDetached?: () => void
+}
+
+type TemporaryMotion = {
+  driver: MotionDriver
+  superseded: boolean
+  releaseCallbacks?: MotionCompletion[]
 }
 
 export type MotionControllerPose = {
@@ -99,6 +106,8 @@ export class MotionController {
   #driver!: MotionDriver
   #gazePoint: Vector3 | null = null
   #isMoving = false
+  #temporaryMotion: TemporaryMotion | undefined
+  #torqueRequested = false
   #nextRotation: RotationType = { y: 0, p: 0, r: 0 }
   #options: MotionControllerOptions
   #pendingMotionTime = 0
@@ -129,12 +138,14 @@ export class MotionController {
   }
 
   close(): void {
+    if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
     this.#stopPosePolling()
     this.#clearReleaseTorqueTimer()
   }
 
   useDriver(driver: MotionDriver) {
     if (this.#driver != null) {
+      if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
       this.#driver.onDetached?.()
     }
     this.#driver = driver
@@ -157,11 +168,75 @@ export class MotionController {
   }
 
   setPose(pose: Pose, time?: number, callback?: MotionCompletion): void {
+    if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
     this.#driver.applyRotation(pose.rotation, time, callback)
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
-    this.#driver.setTorque(torque, callback)
+    this.#torqueRequested = torque
+    const owner = this.#temporaryMotion
+    if (owner?.driver === this.#driver && owner.releaseCallbacks) {
+      if (callback) owner.releaseCallbacks.push(callback)
+      return
+    }
+    this.#driver.setTorque(torque || owner?.driver === this.#driver, callback)
+  }
+
+  withTemporaryTorque(
+    move: (setPose: WriteMotionPose, done: MotionCompletion) => void,
+    callback: MotionCompletion,
+  ): void {
+    if (this.#temporaryMotion || this.#isMoving) {
+      callback()
+      return
+    }
+    const driver = this.#driver
+    const owner: TemporaryMotion = { driver, superseded: false }
+    this.#temporaryMotion = owner
+    const finish: MotionCompletion = (motionError) => {
+      if (owner.releaseCallbacks) return
+      owner.superseded = true
+      const callbacks: MotionCompletion[] = []
+      owner.releaseCallbacks = callbacks
+      let appliedTorque = true
+      const restore: MotionCompletion = (releaseError) => {
+        if (releaseError == null && driver === this.#driver && appliedTorque !== this.#torqueRequested) {
+          appliedTorque = this.#torqueRequested
+          try {
+            driver.setTorque(appliedTorque, restore)
+            return
+          } catch (error) {
+            releaseError = error
+          }
+        }
+        if (this.#temporaryMotion !== owner) return
+        this.#temporaryMotion = undefined
+        callback(releaseError ?? motionError)
+        for (const notify of callbacks) notify(releaseError)
+      }
+      restore()
+    }
+    const setPose: WriteMotionPose = (pose, time, done) => {
+      if (owner.superseded) done()
+      else driver.applyRotation(pose.rotation, time, done)
+    }
+    const begin: MotionCompletion = (error) => {
+      if (error != null || owner.superseded) {
+        finish(error)
+        return
+      }
+      try {
+        move(setPose, finish)
+      } catch (moveError) {
+        finish(moveError)
+      }
+    }
+    try {
+      if (this.#torqueRequested) begin()
+      else driver.setTorque(true, begin)
+    } catch (error) {
+      finish(error)
+    }
   }
 
   updatePose(_id?: unknown): void {
@@ -188,7 +263,7 @@ export class MotionController {
       }
 
       const gazePoint = this.#gazePoint
-      if (!this.#isMoving && gazePoint != null) {
+      if (!this.#isMoving && !this.#temporaryMotion && gazePoint != null) {
         writeBodyRelativeVector3(this.#relativeGazePoint, gazePoint, this.#pose.body.rotation)
         writeRotationFromVector3(this.#relativeGazeRotation, this.#relativeGazePoint)
         const y = this.#relativeGazeRotation.y
@@ -254,7 +329,7 @@ export class MotionController {
   #releaseTorque = () => {
     this.#releaseTorqueHandler = undefined
     try {
-      this.#driver.setTorque(false, this.#handleTorqueReleased)
+      this.#driver.setTorque(this.#torqueRequested, this.#handleTorqueReleased)
     } catch (error) {
       trace(`[MotionController] release torque failed: ${String(error)}\n`)
       this.#isMoving = false

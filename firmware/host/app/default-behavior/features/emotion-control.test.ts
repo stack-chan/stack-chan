@@ -213,6 +213,7 @@ test('emotion-control petting triggers HAPPY motion and manual selection cancels
   fixture.selectEmotion(String(Emotion.SAD))
   assert.deepEqual(fixture.emotions, [Emotion.HAPPY, Emotion.SAD])
   assert.deepEqual(fixture.effects, ['emoticon:tear'])
+  await flushMicrotasks()
   assert.equal(fixture.torques[fixture.torques.length - 1], false)
 
   FakeTimer.advance(6000)
@@ -283,27 +284,22 @@ test('emotion-control scope cleanup clears timers, detaches sensors, removes act
   assert.equal(fixture.poses.length, poseCountBeforeClose)
 })
 
-test('emotion-control releases torque if scope closes while setTorque(true) is still in flight', async () => {
+test('emotion-control scope close waits for pending torque enable and disable', async () => {
   installAliases()
   const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
   const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
   FakeTimer.reset()
 
-  let resolveTorqueEnable: (() => void) | undefined
-  const torques: boolean[] = []
+  const enabling = Promise.withResolvers<void>()
+  const disabling = Promise.withResolvers<void>()
   const fixture = createEmotionFixture()
   const { scope, close } = createScope()
   installEmotionControl(
     {
       ...fixture.deps,
       setTorque(torque) {
-        torques.push(torque)
-        if (torque) {
-          return new Promise<void>((resolve) => {
-            resolveTorqueEnable = resolve
-          })
-        }
-        return Promise.resolve()
+        fixture.torques.push(torque)
+        return torque ? enabling.promise : disabling.promise
       },
     },
     scope,
@@ -311,14 +307,102 @@ test('emotion-control releases torque if scope closes while setTorque(true) is s
 
   fixture.emitTouch('forwardSwipe', 100)
   fixture.emitTouch('backwardSwipe', 500)
-  assert.deepEqual(torques, [true])
+  await flushMicrotasks()
+  assert.deepEqual(fixture.torques, [true])
+
+  let closed = false
+  const closing = close().then(() => {
+    closed = true
+  })
+  await flushMicrotasks()
+  assert.equal(fixture.touchUnsubscribed, true)
+  assert.equal(closed, false)
+
+  enabling.resolve()
+  await flushMicrotasks()
+  assert.deepEqual(fixture.torques, [true, false])
+  assert.deepEqual(fixture.poses, [])
+  assert.equal(closed, false)
+
+  disabling.resolve()
+  await closing
+  assert.equal(closed, true)
+})
+
+test('emotion-control scope close retries a failed torque disable', async () => {
+  installAliases()
+  const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
+  const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
+  FakeTimer.reset()
+
+  const fixture = createEmotionFixture()
+  const { scope, close } = createScope()
+  installEmotionControl(
+    {
+      ...fixture.deps,
+      async setTorque(torque) {
+        fixture.torques.push(torque)
+        if (!torque && fixture.torques.length === 2) throw new Error('servo response lost')
+      },
+    },
+    scope,
+  )
+
+  fixture.emitTouch('forwardSwipe', 100)
+  fixture.emitTouch('backwardSwipe', 500)
+  await flushMicrotasks()
+  fixture.selectEmotion(String(Emotion.SAD))
+  await flushMicrotasks()
+  assert.deepEqual(fixture.torques, [true, false])
 
   await close()
-  resolveTorqueEnable?.()
-  await flushMicrotasks()
+  assert.deepEqual(fixture.torques, [true, false, false])
+})
 
-  assert.deepEqual(torques, [true, false])
-  assert.deepEqual(fixture.poses, [])
+test('emotion-control restores a pose after normal expiry waits for the last petting pose', async () => {
+  installAliases()
+  const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
+  const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
+  FakeTimer.reset()
+
+  const raised = Promise.withResolvers<void>()
+  const restored = Promise.withResolvers<void>()
+  const fixture = createEmotionFixture()
+  const { scope, close } = createScope()
+  installEmotionControl(
+    {
+      ...fixture.deps,
+      async setPose(pose, durationSec) {
+        await fixture.deps.setPose(pose, durationSec)
+        if (fixture.poses.length === 4) await raised.promise
+        if (fixture.poses.length === 5) await restored.promise
+      },
+    },
+    scope,
+  )
+
+  fixture.selectEmotion(String(Emotion.SLEEPY))
+  fixture.emitTouch('forwardSwipe', 100)
+  fixture.emitTouch('backwardSwipe', 500)
+  await flushMicrotasks()
+  assert.equal(fixture.poses.length, 4)
+
+  FakeTimer.advance(5000)
+  await flushMicrotasks()
+  assert.deepEqual(fixture.emotions, [Emotion.SLEEPY, Emotion.HAPPY, Emotion.SLEEPY])
+  assert.equal(fixture.poses.length, 4)
+  assert.deepEqual(fixture.torques, [true])
+
+  raised.resolve()
+  await flushMicrotasks()
+  assert.equal(fixture.poses.length, 5)
+  assert.deepEqual(fixture.poses.at(-1)?.rotation, fixture.deps.getBodyPose().rotation)
+  assert.deepEqual(fixture.torques, [true])
+
+  restored.resolve()
+  await flushMicrotasks()
+  assert.deepEqual(fixture.torques, [true, false])
+  await close()
 })
 
 test('manual emotion selection retires a pending petting enable before admitting a new motion', async () => {
@@ -345,6 +429,7 @@ test('manual emotion selection retires a pending petting enable before admitting
 
   fixture.emitTouch('forwardSwipe', 100)
   fixture.emitTouch('backwardSwipe', 500)
+  await flushMicrotasks()
   fixture.selectEmotion(String(Emotion.SAD))
   firstEnable.resolve()
   await flushMicrotasks()

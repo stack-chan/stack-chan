@@ -1,5 +1,5 @@
 import type { MediaSession, MediaState } from 'capabilities'
-import { createVoiceScope } from 'stackchan/voice/scope'
+import { createVoiceScope, deferred } from 'stackchan/voice/scope'
 import { type AsyncResult, andThenAsync, ensure, err, isErr, isOk, match, ok, type Result } from 'stackchan-result'
 import {
   buildRadioDrawerOptions,
@@ -203,16 +203,25 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     }
 
     pauseFaceMotion(true)
+    if (closed || nextGeneration !== generation) return ok(undefined)
+
     const scope = createVoiceScope()
-    const opening = radioPort.value.open({
-      url: selection.station.url,
-      signal: scope.signal,
-      onStateChanged: (state, reason) => onRadioState(nextGeneration, state, reason),
-    })
-    const attempt: PlaybackAttempt = { scope, opening }
+    const opening = deferred<Result<RadioPlayback, RadioError>>()
+    const attempt: PlaybackAttempt = { scope, opening: opening.promise }
     playback = attempt
 
-    const opened = await opening
+    let opened: Result<RadioPlayback, RadioError>
+    try {
+      opened = await radioPort.value.open({
+        url: selection.station.url,
+        signal: scope.signal,
+        onStateChanged: (state, reason) => onRadioState(nextGeneration, state, reason),
+      })
+    } catch (cause) {
+      opened = err({ kind: 'playback-failed', reason: String(cause) })
+    }
+    opening.resolve(opened)
+
     if (playback !== attempt) return ok(undefined)
     if (isErr(opened)) {
       playback = undefined

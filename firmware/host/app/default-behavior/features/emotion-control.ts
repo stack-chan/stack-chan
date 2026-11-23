@@ -136,7 +136,8 @@ export function installEmotionControl<TEffect>(
   let pettingRestoreTimer: EmotionControlTimerHandle | undefined
   let pettingPreviousEmotion: Emotion | undefined
   let pettingPreviousRotation: Rotation | undefined
-  let pettingMotionActive = false
+  let pettingRestoreRotation: Rotation | undefined
+  let pettingMotion: Promise<void> | undefined
   let pettingMotionCanceled = false
   let pettingTorqueOwned = false
   let pettingHoldTimer: EmotionControlTimerHandle | undefined
@@ -150,35 +151,36 @@ export function installEmotionControl<TEffect>(
 
   const releasePettingTorque = async (contextLabel: string): Promise<void> => {
     if (!pettingTorqueOwned) return
-    pettingTorqueOwned = false
     try {
       await deps.setTorque(false)
+      pettingTorqueOwned = false
     } catch (error) {
       log(`[TouchPanel] ${contextLabel} torque release error ${errorMessage(error)}\n`)
     }
   }
 
-  const performPettingMotion = async (
-    label: string,
-    move?: () => Promise<void>,
-    releaseAfter = false,
-  ): Promise<void> => {
-    if (pettingMotionActive) return
-    pettingMotionActive = true
-    try {
-      if (move) await move()
-    } catch (error) {
-      log(`[TouchPanel] ${label} motion error ${errorMessage(error)}\n`)
-      releaseAfter = true
-    } finally {
-      if (pettingMotionCanceled || releaseAfter) await releasePettingTorque(label)
-      pettingMotionActive = false
-    }
+  const performPettingMotion = (label: string, move?: () => Promise<void>): void => {
+    if (pettingMotion) return
+    pettingMotion = Promise.resolve().then(async () => {
+      try {
+        if (move && !pettingMotionCanceled) await move()
+        if (pettingRestoreRotation && pettingTorqueOwned) {
+          await deps.setPose(poseForRotation(pettingRestoreRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+        }
+      } catch (error) {
+        log(`[TouchPanel] ${label} motion error ${errorMessage(error)}\n`)
+        pettingMotionCanceled = true
+      } finally {
+        if (pettingMotionCanceled) await releasePettingTorque(label)
+        pettingRestoreRotation = undefined
+        pettingMotion = undefined
+      }
+    })
   }
 
   const cancelPettingMotion = (): void => {
     pettingMotionCanceled = true
-    if (pettingTorqueOwned && !pettingMotionActive) void performPettingMotion('cleanup')
+    pettingRestoreRotation = undefined
   }
 
   const resolveBaseEmotion = (activeReaction: 'imu' | 'petting'): Emotion => {
@@ -237,9 +239,7 @@ export function installEmotionControl<TEffect>(
     pettingHoldTimer = timer.set(() => {
       pettingHoldTimer = undefined
       if (pettingMotionCanceled) return
-      void performPettingMotion('hold', () =>
-        deps.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC),
-      )
+      performPettingMotion('hold', () => deps.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC))
     }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
   }
 
@@ -264,6 +264,7 @@ export function installEmotionControl<TEffect>(
       clearTimerHandle(pettingHoldTimer)
       pettingHoldTimer = undefined
       cancelPettingMotion()
+      if (pettingTorqueOwned) performPettingMotion('cleanup')
       setEmotionWithEffect(nextEmotion)
     },
   })
@@ -328,7 +329,7 @@ export function installEmotionControl<TEffect>(
           pettingHoldTimer = undefined
         }
         setEmotionWithEffect(Emotion.HAPPY)
-        if (!pettingMotionActive) {
+        if (!pettingMotion) {
           pettingMotionCanceled = false
           const baseRotation = pettingPreviousRotation
           const yawAmount = randomInRange(Math.PI / 15, Math.PI / 10)
@@ -343,7 +344,7 @@ export function installEmotionControl<TEffect>(
           log(
             `[TouchPanel] pet motion shake yaw=${yawAmount.toFixed(3)} pitch=${pitch.toFixed(3)} direction=${firstDirection}\n`,
           )
-          void performPettingMotion('pet', () => runPettingMotion(upRotation, leftRight, firstDirection))
+          performPettingMotion('pet', () => runPettingMotion(upRotation, leftRight, firstDirection))
         }
         pettingRestoreTimer = timer.set(() => {
           if (disposed) return
@@ -359,16 +360,9 @@ export function installEmotionControl<TEffect>(
             clearTimerHandle(pettingHoldTimer)
             pettingHoldTimer = undefined
           }
-          const restoreRotation = pettingPreviousRotation
-          if (pettingMotionActive) {
-            cancelPettingMotion()
-          } else if (restoreRotation && pettingTorqueOwned) {
-            void performPettingMotion(
-              'restore',
-              () => deps.setPose(poseForRotation(restoreRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC),
-              true,
-            )
-          }
+          pettingRestoreRotation = pettingPreviousRotation
+          pettingMotionCanceled = true
+          if (pettingTorqueOwned) performPettingMotion('restore')
           pettingPreviousEmotion = undefined
           pettingPreviousRotation = undefined
           pettingRestoreTimer = undefined
@@ -379,7 +373,7 @@ export function installEmotionControl<TEffect>(
     })
   }
 
-  scope.own(() => {
+  scope.own(async () => {
     disposed = true
     clearTimerHandle(motionDetectRestoreTimer)
     motionDetectRestoreTimer = undefined
@@ -392,13 +386,18 @@ export function installEmotionControl<TEffect>(
     pettingPreviousEmotion = undefined
     pettingPreviousRotation = undefined
     cancelPettingMotion()
-    unsubscribeTouchPanel?.()
-    if (deps.imu && deps.imu.onEvent === imuHandler) {
-      deps.imu.onEvent = undefined
-    }
-    if (emoticonEffect !== null) {
-      deps.removeEffect(emoticonEffect)
-      emoticonEffect = null
+    try {
+      unsubscribeTouchPanel?.()
+      if (deps.imu && deps.imu.onEvent === imuHandler) {
+        deps.imu.onEvent = undefined
+      }
+      if (emoticonEffect !== null) {
+        deps.removeEffect(emoticonEffect)
+        emoticonEffect = null
+      }
+    } finally {
+      if (pettingMotion) await pettingMotion
+      await releasePettingTorque('cleanup')
     }
   })
 

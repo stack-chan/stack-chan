@@ -366,8 +366,11 @@ test('web_radio shutdown waits for an opening station to be stopped', async () =
   const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
   const opening = createDeferred<Result<RadioPlayback, RadioError>>()
+  const stopStarted = createDeferred<void>()
+  const releaseStop = createDeferred<void>()
   let signal: Parameters<RadioPlaybackPort['open']>[0]['signal'] | undefined
   let stopped = false
+  let shutdownFinished = false
   const app = createRadioApp({
     stations: TEST_STATIONS,
     radio: {
@@ -380,18 +383,76 @@ test('web_radio shutdown waits for an opening station to be stopped', async () =
   })
 
   const selecting = app.select('groovesalad')
-  const stopping = app.stop()
+  const stopping = Promise.resolve(app.stop()).then(() => {
+    shutdownFinished = true
+  })
   assert.equal(signal?.aborted, true)
   opening.resolve(
     ok(
       createPlayback(async () => {
+        stopStarted.resolve(undefined)
+        await releaseStop.promise
         stopped = true
       }).playback,
     ),
   )
+  await stopStarted.promise
+  assert.equal(shutdownFinished, false)
+  releaseStop.resolve(undefined)
   await stopping
   assert.equal(stopped, true)
   assert(isOk(await selecting))
+  assert.equal(recorder.state.faceMotionEnabled, true)
+})
+
+test('web_radio retires a station when a synchronous opening callback closes the app', async () => {
+  const { createRadioApp } = await import('./workflow.js')
+  const recorder = createUiRecorder()
+  const opening = createDeferred<Result<RadioPlayback, RadioError>>()
+  const stopStarted = createDeferred<void>()
+  const releaseStop = createDeferred<void>()
+  let openingSignal: Parameters<RadioPlaybackPort['open']>[0]['signal'] | undefined
+  let shutdown: Promise<void> | undefined
+  let shutdownFinished = false
+  let stopCount = 0
+  const app = createRadioApp({
+    stations: TEST_STATIONS,
+    radio: {
+      open({ signal, onStateChanged }) {
+        openingSignal = signal
+        onStateChanged('playing')
+        return opening.promise
+      },
+    },
+    ui: {
+      ...recorder.ui,
+      showNotes() {
+        recorder.ui.showNotes()
+        shutdown = Promise.resolve(app.stop()).then(() => {
+          shutdownFinished = true
+        })
+      },
+    },
+  })
+
+  const selecting = app.select('groovesalad')
+  assert.equal(openingSignal?.aborted, true)
+  opening.resolve(
+    ok(
+      createPlayback(async () => {
+        stopCount += 1
+        stopStarted.resolve(undefined)
+        await releaseStop.promise
+      }).playback,
+    ),
+  )
+  await stopStarted.promise
+  assert.equal(shutdownFinished, false)
+  releaseStop.resolve(undefined)
+  await shutdown
+  assert(isOk(await selecting))
+  assert.equal(stopCount, 1)
+  assert.equal(recorder.state.notesVisible, false)
   assert.equal(recorder.state.faceMotionEnabled, true)
 })
 
@@ -432,8 +493,11 @@ test('web_radio cleanup stops playback, awaits async stop teardown, restores UI,
   installAliases()
   const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
+  const stopStarted = createDeferred<void>()
+  const releaseStop = createDeferred<void>()
   let stopCount = 0
   let stopFinished = false
+  let shutdownFinished = false
   let stateCallback: ((state: MediaState, reason?: string) => void) | undefined
 
   const app = createRadioApp({
@@ -445,7 +509,8 @@ test('web_radio cleanup stops playback, awaits async stop teardown, restores UI,
         return ok(
           createPlayback(async () => {
             stopCount += 1
-            await Promise.resolve()
+            stopStarted.resolve(undefined)
+            await releaseStop.promise
             stopFinished = true
           }).playback,
         )
@@ -461,9 +526,14 @@ test('web_radio cleanup stops playback, awaits async stop teardown, restores UI,
   assert.equal(recorder.state.notesVisible, true)
   assert.equal(recorder.state.drawerKey, 'web-radio:station')
   const stopsBeforeCleanup = stopCount
-  stopFinished = false
 
-  await started.value()
+  const stopping = Promise.resolve(started.value()).then(() => {
+    shutdownFinished = true
+  })
+  await stopStarted.promise
+  assert.equal(shutdownFinished, false)
+  releaseStop.resolve(undefined)
+  await stopping
   await started.value()
 
   assert.equal(stopCount, stopsBeforeCleanup + 1)

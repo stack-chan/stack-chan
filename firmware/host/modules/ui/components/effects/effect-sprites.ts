@@ -1,26 +1,26 @@
 import { type Port as PiuPort, Texture } from 'piu/MC'
 
-export type SpriteFrame = readonly [x: number, y: number, width: number, height: number]
+export type SpriteFrame = readonly [x: number, y: number, width: number, height: number, maskColor: number]
 
 export const effectFrames = {
-  heart: [0, 0, 44, 38],
-  heartSquash: [44, 0, 44, 34],
-  angry: [88, 0, 36, 40],
-  angryRebound: [124, 0, 36, 40],
-  gloomShort: [28, 96, 28, 8],
-  gloomLow: [116, 80, 28, 16],
-  gloomMedium: [28, 72, 28, 24],
-  gloomHigh: [0, 72, 28, 32],
-  gloomTall: [116, 40, 28, 40],
-  sweat: [76, 40, 20, 28],
-  smallSweat: [56, 80, 16, 20],
-  tear: [56, 40, 20, 28],
-  tearSplash: [56, 68, 20, 12],
-  smallTear: [76, 68, 16, 20],
-  mintNote: [0, 40, 28, 32],
-  goldNote: [28, 40, 28, 32],
-  sleepyBubble: [96, 40, 20, 24],
-  sleepyPop: [96, 64, 20, 16],
+  heart: [0, 0, 44, 38, 0xff6b98],
+  heartSquash: [44, 0, 44, 34, 0xff6b98],
+  angry: [88, 0, 36, 40, 0xff705e],
+  angryRebound: [124, 0, 36, 40, 0xff705e],
+  gloomShort: [28, 96, 28, 8, 0xa795de],
+  gloomLow: [116, 80, 28, 16, 0xa795de],
+  gloomMedium: [28, 72, 28, 24, 0xa795de],
+  gloomHigh: [0, 72, 28, 32, 0xa795de],
+  gloomTall: [116, 40, 28, 40, 0xa795de],
+  sweat: [76, 40, 20, 28, 0x70e5e7],
+  smallSweat: [56, 80, 16, 20, 0x70e5e7],
+  tear: [56, 40, 20, 28, 0x82baff],
+  tearSplash: [56, 68, 20, 12, 0x82baff],
+  smallTear: [76, 68, 16, 20, 0x82baff],
+  mintNote: [0, 40, 28, 32, 0x85e6bb],
+  goldNote: [28, 40, 28, 32, 0xffd174],
+  sleepyBubble: [96, 40, 20, 24, 0x9bdeff],
+  sleepyPop: [96, 64, 20, 16, 0x9bdeff],
 } as const satisfies Record<string, SpriteFrame>
 
 let texture: Texture | undefined
@@ -76,7 +76,7 @@ export class EffectSprite {
     texture ??= new Texture('emoticon.png')
     port.drawTexture(
       texture,
-      (0xffffff00 + this.#alpha) >>> 0,
+      ((frame[4] << 8) | this.#alpha) >>> 0,
       left,
       top,
       frame[0] + left - x,

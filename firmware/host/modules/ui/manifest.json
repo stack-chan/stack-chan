@@ -56,10 +56,7 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
-    "*": [
-      "./assets/images/faces/deal-with-it/deal-with-it-eyes",
-      "./assets/images/emoticon"
-    ],
+    "*": ["./assets/images/faces/deal-with-it/deal-with-it-eyes"],
     "*-alpha-monochrome": [
       "./components/hands/assets/hands-outer-mask",
       "./components/hands/assets/hands-inner-mask"
@@ -86,6 +83,14 @@
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"
     ]
+  },
+  "platforms": {
+    "esp32/m5stack": {
+      "resources": { "*-mask": ["./assets/images/emoticon"] }
+    },
+    "...": {
+      "resources": { "*": ["./assets/images/emoticon"] }
+    }
   },
   "preload": [
     "piu/Application",

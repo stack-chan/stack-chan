@@ -2,7 +2,8 @@
   "include": ["$(MODDABLE)/examples/manifest_mod.json"],
   "modules": {
     "*": ["./mod"],
-    "openai-live-session": "./session"
+    "openai-live-session": "./session",
+    "openai-live-wake-audio": "./wake-audio"
   },
   "config": {
     "openaiLive": {

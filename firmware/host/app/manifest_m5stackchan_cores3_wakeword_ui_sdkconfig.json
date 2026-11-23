@@ -1,0 +1,5 @@
+{
+  "build": {
+    "SDKCONFIGPATH": "./../../dist/generated/sdkconfig/m5stackchan_cores3_wakeword_ui"
+  }
+}

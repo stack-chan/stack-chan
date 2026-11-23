@@ -17,6 +17,6 @@ export default Object.freeze({
     return native('xs_io_audio_levels')()
   },
   setMainPriority(priority) {
-    native('xs_io_main_priority')(priority)
+    return native('xs_io_main_priority')(priority)
   },
 })

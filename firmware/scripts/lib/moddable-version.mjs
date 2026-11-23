@@ -152,17 +152,24 @@ export function prepareCoreS3VersionSdkconfig({
   ),
 } = {}) {
   let sanotts = false
+  let wakewordUi = false
   const overrides = new Set()
   if (manifestPath) {
     const app = path.resolve(libraryDirectory, '../../host/app')
     for (const { filename, manifest, platform } of localManifests(manifestPath, 'm5stackchan_cores3')) {
       sanotts ||= filename === path.join(app, 'manifest_sanotts_profile.json')
+      wakewordUi ||= filename === path.join(app, 'manifest_m5stackchan_cores3_wakeword_ui.json')
       memoryPerformance ||= filename === path.join(app, 'manifest_openai_live.json')
       for (const key of Object.keys({ ...manifest.esp32Config, ...platform?.esp32Config })) overrides.add(key)
     }
   }
-  return prepareVersionSdkconfig({
-    platformName: sanotts ? 'm5stackchan_cores3_sanotts' : 'm5stackchan_cores3',
+  const platformName = sanotts
+    ? 'm5stackchan_cores3_sanotts'
+    : wakewordUi
+      ? 'm5stackchan_cores3_wakeword_ui'
+      : 'm5stackchan_cores3'
+  const sdkconfig = prepareVersionSdkconfig({
+    platformName,
     moddableDirectory,
     outputDirectory,
     sourceDirectory,
@@ -171,8 +178,9 @@ export function prepareCoreS3VersionSdkconfig({
       : partitionSourcePath,
     realtime,
     memoryPerformance,
-    manifestOverrides: sanotts ? overrides : undefined,
+    manifestOverrides: sanotts || wakewordUi ? overrides : undefined,
   })
+  return { ...sdkconfig, wakewordUi }
 }
 
 export const renderCoreS3VersionSdkconfig = renderVersionSdkconfig

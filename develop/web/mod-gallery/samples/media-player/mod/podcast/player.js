@@ -4,6 +4,7 @@ import { feeds } from 'podcast-config'
 import { PodcastController } from 'podcast-controller'
 import { loadFeed } from 'podcast-feed'
 import { createPodcastView, createRadioView } from 'podcast-view'
+import { createVoiceScope } from 'stackchan/voice/scope'
 
 let controller
 let unregister = []
@@ -22,6 +23,7 @@ export function registerPlayers(context, stations = []) {
     },
     loadArtwork,
     stations,
+    createVoiceScope,
   )
   const player = controller
   let started = false

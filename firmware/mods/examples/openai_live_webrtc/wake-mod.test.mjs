@@ -45,6 +45,7 @@ async function fixture({
   pendingDetectorClaim,
   lostRelease = false,
   uiPerformance = false,
+  realtimeQoS = false,
   pendingConversationClose,
 } = {}) {
   const events = [],
@@ -158,6 +159,23 @@ async function fixture({
   const mod = await import(`./mod.js?test=${++nextId}`)
   mod.onContextCreated({
     face: { setEmotion: (emotion) => emotions.push(emotion) },
+    ...(realtimeQoS
+      ? {
+          realtimeQoS: {
+            mode: 'idle',
+            prepare() {},
+            enterMode(mode) {
+              events.push(`QoS acquired:${mode}`)
+              return {
+                mode,
+                release() {
+                  events.push(`QoS released:${mode}`)
+                },
+              }
+            },
+          },
+        }
+      : {}),
     motion: {
       pose: { body: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } } },
       async withTemporaryTorque(move) {
@@ -463,6 +481,31 @@ test('session UI scheduling spans active audio and is released after each kind o
     await closing
     await settle()
     assert.deepEqual(f.events.slice(-2), ['conversation released', 'UI scheduler released'])
+    await f.shutdown()
+  }
+})
+
+test('robot.realtimeQoS acquires realtime-conversation mode and releases across close paths', async () => {
+  for (const close of ['shutdown', 'remoteClose', 'remoteError']) {
+    let finish
+    const f = await fixture({
+      realtimeQoS: true,
+      uiPerformance: true,
+      pendingConversationClose: new Promise((resolve) => {
+        finish = resolve
+      }),
+    })
+    assert.deepEqual(f.events, [])
+    f.fire('session')
+    await settle()
+    assert.deepEqual(f.events, ['conversation created', 'conversation started', 'QoS acquired:realtime-conversation'])
+    const closing = f[close]()
+    await settle()
+    assert.equal(f.events.at(-1), 'QoS acquired:realtime-conversation')
+    finish()
+    await closing
+    await settle()
+    assert.deepEqual(f.events.slice(-2), ['conversation released', 'QoS released:realtime-conversation'])
     await f.shutdown()
   }
 })

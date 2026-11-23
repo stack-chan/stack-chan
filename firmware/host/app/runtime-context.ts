@@ -20,11 +20,13 @@ import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { OwnedResources } from 'owned-resources'
+import { createRealtimeQoS, type RealtimeQoSPort } from 'realtime-qos'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
 import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
 import { StackchanRuntimeUI } from 'runtime-ui'
+import { ScreenKind } from 'screen-coordinator'
 import { type Maybe, type Pose, type Vector3, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -41,6 +43,7 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
     }
     connectivity?: ConnectivityCapability
     remoteConversationSession?: RemoteConversationSession
+    realtimeQoS?: RealtimeQoSPort
     closeHandlers?: ReadonlyArray<() => void | Promise<void>>
     ui: RobotUI
   }
@@ -65,8 +68,12 @@ export class StackchanRuntimeContext implements StackchanContext {
   #motionCapability: MotionCapability
   #motionController: MotionController
   #paused: boolean
+  #faceForeground: boolean
+  #faceMotionEnabled = true
+  #realtimeQoS: RealtimeQoSPort
   #uiCapability: RuntimeUICapability
   #uiRuntime: StackchanRuntimeUI
+  #unsubscribeScreenChange: (() => void) | undefined
   #updateFaceHandler: Timer | undefined
   #closed = false
   #closePromise: Promise<void> | undefined
@@ -75,6 +82,8 @@ export class StackchanRuntimeContext implements StackchanContext {
   constructor(params: RuntimeContextConstructorParam) {
     this.#ownedResources = new OwnedResources(params.closeHandlers)
     this.#paused = false
+    this.#faceForeground = params.ui.isFaceForeground !== false
+    this.#realtimeQoS = params.realtimeQoS ?? createRealtimeQoS()
     this.#motionController = new MotionController(params, {
       isPaused: () => this.#paused,
     })
@@ -82,7 +91,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       getContext: () => this,
       getPose: () => this.#motionController.pose,
       getGazePoint: () => this.#motionController.gazePoint,
-      isPaused: () => this.#paused,
+      isPaused: () => this.#paused || !this.#faceForeground,
     })
     this.#audioRuntime = new StackchanRuntimeAudio(params, {
       getVoiceSpeaker: () => this.#audioCapability.speaker,
@@ -91,8 +100,10 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#inputRuntime = new StackchanRuntimeInput(params)
     this.#cameraRuntime = new StackchanRuntimeCamera(params)
     this.#lightingRuntime = new StackchanRuntimeLighting(params)
-    this.#updateFaceHandler = Timer.repeat(this.#updateFace, INTERVAL_FACE)
-    void this.#updateFaceHandler
+    this.#syncFaceUpdateTimer()
+    this.#unsubscribeScreenChange = params.ui.subscribeScreenChange?.((next) => {
+      this.#onScreenForegroundChanged(next.kind === ScreenKind.Face)
+    })
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
     this.#audioCapability = this.createAudioCapability(params.createVoiceRuntime)
@@ -141,6 +152,10 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   get lifecycle(): LifecycleCapability {
     return this.#lifecycleCapability
+  }
+
+  get realtimeQoS(): RealtimeQoSPort {
+    return this.#realtimeQoS
   }
 
   /**
@@ -308,7 +323,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
     this.#uiRuntime.setColor(key, r, g, b)
-    if (this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
+    if (this.#faceForeground && this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
   /**
@@ -320,17 +335,17 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   setEmotion(emotion: Emotion) {
     this.#uiRuntime.setEmotion(emotion)
-    if (this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
+    if (this.#faceForeground && this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
   setEyeOpen(key: FaceEyeKey, value: number) {
     this.#uiRuntime.setEyeOpen(key, value)
-    if (this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
+    if (this.#faceForeground && this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
   setMouthOpen(value: number, immediate = false) {
     this.#uiRuntime.setMouthOpen(value)
-    if (immediate || this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
+    if (this.#faceForeground && (immediate || this.#updateFaceHandler === undefined)) this.#uiRuntime.updateFace(0)
   }
 
   get ui(): RuntimeUICapability {
@@ -599,15 +614,11 @@ export class StackchanRuntimeContext implements StackchanContext {
         context.#uiRuntime.ui.setHandAnimation(animation)
       },
       get faceMotionEnabled() {
-        return context.#updateFaceHandler !== undefined
+        return context.#faceMotionEnabled
       },
       setFaceMotionEnabled(enabled) {
-        if (!enabled && context.#updateFaceHandler !== undefined) {
-          Timer.clear(context.#updateFaceHandler)
-          context.#updateFaceHandler = undefined
-        } else if (enabled && context.#updateFaceHandler === undefined && !context.#closed) {
-          context.#updateFaceHandler = Timer.repeat(context.#updateFace, INTERVAL_FACE)
-        }
+        context.#faceMotionEnabled = enabled
+        context.#syncFaceUpdateTimer()
         context.#uiRuntime.ui.setFaceMotionEnabled?.(enabled)
       },
       setMain(content) {
@@ -663,6 +674,28 @@ export class StackchanRuntimeContext implements StackchanContext {
    * Process the robot's emotion, pose, gaze point and so on
    * to modify the face state and pass it to RobotUI#update.
    */
+  #syncFaceUpdateTimer(): void {
+    if (this.#closed || !this.#faceForeground || !this.#faceMotionEnabled) {
+      if (this.#updateFaceHandler !== undefined) {
+        Timer.clear(this.#updateFaceHandler)
+        this.#updateFaceHandler = undefined
+      }
+      return
+    }
+    if (this.#updateFaceHandler === undefined) {
+      this.#updateFaceHandler = Timer.repeat(this.#updateFace, INTERVAL_FACE)
+    }
+  }
+
+  #onScreenForegroundChanged(isFaceForeground: boolean): void {
+    if (this.#faceForeground === isFaceForeground) return
+    this.#faceForeground = isFaceForeground
+    this.#syncFaceUpdateTimer()
+    if (isFaceForeground && !this.#closed) {
+      this.#uiRuntime.updateFace(0, true)
+    }
+  }
+
   #updateFace = () => {
     this.#uiRuntime.updateFace(INTERVAL_FACE)
     // Old poses have no value to the renderer. Do not catch up missed frames.
@@ -670,6 +703,8 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   async #close(): Promise<void> {
+    this.#unsubscribeScreenChange?.()
+    this.#unsubscribeScreenChange = undefined
     if (this.#updateFaceHandler) {
       Timer.clear(this.#updateFaceHandler)
       this.#updateFaceHandler = undefined
@@ -680,6 +715,11 @@ export class StackchanRuntimeContext implements StackchanContext {
       if (hasCloseError) return
       closeError = error
       hasCloseError = true
+    }
+    try {
+      this.#uiRuntime.ui.exitMiniApp?.()
+    } catch (error) {
+      rememberCloseError(error)
     }
     try {
       this.#motionController.close()

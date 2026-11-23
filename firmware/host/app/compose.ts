@@ -5,6 +5,7 @@ import Camera from 'camera'
 import type {
   ConnectivityCapability,
   MediaCapability,
+  RealtimeQoSPort,
   RemoteConversationSession,
   RobotLed,
   RobotUI,
@@ -62,6 +63,7 @@ type UIOptions = {
 export type StackchanContextOptions = {
   connectivity?: ConnectivityCapability
   remoteConversationSession?: RemoteConversationSession
+  realtimeQoS?: RealtimeQoSPort
   closeHandlers?: ReadonlyArray<() => void | Promise<void>>
 }
 
@@ -305,6 +307,7 @@ export function createStackchanContext(
     imu,
     connectivity: options.connectivity,
     remoteConversationSession: options.remoteConversationSession,
+    realtimeQoS: options.realtimeQoS,
     closeHandlers: options.closeHandlers,
     speaker,
     media,

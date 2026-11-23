@@ -12,6 +12,7 @@ import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
+import { createRealtimeQoS, type RealtimeQoSAdapter, type RealtimeQoSPort } from 'realtime-qos'
 import {
   type StartupPhase,
   showStartupError,
@@ -102,19 +103,29 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiRecoveryStatus): Promise<
   })
 }
 
+function loadRealtimeQoS(): RealtimeQoSPort {
+  if (Modules.has('stackchan/realtime-qos-adapter')) {
+    try {
+      const adapter = Modules.importNow('stackchan/realtime-qos-adapter') as RealtimeQoSAdapter
+      return createRealtimeQoS(adapter)
+    } catch {
+      trace('[main] realtime QoS adapter unavailable\n')
+    }
+  }
+  return createRealtimeQoS()
+}
+
 async function main() {
   trace('[main] start\n')
   let dockRuntime: StackchanDockRuntime | undefined
   let context: StackchanContext | undefined
   let phase: StartupPhase = 'initialization'
   try {
-    if (Modules.has('stackchan/realtime-ui-performance')) {
-      try {
-        const performance = Modules.importNow('stackchan/realtime-ui-performance') as { prepare(): void }
-        performance.prepare()
-      } catch {
-        trace('[main] realtime UI scheduling unavailable\n')
-      }
+    const realtimeQoS = loadRealtimeQoS()
+    try {
+      realtimeQoS.prepare()
+    } catch {
+      trace('[main] realtime UI scheduling unavailable\n')
     }
     dockRuntime = startStackchanDock(Modules, loadModConfig())
     if (dockRuntime) trace('[main] Stackchan Dock started\n')
@@ -153,6 +164,7 @@ async function main() {
     context = createStackchanContext(preferences, {
       connectivity: bootServices.connectivity,
       remoteConversationSession: ownedDock?.remoteConversationSession,
+      realtimeQoS,
       closeHandlers: [
         ...appBehaviors.map((behavior) => () => behavior.onClose?.()),
         ...(ownedDock ? [() => ownedDock.close()] : []),

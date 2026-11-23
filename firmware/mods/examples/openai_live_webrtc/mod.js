@@ -25,11 +25,13 @@ export function onContextCreated(robot) {
     return
   }
   const { LiveConversation } = Modules.importNow('realtimeConversation', true)
+  const realtimeQoS = robot.realtimeQoS
   const power = Modules.importNow('network-power')
   const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
-  const uiPerformance = Modules.has('stackchan/realtime-ui-performance')
-    ? Modules.importNow('stackchan/realtime-ui-performance')
-    : undefined
+  const uiPerformance =
+    !realtimeQoS && Modules.has('stackchan/realtime-ui-performance')
+      ? Modules.importNow('stackchan/realtime-ui-performance')
+      : undefined
   const drawer = robot.ui.drawer
   const settings = (Modules.has('mod/config') ? Modules.importNow('mod/config').openaiLive : undefined) ?? {}
   const microphone = robot.audio.microphone
@@ -94,8 +96,14 @@ export function onContextCreated(robot) {
     onState(state) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
       try {
-        if (state === 'connected' && !releaseUI) releaseUI = uiPerformance?.acquire()
-        else if (!active && releaseUI) {
+        if (state === 'connected' && !releaseUI) {
+          if (realtimeQoS) {
+            const lease = realtimeQoS.enterMode('realtime-conversation')
+            releaseUI = () => lease.release()
+          } else {
+            releaseUI = uiPerformance?.acquire()
+          }
+        } else if (!active && releaseUI) {
           const release = releaseUI
           releaseUI = undefined
           release()

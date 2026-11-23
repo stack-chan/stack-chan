@@ -1,3 +1,4 @@
+import { AvatarExpression, ExpressionDirty } from 'avatar-expression'
 import type {
   DrawerButtonSpec,
   DrawerButtonViewSpec,
@@ -7,25 +8,10 @@ import type {
   StackchanContext,
   UIEffect,
 } from 'capabilities'
+import { isMouthOpenRatio, isNormalizedGain } from 'domain-values'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import {
-  createFaceState,
-  type Emotion,
-  type FaceEyeKey,
-  type FaceState,
-  type FaceThemeKey,
-  setColorRGB,
-} from 'face-state'
-import {
-  type Pose,
-  type Rotation,
-  type Vector3,
-  writeBodyRelativeVector3,
-  writePositionRelativeVector3,
-  writeRotationFromVector3,
-} from 'stackchan-util'
-
-const LEFT_RIGHT = Object.freeze(['left', 'right'] as const)
+import type { Emotion, FaceEyeKey, FaceThemeKey } from 'face-state'
+import type { Pose, Vector3 } from 'stackchan-util'
 
 type RuntimeUIPose = {
   body: Pose
@@ -62,21 +48,13 @@ export class StackchanRuntimeUI {
   #drawerButtonSpecs = new Map<string, DrawerButtonSpec>()
   #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
-  #emotion: Emotion
-  #eyeOpen = { left: 1, right: 1 }
-  #eyeGazePoint: Vector3 = [0, 0, 0]
-  #eyeGazeRotation: Rotation = { y: 0, p: 0, r: 0 }
-  #faceState: FaceState
-  #mouthOpen = 0
+  #expression = new AvatarExpression()
   #options: RuntimeUIOptions
-  #relativeGazePoint: Vector3 = [0, 0, 0]
   #ui: RobotUI
 
   constructor(ui: RobotUI, options: RuntimeUIOptions) {
     this.#ui = ui
     this.#options = options
-    this.#faceState = createFaceState()
-    this.#emotion = this.#faceState.emotion
     this.#drawerRegistry = {
       addDrawerButton: (button) => this.addDrawerButton(button),
       removeDrawerButton: (key) => this.removeDrawerButton(key),
@@ -98,6 +76,7 @@ export class StackchanRuntimeUI {
     this.detachDrawerBindings()
     this.#ui = ui
     this.rebuildDrawerBindings()
+    this.#ui.update(0, this.#expression.faceState)
   }
 
   showBalloon(text: string, option: ShowBalloonOptions = {}) {
@@ -134,52 +113,41 @@ export class StackchanRuntimeUI {
   }
 
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
-    setColorRGB(this.#faceState.theme[key], r, g, b)
+    this.#expression.setColor(key, r, g, b)
   }
 
   setEmotion(emotion: Emotion) {
-    this.#emotion = emotion
+    this.#expression.setEmotion(emotion)
   }
 
   setEyeOpen(key: FaceEyeKey, value: number) {
-    if (value < 0 || value > 1) {
+    if (!isNormalizedGain(value)) {
       throw new Error('value must be between 0 and 1')
     }
-    this.#eyeOpen[key] = value
+    this.#expression.setEyeOpen(key, value)
   }
 
   setMouthOpen(value: number) {
-    if (value < 0 || value > 1) {
+    if (!isMouthOpenRatio(value)) {
       throw new Error('value must be between 0 and 1')
     }
-    this.#mouthOpen = value
+    this.#expression.setMouthOpen(value)
   }
 
-  updateFace(interval: number) {
+  updateFace(interval: number, force = false) {
     if (this.#options.isPaused()) {
       return
     }
 
     const pose = this.#options.getPose()
     const gazePoint = this.#options.getGazePoint()
-    this.#faceState.mouth.open = this.#mouthOpen
-    this.#faceState.eyes.left.open = this.#eyeOpen.left
-    this.#faceState.eyes.right.open = this.#eyeOpen.right
-    this.#faceState.emotion = this.#emotion
-
-    if (gazePoint != null) {
-      writeBodyRelativeVector3(this.#relativeGazePoint, gazePoint, pose.body.rotation)
-      for (const key of LEFT_RIGHT) {
-        const pos = pose.eyes[key].position
-        writePositionRelativeVector3(this.#eyeGazePoint, this.#relativeGazePoint, pos)
-        writeRotationFromVector3(this.#eyeGazeRotation, this.#eyeGazePoint)
-        const eye = this.#faceState.eyes[key]
-        eye.gazeX = Math.cos(this.#eyeGazeRotation.y)
-        eye.gazeY = Math.cos(this.#eyeGazeRotation.p)
-      }
+    this.#expression.projectGaze(gazePoint, pose)
+    const dirty = this.#expression.consumeDirtyFlags()
+    if (!force && dirty === ExpressionDirty.None) {
+      return
     }
 
-    this.#ui.update(interval, this.#faceState)
+    this.#ui.update(interval, this.#expression.faceState)
   }
 
   private addDrawerButton({ key, label, callback, kind, initialState, value, options, icon }: DrawerButtonSpec): void {

@@ -10,6 +10,8 @@ import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type { RealtimeQoSPort } from 'realtime-qos'
+import type { ScreenChangeListener } from 'screen-coordinator'
 import type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
@@ -30,6 +32,7 @@ export type {
 } from 'local-peer-types'
 export { LocalPeerError } from 'local-peer-types'
 
+export type { OperatingMode, QoSLease, RealtimeQoSPort } from 'realtime-qos'
 export type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 
 export type UIEffect = PiuContent
@@ -42,19 +45,23 @@ export type RobotLed = {
 
 export type { I18nCapability } from 'localization'
 export type {
+  MiniAppCapabilities,
   MiniAppContext,
   MiniAppDefinition,
   MiniAppInstance,
+  MiniAppPermission,
   MiniAppRegistryCapability,
 } from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
   readonly miniApps: MiniAppRegistryCapability
+  readonly isFaceForeground?: boolean
+  subscribeScreenChange?: (listener: ScreenChangeListener) => () => void
   update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void
   removeEffect(effect: UIEffect): void
-  application?: unknown
+  application?: { distribute?: (event: string, ...args: unknown[]) => void }
   setFace(face: PiuContainer): void
   /** Select one of the built-in hand animations shown around the face. */
   setHandAnimation(animation: HandAnimationName): void
@@ -64,6 +71,8 @@ export type RobotUI = {
   setMain(content: PiuContainer): void
   /** Restore the face as the main component after a dialog was shown via setMain. */
   showFace(): void
+  /** Dispose the active mini-app session if one is currently running. */
+  exitMiniApp?(): void
   setDrawerButtons(buttons: DrawerButtonViewSpec[]): void
   addDrawerButton(button: DrawerButtonViewSpec): void
   removeDrawerButton(key: string): void
@@ -267,6 +276,7 @@ export type StackchanCapabilityNamespaces = {
   conversation: ConversationCapability
   connectivity: ConnectivityCapability
   lifecycle: LifecycleCapability
+  realtimeQoS?: RealtimeQoSPort
   ui: RuntimeUICapability
 }
 

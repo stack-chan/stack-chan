@@ -3,7 +3,6 @@
     "speech-playback-stackchan-voice": "../../stackchan-voice/speech-playback-stackchan-voice",
     "speech-playback-types": "../../speech-playback-types",
     "stackchan/voice/contracts": "../../../voice/contracts",
-    "stackchan/voice/play-speech": "../../../voice/play-speech",
     "stackchan/voice/media": "../../../voice/media",
     "stackchan/voice/play-speech": "../../../voice/play-speech",
     "stackchan/voice/scope": "../../../voice/scope",

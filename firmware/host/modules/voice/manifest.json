@@ -15,7 +15,6 @@
     "stackchan/voice/levels": "./levels",
     "stackchan/voice/device": "./pcm-device",
     "stackchan/voice/pcm-http": "./pcm-http",
-    "stackchan/voice/play-speech": "./play-speech",
     "stackchan/voice/speech": "./speech"
   },
   "platforms": {

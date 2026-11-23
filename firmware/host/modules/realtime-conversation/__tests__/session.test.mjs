@@ -339,10 +339,12 @@ test('hosted tool execution retains provider evidence identity and fences late c
   assert.equal(calls[0].context.delegationId, 'delegation-1')
   assert.equal(calls[0].call.id, 'item-1')
   assert.equal(calls[0].call.arguments, '{"query":"example"}')
+  assert.equal(await f.executeTool(undefined, { ...providerContext, callId: 'empty-args' }), 'result')
+  assert.equal(calls[1].call.arguments, '{}')
   await session.close({ mode: 'abort' })
   assert.equal(calls[0].context.signal.aborted, true)
   await assert.rejects(f.executeTool({}, providerContext), /cancelled/)
-  assert.equal(calls.length, 1)
+  assert.equal(calls.length, 2)
 })
 
 test('only authoritative custom signaling can omit a hosted model', () => {

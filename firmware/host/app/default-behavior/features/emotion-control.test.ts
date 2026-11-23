@@ -221,6 +221,36 @@ test('emotion-control petting triggers HAPPY motion and manual selection cancels
   await close()
 })
 
+test('emotion-control restores the previous pose and emotion after uninterrupted petting', async () => {
+  installAliases()
+  const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
+  const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
+  FakeTimer.reset()
+
+  const fixture = createEmotionFixture()
+  const { scope, close } = createScope()
+  installEmotionControl(fixture.deps, scope)
+
+  fixture.selectEmotion(String(Emotion.SLEEPY))
+  fixture.emitTouch('forwardSwipe', 100)
+  fixture.emitTouch('backwardSwipe', 500)
+  await flushMicrotasks()
+
+  FakeTimer.advance(1000)
+  await flushMicrotasks()
+  assert.deepEqual(fixture.emotions, [Emotion.SLEEPY, Emotion.HAPPY])
+  assert.deepEqual(fixture.torques, [true])
+  assert.notDeepEqual(fixture.poses.at(-1)?.rotation, fixture.deps.getBodyPose().rotation)
+
+  FakeTimer.advance(4000)
+  await flushMicrotasks()
+  assert.deepEqual(fixture.emotions, [Emotion.SLEEPY, Emotion.HAPPY, Emotion.SLEEPY])
+  assert.deepEqual(fixture.poses.at(-1)?.rotation, fixture.deps.getBodyPose().rotation)
+  assert.deepEqual(fixture.torques, [true, false])
+
+  await close()
+})
+
 test('emotion-control scope cleanup clears timers, detaches sensors, removes active emoticon, and releases petting torque', async () => {
   installAliases()
   const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
@@ -289,6 +319,83 @@ test('emotion-control releases torque if scope closes while setTorque(true) is s
 
   assert.deepEqual(torques, [true, false])
   assert.deepEqual(fixture.poses, [])
+})
+
+test('manual emotion selection retires a pending petting enable before admitting a new motion', async () => {
+  installAliases()
+  const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
+  const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
+  FakeTimer.reset()
+
+  const firstEnable = Promise.withResolvers<void>()
+  const firstRelease = Promise.withResolvers<void>()
+  const fixture = createEmotionFixture()
+  const { scope, close } = createScope()
+  installEmotionControl(
+    {
+      ...fixture.deps,
+      async setTorque(torque) {
+        fixture.torques.push(torque)
+        if (fixture.torques.length === 1) await firstEnable.promise
+        else if (fixture.torques.length === 2) await firstRelease.promise
+      },
+    },
+    scope,
+  )
+
+  fixture.emitTouch('forwardSwipe', 100)
+  fixture.emitTouch('backwardSwipe', 500)
+  fixture.selectEmotion(String(Emotion.SAD))
+  firstEnable.resolve()
+  await flushMicrotasks()
+
+  assert.deepEqual(fixture.emotions, [Emotion.HAPPY, Emotion.SAD])
+  assert.deepEqual(fixture.poses, [])
+  assert.deepEqual(fixture.torques, [true, false])
+
+  fixture.emitTouch('forwardSwipe', 1000)
+  fixture.emitTouch('backwardSwipe', 1500)
+  await flushMicrotasks()
+  assert.deepEqual(fixture.poses, [])
+  assert.deepEqual(fixture.torques, [true, false])
+
+  firstRelease.resolve()
+  await flushMicrotasks()
+  fixture.emitTouch('forwardSwipe', 2000)
+  fixture.emitTouch('backwardSwipe', 2500)
+  await flushMicrotasks()
+  assert.ok(fixture.poses.length > 0)
+  assert.deepEqual(fixture.torques, [true, false, true])
+
+  await close()
+})
+
+test('manual emotion selection prevents later shake poses and a hold while a petting motion waits', async () => {
+  installAliases()
+  const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
+  const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
+  FakeTimer.reset()
+
+  const shakeWait = Promise.withResolvers<void>()
+  const fixture = createEmotionFixture()
+  const { scope, close } = createScope()
+  installEmotionControl({ ...fixture.deps, waitMs: () => shakeWait.promise }, scope)
+
+  fixture.emitTouch('forwardSwipe', 100)
+  fixture.emitTouch('backwardSwipe', 500)
+  await flushMicrotasks()
+  assert.equal(fixture.poses.length, 1)
+
+  fixture.selectEmotion(String(Emotion.SAD))
+  shakeWait.resolve()
+  await flushMicrotasks()
+  FakeTimer.advance(6000)
+
+  assert.equal(fixture.poses.length, 1)
+  assert.deepEqual(fixture.torques, [true, false])
+  assert.deepEqual(fixture.emotions, [Emotion.HAPPY, Emotion.SAD])
+
+  await close()
 })
 
 test('hand-gesture updates animation on valid selection and resets to none on scope close', async () => {

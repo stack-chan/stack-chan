@@ -465,7 +465,9 @@ const DEFAULT_BEHAVIOR_FEATURES: readonly ModFeature<DefaultBehaviorDeps, Defaul
 const defaultContextBehavior = defineMod({
   setup(robot, options, scope) {
     const pendingBalloonTimers = new Set<ReturnType<typeof Timer.set>>()
+    let closed = false
     const hideBalloonLater = (delay = 900) => {
+      if (closed) return
       const handle = Timer.set(() => {
         pendingBalloonTimers.delete(handle)
         robot.hideBalloon()
@@ -473,6 +475,7 @@ const defaultContextBehavior = defineMod({
       pendingBalloonTimers.add(handle)
     }
     scope.own(() => {
+      closed = true
       for (const handle of pendingBalloonTimers) {
         Timer.clear(handle)
       }

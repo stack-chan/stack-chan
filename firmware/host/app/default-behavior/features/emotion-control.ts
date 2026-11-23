@@ -1,7 +1,7 @@
 import { Emotion } from 'face-state'
 import type { ModFeature, ModScope } from 'mod-kit'
 import { ok, type Result } from 'stackchan-result'
-import { type Pose, randomBetween, type Rotation, wait } from 'stackchan-util'
+import { type Pose, type Rotation, randomBetween, wait } from 'stackchan-util'
 import Timer from 'timer'
 
 const TOUCH_PANEL_PETTING_WINDOW_MS = 1500
@@ -137,6 +137,7 @@ export function installEmotionControl<TEffect>(
   let pettingPreviousEmotion: Emotion | undefined
   let pettingPreviousRotation: Rotation | undefined
   let pettingMotionActive = false
+  let pettingMotionCanceled = false
   let pettingTorqueOwned = false
   let pettingHoldTimer: EmotionControlTimerHandle | undefined
   let motionDetectRestoreTimer: EmotionControlTimerHandle | undefined
@@ -147,12 +148,37 @@ export function installEmotionControl<TEffect>(
     if (handle !== undefined) timer.clear(handle)
   }
 
-  const releasePettingTorque = (contextLabel: string): void => {
+  const releasePettingTorque = async (contextLabel: string): Promise<void> => {
     if (!pettingTorqueOwned) return
     pettingTorqueOwned = false
-    void deps
-      .setTorque(false)
-      .catch((error) => log(`[TouchPanel] ${contextLabel} torque release error ${errorMessage(error)}\n`))
+    try {
+      await deps.setTorque(false)
+    } catch (error) {
+      log(`[TouchPanel] ${contextLabel} torque release error ${errorMessage(error)}\n`)
+    }
+  }
+
+  const performPettingMotion = async (
+    label: string,
+    move?: () => Promise<void>,
+    releaseAfter = false,
+  ): Promise<void> => {
+    if (pettingMotionActive) return
+    pettingMotionActive = true
+    try {
+      if (move) await move()
+    } catch (error) {
+      log(`[TouchPanel] ${label} motion error ${errorMessage(error)}\n`)
+      releaseAfter = true
+    } finally {
+      if (pettingMotionCanceled || releaseAfter) await releasePettingTorque(label)
+      pettingMotionActive = false
+    }
+  }
+
+  const cancelPettingMotion = (): void => {
+    pettingMotionCanceled = true
+    if (pettingTorqueOwned && !pettingMotionActive) void performPettingMotion('cleanup')
   }
 
   const resolveBaseEmotion = (activeReaction: 'imu' | 'petting'): Emotion => {
@@ -186,82 +212,35 @@ export function installEmotionControl<TEffect>(
     rotation,
   })
 
-  const runPettingHoldMotion = async (upRotation: Rotation): Promise<void> => {
-    if (disposed) return
-    try {
-      await deps.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-    } catch (error) {
-      log(`[TouchPanel] pet hold motion error ${errorMessage(error)}\n`)
-      pettingTorqueOwned = false
-      try {
-        await deps.setTorque(false)
-      } catch (torqueError) {
-        log(`[TouchPanel] pet hold torque release error ${errorMessage(torqueError)}\n`)
-      }
-    }
-  }
-
   const runPettingMotion = async (
     upRotation: Rotation,
     leftRight: (direction: number) => Rotation,
     firstDirection: number,
   ): Promise<void> => {
-    try {
-      if (disposed) return
-      await deps.setTorque(true)
-      if (disposed) {
-        pettingTorqueOwned = false
-        try {
-          await deps.setTorque(false)
-        } catch (torqueError) {
-          log(`[TouchPanel] disposed pet motion torque release error ${errorMessage(torqueError)}\n`)
-        }
-        return
-      }
-      pettingTorqueOwned = true
-      await deps.setPose(poseForRotation(leftRight(firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      await waitMs(TOUCH_PANEL_PET_MOTION_STEP_MS)
-      if (disposed) return
-      await deps.setPose(poseForRotation(leftRight(-firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      await waitMs(TOUCH_PANEL_PET_MOTION_STEP_MS)
-      if (disposed) return
-      await deps.setPose(poseForRotation(leftRight(firstDirection * 0.55)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      await waitMs(TOUCH_PANEL_PET_MOTION_STEP_MS)
-      if (disposed) return
-      await deps.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      if (disposed) return
-      pettingHoldTimer = timer.set(() => {
-        pettingHoldTimer = undefined
-        if (disposed) return
-        void runPettingHoldMotion(upRotation)
-      }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
-    } catch (error) {
-      log(`[TouchPanel] pet motion error ${errorMessage(error)}\n`)
-      pettingTorqueOwned = false
-      try {
-        await deps.setTorque(false)
-      } catch (torqueError) {
-        log(`[TouchPanel] pet motion torque release error ${errorMessage(torqueError)}\n`)
-      }
-    } finally {
-      pettingMotionActive = false
-    }
-  }
-
-  const runPettingRestoreMotion = async (rotation: Rotation): Promise<void> => {
-    if (disposed) return
-    try {
-      await deps.setPose(poseForRotation(rotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-    } catch (error) {
-      log(`[TouchPanel] restore motion error ${errorMessage(error)}\n`)
-    } finally {
-      pettingTorqueOwned = false
-      try {
-        await deps.setTorque(false)
-      } catch (torqueError) {
-        log(`[TouchPanel] restore torque release error ${errorMessage(torqueError)}\n`)
-      }
-    }
+    pettingTorqueOwned = true
+    await deps.setTorque(true)
+    if (pettingMotionCanceled) return
+    await deps.setPose(poseForRotation(leftRight(firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+    if (pettingMotionCanceled) return
+    await waitMs(TOUCH_PANEL_PET_MOTION_STEP_MS)
+    if (pettingMotionCanceled) return
+    await deps.setPose(poseForRotation(leftRight(-firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+    if (pettingMotionCanceled) return
+    await waitMs(TOUCH_PANEL_PET_MOTION_STEP_MS)
+    if (pettingMotionCanceled) return
+    await deps.setPose(poseForRotation(leftRight(firstDirection * 0.55)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+    if (pettingMotionCanceled) return
+    await waitMs(TOUCH_PANEL_PET_MOTION_STEP_MS)
+    if (pettingMotionCanceled) return
+    await deps.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+    if (pettingMotionCanceled) return
+    pettingHoldTimer = timer.set(() => {
+      pettingHoldTimer = undefined
+      if (pettingMotionCanceled) return
+      void performPettingMotion('hold', () =>
+        deps.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC),
+      )
+    }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
   }
 
   deps.addDrawerButton({
@@ -278,25 +257,13 @@ export function installEmotionControl<TEffect>(
       motionDetectRestoreTimer = undefined
       motionDetectPreviousEmotion = undefined
       motionDetectEmotion = undefined
-      let canceledPettingMotion = false
-      if (pettingRestoreTimer !== undefined) {
-        clearTimerHandle(pettingRestoreTimer)
-        pettingRestoreTimer = undefined
-        pettingPreviousEmotion = undefined
-        pettingPreviousRotation = undefined
-        canceledPettingMotion = true
-      }
-      if (pettingHoldTimer !== undefined) {
-        clearTimerHandle(pettingHoldTimer)
-        pettingHoldTimer = undefined
-        canceledPettingMotion = true
-      }
-      if (canceledPettingMotion) {
-        pettingTorqueOwned = false
-        void deps
-          .setTorque(false)
-          .catch((error) => log(`[TouchPanel] canceled petting torque release error ${errorMessage(error)}\n`))
-      }
+      clearTimerHandle(pettingRestoreTimer)
+      pettingRestoreTimer = undefined
+      pettingPreviousEmotion = undefined
+      pettingPreviousRotation = undefined
+      clearTimerHandle(pettingHoldTimer)
+      pettingHoldTimer = undefined
+      cancelPettingMotion()
       setEmotionWithEffect(nextEmotion)
     },
   })
@@ -362,7 +329,7 @@ export function installEmotionControl<TEffect>(
         }
         setEmotionWithEffect(Emotion.HAPPY)
         if (!pettingMotionActive) {
-          pettingMotionActive = true
+          pettingMotionCanceled = false
           const baseRotation = pettingPreviousRotation
           const yawAmount = randomInRange(Math.PI / 15, Math.PI / 10)
           const pitch = Math.max(-Math.PI / 4, baseRotation.p - randomInRange(Math.PI / 10, Math.PI / 8))
@@ -376,9 +343,7 @@ export function installEmotionControl<TEffect>(
           log(
             `[TouchPanel] pet motion shake yaw=${yawAmount.toFixed(3)} pitch=${pitch.toFixed(3)} direction=${firstDirection}\n`,
           )
-          void runPettingMotion(upRotation, leftRight, firstDirection).catch((error) =>
-            log(`[TouchPanel] pet motion rejected ${errorMessage(error)}\n`),
-          )
+          void performPettingMotion('pet', () => runPettingMotion(upRotation, leftRight, firstDirection))
         }
         pettingRestoreTimer = timer.set(() => {
           if (disposed) return
@@ -394,9 +359,14 @@ export function installEmotionControl<TEffect>(
             clearTimerHandle(pettingHoldTimer)
             pettingHoldTimer = undefined
           }
-          if (pettingPreviousRotation) {
-            void runPettingRestoreMotion(pettingPreviousRotation).catch((error) =>
-              log(`[TouchPanel] restore motion rejected ${errorMessage(error)}\n`),
+          const restoreRotation = pettingPreviousRotation
+          if (pettingMotionActive) {
+            cancelPettingMotion()
+          } else if (restoreRotation && pettingTorqueOwned) {
+            void performPettingMotion(
+              'restore',
+              () => deps.setPose(poseForRotation(restoreRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC),
+              true,
             )
           }
           pettingPreviousEmotion = undefined
@@ -421,7 +391,7 @@ export function installEmotionControl<TEffect>(
     motionDetectEmotion = undefined
     pettingPreviousEmotion = undefined
     pettingPreviousRotation = undefined
-    releasePettingTorque('cleanup')
+    cancelPettingMotion()
     unsubscribeTouchPanel?.()
     if (deps.imu && deps.imu.onEvent === imuHandler) {
       deps.imu.onEvent = undefined

@@ -1025,7 +1025,7 @@ async function runTests() {
     equal(clients.length, count, 'stop inside retry notification cancels the scheduled connection')
     equal(await session.done, 'stopped')
   }
-  {
+  for (const stopViaAbort of [false, true]) {
     const stopError = new Error('media output close failed after release')
     let failClose = true
     const player = new MediaPlayer(() => ({
@@ -1045,9 +1045,15 @@ async function runTests() {
         },
       },
     }))
-    const failed = await player.open({ url: 'http://example.test/old', mode: 'live' }, createVoiceScope())
+    const scope = createVoiceScope()
+    const failed = await player.open({ url: 'http://example.test/old', mode: 'live' }, scope)
     tick()
-    equal(await failed.stop().catch((error) => error), stopError, 'the old session reports its stop failure')
+    if (stopViaAbort) {
+      scope.abort()
+      equal(await failed.done.catch((error) => error), stopError, 'abort reports the stop failure through done')
+    } else {
+      equal(await failed.stop().catch((error) => error), stopError, 'the old session reports its stop failure')
+    }
     const replacement = await player.open({ url: 'http://example.test/new', mode: 'live' }, createVoiceScope())
     tick()
     equal(lastClient().callbacks.path, '/new', 'the next open starts after a reported stop failure')

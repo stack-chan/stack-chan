@@ -170,8 +170,32 @@ test('web_radio reports network-offline when boot Wi-Fi is not connected', async
   assert.equal(recorder.state.balloon, 'Network unavailable: timeout')
   assert.equal(recorder.state.drawerKey, undefined)
 
+  recorder.events.length = 0
   await app.stop()
   assert.equal(stopCount, 0, 'stopping after network failure must not stop an unstarted shared player')
+  assert.deepEqual(recorder.events, ['balloon:hide'])
+})
+
+test('web_radio closing during network readiness leaves other UI untouched', async () => {
+  const { createRadioApp } = await import('./workflow.js')
+  const recorder = createUiRecorder()
+  const readiness = createDeferred<Result<NetworkStatus, RadioError>>()
+  const app = createRadioApp({
+    stations: TEST_STATIONS,
+    network: { waitReady: () => readiness.promise },
+    ui: recorder.ui,
+  })
+
+  recorder.ui.setConnectionIndicator(true)
+  recorder.ui.setFaceMotionEnabled(false)
+  recorder.ui.showBalloon('Other activity')
+  const beforeStop = recorder.state
+  const started = app.start()
+  await app.stop()
+  readiness.resolve(ok({ status: 'connected' }))
+  await started
+
+  assert.deepEqual(recorder.state, beforeStop)
 })
 
 test('web_radio reports radio-unsupported when the media capability is missing and keeps face motion enabled', async () => {

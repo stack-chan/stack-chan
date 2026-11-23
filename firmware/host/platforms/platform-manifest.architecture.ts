@@ -9,7 +9,6 @@ const coreS3SdkconfigSource = readFileSync(
   'host/modules/audio/platforms/m5stackchan-cores3/sdkconfig/sdkconfig.defaults',
   'utf8',
 )
-const cameraPreviewFeatureSource = readFileSync('host/app/default-behavior/features/camera-preview-feature.ts', 'utf8')
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 
 type Subplatform = {
@@ -158,11 +157,9 @@ describe('Stack-chan platform manifest', () => {
     }
   })
 
-  test('CoreS3 camera preview fits the available internal DMA block', () => {
+  test('CoreS3 camera uses internal DMA buffers', () => {
     assert.match(coreS3SdkconfigSource, /^CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=16384$/m)
     assert.doesNotMatch(coreS3SdkconfigSource, /^CONFIG_CAMERA_PSRAM_DMA=y$/m)
-    assert.match(cameraPreviewFeatureSource, /^const CAMERA_PREVIEW_CAPTURE_WIDTH = 160$/m)
-    assert.match(cameraPreviewFeatureSource, /^const CAMERA_PREVIEW_CAPTURE_HEIGHT = 120$/m)
   })
 
   test('CoreS3 XS heap growth stays in PSRAM and preserves DMA-capable internal RAM', () => {

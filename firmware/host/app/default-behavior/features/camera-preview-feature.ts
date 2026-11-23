@@ -92,9 +92,10 @@ export function installCameraPreviewFeature<
   const log = deps.log ?? ((message: string) => trace(message))
 
   let disposed = false
+  let activePreview: Promise<void> | undefined
   let cameraPreviewTimer: CameraPreviewTimerHandle | undefined
   let cameraStopTimer: CameraPreviewTimerHandle | undefined
-  let resolvePendingStop: (() => void) | undefined
+  let resolvePaintDelay: (() => void) | undefined
 
   const clearPreviewTimer = (): void => {
     if (cameraPreviewTimer !== undefined) {
@@ -103,14 +104,14 @@ export function installCameraPreviewFeature<
     }
   }
 
-  const clearStopTimer = (): void => {
+  const finishPaintDelay = (): void => {
     if (cameraStopTimer !== undefined) {
       timer.clear(cameraStopTimer)
       cameraStopTimer = undefined
     }
-    const resolveStop = resolvePendingStop
-    resolvePendingStop = undefined
-    resolveStop?.()
+    const resolve = resolvePaintDelay
+    resolvePaintDelay = undefined
+    resolve?.()
   }
 
   const restoreCameraPreview = (): void => {
@@ -120,44 +121,24 @@ export function installCameraPreviewFeature<
     deps.hideBalloon()
   }
 
-  const stopCameraAfterPreviewPaint = (): Promise<void> =>
-    new Promise<void>((resolve) => {
-      if (disposed) {
-        resolve()
-        return
-      }
-      clearStopTimer()
-      resolvePendingStop = resolve
-      cameraStopTimer = timer.set(() => {
-        cameraStopTimer = undefined
-        const done = () => {
-          if (resolvePendingStop === resolve) resolvePendingStop = undefined
-          resolve()
-        }
-        try {
-          log('[CameraPreview] camera stop begin\n')
-          const result = deps.camera.stop()
-          if (result && typeof (result as { then?: unknown }).then === 'function') {
-            ;(result as Promise<void>).then(
-              () => {
-                log('[CameraPreview] camera stop done\n')
-                done()
-              },
-              (stopError: unknown) => {
-                log(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
-                done()
-              },
-            )
-          } else {
-            log('[CameraPreview] camera stop done\n')
-            done()
-          }
-        } catch (stopError) {
-          log(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
-          done()
-        }
-      }, CAMERA_PREVIEW_STOP_DELAY_MS)
-    })
+  const stopCameraAfterPreviewPaint = async (): Promise<void> => {
+    if (!disposed) {
+      await new Promise<void>((resolve) => {
+        resolvePaintDelay = resolve
+        cameraStopTimer = timer.set(() => {
+          cameraStopTimer = undefined
+          finishPaintDelay()
+        }, CAMERA_PREVIEW_STOP_DELAY_MS)
+      })
+    }
+    try {
+      log('[CameraPreview] camera stop begin\n')
+      await deps.camera.stop()
+      log('[CameraPreview] camera stop done\n')
+    } catch (error) {
+      log(`[CameraPreview] stop error ${errorMessage(error)}\n`)
+    }
+  }
 
   const runCameraPreview = async (): Promise<void> => {
     if (disposed) return
@@ -194,6 +175,7 @@ export function installCameraPreviewFeature<
       log(
         `[CameraPreview] rendered ${previewFrame.width}x${previewFrame.height} ${previewFrame.imageType} via Piu Port\n`,
       )
+      if (disposed) return
       deps.closeDrawer()
       clearPreviewTimer()
       cameraPreviewTimer = timer.set(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS)
@@ -207,12 +189,17 @@ export function installCameraPreviewFeature<
         }
       }
     } finally {
-      if (frame) {
-        log('[CameraPreview] frame close begin\n')
-        frame.close?.()
-        log('[CameraPreview] frame close done\n')
+      try {
+        if (frame) {
+          log('[CameraPreview] frame close begin\n')
+          frame.close?.()
+          log('[CameraPreview] frame close done\n')
+        }
+      } catch (error) {
+        log(`[CameraPreview] frame close error ${errorMessage(error)}\n`)
+      } finally {
+        await stopCameraAfterPreviewPaint()
       }
-      await stopCameraAfterPreviewPaint()
       if (!disposed) deps.hideBalloonLater(1200)
     }
   }
@@ -221,13 +208,22 @@ export function installCameraPreviewFeature<
     key: 'cameraPreview',
     label: deps.localize('drawer.camera'),
     icon: 'camera',
-    callback: runCameraPreview,
+    async callback() {
+      if (disposed || activePreview) return
+      activePreview = Promise.resolve().then(runCameraPreview)
+      try {
+        await activePreview
+      } finally {
+        activePreview = undefined
+      }
+    },
   })
 
-  scope.own(() => {
+  scope.own(async () => {
     disposed = true
     clearPreviewTimer()
-    clearStopTimer()
+    finishPaintDelay()
+    await activePreview
   })
 
   return ok(undefined)

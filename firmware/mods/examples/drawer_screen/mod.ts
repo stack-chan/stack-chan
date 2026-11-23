@@ -60,12 +60,15 @@ export const { onContextCreated, onClose } = defineMod({
         })
 
         ui.closeDrawer()
-        closeScreen = ui.setMain(screen, {
+        let closed = false
+        const close = ui.setMain(screen, {
           onClose() {
+            closed = true
             clearMessage()
             closeScreen = undefined
           },
         })
+        if (!closed) closeScreen = close
       },
     })
     scope.own(() => {

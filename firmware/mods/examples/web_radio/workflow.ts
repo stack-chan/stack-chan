@@ -81,16 +81,47 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
   let playback: PlaybackAttempt | undefined
   let retiring: Promise<void> | undefined
   let selectedValue: string = deps.stations[0]?.value ?? OFF_VALUE
+  let indicatorVisible = false
+  let notesVisible = false
+  let faceMotionPaused = false
+  let balloonVisible = false
+
+  const setIndicator = (visible: boolean): void => {
+    if (indicatorVisible === visible) return
+    indicatorVisible = visible
+    deps.ui.setConnectionIndicator(visible)
+  }
+
+  const setNotes = (visible: boolean): void => {
+    if (notesVisible === visible) return
+    notesVisible = visible
+    if (visible) deps.ui.showNotes()
+    else deps.ui.hideNotes()
+  }
+
+  const pauseFaceMotion = (paused: boolean): void => {
+    if (faceMotionPaused === paused) return
+    faceMotionPaused = paused
+    deps.ui.setFaceMotionEnabled(!paused)
+  }
+
+  const showError = (error: RadioError): void => {
+    balloonVisible = true
+    deps.ui.showBalloon(formatRadioError(error))
+  }
+
+  const hideError = (): void => {
+    if (!balloonVisible) return
+    balloonVisible = false
+    deps.ui.hideBalloon()
+  }
 
   const resetToIdle = (error?: RadioError): void => {
-    deps.ui.setConnectionIndicator(false)
-    deps.ui.hideNotes()
-    deps.ui.setFaceMotionEnabled(true)
-    if (error) {
-      deps.ui.showBalloon(formatRadioError(error))
-    } else {
-      deps.ui.hideBalloon()
-    }
+    setIndicator(false)
+    setNotes(false)
+    pauseFaceMotion(false)
+    if (error) showError(error)
+    else hideError()
   }
 
   const stopPlayback = (): Promise<void> | undefined => {
@@ -133,13 +164,9 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
       resetToIdle({ kind: 'playback-failed', reason: reason ?? 'unknown error' })
       return
     }
-    deps.ui.setConnectionIndicator(isConnectingState(state))
-    if (state === 'playing') {
-      deps.ui.hideBalloon()
-      deps.ui.showNotes()
-      return
-    }
-    deps.ui.hideNotes()
+    setIndicator(isConnectingState(state))
+    if (state === 'playing') hideError()
+    setNotes(state === 'playing')
   }
 
   const select = async (value: string): AsyncResult<void, RadioError> => {
@@ -150,9 +177,9 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     const selection = parsed.value
     const nextGeneration = ++generation
     selectedValue = value
-    deps.ui.setConnectionIndicator(false)
-    deps.ui.hideNotes()
-    deps.ui.hideBalloon()
+    setIndicator(false)
+    setNotes(false)
+    hideError()
     try {
       const stopping = stopPlayback()
       if (stopping) await stopping
@@ -165,7 +192,7 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     if (closed || nextGeneration !== generation) return ok(undefined)
 
     if (selection.kind === 'off') {
-      deps.ui.setFaceMotionEnabled(true)
+      pauseFaceMotion(false)
       return ok(undefined)
     }
 
@@ -175,7 +202,7 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
       return radioPort
     }
 
-    deps.ui.setFaceMotionEnabled(false)
+    pauseFaceMotion(true)
     const scope = createVoiceScope()
     const opening = radioPort.value.open({
       url: selection.station.url,
@@ -220,7 +247,7 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
 
     return match<void, RadioError, AsyncResult<() => Promise<void> | void, RadioError>>(networkReady, {
       err: async (error) => {
-        deps.ui.showBalloon(formatRadioError(error))
+        showError(error)
         return err(error)
       },
       ok: async () => {

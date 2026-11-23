@@ -36,15 +36,8 @@
     "audio-buffer",
     "microphone",
     "speaker",
-    "stt-whisper",
     "calculatePower",
-    "speech-playback-local",
-    "speech-playback-remote",
-    "speech-playback-voicevox",
-    "speech-playback-voicevox-web",
-    "speech-playback-elevenlabs",
-    "speech-playback-openai",
-    "speech-playback-stackchan-voice"
+    "speech-playback-local"
   ],
   "data": {
     "*": [

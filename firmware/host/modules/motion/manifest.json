@@ -24,8 +24,7 @@
     "protocols/dynamixel-codec",
     "payload-buffer",
     "internal/single-wait-slot",
-    "internal/servo-command-error",
-    "gaze-tracking-state"
+    "internal/servo-command-error"
   ],
   "typescript": {
     "tsconfig": {

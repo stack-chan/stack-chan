@@ -137,32 +137,37 @@ export class StackchanRuntimeAudio {
   ): (() => void) | Promise<() => void> {
     if (
       this.#closed ||
-      this.#arbiter.state !== AudioArbiterState.Free ||
       this.#activeOperations ||
       this.#microphone?.recording ||
       (this.#utterance && (kind === 'conversation' || interruptible))
     )
       throw new Error('audio busy')
-    if (interruptible) return noop
+    if (interruptible) {
+      if (this.#arbiter.state !== AudioArbiterState.Free) throw new Error('audio busy')
+      return noop
+    }
     const role: AudioRole = kind === 'conversation' ? 'realtime-conversation' : 'short-utterance'
-    if (this.#arbiter.tryAcquire(role) !== 'allow') throw new Error('audio busy')
+    if (!this.#arbiter.beginAcquire(role)) throw new Error('audio busy')
     let released = false
     const release = () => {
       if (released) return
       released = true
-      this.#arbiter.beginRelease(role)
-      this.#arbiter.confirmRelease(role)
+      this.#arbiter.release(role)
     }
     try {
       const stopping = this.#stopMedia()
       if (stopping)
         return stopping.then(
-          () => release,
+          () => {
+            this.#arbiter.confirmAcquire(role)
+            return release
+          },
           (error) => {
             release()
             throw error
           },
         )
+      this.#arbiter.confirmAcquire(role)
       return release
     } catch (error) {
       release()

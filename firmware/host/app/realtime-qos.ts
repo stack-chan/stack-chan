@@ -1,4 +1,9 @@
-export type OperatingMode = 'idle' | 'wake-listening' | 'realtime-conversation' | 'media-playback'
+export type OperatingMode =
+  | 'idle'
+  | 'wake-listening'
+  | 'realtime-connecting'
+  | 'realtime-conversation'
+  | 'media-playback'
 
 export type QoSLease = {
   release(): void

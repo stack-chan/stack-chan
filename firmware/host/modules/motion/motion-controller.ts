@@ -79,11 +79,20 @@ export class MotionController {
     if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
     const phase = this.#gaze.phase
     const inFlightTorqueOp = phase === MotionPhase.EnablingTorque || phase === MotionPhase.ApplyingRotation
-    this.#releaseTorqueAfterClose = inFlightTorqueOp && !this.#torqueRequested
+    const shouldReleaseNow =
+      (phase === MotionPhase.Settling || phase === MotionPhase.ReleasingTorque) && !this.#torqueRequested
+    this.#releaseTorqueAfterClose = (this.#releaseTorqueAfterClose || inFlightTorqueOp) && !this.#torqueRequested
     this.#gaze.reset()
     this.updating = false
     this.#stopPosePolling()
     this.#clearReleaseTorqueTimer()
+    if (shouldReleaseNow) {
+      try {
+        this.#driver.setTorque(false, () => {})
+      } catch (error) {
+        trace(`[MotionController] release torque failed: ${String(error)}\n`)
+      }
+    }
   }
 
   useDriver(driver: MotionDriver) {

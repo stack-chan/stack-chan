@@ -5,6 +5,5 @@
   ],
   "modules": {
     "mcp-client": "./mcp-client"
-  },
-  "preload": ["mcp-client"]
+  }
 }

@@ -12,6 +12,27 @@ function loadUiPerformance(): UiPerformanceModule | undefined {
   return Modules.importNow('stackchan/realtime-ui-performance') as UiPerformanceModule
 }
 
+let wifiLeaseCount = 0
+let sharedWifiLease: { close(): void } | undefined
+
+function acquireSharedLowLatency(): () => void {
+  if (wifiLeaseCount === 0) {
+    sharedWifiLease = acquireLowLatency()
+  }
+  wifiLeaseCount += 1
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    wifiLeaseCount -= 1
+    if (wifiLeaseCount === 0) {
+      const lease = sharedWifiLease
+      sharedWifiLease = undefined
+      lease?.close()
+    }
+  }
+}
+
 let uiLeaseCount = 0
 let releaseSharedUi: (() => void) | undefined
 
@@ -38,16 +59,18 @@ const adapter: RealtimeQoSAdapter = Object.freeze({
     loadUiPerformance()?.prepare?.()
   },
   acquire(mode: OperatingMode) {
-    if (mode !== 'realtime-conversation') return undefined
-    const wifiLease = acquireLowLatency()
+    if (mode !== 'realtime-connecting' && mode !== 'realtime-conversation') return undefined
+    const releaseWifi = acquireSharedLowLatency()
     let releaseUi: (() => void) | undefined
-    try {
-      releaseUi = acquireSharedUiPerformance()
-    } catch (error) {
+    if (mode === 'realtime-conversation') {
       try {
-        wifiLease?.close()
-      } catch {}
-      throw error
+        releaseUi = acquireSharedUiPerformance()
+      } catch (error) {
+        try {
+          releaseWifi()
+        } catch {}
+        throw error
+      }
     }
     let released = false
     return {
@@ -57,7 +80,7 @@ const adapter: RealtimeQoSAdapter = Object.freeze({
         try {
           releaseUi?.()
         } finally {
-          wifiLease?.close()
+          releaseWifi()
         }
       },
     }

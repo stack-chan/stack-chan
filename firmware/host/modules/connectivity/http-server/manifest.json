@@ -8,6 +8,5 @@
   ],
   "modules": {
     "*": ["./*"]
-  },
-  "preload": ["http-server-service"]
+  }
 }

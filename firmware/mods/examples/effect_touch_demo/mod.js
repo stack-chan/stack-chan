@@ -3,6 +3,7 @@ import { Emoticon } from 'effects/emoticon'
 import { MusicNotes } from 'effects/music-notes'
 import { Emotion } from 'face-state'
 import { defineMod } from 'mod-kit'
+import { Content } from 'piu/MC'
 
 const stages = [
   { key: 'heart', emotion: Emotion.HAPPY, mouth: 0.18 },
@@ -14,12 +15,34 @@ const stages = [
   { key: 'music', emotion: Emotion.NEUTRAL, mouth: 0.38 },
 ]
 
+class AdvanceOnTouch extends Behavior {
+  #touchId = null
+  #advance
+
+  onCreate(_content, advance) {
+    this.#advance = advance
+  }
+
+  onTouchBegan(content, id, x, y, ticks) {
+    if (this.#touchId !== null) return
+    this.#touchId = id
+    content.captureTouch(id, x, y, ticks)
+  }
+
+  onTouchEnded(_content, id) {
+    if (id !== this.#touchId) return
+    this.#touchId = null
+    this.#advance()
+  }
+
+  onTouchCancelled(_content, id) {
+    if (id === this.#touchId) this.#touchId = null
+  }
+}
+
 export const { onContextCreated, onClose } = defineMod({
   setup(robot, _option, scope) {
-    const touch = robot.input.touch
-    const previousHandler = touch?.onEvent
     let stageIndex = 0
-    let touchId = null
     let activeEffect = null
 
     function showStage() {
@@ -32,24 +55,22 @@ export const { onContextCreated, onClose } = defineMod({
       trace(`[effect-touch-demo] stage=${stageIndex + 1}/${stages.length} key=${key}\n`)
     }
 
-    function onTouch({ id, phase }) {
-      if (phase === 'began' && touchId === null) {
-        touchId = id
-      } else if (phase === 'ended' && id === touchId) {
-        touchId = null
+    const touchSurface = new Content(
+      () => {
         stageIndex = (stageIndex + 1) % stages.length
         showStage()
-      }
-    }
+      },
+      { left: 0, right: 0, top: 0, bottom: 0, active: true, Behavior: AdvanceOnTouch },
+    )
 
     scope.own(() => {
-      if (touch?.onEvent === onTouch) touch.onEvent = previousHandler
+      robot.ui.removeEffect(touchSurface)
       if (activeEffect) robot.ui.removeEffect(activeEffect)
     })
 
     robot.ui.setFace(new SimpleFace({}))
     showStage()
-    if (touch) touch.onEvent = onTouch
-    trace(`[effect-touch-demo] ready touch=${Boolean(touch)}\n`)
+    robot.ui.addEffect(touchSurface)
+    trace('[effect-touch-demo] ready input=piu\n')
   },
 })

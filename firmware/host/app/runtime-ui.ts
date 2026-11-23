@@ -71,6 +71,22 @@ export class StackchanRuntimeUI {
     return this.#ui
   }
 
+  setConnectionIndicator(visible: boolean): void {
+    if (this.#ui.setConnectionIndicator) {
+      this.#ui.setConnectionIndicator(visible)
+      return
+    }
+    const application = this.#ui.application
+    if (
+      application &&
+      typeof application === 'object' &&
+      'distribute' in application &&
+      typeof application.distribute === 'function'
+    ) {
+      application.distribute('onConnectionIndicator', visible)
+    }
+  }
+
   useUI(ui: RobotUI) {
     if (ui === this.#ui) return
     this.detachDrawerBindings()

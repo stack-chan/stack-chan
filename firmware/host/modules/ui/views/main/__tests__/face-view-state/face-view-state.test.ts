@@ -77,7 +77,9 @@ function createDrawerTestUI(calls: DrawerControllerCalls) {
     removeEffect(_effect: unknown) {},
     setFace(_face: PiuContainer) {},
     setHandAnimation() {},
-    setMain(_content: PiuContainer) {},
+    setMain(_content: PiuContainer) {
+      return () => {}
+    },
     showFace() {},
     setDrawerButtons(buttons: unknown[]) {
       calls.buttons = buttons

@@ -3,8 +3,8 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import type { RobotUI } from 'capabilities'
-import { Emotion, type FaceState } from '../../modules/ui/state/face-state.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
+import { Emotion, type FaceState } from '../../modules/ui/state/face-state.js'
 
 type RuntimeUIModule = typeof import('../runtime-ui.js')
 

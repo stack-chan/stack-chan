@@ -222,3 +222,37 @@ test('owned close never certifies local audio release when the real pipeline clo
   assert.deepEqual(outcome, ['error'])
   assert.ok(!f.events.includes('native closed'))
 })
+
+test('standby changes preserve mute and never reset lifecycle or act on a stale conversation', async () => {
+  const readiness = [],
+    connection = [],
+    f = fixture({
+      onState: (state, standby) => connection.push([state, standby]),
+      onStandbyChanged: (standby) => readiness.push(standby),
+    }),
+    connecting = f.connectPending()
+  const starting = f.session.start()
+  await Promise.resolve()
+  const old = f.instances[0].options
+  old.onStandbyChanged(true)
+  assert.deepEqual(readiness, [])
+  connecting.resolve()
+  assert.equal(await starting, true)
+  assert.deepEqual(connection, [
+    ['connecting', undefined],
+    ['connected', true],
+  ])
+  assert.equal(await f.session.setMicrophoneMuted(true), true)
+  old.onStandbyChanged(false)
+  assert.deepEqual(readiness, [false])
+  assert.equal(f.session.active.muted, true)
+  assert.equal(f.instances.length, 1)
+  const stopping = f.session.stop()
+  old.onStandbyChanged(true)
+  await stopping
+  assert.equal(await f.session.start(), true)
+  old.onStandbyChanged(true)
+  assert.deepEqual(readiness, [false])
+  assert.equal(f.session.active.standby, undefined)
+  await f.session.stop()
+})

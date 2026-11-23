@@ -11,17 +11,17 @@ const MUTE = 'openai-live:mute'
 const WAKE = 'openai-live:wake'
 let session, stopWake
 const messages = {
-  idle: 'OpenAI 会話を終了しました',
-  connecting: 'OpenAI に接続中',
-  connected: 'OpenAI 会話中',
-  closing: '会話を終了中',
-  configuration: 'API キーを設定してください',
-  error: '会話エラー。もう一度開始してください',
+  idle: 'OpenAI ��b���I�����܂���',
+  connecting: 'OpenAI �ɐڑ���',
+  connected: 'OpenAI ��b��',
+  closing: '��b���I����',
+  configuration: 'API �L�[��ݒ肵�Ă�������',
+  error: '��b�G���[�B������x�J�n���Ă�������',
 }
 
 export function onContextCreated(robot) {
   if (!Modules.has('realtimeConversation') || !robot.audio.microphone || !globalThis.amp) {
-    robot.ui.showBalloon('OpenAI WebRTC 対応ホストが必要です')
+    robot.ui.showBalloon('OpenAI WebRTC �Ή��z�X�g���K�v�ł�')
     return
   }
   const { LiveConversation } = Modules.importNow('realtimeConversation', true)
@@ -42,11 +42,11 @@ export function onContextCreated(robot) {
   function renderWake() {
     if (disposed || !coordinator) return
     if (coordinator.status === 'fault') {
-      robot.ui.showBalloon('音声の解放を確認できません')
+      robot.ui.showBalloon('�����̉�����m�F�ł��܂���')
     } else if (wakeUnavailable) {
-      robot.ui.showBalloon('ウェイクワードを開始できません')
+      robot.ui.showBalloon('�E�F�C�N���[�h���J�n�ł��܂���')
     } else if (coordinator.wakeEnabled && coordinator.status === 'listening') {
-      robot.ui.showBalloon('「Hi, Stack Chan」で会話を開始')
+      robot.ui.showBalloon('�uHi, Stack Chan�v�ŉ�b���J�n')
     }
     drawer.setDrawerButtonState(WAKE, coordinator.wakeEnabled)
   }
@@ -78,6 +78,20 @@ export function onContextCreated(robot) {
       // A rendering failure must not prevent session cleanup.
     }
   }
+  function renderConversation(standby) {
+    const message = standby
+      ? session.active?.muted
+        ? 'OpenAI �ҋ@���E�~���[�g��'
+        : 'OpenAI �ҋ@���E�}�C�N���M��'
+      : standby === undefined && coordinator
+        ? '�b�������Ă�������'
+        : messages.connected
+    try {
+      robot.ui.showBalloon(message)
+    } catch {
+      // A display failure must not end the conversation.
+    }
+  }
   session = new LiveSession({
     createConversation: LiveConversation.create,
     createPipeline: (conversation) =>
@@ -91,7 +105,8 @@ export function onContextCreated(robot) {
     acquireLowLatency: () => power.acquireLowLatency(),
     settings,
     reactions: settings.decisionsReactions === true ? createDecisionsReactions(robot, wait) : undefined,
-    onState(state) {
+    onStandbyChanged: renderConversation,
+    onState(state, standby) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
       try {
         if (state === 'connected' && !releaseUI) releaseUI = uiPerformance?.acquire()
@@ -121,7 +136,8 @@ export function onContextCreated(robot) {
       try {
         drawer.setDrawerButtonState(SESSION, active)
         drawer.setDrawerButtonState(MUTE, false)
-        robot.ui.showBalloon(coordinator && state === 'connected' ? '話しかけてください' : messages[state])
+        if (state === 'connected') renderConversation(standby)
+        else robot.ui.showBalloon(messages[state])
       } catch {
         // Display failures must not prevent native audio/radio cleanup.
       }
@@ -187,7 +203,7 @@ export function onContextCreated(robot) {
       }
       drawer.addDrawerButton({
         key: WAKE,
-        label: 'ウェイクワード待機',
+        label: '�E�F�C�N���[�h�ҋ@',
         kind: 'toggle',
         initialState: false,
         callback: () => {
@@ -203,7 +219,7 @@ export function onContextCreated(robot) {
   } else stopWake = undefined
   drawer.addDrawerButton({
     key: SESSION,
-    label: 'OpenAI 会話',
+    label: 'OpenAI ��b',
     kind: 'toggle',
     initialState: false,
     callback: () => {
@@ -233,7 +249,7 @@ export function onContextCreated(robot) {
   })
   drawer.addDrawerButton({
     key: MUTE,
-    label: 'マイクミュート',
+    label: '�}�C�N�~���[�g',
     kind: 'toggle',
     initialState: false,
     callback: () => {
@@ -245,10 +261,13 @@ export function onContextCreated(robot) {
       }
       if (changingMute) return
       changingMute = true
-      const muted = !session.active?.muted
+      const entry = session.active
+      const muted = !entry?.muted
       void session.setMicrophoneMuted(muted).then((value) => {
         changingMute = false
+        if (session.active !== entry) return
         drawer.setDrawerButtonState(MUTE, value)
+        if (entry?.connected && !entry.cancelled && entry.standby) renderConversation(true)
       })
     },
   })

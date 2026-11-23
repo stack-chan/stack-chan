@@ -140,6 +140,7 @@ async function fixture({
       events.push('conversation created')
       return {
         setVolume() {},
+        async setMicrophoneMuted() {},
         start() {
           owner = 'conversation'
           events.push('conversation started')
@@ -221,7 +222,7 @@ test('exact MOD waits for opt-in and releases listening before existing conversa
     'conversation created',
     'conversation started',
   ])
-  assert.equal(f.balloons.at(-1), '話しかけてください')
+  assert.equal(f.balloons.at(-1), '�b�������Ă�������')
   f.fire('session')
   await settle()
   assert.equal(f.states.get(names.wake), false)
@@ -414,7 +415,7 @@ test('unconfirmed detector close does not start a replacement even via the manua
   f.wake()
   await settle()
   assert.equal(f.states.get(names.wake), false)
-  assert.equal(f.balloons.at(-1), '音声の解放を確認できません')
+  assert.equal(f.balloons.at(-1), '�����̉�����m�F�ł��܂���')
   f.fire('session')
   await settle()
   assert.ok(!f.events.includes('conversation created'))
@@ -465,4 +466,27 @@ test('session UI scheduling spans active audio and is released after each kind o
     assert.deepEqual(f.events.slice(-2), ['conversation released', 'UI scheduler released'])
     await f.shutdown()
   }
+})
+
+test('the MOD distinguishes OpenAI standby from local wake and keeps mute through resume', async () => {
+  const f = await fixture()
+  f.fire('session')
+  await settle()
+  const live = f.conversation()
+  live.onStandbyChanged(true)
+  assert.equal(f.balloons.at(-1), 'OpenAI �ҋ@���E�}�C�N���M��')
+  assert.equal(f.states.get(names.session), true)
+  f.fire('mute')
+  await settle()
+  assert.equal(f.states.get(names.mute), true)
+  assert.equal(f.balloons.at(-1), 'OpenAI �ҋ@���E�~���[�g��')
+  live.onStandbyChanged(false)
+  assert.equal(f.balloons.at(-1), 'OpenAI ��b��')
+  assert.equal(f.states.get(names.mute), true)
+  f.fire('session')
+  await settle()
+  const label = f.balloons.at(-1)
+  live.onStandbyChanged(true)
+  assert.equal(f.balloons.at(-1), label)
+  await f.shutdown()
 })

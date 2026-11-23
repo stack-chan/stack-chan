@@ -52,7 +52,8 @@ function harness(options = {}) {
   const events = [],
     transcripts = [],
     errors = [],
-    states = []
+    states = [],
+    readiness = []
   const c = new Conversation(
     {
       apiKey: 'test-key',
@@ -61,6 +62,7 @@ function harness(options = {}) {
       onTranscript: (e) => transcripts.push(e),
       onError: (e) => errors.push(e),
       onStateChanged: (e) => states.push(e),
+      onStandbyChanged: (e) => readiness.push(e),
       ...options,
     },
     {
@@ -105,6 +107,7 @@ function harness(options = {}) {
     transcripts,
     errors,
     states,
+    readiness,
     get disposed() {
       return disposed
     },
@@ -154,6 +157,9 @@ await test('Live session JSON and no session.start on WebRTC', async () => {
   const body = JSON.parse(request.init.body)
   equal(body.session.model, 'gpt-live-1')
   equal(body.session.audio.output.voice, 'marin')
+  equal(body.session.wake_policy, { type: 'speech' })
+  equal(body.session.idle_timeout_s, 30)
+  equal(h.readiness, [true])
   equal(body.session.delegation.responses.tools, [{ type: 'web_search' }])
   equal(body.transport.type, 'webrtc')
   equal(h.sent, [])
@@ -162,6 +168,78 @@ await test('Live session JSON and no session.start on WebRTC', async () => {
   h.message({ type: 'session.closed', reason: 'client_request', usage: { seconds: 3 } })
   equal(await p, { finalized: true, reason: 'client_request', usage: { seconds: 3 } })
   equal(h.disposed, 1)
+})
+
+await test('standby preserves connection and mute, and a late transcript does not resume an explicit pause', async () => {
+  const h = harness()
+  await h.connect()
+  const transcript = {
+    type: 'session.input_transcript.delta',
+    delta: 'hello',
+    start_ms: 0,
+    end_ms: 100,
+  }
+  h.message({ ...transcript, delta: '' })
+  equal(h.readiness, [true])
+  h.message(transcript)
+  equal(h.readiness, [true, false])
+  h.message({ type: 'session.paused', event_id: 'pause' })
+  h.message(transcript)
+  equal(h.readiness, [true, false, true])
+  const mute = h.c.setMuted(true)
+  const command = h.sent.at(-1)
+  equal(command.type, 'session.input_audio.mute')
+  equal(h.localMute, true)
+  h.message({ type: 'session.input_audio.muted', client_event_id: command.event_id })
+  await mute
+  h.message({ type: 'session.resumed', event_id: 'resume' })
+  equal(h.readiness, [true, false, true, false])
+  equal(h.c.state, 'connected')
+  equal(h.c.sessionId, 'live_opaque')
+  equal(h.requests.length, 1)
+  equal(h.localMute, true)
+  h.message({ type: 'session.paused', event_id: 'pause_again' })
+  const closed = h.c.close()
+  equal(h.sent.at(-1), { type: 'session.close' })
+  h.message({ type: 'session.resumed', event_id: 'late_resume' })
+  equal(h.readiness, [true, false, true, false, true])
+  h.message({ type: 'session.closed', reason: 'client_request' })
+  equal((await closed).finalized, true)
+})
+
+await test('an early resume is displayed only once the connection starts', async () => {
+  const h = harness()
+  const connecting = h.c.connect()
+  await h.signal()
+  h.message({ type: 'session.resumed', event_id: 'early_resume' })
+  equal(h.readiness, [])
+  h.message({ type: 'session.started', session: { id: 'live_opaque' } })
+  await connecting
+  equal(h.readiness, [false])
+})
+
+await test('injected signaling does not get the stock Live standby policy', async () => {
+  let session
+  const h = harness({
+    apiKey: undefined,
+    signaling: {
+      createSession(input) {
+        session = input.session
+        input.starting()
+        return {
+          status: 201,
+          text: async () =>
+            JSON.stringify({ session: { id: 'live_opaque' }, transport: { type: 'webrtc', sdp: 'v=0\r\nanswer' } }),
+        }
+      },
+      async hangup() {},
+    },
+  })
+  await h.connect()
+  equal('wake_policy' in session, false)
+  equal('idle_timeout_s' in session, false)
+  h.message({ type: 'session.paused', event_id: 'pause' })
+  equal(h.readiness, [])
 })
 
 await test('transcript triggers ride the session request alongside hosted Responses', async () => {
@@ -201,9 +279,9 @@ await test('transcript triggers ride the session request alongside hosted Respon
 await test('preserve overlapping transcript fragments and cumulative usage', async () => {
   const h = harness()
   await h.connect()
-  h.message({ type: 'session.input_transcript.delta', delta: ' 東京', start_ms: 10, end_ms: 40 })
-  h.message({ type: 'session.output_transcript.delta', delta: 'はい', start_ms: 20, end_ms: 30 })
-  equal(h.transcripts[0], { role: 'user', delta: ' 東京', start_ms: 10, end_ms: 40 })
+  h.message({ type: 'session.input_transcript.delta', delta: ' ����', start_ms: 10, end_ms: 40 })
+  h.message({ type: 'session.output_transcript.delta', delta: '�͂�', start_ms: 20, end_ms: 30 })
+  equal(h.transcripts[0], { role: 'user', delta: ' ����', start_ms: 10, end_ms: 40 })
   equal(h.transcripts[1].role, 'assistant')
   h.message({ type: 'session.usage.updated', usage: { seconds: 8 } })
   h.message({ type: 'session.usage.updated', usage: { seconds: 9 } })

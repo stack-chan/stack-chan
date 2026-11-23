@@ -57,10 +57,18 @@ export class MuseChatSession {
           try {
             this.event(type, data)
           } catch (cause) {
+            if (type === 1) this.dependencies.onDiagnostic?.('note_connect_start_failed')
+            if (type === 2 && this.state === 'handshake') this.dependencies.onDiagnostic?.('note_connect_handshake_failed')
             this.fail(cause?.code)
           }
         })
-      } catch {
+      } catch (cause) {
+        const reason = [
+          'Muse account transport configuration', 'Muse account transport allocation',
+          'Muse account Noise initialization', 'Muse account WebSocket initialization',
+          'Muse account WebSocket events', 'Muse account WebSocket start', 'Muse account transport unavailable',
+        ].indexOf(cause?.message) + 1
+        this.dependencies.onDiagnostic?.(`note_connect_open_${reason}`)
         this.fail()
       }
     })
@@ -193,6 +201,10 @@ export class MuseChatSession {
 
   feedLines(body) {
     const pending = this.pending
+    if (body?.byteLength && !pending.sawBody) {
+      pending.sawBody = true
+      this.dependencies.onDiagnostic?.('note_subscription_body')
+    }
     for (const byte of new Uint8Array(body ?? new ArrayBuffer(0))) {
       if (byte !== 10) {
         if (pending.lineLength >= pending.line.length) throw error('resource_exhausted')
@@ -202,6 +214,10 @@ export class MuseChatSession {
           JSON.parse(this.dependencies.decode(pending.line.slice(0, pending.lineLength).buffer)),
           this.dependencies.now(),
         )
+        if (pending.turn.replies.length && !pending.sawReply) {
+          pending.sawReply = true
+          this.dependencies.onDiagnostic?.('note_reply_event')
+        }
         pending.line.fill(0, 0, pending.lineLength)
         pending.lineLength = 0
       }
@@ -248,6 +264,7 @@ export class MuseChatSession {
         if (!pending) return
         const now = this.dependencies.now()
         if (pending.turn.complete(now)) {
+          this.dependencies.onDiagnostic?.('note_reply_complete')
           this.transport.resetStream(pending.subscription)
           signal?.removeEventListener('abort', abort)
           this.pending = undefined

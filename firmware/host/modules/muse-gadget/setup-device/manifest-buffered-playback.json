@@ -1,0 +1,9 @@
+{
+  "modules": {
+    "muse-buffered-playback": "./buffered-playback",
+    "muse-buffered-pcm-page": [
+      "./buffered-pcm-page.js",
+      "./buffered-pcm-page.c"
+    ]
+  }
+}

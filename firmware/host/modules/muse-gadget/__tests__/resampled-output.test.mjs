@@ -4,6 +4,8 @@ import resamplePCM16Mono from '../../testing/fakes/pcm-resampler.ts'
 import { createResampledOutput } from '../setup-device/resampled-output.js'
 
 function setup() {
+  const timers = new Map()
+  let nextTimer = 0
   const writes = [],
     calls = [],
     states = []
@@ -25,6 +27,13 @@ function setup() {
   }
   const adapter = createResampledOutput({
     minimumOutputBytes: 4092,
+    setTimer(callback, ms) {
+      timers.set(++nextTimer, { callback, ms })
+      return nextTimer
+    },
+    clearTimer(id) {
+      timers.delete(id)
+    },
     openOutput(...args) {
       calls.push(args)
       return native
@@ -37,7 +46,21 @@ function setup() {
       return resamplePCM16Mono(input, offset, count, output, sourceRate, targetRate, state)
     },
   })
-  return { adapter, writes, calls, states, native, counts: () => ({ closed, drained }) }
+  return {
+    adapter,
+    writes,
+    calls,
+    states,
+    native,
+    timers,
+    fireTimer() {
+      for (const [id, job] of [...timers]) {
+        timers.delete(id)
+        job.callback()
+      }
+    },
+    counts: () => ({ closed, drained }),
+  }
 }
 
 test('24 kHz speech uses 16 kHz hardware with bounded chunks and source-rate accounting', async () => {
@@ -121,4 +144,23 @@ test('pending native writes cannot be drained or overwritten and close rejects c
   release()
   await assert.rejects(pending, { code: 'cancelled' })
   assert.equal(output.frames, 0)
+})
+
+test('startup mode preserves equal PCM prefill at 24k and 16k and rejects insufficient total stage/scratch budget', () => {
+  const f = setup()
+  f.adapter.openOutput(24000, 0, 17920, undefined, 3)
+  assert.equal(f.calls[0][4], 3)
+  f.adapter.openOutput(16000, 0, 17920, undefined, 3)
+  assert.equal(f.calls[1][4], 3)
+  assert.throws(() => f.adapter.openOutput(24000, 0, 16367, undefined, 3), RangeError)
+  assert.throws(() => f.adapter.openOutput(24000, 0, 17920, undefined, 2), RangeError)
+  assert.equal(f.calls.length, 2)
+})
+
+test('reserve3 rejects unaligned borrowed input instead of allocating a hidden PCM copy', async () => {
+  const f = setup(),
+    output = f.adapter.openOutput(24000, 0, 17920, undefined, 3)
+  await assert.rejects(output.write(new Uint8Array(5).subarray(1)), RangeError)
+  assert.equal(f.writes.length, 0)
+  output.close()
 })

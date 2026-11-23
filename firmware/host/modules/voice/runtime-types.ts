@@ -37,5 +37,11 @@ export interface PcmOutput {
 }
 export interface PcmOutputModule {
   readonly minimumOutputBytes: number
-  openOutput(sampleRate: number, volume: number, limit: number, onLevel?: (value: number) => void): PcmOutput
+  openOutput(
+    sampleRate: number,
+    volume: number,
+    limit: number,
+    onLevel?: (value: number) => void,
+    startupBlocks?: 1 | 3,
+  ): PcmOutput
 }

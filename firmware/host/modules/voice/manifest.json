@@ -15,11 +15,14 @@
     "stackchan/voice/levels": "./levels",
     "stackchan/voice/device": "./pcm-device",
     "stackchan/voice/pcm-http": "./pcm-http",
-    "stackchan/voice/speech": "./speech"
+    "stackchan/voice/speech": "./speech",
+    "stackchan/voice/pcm-base64": "./pcm-base64"
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {
-      "modules": { "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output" }
+      "modules": {
+        "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output"
+      }
     }
   }
 }

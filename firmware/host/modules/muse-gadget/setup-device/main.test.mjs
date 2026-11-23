@@ -113,6 +113,18 @@ async function fixture(stored = false, metadataError = false, sdkReady = true, c
     }
   }
   const modules = {
+    modules: {
+      default: {
+        has: (name) => Boolean(lifecycle.rateFixture && name === 'muse-stopwatch-rate-fixture'),
+        importNow(name, namespace) {
+          assert.equal(name, 'muse-stopwatch-rate-fixture')
+          if (lifecycle.rateFixtureImportFails) throw new Error('private import detail')
+          // Moddable importNow defaults to the default export; the fixture only exports a named arm.
+          if (!namespace) return undefined
+          return { arm: ({ active }) => calls.push(active() ? 'fixture.armed' : 'fixture.blocked') }
+        },
+      },
+    },
     timer: {
       default: { set: (callback, delay) => setTimeout(callback, delay), clear: (handle) => clearTimeout(handle) },
     },
@@ -207,6 +219,7 @@ async function fixture(stored = false, metadataError = false, sdkReady = true, c
     'muse-setup/coordinator': { createSetupCoordinator },
     'muse-setup/prompt': { describeSetupPrompt },
     'muse-setup/pairing-controller': { createPairingController },
+    'muse-native-speech-enabled': { default: false },
     'muse-setup-metadata': {
       default() {
         if (metadataError) throw new Error('hidden')
@@ -601,4 +614,85 @@ test('TTS metrics traces accept bounded digits only and reject injected strings'
   ])
     f.diagnose(value)
   assert.deepEqual(f.logs, ['MUSE_SPEECH tts_metrics_123456_12345678\n'])
+})
+
+test('TTS failure traces accept only the fixed category range', async () => {
+  const f = await fixture()
+  f.logs.length = 0
+  for (const value of [
+    'tts_failure_0',
+    'tts_failure_13',
+    'tts_failure_14',
+    'tts_failure_secret',
+    'tts_failure_1\nsecret',
+  ])
+    f.diagnose(value)
+  assert.deepEqual(f.logs, ['MUSE_SPEECH tts_failure_0\n', 'MUSE_SPEECH tts_failure_13\n'])
+})
+
+test('transport diagnostics accept ten bounded numeric fields only', async () => {
+  const f = await fixture()
+  f.logs.length = 0
+  f.diagnose('tts_transport_1_0_200_100_0_100_20_10_10_0')
+  f.diagnose('tts_transport_private')
+  f.diagnose('tts_transport_1_0_200_100_0_100_20_10_10_0\nsecret')
+  assert.deepEqual(f.logs, ['MUSE_SPEECH tts_transport_1_0_200_100_0_100_20_10_10_0\n'])
+})
+
+test('STT trace allows only PCM byte count and four elapsed times', async () => {
+  const f = await fixture()
+  f.logs.length = 0
+  for (const value of [
+    'stt_timing_48000_12_17_200_1',
+    'stt_timing_1_2_3_4',
+    'stt_timing_1_2_3_4_text',
+    'stt_timing_1_2_3_4_5\nsecret',
+  ])
+    f.diagnose(value)
+  assert.deepEqual(f.logs, ['MUSE_SPEECH stt_timing_48000_12_17_200_1\n'])
+})
+
+test('chat connection diagnostics never log arbitrary provider detail', async () => {
+  const f = await fixture()
+  f.logs.length = 0
+  for (const code of ['note_connect_open_7', 'note_transport_reason_23', 'note_connect_open_8', 'note_transport_reason_24', 'note_connect_open_private', 'note_connect_start_failed\nprivate']) f.diagnose(code)
+  assert.deepEqual(f.logs, ['MUSE_CONNECT note_connect_open_7\n', 'MUSE_CONNECT note_transport_reason_23\n'])
+})
+
+test('reply and worker lifecycle diagnostics reject arbitrary text and appended details', async () => {
+  const f = await fixture()
+  f.logs.length = 0
+  const accepted = ['note_subscription_body', 'note_reply_event', 'note_subscription_end', 'note_reply_complete', 'tts_worker_start', 'tts_worker_allocation_failed', 'tts_worker_spawned', 'tts_worker_dispatch', 'tts_worker_done', 'tts_worker_error']
+  for (const marker of accepted) {
+    f.diagnose(marker)
+    f.diagnose(marker + '\nprivate')
+  }
+  f.diagnose('tts_worker_private')
+  f.diagnose('note_reply_private')
+  assert.equal(f.logs.length, accepted.length)
+  assert.ok(f.logs.every(x => !x.includes('private')))
+})
+
+test('compiled offline rate fixture arms after setup and neither restores account nor connects', async () => {
+  const f = await fixture(true, false, true, true, { connected: true, rateFixture: true })
+  assert.ok(f.calls.includes('fixture.armed'))
+  assert.ok(!f.calls.includes('restore'))
+  assert.ok(!f.calls.includes('connect'))
+  assert.ok(f.logs.includes('MUSE_RATE_APP_READY\n'))
+})
+
+test('offline rate fixture never arms when normal startup self-test fails', async () => {
+  const f = await fixture(true, false, true, false, { connected: true, rateFixture: true })
+  assert.ok(!f.calls.includes('fixture.armed'))
+  assert.ok(!f.calls.includes('connect'))
+  assert.ok(!f.logs.includes('MUSE_RATE_APP_READY\n'))
+})
+
+test('offline fixture import failure emits only sanitized marker and does not connect', async () => {
+  const f = await fixture(true, false, true, true, { connected: true, rateFixture: true, rateFixtureImportFails: true })
+  assert.ok(f.logs.includes('MUSE_RATE_INIT_FAILED\n'))
+  assert.ok(f.logs.every((line) => !line.includes('private import detail')))
+  assert.ok(!f.calls.includes('fixture.armed'))
+  assert.ok(!f.calls.includes('restore'))
+  assert.ok(!f.calls.includes('connect'))
 })

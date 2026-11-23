@@ -10,6 +10,7 @@ export function createMuseCascadedConversation({
   stt,
   tts,
   voice,
+  outputSampleRate = 24000,
   onPlaybackState,
 }) {
   let opened = false
@@ -26,7 +27,7 @@ export function createMuseCascadedConversation({
   return {
     audio: {
       input: [{ encoding: 'pcm_s16le', sampleRate: 16000, channels: 1 }],
-      output: [{ encoding: 'pcm_s16le', sampleRate: 24000, channels: 1 }],
+      output: [{ encoding: 'pcm_s16le', sampleRate: outputSampleRate, channels: 1 }],
       duplex: 'half',
       preRollMs: 80,
     },
@@ -42,7 +43,7 @@ export function createMuseCascadedConversation({
         held = false,
         busy = false,
         stale = false,
-        sent = false,
+        remoteTurn = 'idle',
         captionTurn,
         captionOutput
       const ptt = createPushToTalk()
@@ -95,9 +96,10 @@ export function createMuseCascadedConversation({
             capabilities: agent.capabilities,
             async run(request, scope) {
               if (stale || scope.signal.aborted) throw failure('cancelled_unconfirmed')
-              sent = true
+              remoteTurn = 'pending'
               const result = await agent.run(request, { signal: scope.signal })
               if (!scope.signal.aborted && result.status === 'completed') {
+                remoteTurn = 'settled'
                 for (const item of result.response.output) {
                   if (item.type === 'message')
                     options.onEvent({
@@ -164,17 +166,19 @@ export function createMuseCascadedConversation({
               busy = false
               held = false
               ptt.release()
-              if (sent) stale = true
+              if (remoteTurn === 'pending') stale = true
               options.onEvent({ ...event, fatal: event.fatal || stale })
               return
             }
             if (event.type === 'turn.ended') {
               busy = false
-              if (event.status !== 'completed' && sent && !stale) {
+              const uncertain = remoteTurn === 'pending'
+              const interrupted = remoteTurn === 'settled' && event.status === 'interrupted'
+              if (event.status !== 'completed' && (uncertain || interrupted) && !stale) {
                 stale = true
                 if (!closing) options.onEvent({ type: 'error', code: 'cancelled_unconfirmed', fatal: true })
               }
-              sent = false
+              remoteTurn = 'idle'
               captionTurn = undefined
             }
             options.onEvent(event)
@@ -229,7 +233,7 @@ export function createMuseCascadedConversation({
             try {
               return {
                 ...(await session.close(closeOptions)),
-                remoteFinalization: stale || sent ? 'unknown' : 'not-required',
+                remoteFinalization: stale || remoteTurn === 'pending' ? 'unknown' : 'not-required',
               }
             } finally {
               chat.close()

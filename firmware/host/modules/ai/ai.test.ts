@@ -553,6 +553,16 @@ test('Vision releases the borrowed frame after success and a provider error', as
   assert.equal(releases, 2)
 })
 
+function numericReader(get: () => ArrayBuffer) {
+  function read(count: number): ArrayBuffer
+  function read(buffer: Uint8Array): number
+  function read(target: number | Uint8Array): ArrayBuffer | number {
+    if (typeof target !== 'number') throw Error('fixture expects numeric reads')
+    return get()
+  }
+  return read
+}
+
 function httpFixture(maxBytes: number) {
   let handlers!: Parameters<ResponseConnection['request']>[0]
   let disconnect!: (error?: unknown) => void
@@ -601,7 +611,7 @@ test('Responses drains final SSE on socket close and rejects a stream containing
     if (withFinal) events.push({ type: 'response.completed', response: result })
     const bytes = ArrayBuffer.fromString(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''))
     io.handlers.onHeaders(200)
-    io.handlers.onReadable.call({ read: () => bytes, write: () => 0 }, bytes.byteLength)
+    io.handlers.onReadable.call({ read: numericReader(() => bytes), write: () => 0 }, bytes.byteLength)
     io.handlers.onDone(new Error())
     io.disconnect(new Error('socket reset'))
     if (withFinal) assert.equal((await pending).status, 'completed')
@@ -634,9 +644,7 @@ test('HTTP drains accepted response callbacks and honors each writable credit re
       uploaded.push(...data)
       return 0
     },
-    read() {
-      return Uint8Array.of(9, 8).buffer
-    },
+    read: numericReader(() => Uint8Array.of(9, 8).buffer),
   }
   io.handlers.onWritable.call(writer, 4)
   assert.deepEqual(uploaded, [1, 2, 3])
@@ -671,9 +679,7 @@ test('HTTP abort and invalid reads close once and stop reading the camera buffer
       write() {
         return 0
       },
-      read() {
-        return new ArrayBuffer(8)
-      },
+      read: numericReader(() => new ArrayBuffer(8)),
     }
     if (abort) scope.abort()
     else io.handlers.onReadable.call(source, 8)

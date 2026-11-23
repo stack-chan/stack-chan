@@ -1,6 +1,7 @@
 {
   "include": [
     "./account-voice-manifest.json",
+    "../voice/gemini-worker-manifest.json",
     "../voice/manifest.json",
     "../util/manifest.json",
     "$(MODDABLE)/modules/files/preference/manifest.json",
@@ -21,7 +22,8 @@
     "whisper-multipart": "../audio/whisper-multipart",
     "muse-speech-profile": "./speech-profile",
     "muse-speech-provider": "./speech-provider",
-    "stackchan/voice/gemini-speech": "../voice/gemini-speech"
+    "stackchan/voice/gemini-speech": "../voice/gemini-speech",
+    "stackchan/voice/pcm-base64": "../voice/pcm-base64"
   },
   "data": {
     "*": [

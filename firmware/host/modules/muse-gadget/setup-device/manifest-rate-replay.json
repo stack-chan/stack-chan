@@ -1,0 +1,169 @@
+{
+  "build": {
+    "NAME": "muse-setup-native-rate-replay-stopwatch"
+  },
+  "include": [
+    "./manifest-native-speech-binding.json",
+    "./manifest-buffered-playback.json",
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../pairing/manifest.json",
+    "../voice-native-manifest.json",
+    "../native/pairing-manifest.json",
+    "../cascaded-manifest.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json",
+    "$(MODDABLE)/modules/piu/MC/colorcell"
+  ],
+  "modules": {
+    "main": "./main",
+    "muse-native-speech-enabled": "./native-speech-enabled",
+    "muse-caption-layout": "./caption-layout",
+    "muse-caption-state": "./caption-state",
+    "muse-talk-controls": "./talk-controls",
+    "muse-diagnostic-heap": "./diagnostic-heap",
+    "muse-speech-diagnostics": "./speech-diagnostics",
+    "muse-talk-feedback": "./talk-feedback",
+    "muse-setup-metadata": "./metadata",
+    "muse-setup/coordinator": "../setup/coordinator",
+    "muse-setup/prompt": "../setup/prompt",
+    "muse-setup/pairing-controller": "../setup/pairing-controller",
+    "timer": "$(MODULES)/base/timer/timer",
+    "muse-setup/conversation-owner": "../setup/conversation-owner",
+    "muse-setup/conversation-runtime": "./conversation-runtime",
+    "muse-stopwatch-output": "../stopwatch-audio/output",
+    "muse-resampled-output": "./resampled-output",
+    "pcm-resampler": "../../audio/platforms/m5stackchan-cores3/pcm-resampler",
+    "stackchan/voice/cores3-pcm-output": "./cascaded-output",
+    "stackchan/voice/device": "../../voice/pcm-device",
+    "stackchan/voice/pipeline": "../../voice/pipeline",
+    "stackchan/voice/runtime": "../../voice/runtime",
+    "stackchan/voice/levels": "../../voice/levels",
+    "guruguru-view": "./kasane-view",
+    "guruguru-avatar": "../../../../mods/examples/guruguru_voice/avatar",
+    "kasane-frames": "./kasane-frames",
+    "audio-in": "../stopwatch-audio/input",
+    "muse-response-expression": "./response-expression",
+    "muse-stopwatch-levels": [
+      "../stopwatch-audio/levels.js",
+      "$(MODULES)/network/services/chatAudioIO/ChatAudioIO.c"
+    ],
+    "muse-stopwatch-rate-fixture": "./rate-replay"
+  },
+  "resources": {
+    "*-color": [
+      "./assets/kasane-mouth-0",
+      "./assets/kasane-mouth-1",
+      "./assets/kasane-mouth-2",
+      "./assets/kasane-mouth-3",
+      "./assets/kasane-mouth-4",
+      "./assets/kasane-mouth-5",
+      "./assets/kasane-mouth-6",
+      "./assets/kasane-mouth-7",
+      "./assets/kasane-mouth-8"
+    ],
+    "*-image(40)": [
+      "./assets/kasane-0",
+      "./assets/kasane-1",
+      "./assets/kasane-2",
+      "./assets/kasane-3",
+      "./assets/kasane-4",
+      "./assets/kasane-5",
+      "./assets/kasane-6",
+      "./assets/kasane-7",
+      "./assets/kasane-8",
+      "./assets/kasane-happy-0",
+      "./assets/kasane-happy-1",
+      "./assets/kasane-happy-2",
+      "./assets/kasane-happy-3",
+      "./assets/kasane-happy-4",
+      "./assets/kasane-happy-5",
+      "./assets/kasane-happy-6",
+      "./assets/kasane-happy-7",
+      "./assets/kasane-happy-8",
+      "./assets/kasane-sad-0",
+      "./assets/kasane-sad-1",
+      "./assets/kasane-sad-2",
+      "./assets/kasane-sad-3",
+      "./assets/kasane-sad-4",
+      "./assets/kasane-sad-5",
+      "./assets/kasane-sad-6",
+      "./assets/kasane-sad-7",
+      "./assets/kasane-sad-8",
+      "./assets/kasane-happy-eyes-0",
+      "./assets/kasane-happy-mouth-0",
+      "./assets/kasane-happy-eyes-1",
+      "./assets/kasane-happy-mouth-1",
+      "./assets/kasane-happy-eyes-2",
+      "./assets/kasane-happy-mouth-2",
+      "./assets/kasane-happy-eyes-3",
+      "./assets/kasane-happy-mouth-3",
+      "./assets/kasane-happy-eyes-4",
+      "./assets/kasane-happy-mouth-4",
+      "./assets/kasane-happy-eyes-5",
+      "./assets/kasane-happy-mouth-5",
+      "./assets/kasane-happy-eyes-6",
+      "./assets/kasane-happy-mouth-6",
+      "./assets/kasane-happy-eyes-7",
+      "./assets/kasane-happy-mouth-7",
+      "./assets/kasane-happy-eyes-8",
+      "./assets/kasane-happy-mouth-8",
+      "./assets/kasane-sad-eyes-0",
+      "./assets/kasane-sad-mouth-0",
+      "./assets/kasane-sad-eyes-1",
+      "./assets/kasane-sad-mouth-1",
+      "./assets/kasane-sad-eyes-2",
+      "./assets/kasane-sad-mouth-2",
+      "./assets/kasane-sad-eyes-3",
+      "./assets/kasane-sad-mouth-3",
+      "./assets/kasane-sad-eyes-4",
+      "./assets/kasane-sad-mouth-4",
+      "./assets/kasane-sad-eyes-5",
+      "./assets/kasane-sad-mouth-5",
+      "./assets/kasane-sad-eyes-6",
+      "./assets/kasane-sad-mouth-6",
+      "./assets/kasane-sad-eyes-7",
+      "./assets/kasane-sad-mouth-7",
+      "./assets/kasane-sad-eyes-8",
+      "./assets/kasane-sad-mouth-8"
+    ],
+    "*-alpha": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"
+    ],
+    "*-mask": [
+      {
+        "source": "../../ui/assets/fonts/k8x12",
+        "size": 24,
+        "characterFiles": "../../ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ],
+    "*": [
+      "./assets/kasane-eyes-0",
+      "./assets/kasane-eyes-1",
+      "./assets/kasane-eyes-2",
+      "./assets/kasane-eyes-3",
+      "./assets/kasane-eyes-4",
+      "./assets/kasane-eyes-5",
+      "./assets/kasane-eyes-6",
+      "./assets/kasane-eyes-7",
+      "./assets/kasane-eyes-8"
+    ]
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 262144,
+      "incremental": 32768
+    },
+    "heap": {
+      "initial": 8192,
+      "incremental": 256
+    },
+    "stack": 1024
+  },
+  "esp32Config": {
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY": "y",
+    "CONFIG_MBEDTLS_HAVE_TIME_DATE": "y"
+  }
+}

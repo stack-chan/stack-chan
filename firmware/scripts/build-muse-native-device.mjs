@@ -2,7 +2,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildOutputDirectory, firmwareDirectory } from './lib/build-output.mjs'
-import { invalidateMuseCascadedBindings, validateMuseCascadedBindings } from './lib/muse-cascaded-bindings.mjs'
+import { validateMuseNativeTlsConfig } from './lib/muse-native-tls-config.mjs'
+import { invalidateMuseCascadedBindings, validateMuseCascadedBindings, validateRateReplayLinkedModules } from './lib/muse-cascaded-bindings.mjs'
 
 const targets = {
   '--native': ['muse-native-device', '__tests__/device'],
@@ -19,17 +20,21 @@ const targets = {
   '--note-transport': ['muse-connection-probe', 'connection-probe', 'manifest.synthetic-transport.json'],
   '--connection-probe': ['muse-connection-probe', 'connection-probe'],
   '--scan-probe': ['muse-scan-probe', 'scan-probe'],
+  '--setup-rate-replay': ['muse-setup-native-rate-replay-stopwatch', 'setup-device', 'manifest-rate-replay.json'],
+  '--setup-native-speech': ['muse-setup-native-speech-stopwatch', 'setup-device', 'manifest-native-speech.json'],
   '--setup': ['muse-setup-stopwatch', 'setup-device'],
+  '--gemini-mock': ['gemini-mock-stopwatch', 'gemini-mock-device'],
   '--pairing': ['muse-pairing-device', 'pairing/device'],
   '--audio': ['muse-audio-device', '__tests__/audio-device'],
 }
 const selector = process.argv[2] ?? '--native'
 if (!targets[selector] || process.argv.length > 3)
   throw new Error(
-    'Expected --native, --host, --pairing, --setup, --sdk-provision, --openai-provision, --gemini-provision or --audio',
+    'Expected --native, --host, --pairing, --setup, --setup-native-speech, --sdk-provision, --openai-provision, --gemini-provision or --audio',
   )
 const [name, directory, manifestName = 'manifest.json'] = targets[selector]
 const project = join(buildOutputDirectory, 'tmp/esp32/m5stack_stopwatch/release', name, 'xsProj-esp32s3')
+const cascadedSetup = ['--setup', '--setup-native-speech', '--cascaded-offline', '--setup-rate-replay'].includes(selector)
 const components = join(project, 'components')
 const main = join(project, 'main')
 mkdirSync(components, { recursive: true })
@@ -41,8 +46,7 @@ if (existsSync(destination)) {
 } else symlinkSync(source, destination, process.platform === 'win32' ? 'junction' : 'dir')
 if (
   selector === '--pairing' ||
-  selector === '--setup' ||
-  selector === '--cascaded-offline' ||
+  cascadedSetup ||
   selector === '--sdk-provision' ||
   selector === '--wifi-provision' ||
   selector === '--connection-probe' ||
@@ -50,7 +54,8 @@ if (
   selector === '--avatar-performance' ||
   selector === '--note-synthetic' ||
   selector === '--note-transport' ||
-  selector === '--account-probe'
+  selector === '--account-probe' ||
+  selector === '--gemini-mock'
 ) {
   const pairingSource = join(firmwareDirectory, 'host/modules/muse-gadget/native/pairing_component')
   const pairingDestination = join(components, 'stackchan_muse_pairing')
@@ -61,7 +66,7 @@ if (
 }
 const manifest = join(main, 'idf_component.yml')
 if (!existsSync(manifest)) writeFileSync(manifest, 'dependencies:\n  espressif/esp_websocket_client: "==1.8.0"\n')
-if (selector === '--setup' || selector === '--cascaded-offline') {
+if (cascadedSetup) {
   invalidateMuseCascadedBindings({
     directory: join(buildOutputDirectory, 'tmp/esp32/m5stack_stopwatch/release', name),
     selector,
@@ -81,12 +86,20 @@ const result = spawnSync(
   { cwd: firmwareDirectory, env: process.env, stdio: 'inherit' },
 )
 if (result.error) throw result.error
-if (result.status === 0 && (selector === '--setup' || selector === '--cascaded-offline')) {
+if (result.status === 0) validateMuseNativeTlsConfig({ project, selector })
+if (result.status === 0 && cascadedSetup) {
   validateMuseCascadedBindings({
     directory: join(buildOutputDirectory, 'tmp/esp32/m5stack_stopwatch/release', name),
     firmwareDirectory,
     selector,
   })
+  if (selector === '--setup-rate-replay') {
+    validateRateReplayLinkedModules({
+      directory: join(buildOutputDirectory, 'tmp/esp32/m5stack_stopwatch/release', name),
+      firmwareDirectory,
+    })
+    console.log('[stack-chan] Offline rate replay linked modules verified')
+  }
   console.log('[stack-chan] Muse cascaded module bindings verified')
 }
 process.exit(result.status ?? 1)

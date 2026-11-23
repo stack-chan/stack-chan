@@ -9,13 +9,23 @@ export function createSetupConversationRuntime(
   onEvent,
   onProgress,
   onDiagnostic,
-  { volume = 0.25, onPlaybackState, getSpeechVoice, getSpeechProvider, getGeminiVoice } = {},
+  {
+    volume = 0.25,
+    onPlaybackState,
+    getSpeechVoice,
+    getSpeechProvider,
+    getGeminiVoice,
+    nativeGeminiTransport = false,
+    geminiSampleRate = 24000,
+  } = {},
 ) {
   let owned = false,
-    current
+    current,
+    selectedProvider = 'openai'
   const audio = createAudioRuntime({
     volume,
     emitLevels: true,
+    startupBlocks: () => (selectedProvider === 'gemini' ? 3 : 1),
     acquireExclusive() {
       if (owned) throw new Error('audio busy')
       owned = true
@@ -27,15 +37,21 @@ export function createSetupConversationRuntime(
   return {
     wrap(account, identity) {
       current = createConversationAccountOwner(account, {
-        createConversation: (owner) =>
-          createMuseAccountCascadedConversation(owner, {
+        createConversation: (owner) => {
+          const provider = getSpeechProvider?.() ?? 'openai'
+          const conversation = createMuseAccountCascadedConversation(owner, {
             nodeId: identity.nodeId,
             onDiagnostic,
             onPlaybackState,
             getSpeechVoice,
-            getSpeechProvider,
+            getSpeechProvider: () => provider,
             getGeminiVoice,
-          }),
+            nativeGeminiTransport,
+            geminiSampleRate,
+          })
+          selectedProvider = provider
+          return conversation
+        },
         createPipeline: createConversationPipeline,
         createScope: createVoiceScope,
         microphone: audio.microphone,

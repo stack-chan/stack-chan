@@ -1,4 +1,5 @@
 import type { STT, TTS } from 'stackchan/voice/contracts'
+import { createBase64PcmWriter } from 'stackchan/voice/pcm-base64'
 import { createPcmSink, createPcmSource } from 'stackchan/voice/media'
 import { createVoiceScope, requireActive, voiceError } from 'stackchan/voice/scope'
 import { base64 } from 'stackchan-ai-image'
@@ -8,7 +9,6 @@ import Timer from 'timer'
 type Options = { request: SendResponseRequest; model?: string; timeoutMs?: number }
 const defaultStyle =
   'A naturally high-pitched, cute, cheerful Japanese virtual character voice, with clear pronunciation, gentle lively intonation and a warm conversational pace. Do not imitate any real person.'
-const digits = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -117,7 +117,28 @@ function wav(bytes: Uint8Array, length: number) {
   header.setUint32(40, length, true)
 }
 
-export function createGeminiSTT(options: Options & { language?: string; maxAudioBytes?: number }): STT {
+type STTTiming = { now(): number; emit(values: number[]): void }
+type Base64Bytes = Uint8Array & { toBase64?: () => string }
+
+function* encodeWav(audio: Uint8Array) {
+  const toBase64 = (audio as Base64Bytes).toBase64
+  if (typeof toBase64 === 'function') {
+    // 中間ブロックに padding が入らないように、入力長を 3 の倍数にする
+    const block = new Uint8Array(3072)
+    for (let i = 0; i < audio.length; i += block.length) {
+      const chunk = audio.subarray(i, i + block.length)
+      // SharedArrayBuffer の非ゼロオフセットを無視するエンコーダがある
+      block.set(chunk)
+      yield new Uint8Array(ArrayBuffer.fromString(toBase64.call(block.subarray(0, chunk.length))))
+    }
+  } else {
+    yield* base64([audio])
+  }
+}
+
+export function createGeminiSTT(
+  options: Options & { language?: string; maxAudioBytes?: number; timing?: STTTiming },
+): STT {
   const timeout = settings(options)
   const limit = options.maxAudioBytes ?? 480000
   if (!Number.isSafeInteger(limit) || limit < 2 || limit > 480000 || limit % 2)
@@ -152,6 +173,11 @@ export function createGeminiSTT(options: Options & { language?: string; maxAudio
               onTranscript({ utteranceId, text: '', final: true })
               return
             }
+            const timing = options.timing
+            const started = timing?.now() ?? 0
+            let writable: number | undefined,
+              audioAccepted: number | undefined,
+              firstResponse: number | undefined
             wav(recording, used - 44)
             const prefix = new Uint8Array(
               ArrayBuffer.fromString(
@@ -170,12 +196,10 @@ export function createGeminiSTT(options: Options & { language?: string; maxAudio
             const body: Body = {
               length: prefix.length + 4 * Math.ceil(audio.length / 3) + suffix.length,
               *read() {
+                writable = timing?.now()
                 yield prefix
-                yield* base64(
-                  (function* () {
-                    for (let i = 0; i < audio.length; i += 768) yield audio.subarray(i, i + 768)
-                  })(),
-                )
+                yield* encodeWav(audio)
+                audioAccepted = timing?.now()
                 yield suffix
               },
             }
@@ -186,6 +210,7 @@ export function createGeminiSTT(options: Options & { language?: string; maxAudio
               timeout,
               body,
               async (bytes) => {
+                if (firstResponse === undefined) firstResponse = timing?.now()
                 if (count + bytes.length > response.length)
                   throw voiceError('resource_exhausted', 'transcription response too large')
                 response.set(bytes, count)
@@ -206,6 +231,17 @@ export function createGeminiSTT(options: Options & { language?: string; maxAudio
             if (!texts.length) throw voiceError('provider_failed', 'missing transcription')
             const text = texts.join('')
             if (text.length > 4096) throw voiceError('resource_exhausted', 'transcription too long')
+            if (timing && writable !== undefined && audioAccepted !== undefined && firstResponse !== undefined) {
+              try {
+                timing.emit([
+                  used - 44,
+                  (writable - started) >>> 0,
+                  (audioAccepted - writable) >>> 0,
+                  (firstResponse - audioAccepted) >>> 0,
+                  (timing.now() - firstResponse) >>> 0,
+                ])
+              } catch {}
+            }
             onTranscript({ utteranceId, text, final: true })
           })().finally(release)
           return finishing
@@ -222,26 +258,12 @@ export function createGeminiSTT(options: Options & { language?: string; maxAudio
   }
 }
 
-function validBase64(data: unknown): asserts data is string {
-  if (typeof data !== 'string' || !data.length || data.length % 4)
-    throw voiceError('provider_failed', 'invalid audio encoding')
-  const padding = data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0
-  const encoded = new Uint8Array(ArrayBuffer.fromString(data))
-  for (let i = 0, length = encoded.length - padding; i < length; i++) {
-    const c = encoded[i]
-    if (!((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 43 || c === 47))
-      throw voiceError('provider_failed', 'invalid audio encoding')
-  }
-  const last = digits.indexOf(data[data.length - padding - 1])
-  if ((padding === 2 && last & 15) || (padding === 1 && last & 3))
-    throw voiceError('provider_failed', 'invalid audio padding')
-}
-
 export function createGeminiSpeechTTS(
   options: Options & {
     instructions?: string
     maxEventBytes?: number
     onMetrics?: (metrics: { maxEventChars: number; pcmBytes: number }) => void
+    onFailure?: (reason: number) => void
   },
 ): TTS {
   const timeout = settings(options)
@@ -303,9 +325,8 @@ export function createGeminiSpeechTTS(
         )
         let completed = false,
           maxEventChars = 0,
-          bytesHeard = 0,
-          leftover: number | undefined
-        const pcm = new Uint8Array(1024)
+          bytesHeard = 0
+        const audio = createBase64PcmWriter(scope.signal, source.offer, 5760000)
         const consume = consumeSSE(eventLimit, scope, async (json) => {
           maxEventChars = Math.max(maxEventChars, json.length)
           requireActive(scope.signal)
@@ -313,12 +334,7 @@ export function createGeminiSpeechTTS(
           if (completed) throw voiceError('provider_failed', 'event after speech completion')
           if (event?.event_type === 'error' || event?.error) throw voiceError('provider_failed', 'Gemini speech failed')
           if (event?.event_type === 'interaction.completed') {
-            if (
-              !object(event.interaction) ||
-              event.interaction.status !== 'completed' ||
-              !bytesHeard ||
-              leftover !== undefined
-            )
+            if (!object(event.interaction) || event.interaction.status !== 'completed' || !bytesHeard || audio.partial)
               throw voiceError('provider_failed', 'incomplete speech audio')
             completed = true
           } else if (event?.event_type === 'step.delta' && object(event.delta) && event.delta.type === 'audio') {
@@ -328,58 +344,9 @@ export function createGeminiSpeechTTS(
               (typeof mime !== 'string' || !/^audio\/l16(?:;rate=24000)?(?:;channels=1)?$/i.test(mime))
             )
               throw voiceError('unsupported_capability', 'unexpected speech audio format')
-            validBase64(data)
-            const decoded = (data.length / 4) * 3 - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0)
-            if (bytesHeard + decoded > 5760000) throw voiceError('resource_exhausted', 'speech audio exceeds limit')
-            let used = 0
-            if (leftover !== undefined) {
-              pcm[used++] = leftover
-              leftover = undefined
-            }
-            const nativeDecode = (
-              Uint8Array as typeof Uint8Array & {
-                fromBase64?: (data: string, options: { lastChunkHandling: string }) => Uint8Array
-              }
-            ).fromBase64
-            let decodedBytes: Uint8Array
-            if (nativeDecode) {
-              try {
-                decodedBytes = nativeDecode(data, { lastChunkHandling: 'strict' })
-              } catch (error) {
-                if (error instanceof SyntaxError) throw voiceError('provider_failed', 'invalid audio encoding')
-                throw error
-              }
-              if (decodedBytes.length !== decoded) throw voiceError('provider_failed', 'invalid audio length')
-            } else {
-              decodedBytes = new Uint8Array(decoded)
-              for (let at = 0, to = 0; at < data.length; at += 4) {
-                const a = digits.indexOf(data[at]),
-                  b = digits.indexOf(data[at + 1]),
-                  c = digits.indexOf(data[at + 2]),
-                  d = digits.indexOf(data[at + 3])
-                const value = (a << 18) | (b << 12) | ((c < 0 ? 0 : c) << 6) | (d < 0 ? 0 : d)
-                const count = c < 0 ? 1 : d < 0 ? 2 : 3
-                for (let i = 0; i < count; i++) decodedBytes[to++] = (value >>> (16 - i * 8)) & 255
-              }
-            }
-            for (let at = 0; at < decodedBytes.length; ) {
-              const count = Math.min(pcm.length - used, decodedBytes.length - at)
-              pcm.set(decodedBytes.subarray(at, at + count), used)
-              used += count
-              at += count
-              if (used === pcm.length) {
-                requireActive(scope.signal)
-                await source.offer(pcm)
-                requireActive(scope.signal)
-                used = 0
-              }
-            }
-            if (used & 1) leftover = pcm[--used]
-            if (used) {
-              await source.offer(pcm.subarray(0, used))
-              requireActive(scope.signal)
-            }
-            bytesHeard += decoded
+            if (typeof data !== 'string') throw voiceError('provider_failed', 'invalid audio encoding')
+            await audio.write(data)
+            bytesHeard = audio.bytes
           }
         })
         active = request(options, timeout, body, consume, scope, () => completed, true)
@@ -393,6 +360,34 @@ export function createGeminiSpeechTTS(
             (error) => {
               active = undefined
               failure = error
+              // Report only fixed categories, never provider bodies or exception text.
+              try {
+                const message = error instanceof Error ? error.message : ''
+                const reasons = [
+                  'invalid speech response',
+                  'event after speech completion',
+                  'Gemini speech failed',
+                  'incomplete speech audio',
+                  'invalid audio encoding',
+                  'invalid audio padding',
+                  'invalid audio length',
+                  'speech stream ended without completion',
+                  'Responses connection closed early',
+                  'unexpected speech audio format',
+                ]
+                const index = reasons.indexOf(message)
+                options.onFailure?.(
+                  index >= 0
+                    ? index + 1
+                    : message.startsWith('Responses connection failed')
+                      ? 11
+                      : /^Responses HTTP [1-5][0-9]{2}$/.test(message)
+                        ? 12
+                        : (error as { code?: string })?.code === 'deadline_exceeded'
+                          ? 13
+                          : 0,
+                )
+              } catch {}
               text = ''
               scope.abort(error)
               source.end(error)

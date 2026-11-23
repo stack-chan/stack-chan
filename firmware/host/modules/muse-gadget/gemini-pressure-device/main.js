@@ -1,3 +1,4 @@
+import { pcmLevel } from 'muse-stopwatch-levels'
 import { createGuruguruView } from 'guruguru-view'
 import { internalFree, internalMinimum, psramFree } from 'offline-heap'
 import { Application, Skin } from 'piu/MC'
@@ -90,7 +91,7 @@ async function runCase(mode, eventBytes = 8192) {
       scope.abort(Object.assign(new Error('fixture deadline'), { code: 'deadline_exceeded' }))
       output?.close()
     }, 30000)
-    if (mode !== 'decode-only') output = openOutput(24000, 0, 24576)
+    if (mode !== 'decode-only') output = openOutput(24000, 0, 24576, () => {})
     view.model.setState('speak')
     if (mode === 'raw-speaker') {
       const pcm = new Uint8Array(1024)
@@ -176,8 +177,54 @@ async function runCase(mode, eventBytes = 8192) {
     view.model.setState('idle')
   }
 }
+async function nativeChecks() {
+  if (typeof Uint8Array.fromBase64 !== 'function') throw new Error('native decoder unavailable')
+  for (const data of ['', 'AA=\n', 'AAAAAAA\n', 'AA A', 'AA=A', 'A===', 'AB==', 'AAB=', 'AAAA\0AAA']) {
+    const scope = createVoiceScope()
+    let received = 0,
+      rejected = false
+    const session = await createGeminiSpeechTTS({
+      async request(body, consume) {
+        for (const bytes of body.read()) void bytes
+        await consume(
+          new Uint8Array(
+            ArrayBuffer.fromString(
+              'data: ' + JSON.stringify({ event_type: 'step.delta', delta: { type: 'audio', data } }) + '\n\n',
+            ),
+          ),
+        )
+      },
+    }).open({ signal: scope.signal, format: { encoding: 'pcm_s16le', sampleRate: 24000, channels: 1 } })
+    const subscription = subscribePcmSource(session.output, {
+      write(bytes) {
+        received += bytes.length
+      },
+      end() {},
+    })
+    try {
+      await session.write('fixture')
+      await session.endInput()
+    } catch (error) {
+      rejected = error.code === 'provider_failed'
+    } finally {
+      subscription.close()
+      await session.close()
+      scope.dispose()
+    }
+    if (!rejected || received) throw new Error('invalid audio accepted')
+  }
+  for (const samples of [[], [-32768, 32767], [0, 1000, -2000, 3000]]) {
+    const data = new Uint8Array(new Int16Array(samples).buffer)
+    const expected = samples.length
+      ? samples.reduce((sum, sample) => sum + Math.abs(sample), 0) / samples.length / 32768
+      : 0
+    if (Math.abs(pcmLevel(data) - expected) > 0.5 / 32768) throw new Error('native level mismatch')
+  }
+  marker({ phase: 'native-checks', passed: true })
+}
 Timer.set(() => {
   void (async () => {
+    await nativeChecks()
     marker({ phase: 'capability', nativeBase64: typeof Uint8Array.fromBase64 === 'function' })
     let passed = true
     for (const mode of ['decode-only', 'raw-speaker', 'full']) {

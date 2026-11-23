@@ -163,6 +163,41 @@ await test('Live session JSON and no session.start on WebRTC', async () => {
   equal(await p, { finalized: true, reason: 'client_request', usage: { seconds: 3 } })
   equal(h.disposed, 1)
 })
+
+await test('transcript triggers ride the session request alongside hosted Responses', async () => {
+  const triggers = [
+    {
+      type: 'decisions',
+      event_type: 'session.input_transcript.delta',
+      decisions: {
+        questions: [
+          {
+            type: 'choice',
+            name: 'gesture',
+            instructions: 'Choose a gesture.',
+            choices: [{ value: 'nod' }, { value: 'none' }],
+          },
+        ],
+      },
+    },
+  ]
+  const h = harness({ triggers })
+  await h.connect()
+  const { session } = JSON.parse(h.requests[0].init.body)
+  equal(session.delegation.type, 'responses')
+  equal(session.triggers, triggers)
+  const event = {
+    type: 'decision.event',
+    delegation_id: null,
+    trigger_id: 'listening',
+    source_event_type: 'session.input_transcript.delta',
+    source_event_id: 'transcript',
+    event: { type: 'decision.completed', decision: { answers: [{ type: 'choice', name: 'gesture', choice: 'nod' }] } },
+  }
+  h.message(event)
+  equal(h.events.at(-1), event)
+})
+
 await test('preserve overlapping transcript fragments and cumulative usage', async () => {
   const h = harness()
   await h.connect()

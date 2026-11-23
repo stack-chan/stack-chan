@@ -47,6 +47,100 @@ class FakeMotionDriver implements MotionDriver {
   }
 }
 
+type SetMotionPose = (pose: Pose, time?: number) => Promise<void>
+
+function withTemporaryTorque(controller: MotionController, move: (setPose: SetMotionPose) => Promise<void>) {
+  return waitForCompletion((done) =>
+    controller.withTemporaryTorque((setPose, finish) => {
+      void move((pose, time) => waitForCompletion((applied) => setPose(pose, time, applied))).then(
+        () => finish(),
+        finish,
+      )
+    }, done),
+  )
+}
+
+function deferTorque(driver: FakeMotionDriver, target: boolean) {
+  return new Promise<MotionCompletion>((resolve) => {
+    const setTorque = driver.setTorque.bind(driver)
+    driver.setTorque = (torque, callback) => {
+      if (torque !== target || !callback) return setTorque(torque, callback)
+      driver.setTorque = setTorque
+      setTorque(torque)
+      resolve(callback)
+    }
+  })
+}
+
+async function testTemporaryTorqueRelease(pose: Pose) {
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+  const released = deferTorque(driver, false)
+  let update: SetMotionPose | undefined
+  const moving = withTemporaryTorque(controller, async (setPose) => {
+    update = setPose
+  })
+  const finishRelease = await released
+  let moves = 0
+  await withTemporaryTorque(controller, async () => {
+    moves++
+  })
+  equal(moves, 0, 'A second temporary move must wait for torque release')
+  await update?.(pose)
+  controller.lookAt([0, 2, 0])
+  controller.lookAway()
+  equal(driver.appliedRotation, null, 'Old pose callbacks and gaze must stay idle during release')
+
+  const restored = deferTorque(driver, true)
+  const enabling = waitForCompletion((callback) => controller.setTorque(true, callback))
+  equal(driver.torqueStates.join(','), 'true,false', 'Explicit torque-on must follow the pending torque-off')
+  finishRelease()
+  const finishRestore = await restored
+  await withTemporaryTorque(controller, async () => {
+    moves++
+  })
+  equal(moves, 0, 'Motion stays exclusive until explicit torque restore is acknowledged')
+  finishRestore()
+  await moving
+  await enabling
+  equal(driver.torqueStates.join(','), 'true,false,true', 'Release must restore the latest explicit torque request')
+
+  await withTemporaryTorque(controller, async () => {
+    moves++
+  })
+  equal(moves, 1, 'A completed release allows another temporary move')
+  equal(driver.torqueStates.join(','), 'true,false,true', 'The next move preserves the explicit torque hold')
+  controller.close()
+}
+
+async function testSupersededTorqueAcquisition(pose: Pose) {
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+  const enabled = deferTorque(driver, true)
+  let moves = 0
+  const temporary = withTemporaryTorque(controller, async () => {
+    moves++
+  })
+  const finishEnable = await enabled
+  await waitForCompletion((callback) => controller.setPose(pose, undefined, callback))
+  finishEnable()
+  await temporary
+  equal(moves, 0, 'A pose that supersedes acquisition must skip the temporary move')
+  equal(driver.torqueStates.join(','), 'true,false', 'Superseded acquisition must release its hold')
+
+  const released = deferTorque(driver, false)
+  const stopping = withTemporaryTorque(controller, async () => {}).catch((error) => error)
+  const finishRelease = await released
+  const failure = new Error('torque-off failed')
+  finishRelease(failure)
+  equal(await stopping, failure, 'Torque release errors reach the caller')
+  await withTemporaryTorque(controller, async () => {
+    moves++
+  })
+  equal(moves, 1, 'A failed release still clears the exclusion')
+  controller.close()
+}
+
 async function runTest() {
   trace('=== motion controller test ===\n')
 
@@ -128,6 +222,18 @@ async function runTest() {
   await waitForCompletion((callback) => controller.setTorque(true, callback))
   equal(nextDriver.torqueStates[0], true, 'setTorque should delegate to the active driver')
 
+  let moves = 0
+  const move = async () => {
+    moves++
+    equal(nextDriver.torqueStates.at(-1), true)
+  }
+  await withTemporaryTorque(controller, move)
+  equal(nextDriver.torqueStates.join(','), 'true', 'A nod preserves torque already held by another feature')
+  await waitForCompletion((callback) => controller.setTorque(false, callback))
+  await withTemporaryTorque(controller, move)
+  equal(moves, 2)
+  equal(nextDriver.torqueStates.join(','), 'true,false,true,false', 'A nod releases its own torque hold')
+
   const pose: Pose = {
     position: { x: 0, y: 0, z: 0 },
     rotation: { y: 0.2, p: -0.1, r: 0 },
@@ -136,6 +242,16 @@ async function runTest() {
   equal(nextDriver.appliedRotation?.y, 0.2, 'setPose should delegate yaw to the active driver')
   equal(nextDriver.appliedRotation?.p, -0.1, 'setPose should delegate pitch to the active driver')
   equal(nextDriver.appliedTime, 0.25, 'setPose should pass motion time to the active driver')
+
+  const newerPose: Pose = { ...pose, rotation: { y: 0, p: 0.3, r: 0 } }
+  await withTemporaryTorque(controller, async (setPose) => {
+    await setPose(pose)
+    await waitForCompletion((callback) => controller.setPose(newerPose, undefined, callback))
+    await setPose(pose)
+  })
+  equal(nextDriver.appliedRotation, newerPose.rotation, 'A newer pose supersedes the temporary motion and its restore')
+  await testTemporaryTorqueRelease(pose)
+  await testSupersededTorqueAcquisition(newerPose)
 
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }

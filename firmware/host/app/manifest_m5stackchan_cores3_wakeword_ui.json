@@ -1,0 +1,28 @@
+{
+  "include": [
+    "./manifest_m5stackchan_cores3_wakeword.json",
+    "./manifest_m5stackchan_cores3_wakeword_ui_sdkconfig.json"
+  ],
+  "modules": {
+    "stackchan/realtime-ui-performance": "../platforms/m5stackchan_cores3/session-ui-performance",
+    "screen-scheduler": "../platforms/m5stackchan_cores3/screen-scheduler"
+  },
+  "esp32Config": {
+    "CONFIG_SPIRAM_SPEED_40M": "n",
+    "CONFIG_SPIRAM_SPEED_80M": "y",
+    "CONFIG_ESP32S3_INSTRUCTION_CACHE_16KB": "n",
+    "CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB": "y",
+    "CONFIG_ESP32S3_INSTRUCTION_CACHE_LINE_32B": "y",
+    "CONFIG_ESP32S3_DATA_CACHE_32KB": "n",
+    "CONFIG_ESP32S3_DATA_CACHE_64KB": "y",
+    "CONFIG_ESP32S3_DATA_CACHE_LINE_32B": "y"
+  },
+  "defines": {
+    "liveaudio": {
+      "prefill": 80
+    }
+  },
+  "config": {
+    "touchIdleIntervalMs": 20
+  }
+}

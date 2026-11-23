@@ -1,8 +1,8 @@
 {
-  "build": {
-    "SDKCONFIGPATH": "./../../dist/generated/sdkconfig/m5stackchan_cores3_wakeword_ui"
-  },
-  "include": ["./manifest_m5stackchan_cores3_wakeword.json"],
+  "include": [
+    "./manifest_m5stackchan_cores3_wakeword.json",
+    "./manifest_m5stackchan_cores3_wakeword_ui_sdkconfig.json"
+  ],
   "modules": {
     "stackchan/realtime-ui-performance": "../platforms/m5stackchan_cores3/session-ui-performance",
     "screen-scheduler": "../platforms/m5stackchan_cores3/screen-scheduler"

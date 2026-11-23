@@ -127,6 +127,7 @@ export function streamResponse<T>(
               : read(Math.min(available, maxPendingBytes))
             pending = undefined
             consumingBytes = chunk.byteLength
+            if (available > 0) prefetch()
             // TLSのコールバックを抜けてからSSEを解析する
             await Promise.resolve()
             if (finished) return

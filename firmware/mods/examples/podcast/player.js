@@ -1,10 +1,10 @@
-import { createVoiceScope } from 'stackchan/voice/scope'
 import { MusicNotes } from 'effects/music-notes'
 import { loadArtwork } from 'podcast-artwork'
 import { feeds } from 'podcast-config'
 import { PodcastController } from 'podcast-controller'
 import { loadFeed } from 'podcast-feed'
 import { createPodcastView, createRadioView } from 'podcast-view'
+import { createVoiceScope } from 'stackchan/voice/scope'
 
 let controller
 let unregister = []

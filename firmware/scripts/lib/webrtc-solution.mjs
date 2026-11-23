@@ -9,21 +9,27 @@ const repository = 'https://github.com/espressif/esp-webrtc-solution.git'
 
 /** Examines local includes for the public capability, leaving SDK manifests to mcconfig. */
 export function manifestUsesWebRtc(manifestPath, platformName) {
+  for (const { manifest } of localManifests(manifestPath, platformName)) {
+    if (manifest.modules?.realtimeConversation) return true
+  }
+  return false
+}
+
+export function* localManifests(manifestPath, platformName) {
   const visited = new Set()
-  function visit(filename) {
+  function* visit(filename) {
     if (statSync(filename).isDirectory()) filename = path.join(filename, 'manifest.json')
-    if (visited.has(filename)) return false
+    if (visited.has(filename)) return
     visited.add(filename)
     const manifest = JSON.parse(readFileSync(filename, 'utf8'))
-    if (manifest.modules?.realtimeConversation) return true
     const platform = manifest.platforms?.[`esp32/${platformName}`]
-    const includes = [manifest.include, platform?.include].flat().filter(Boolean)
-    return includes.some((include) => {
-      if (typeof include !== 'string' || include.includes('$(')) return false
-      return visit(path.resolve(path.dirname(filename), include))
-    })
+    yield { filename, manifest, platform }
+    for (const include of [manifest.include, platform?.include].flat()) {
+      if (typeof include === 'string' && !include.includes('$('))
+        yield* visit(path.resolve(path.dirname(filename), include))
+    }
   }
-  return visit(path.resolve(manifestPath))
+  yield* visit(path.resolve(manifestPath))
 }
 
 /** Keeps external sources in this workspace; never modifies the Moddable SDK. */

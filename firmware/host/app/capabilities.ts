@@ -1,4 +1,3 @@
-import type { MediaCapability, WebRadioCapability } from '../modules/audio/media-types.js'
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
@@ -15,6 +14,7 @@ import type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-type
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
+import type { MediaCapability, WebRadioCapability } from '../modules/audio/media-types.js'
 import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../modules/voice/contracts.js'
 
 export type {
@@ -110,6 +110,7 @@ export type MotionCapability = {
   lookAway(): void
   setPose(pose: Pose, time?: MotionDurationSeconds): Promise<void>
   setTorque(torque: boolean): Promise<void>
+  withTemporaryTorque?(move: (setPose: MotionCapability['setPose']) => Promise<void>): Promise<void>
 }
 
 export type AudioCapability = {

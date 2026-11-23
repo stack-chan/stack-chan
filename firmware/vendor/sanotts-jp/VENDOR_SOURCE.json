@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/ayutaz/sanoTTS-jp",
+  "tag": "v1.2.0",
+  "commit": "b98a08eb958dcb2c753d43ca8ecd165ae6e2a390",
+  "codeLicense": "MIT",
+  "modelLicense": "LicenseRef-sanoTTS-jp-Model-1.0",
+  "core": "Unmodified csrc streaming C99 core, kana G2P, ESP32 placement header and official PCM conversion. No Arduino/M5Unified, dictionary, OpenJTalk or WASM.",
+  "model": {
+    "url": "https://github.com/ayutaz/sanoTTS-jp/releases/download/v1.2.0/saanotts-jp-v4-int8.bin",
+    "bytes": 654032,
+    "sha256": "a1eb6b0812e2ad2a228836088a3e34160cb66731492fb957a5891605db2fa1b6",
+    "tracking": "Downloaded binary is ignored. fetch-sanotts-model.mjs verifies it for a separate sanotts_model data partition; firmware no longer embeds model weights."
+  }
+}

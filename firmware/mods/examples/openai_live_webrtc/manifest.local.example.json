@@ -2,7 +2,8 @@
   "include": ["./manifest.json"],
   "config": {
     "openaiLive": {
-      "apiKey": ""
+      "apiKey": "",
+      "decisionsReactions": false
     }
   }
 }

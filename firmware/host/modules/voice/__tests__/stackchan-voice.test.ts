@@ -74,6 +74,94 @@ test('StackchanVoice reuses each native block after acceptance and cancels borro
   await next.close()
 })
 
+test('StackchanVoice flush keeps one output and ownership between text segments', async () => {
+  const tts = createStackchanVoiceTTS()
+  const args = { ...createVoiceScope(), voice: 'normal', format: mono(24000) }
+  const session = await tts.open(args)
+  const output = session.output
+  let frames = 0
+  readSource(output, (bytes) => {
+    frames += bytes.byteLength / 2
+  })
+  await session.write('一。')
+  await session.flush()
+  assert.equal(frames, 1050)
+  await assert.rejects(tts.open(args), { code: 'device_busy' })
+  await session.write('二。')
+  await session.endInput()
+  assert.equal(session.output, output)
+  assert.equal(frames, 2100)
+  assert.deepEqual(
+    native.starts.slice(-2).map((start) => start.text),
+    ['一。', '二。'],
+  )
+  await session.close()
+  const next = await tts.open(args)
+  await next.close()
+})
+
+test('throwing PCM error observers cannot strand StackchanVoice cleanup or ownership', async () => {
+  const tts = createStackchanVoiceTTS()
+  for (const rendering of [false, true]) {
+    const args = { ...createVoiceScope(), voice: 'normal', format: mono(24000) }
+    const session = await tts.open(args)
+    const accepted = deferred<void>()
+    let notified = 0
+    readSource(
+      session.output,
+      () => accepted.promise,
+      () => {
+        throw new Error('observer failed')
+      },
+    )
+    readSource(
+      session.output,
+      () => {},
+      () => {
+        notified++
+      },
+    )
+    let interrupted: Promise<void> | undefined
+    if (rendering) {
+      await session.write('声')
+      interrupted = assert.rejects(session.endInput(), { code: 'cancelled' })
+    }
+    await Promise.all([session.close(), session.close()])
+    await interrupted
+    assert.equal(notified, 1)
+    const next = await tts.open(args)
+    const stopped = native.reads
+    accepted.resolve()
+    await new Promise((resolve) => setImmediate(resolve))
+    timer.advance(10)
+    assert.equal(native.reads, stopped)
+    await next.close()
+  }
+})
+
+test('throwing PCM error observers preserve consumer failures and release StackchanVoice', async () => {
+  const tts = createStackchanVoiceTTS()
+  for (const asynchronous of [false, true]) {
+    const args = { ...createVoiceScope(), voice: 'normal', format: mono(24000) }
+    const session = await tts.open(args)
+    const failure = new Error('consumer failed')
+    readSource(
+      session.output,
+      () => {
+        if (asynchronous) return Promise.reject(failure)
+        throw failure
+      },
+      () => {
+        throw new Error('observer failed')
+      },
+    )
+    await session.write('声')
+    await assert.rejects(session.endInput(), (error) => error === failure)
+    const next = await tts.open(args)
+    await next.close()
+  }
+})
+
 test('StackchanVoice rejects incompatible formats, truncated Koe and invalid native frame counts', async () => {
   assert.throws(() => createStackchanVoiceTTS({ speed: 0 }), RangeError)
   const tts = createStackchanVoiceTTS()

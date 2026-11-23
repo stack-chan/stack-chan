@@ -1,0 +1,19 @@
+{
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "build": {
+        "C_FLAGS": "$(C_COMMON_FLAGS) -Wno-implicit-function-declaration -std=gnu17 $(C_FLAGS_SUBPLATFORM) -O2 -DSAAN_INT8_ACT=1 -DSAAN_PIE=1 -DSAAN_PORT_HEADER=\\\"saan_port_esp32.h\\\""
+      },
+      "modules": {
+        "sanotts-native": "./moddable/sanotts-native",
+        "*": [
+          "./moddable/model-storage.c",
+          "./moddable/pcm-queue.h", "./moddable/resampler.h", "./moddable/model-format.h", "./moddable/model-storage.h",
+          "./csrc/*.h", "./csrc/saanotts.c", "./csrc/saanotts_stream.c",
+          "./csrc/saanotts_int8.c", "./csrc/fft.c", "./csrc/g2p.c", "./pcm/*"
+        ]
+      },
+      "preload": ["sanotts-native"]
+    }
+  }
+}

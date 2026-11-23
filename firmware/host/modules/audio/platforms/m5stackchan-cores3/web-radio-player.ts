@@ -1,6 +1,6 @@
 import type { WebRadioCapability, WebRadioStartOptions, WebRadioState } from 'capabilities'
-import type { Speaker } from 'stackchan/voice/contracts'
 import MediaPlayer from 'media-player'
+import type { Speaker } from 'stackchan/voice/contracts'
 
 /** Backwards-compatible live-only entry point. The runtime shares its media owner. */
 export default class WebRadioPlayer implements WebRadioCapability {

@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "./device.manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./provider.test",
+    "sanotts-native": "./native",
+    "stackchan/voice/sanotts-reading": "./reading"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

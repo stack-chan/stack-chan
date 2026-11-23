@@ -1,4 +1,6 @@
-import { andThenAsync, type AsyncResult, ensure, err, isErr, match, ok, type Result } from 'stackchan-result'
+import type { MediaSession, MediaState } from 'capabilities'
+import { createVoiceScope } from 'stackchan/voice/scope'
+import { type AsyncResult, andThenAsync, ensure, err, isErr, isOk, match, ok, type Result } from 'stackchan-result'
 import {
   buildRadioDrawerOptions,
   formatRadioError,
@@ -6,13 +8,11 @@ import {
   OFF_VALUE,
   parseRadioSelection,
   type RadioError,
-  type RadioPlaybackState,
   type Station,
 } from 'web-radio-domain'
 
 const DEFAULT_DRAWER_KEY = 'web-radio:station'
 const DEFAULT_DRAWER_LABEL = 'ラジオ'
-const DEFAULT_SAMPLE_RATE = 44100
 
 export type NetworkStatus =
   | { readonly status: 'connected' }
@@ -23,15 +23,21 @@ export type RadioNetworkPort = Readonly<{
   waitReady(): AsyncResult<NetworkStatus, RadioError>
 }>
 
+type RadioPlayback = Pick<MediaSession, 'state' | 'done' | 'stop'>
+
 export type RadioPlaybackPort = Readonly<{
-  start(options: {
+  open(options: {
     readonly url: string
-    readonly sampleRate: number
-    readonly reconnect: boolean
-    readonly onStateChanged: (state: RadioPlaybackState, reason?: string) => void
-  }): AsyncResult<void, RadioError>
-  stop(): Promise<void> | void
+    readonly signal: ReturnType<typeof createVoiceScope>['signal']
+    readonly onStateChanged: (state: MediaState, reason?: string) => void
+  }): AsyncResult<RadioPlayback, RadioError>
 }>
+
+type PlaybackAttempt = {
+  readonly scope: ReturnType<typeof createVoiceScope>
+  readonly opening: AsyncResult<RadioPlayback, RadioError>
+  session?: RadioPlayback
+}
 
 export type RadioUiPort = Readonly<{
   showNotes(): void
@@ -57,7 +63,6 @@ export type RadioWorkflowDeps = Readonly<{
   ui: RadioUiPort
   drawerKey?: string
   drawerLabel?: string
-  sampleRate?: number
 }>
 
 export type RadioApp = Readonly<{
@@ -69,12 +74,12 @@ export type RadioApp = Readonly<{
 export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
   const drawerKey = deps.drawerKey ?? DEFAULT_DRAWER_KEY
   const drawerLabel = deps.drawerLabel ?? DEFAULT_DRAWER_LABEL
-  const sampleRate = deps.sampleRate ?? DEFAULT_SAMPLE_RATE
 
   let generation = 0
   let closed = false
   let drawerAdded = false
-  let hasActivePlayback = false
+  let playback: PlaybackAttempt | undefined
+  let retiring: Promise<void> | undefined
   let selectedValue: string = deps.stations[0]?.value ?? OFF_VALUE
 
   const resetToIdle = (error?: RadioError): void => {
@@ -88,17 +93,32 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     }
   }
 
+  const stopPlayback = (): Promise<void> | undefined => {
+    const previous = playback
+    if (!previous) return retiring
+    playback = undefined
+    const stopping = (async () => {
+      if (previous.session) {
+        await previous.session.stop()
+      } else {
+        previous.scope.abort()
+        const opened = await previous.opening
+        if (isOk(opened)) await opened.value.stop()
+      }
+    })()
+    retiring = stopping
+    const settled = () => {
+      if (retiring === stopping) retiring = undefined
+    }
+    void stopping.then(settled, settled)
+    return stopping
+  }
+
   const cleanup = (): Promise<void> | void => {
-    if (closed) return
+    if (closed) return retiring
     closed = true
     generation += 1
-    let stopping: Promise<void> | void
-    if (hasActivePlayback) {
-      hasActivePlayback = false
-      stopping = deps.radio?.stop()
-    } else {
-      stopping = undefined
-    }
+    const stopping = stopPlayback()
     resetToIdle()
     if (drawerAdded) {
       drawerAdded = false
@@ -107,7 +127,7 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     return stopping
   }
 
-  const onRadioState = (expectedGeneration: number, state: RadioPlaybackState, reason?: string): void => {
+  const onRadioState = (expectedGeneration: number, state: MediaState, reason?: string): void => {
     if (closed || expectedGeneration !== generation) return
     if (state === 'error') {
       resetToIdle({ kind: 'playback-failed', reason: reason ?? 'unknown error' })
@@ -131,12 +151,18 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     const nextGeneration = ++generation
     selectedValue = value
     deps.ui.setConnectionIndicator(false)
-    if (hasActivePlayback) {
-      hasActivePlayback = false
-      void Promise.resolve(deps.radio?.stop()).catch(() => {})
-    }
     deps.ui.hideNotes()
     deps.ui.hideBalloon()
+    try {
+      const stopping = stopPlayback()
+      if (stopping) await stopping
+    } catch (cause) {
+      if (closed || nextGeneration !== generation) return ok(undefined)
+      const error: RadioError = { kind: 'playback-failed', reason: String(cause) }
+      resetToIdle(error)
+      return err(error)
+    }
+    if (closed || nextGeneration !== generation) return ok(undefined)
 
     if (selection.kind === 'off') {
       deps.ui.setFaceMotionEnabled(true)
@@ -150,20 +176,30 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     }
 
     deps.ui.setFaceMotionEnabled(false)
-    hasActivePlayback = true
-    const started = await radioPort.value.start({
+    const scope = createVoiceScope()
+    const opening = radioPort.value.open({
       url: selection.station.url,
-      sampleRate,
-      reconnect: true,
+      signal: scope.signal,
       onStateChanged: (state, reason) => onRadioState(nextGeneration, state, reason),
     })
+    const attempt: PlaybackAttempt = { scope, opening }
+    playback = attempt
 
-    if (closed || nextGeneration !== generation) return ok(undefined)
-    if (isErr(started)) {
-      hasActivePlayback = false
-      resetToIdle(started.error)
-      return started
+    const opened = await opening
+    if (playback !== attempt) return ok(undefined)
+    if (isErr(opened)) {
+      playback = undefined
+      resetToIdle(opened.error)
+      return opened
     }
+    const session = opened.value
+    attempt.session = session
+    const finish = () => {
+      if (playback !== attempt) return
+      playback = undefined
+      if (session.state !== 'error') resetToIdle()
+    }
+    void session.done.then(finish, finish)
     return ok(undefined)
   }
 

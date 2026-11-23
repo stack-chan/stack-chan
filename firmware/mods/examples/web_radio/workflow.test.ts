@@ -3,27 +3,29 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import type { MediaSession, MediaState } from 'capabilities'
 import type { Result } from 'stackchan-result'
-import type { RadioError, RadioPlaybackState, Station } from './domain.js'
+import type { RadioError, Station } from './domain.js'
 import type { NetworkStatus, RadioNetworkPort, RadioPlaybackPort, RadioUiPort, RadioWorkflowDeps } from './workflow.js'
 
-type WorkflowModule = typeof import('./workflow.js')
+type RadioPlayback = Pick<MediaSession, 'state' | 'done' | 'stop'>
 
 const TEST_STATIONS: readonly Station[] = [
   { value: 'groovesalad', label: 'Groove Salad', url: 'http://example.test/groovesalad' },
   { value: 'dronezone', label: 'Drone Zone', url: 'http://example.test/dronezone' },
 ]
 
-function linkPackage(root: string, name: string, target: string): void {
+function linkPackage(root: string, name: string, target: string, subpath = '.'): void {
   const pkgDir = resolve(root, 'node_modules', name)
   mkdirSync(pkgDir, { recursive: true })
   const rel = relative(pkgDir, target).replaceAll('\\', '/')
   writeFileSync(`${pkgDir}/index.js`, `export * from ${JSON.stringify(rel.startsWith('.') ? rel : `./${rel}`)};\n`)
-  writeFileSync(`${pkgDir}/package.json`, JSON.stringify({ type: 'module', exports: './index.js' }))
+  writeFileSync(`${pkgDir}/package.json`, JSON.stringify({ type: 'module', exports: { [subpath]: './index.js' } }))
 }
 
 function installAliases(): void {
   const distRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+  linkPackage(distRoot, 'stackchan', resolve(distRoot, 'host/modules/voice/scope.js'), './voice/scope')
   linkPackage(distRoot, 'stackchan-result', resolve(distRoot, 'host/modules/util/result.js'))
   linkPackage(distRoot, 'web-radio-domain', resolve(distRoot, 'mods/examples/web_radio/domain.js'))
   linkPackage(distRoot, 'web-radio-workflow', resolve(distRoot, 'mods/examples/web_radio/workflow.js'))
@@ -43,6 +45,16 @@ function createDeferred<T>(): Deferred<T> {
     resolve = res
   })
   return { promise, resolve }
+}
+
+function createPlayback(stop: () => Promise<void> = async () => {}) {
+  const completion = createDeferred<'ended' | 'stopped'>()
+  const playback: RadioPlayback = {
+    state: 'playing',
+    done: completion.promise,
+    stop,
+  }
+  return { playback, completion }
 }
 
 function createUiRecorder() {
@@ -110,7 +122,7 @@ function connectedNetwork(): RadioNetworkPort {
 
 test('web_radio reports network-unavailable and skips drawer when network port is absent', async () => {
   installAliases()
-  const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
+  const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
 
   const app = createRadioApp({
@@ -129,7 +141,7 @@ test('web_radio reports network-unavailable and skips drawer when network port i
 
 test('web_radio reports network-offline when boot Wi-Fi is not connected', async () => {
   installAliases()
-  const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
+  const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
   let stopCount = 0
 
@@ -139,11 +151,12 @@ test('web_radio reports network-offline when boot Wi-Fi is not connected', async
       waitReady: async () => ok<NetworkStatus>({ status: 'failed', reason: 'timeout' }),
     },
     radio: {
-      async start() {
-        return ok(undefined)
-      },
-      stop() {
-        stopCount += 1
+      async open() {
+        return ok(
+          createPlayback(async () => {
+            stopCount += 1
+          }).playback,
+        )
       },
     },
     ui: recorder.ui,
@@ -161,9 +174,9 @@ test('web_radio reports network-offline when boot Wi-Fi is not connected', async
   assert.equal(stopCount, 0, 'stopping after network failure must not stop an unstarted shared player')
 })
 
-test('web_radio reports radio-unsupported when audio.webRadio is missing and keeps face motion enabled', async () => {
+test('web_radio reports radio-unsupported when the media capability is missing and keeps face motion enabled', async () => {
   installAliases()
-  const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
+  const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
 
   const app = createRadioApp({
@@ -187,18 +200,19 @@ test('web_radio reports radio-unsupported when audio.webRadio is missing and kee
 
 test('web_radio rejects unknown station without disrupting active playback', async () => {
   installAliases()
-  const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
+  const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
   let stopCount = 0
-  let stateCallback: ((state: RadioPlaybackState, reason?: string) => void) | undefined
+  let stateCallback: ((state: MediaState, reason?: string) => void) | undefined
 
   const radio: RadioPlaybackPort = {
-    async start(options) {
+    async open(options) {
       stateCallback = options.onStateChanged
-      return ok(undefined)
-    },
-    stop() {
-      stopCount += 1
+      return ok(
+        createPlayback(async () => {
+          stopCount += 1
+        }).playback,
+      )
     },
   }
 
@@ -226,20 +240,19 @@ test('web_radio rejects unknown station without disrupting active playback', asy
 
 test('web_radio rolls back UI to idle when playback start or stream state fails', async () => {
   installAliases()
-  const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
+  const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
   let shouldFailStart = true
-  let stateCallback: ((state: RadioPlaybackState, reason?: string) => void) | undefined
+  let stateCallback: ((state: MediaState, reason?: string) => void) | undefined
 
   const radio: RadioPlaybackPort = {
-    async start(options) {
+    async open(options) {
       stateCallback = options.onStateChanged
       if (shouldFailStart) {
         return err({ kind: 'playback-failed', reason: 'connect refused' })
       }
-      return ok(undefined)
+      return ok(createPlayback().playback)
     },
-    stop() {},
   }
 
   const app = createRadioApp({
@@ -269,26 +282,26 @@ test('web_radio rolls back UI to idle when playback start or stream state fails'
   assert.equal(recorder.state.balloon, 'Radio error: stream dropped')
 })
 
-test('web_radio suppresses stale generation state callbacks and late start failures', async () => {
-  installAliases()
-  const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
+test('web_radio cancels an opening station before starting the latest selection', async () => {
+  const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
   const starts: Array<{
     url: string
-    deferred: Deferred<Result<void, RadioError>>
-    onStateChanged: (state: RadioPlaybackState, reason?: string) => void
+    signal: Parameters<RadioPlaybackPort['open']>[0]['signal']
+    deferred: Deferred<Result<RadioPlayback, RadioError>>
+    onStateChanged: (state: MediaState, reason?: string) => void
   }> = []
+  const stopped: string[] = []
 
   const deps: RadioWorkflowDeps = {
     stations: TEST_STATIONS,
     network: connectedNetwork(),
     radio: {
-      start(options) {
-        const deferred = createDeferred<Result<void, RadioError>>()
-        starts.push({ url: options.url, deferred, onStateChanged: options.onStateChanged })
+      open(options) {
+        const deferred = createDeferred<Result<RadioPlayback, RadioError>>()
+        starts.push({ ...options, deferred })
         return deferred.promise
       },
-      stop() {},
     },
     ui: recorder.ui,
   }
@@ -296,47 +309,122 @@ test('web_radio suppresses stale generation state callbacks and late start failu
   const app = createRadioApp(deps)
   const firstSelect = app.select('groovesalad')
   assert.equal(starts.length, 1)
-
-  const secondSelect = app.select('dronezone')
-  assert.equal(starts.length, 2)
-
-  starts[1].deferred.resolve(ok(undefined))
-  await secondSelect
-  starts[1].onStateChanged('playing')
-  assert.equal(recorder.state.notesVisible, true)
-  assert.equal(recorder.state.faceMotionEnabled, false)
-  assert.equal(recorder.state.balloon, undefined)
+  const superseded = app.select('off')
+  const latest = app.select('dronezone')
+  assert.equal(starts[0].signal.aborted, true)
+  assert.equal(starts.length, 1)
 
   starts[0].onStateChanged('error', 'stale socket reset')
-  starts[0].deferred.resolve(err({ kind: 'playback-failed', reason: 'stale connect failure' }))
-  const firstResult = await firstSelect
-  assert.equal(isOk(firstResult), true)
+  starts[0].deferred.resolve(
+    ok(
+      createPlayback(async () => {
+        stopped.push('groovesalad')
+      }).playback,
+    ),
+  )
+  await firstSelect
+  await superseded
+  assert.deepEqual(stopped, ['groovesalad'])
+  assert.deepEqual(
+    starts.map(({ url }) => url),
+    TEST_STATIONS.map(({ url }) => url),
+  )
 
+  starts[1].deferred.resolve(ok(createPlayback().playback))
+  assert(isOk(await latest))
+  starts[1].onStateChanged('playing')
   assert.equal(recorder.state.notesVisible, true)
   assert.equal(recorder.state.faceMotionEnabled, false)
   assert.equal(recorder.state.balloon, undefined)
 })
 
+test('web_radio shutdown waits for an opening station to be stopped', async () => {
+  const { createRadioApp } = await import('./workflow.js')
+  const recorder = createUiRecorder()
+  const opening = createDeferred<Result<RadioPlayback, RadioError>>()
+  let signal: Parameters<RadioPlaybackPort['open']>[0]['signal'] | undefined
+  let stopped = false
+  const app = createRadioApp({
+    stations: TEST_STATIONS,
+    radio: {
+      open(options) {
+        signal = options.signal
+        return opening.promise
+      },
+    },
+    ui: recorder.ui,
+  })
+
+  const selecting = app.select('groovesalad')
+  const stopping = app.stop()
+  assert.equal(signal?.aborted, true)
+  opening.resolve(
+    ok(
+      createPlayback(async () => {
+        stopped = true
+      }).playback,
+    ),
+  )
+  await stopping
+  assert.equal(stopped, true)
+  assert(isOk(await selecting))
+  assert.equal(recorder.state.faceMotionEnabled, true)
+})
+
+test('web_radio cleanup leaves a replacement media session running', async () => {
+  const { createRadioApp } = await import('./workflow.js')
+  const recorder = createUiRecorder()
+  let currentSession = ''
+  const stopped: string[] = []
+  const radio = createPlayback(async () => {
+    stopped.push('radio')
+    if (currentSession === 'radio') currentSession = ''
+  })
+  const app = createRadioApp({
+    stations: TEST_STATIONS,
+    network: connectedNetwork(),
+    radio: {
+      async open({ onStateChanged }) {
+        currentSession = 'radio'
+        onStateChanged('playing')
+        return ok(radio.playback)
+      },
+    },
+    ui: recorder.ui,
+  })
+
+  assert(isOk(await app.start()))
+  stopped.push('radio')
+  radio.completion.resolve('stopped')
+  currentSession = 'podcast'
+  await Promise.resolve()
+  assert.equal(recorder.state.faceMotionEnabled, true)
+  await app.stop()
+  assert.equal(currentSession, 'podcast')
+  assert.deepEqual(stopped, ['radio'])
+})
+
 test('web_radio cleanup stops playback, awaits async stop teardown, restores UI, removes drawer, and blocks stale callbacks', async () => {
   installAliases()
-  const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
+  const { createRadioApp } = await import('./workflow.js')
   const recorder = createUiRecorder()
   let stopCount = 0
   let stopFinished = false
-  let stateCallback: ((state: RadioPlaybackState, reason?: string) => void) | undefined
+  let stateCallback: ((state: MediaState, reason?: string) => void) | undefined
 
   const app = createRadioApp({
     stations: TEST_STATIONS,
     network: connectedNetwork(),
     radio: {
-      async start(options) {
+      async open(options) {
         stateCallback = options.onStateChanged
-        return ok(undefined)
-      },
-      async stop() {
-        stopCount += 1
-        await Promise.resolve()
-        stopFinished = true
+        return ok(
+          createPlayback(async () => {
+            stopCount += 1
+            await Promise.resolve()
+            stopFinished = true
+          }).playback,
+        )
       },
     },
     ui: recorder.ui,

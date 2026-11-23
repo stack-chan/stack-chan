@@ -9,7 +9,7 @@ const EFFECT_KEY = 'web-radio:music-notes'
 export function createWebRadioDeps(context: StackchanContext, stations: readonly Station[]): RadioWorkflowDeps {
   const notes = new MusicNotes()
   const contextNetwork = context.connectivity.network
-  const contextRadio = context.audio.webRadio
+  const media = context.audio.media
 
   const network: RadioNetworkPort | undefined = contextNetwork
     ? {
@@ -21,19 +21,13 @@ export function createWebRadioDeps(context: StackchanContext, stations: readonly
       }
     : undefined
 
-  const radio: RadioPlaybackPort | undefined = contextRadio
+  const radio: RadioPlaybackPort | undefined = media
     ? {
-        start: (options) =>
+        open: ({ url, signal, onStateChanged }) =>
           fromPromise(
-            contextRadio.start({
-              url: options.url,
-              sampleRate: options.sampleRate,
-              reconnect: options.reconnect,
-              onStateChanged: options.onStateChanged,
-            }),
+            media.open({ mode: 'live', url, reconnect: true }, { signal, onStateChanged }),
             (cause): RadioError => ({ kind: 'playback-failed', reason: String(cause) }),
           ),
-        stop: () => contextRadio.stop(),
       }
     : undefined
 

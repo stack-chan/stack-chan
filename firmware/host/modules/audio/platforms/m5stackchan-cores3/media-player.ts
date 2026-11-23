@@ -565,7 +565,7 @@ export default class MediaPlayer implements MediaCapability {
     const stream = new StreamSession(this.#getSpeaker)
     this.#current = stream
     const retired = this.#retire(previous)
-    const stop = () => stream.stop()
+    const stop = () => (this.#current === stream ? this.stop() : stream.stop())
     const abort = () => {
       void stop().catch(() => {})
     }

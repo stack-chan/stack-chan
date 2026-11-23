@@ -1,3 +1,4 @@
+import type { MediaState } from 'capabilities'
 import { err, ok, type Result } from 'stackchan-result'
 
 export const OFF_VALUE = 'off'
@@ -8,8 +9,6 @@ export type Station = Readonly<{
   label: string
   url: string
 }>
-
-export type RadioPlaybackState = 'idle' | 'connecting' | 'buffering' | 'playing' | 'stalled' | 'retrying' | 'error'
 
 export type RadioSelection = { readonly kind: 'off' } | { readonly kind: 'station'; readonly station: Station }
 
@@ -31,7 +30,7 @@ export function parseRadioSelection(value: string, stations: readonly Station[])
   return ok({ kind: 'station', station })
 }
 
-export function isConnectingState(state: RadioPlaybackState): boolean {
+export function isConnectingState(state: MediaState): boolean {
   return state === 'connecting' || state === 'buffering' || state === 'stalled' || state === 'retrying'
 }
 

@@ -11,6 +11,7 @@ export type ServoGoalTimeCentiseconds = number
 export type MotionCompletion = (error?: unknown) => void
 export type MotionResultCallback<T> = (result: T) => void
 export type { MotionControllerPose }
+
 type WriteMotionPose = (pose: Pose, time: MotionDurationSeconds | undefined, callback: MotionCompletion) => void
 
 export type MotionDriver = {
@@ -51,7 +52,7 @@ export class MotionController {
   #temporaryMotion: TemporaryMotion | undefined
   #torqueRequested = false
   #options: MotionControllerOptions
-  #releaseTorqueAfterClose = false
+  #closingGazeDriver: MotionDriver | undefined
   #releaseTorqueHandler: ReturnType<typeof Timer.set> | undefined
   #updatePoseHandler: ReturnType<typeof Timer.repeat> | undefined
   #updatePose = () => this.updatePose()
@@ -78,21 +79,12 @@ export class MotionController {
   close(): void {
     if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
     const phase = this.#gaze.phase
-    const inFlightTorqueOp = phase === MotionPhase.EnablingTorque || phase === MotionPhase.ApplyingRotation
-    const shouldReleaseNow =
-      (phase === MotionPhase.Settling || phase === MotionPhase.ReleasingTorque) && !this.#torqueRequested
-    this.#releaseTorqueAfterClose = (this.#releaseTorqueAfterClose || inFlightTorqueOp) && !this.#torqueRequested
+    if (this.#gaze.isMoving) this.#closingGazeDriver = this.#driver
     this.#gaze.reset()
     this.updating = false
     this.#stopPosePolling()
     this.#clearReleaseTorqueTimer()
-    if (shouldReleaseNow) {
-      try {
-        this.#driver.setTorque(false, () => {})
-      } catch (error) {
-        trace(`[MotionController] release torque failed: ${String(error)}\n`)
-      }
-    }
+    if (phase === MotionPhase.Settling) this.#releaseClosedGazeTorque(true)
   }
 
   useDriver(driver: MotionDriver) {
@@ -100,7 +92,6 @@ export class MotionController {
       if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
       this.#driver.onDetached?.()
     }
-    this.#releaseTorqueAfterClose = false
     this.#driver = driver
     this.#driver.onAttached?.()
   }
@@ -139,7 +130,7 @@ export class MotionController {
     move: (setPose: WriteMotionPose, done: MotionCompletion) => void,
     callback: MotionCompletion,
   ): void {
-    if (this.#temporaryMotion || this.#gaze.isMoving) {
+    if (this.#temporaryMotion || this.#gaze.isMoving || this.#closingGazeDriver) {
       callback()
       return
     }
@@ -193,7 +184,7 @@ export class MotionController {
   }
 
   updatePose(_id?: unknown): void {
-    if (this.updating || this.#options.isPaused()) {
+    if (this.updating || this.#closingGazeDriver || this.#options.isPaused()) {
       return
     }
     const effect = this.#gaze.requestPoll(false)
@@ -235,16 +226,8 @@ export class MotionController {
   }
 
   #handleTorqueEnabled: MotionCompletion = (torqueError) => {
-    if (this.#releaseTorqueAfterClose) {
-      this.#releaseTorqueAfterClose = false
-      if (!torqueError && !this.#torqueRequested) {
-        try {
-          this.#driver.setTorque(false, () => {})
-        } catch (error) {
-          trace(`[MotionController] release torque failed: ${String(error)}\n`)
-        }
-      }
-      this.updating = this.#gaze.isUpdating
+    if (this.#closingGazeDriver) {
+      this.#releaseClosedGazeTorque(torqueError == null)
       return
     }
     if (torqueError) {
@@ -277,16 +260,8 @@ export class MotionController {
   }
 
   #handleMotionApplied: MotionCompletion = (moveError) => {
-    if (this.#releaseTorqueAfterClose) {
-      this.#releaseTorqueAfterClose = false
-      if (!this.#torqueRequested) {
-        try {
-          this.#driver.setTorque(false, () => {})
-        } catch (error) {
-          trace(`[MotionController] release torque failed: ${String(error)}\n`)
-        }
-      }
-      this.updating = this.#gaze.isUpdating
+    if (this.#closingGazeDriver) {
+      this.#releaseClosedGazeTorque(true)
       return
     }
     if (moveError) {
@@ -314,6 +289,20 @@ export class MotionController {
     this.updating = this.#gaze.isUpdating
   }
 
+  #releaseClosedGazeTorque(torqueEnabled: boolean): void {
+    const driver = this.#closingGazeDriver
+    if (!driver) return
+    if (!torqueEnabled || (driver === this.#driver && this.#torqueRequested)) {
+      this.#closingGazeDriver = undefined
+      return
+    }
+    try {
+      driver.setTorque(false, this.#handleTorqueReleased)
+    } catch (error) {
+      this.#handleTorqueReleased(error)
+    }
+  }
+
   #releaseTorque = () => {
     this.#releaseTorqueHandler = undefined
     const effect = this.#gaze.onSettleElapsed(this.#torqueRequested)
@@ -338,6 +327,10 @@ export class MotionController {
   #handleTorqueReleased: MotionCompletion = (releaseError) => {
     if (releaseError) {
       trace(`[MotionController] release torque failed: ${String(releaseError)}\n`)
+    }
+    if (this.#closingGazeDriver) {
+      this.#closingGazeDriver = undefined
+      return
     }
     const effect = this.#gaze.onTorqueReleased()
     this.updating = this.#gaze.isUpdating

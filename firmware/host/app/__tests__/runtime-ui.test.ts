@@ -62,6 +62,35 @@ const defaultPose = {
   },
 }
 
+test('StackchanRuntimeUI routes the connection indicator through controllers with or without a dedicated method', async () => {
+  installAliases()
+  const { StackchanRuntimeUI } = await import('../runtime-ui.js')
+  const { ui } = createFakeUI()
+  const events: Array<[string, boolean]> = []
+  ui.application = {
+    distribute(event: string, visible: boolean) {
+      events.push([event, visible])
+    },
+  }
+  const runtimeUI = new StackchanRuntimeUI(ui, {
+    getContext: () => {
+      throw new Error('context not needed')
+    },
+    getPose: () => defaultPose,
+    getGazePoint: () => null,
+    isPaused: () => false,
+  })
+
+  runtimeUI.setConnectionIndicator(true)
+  ui.setConnectionIndicator = (visible) => events.push(['controller', visible])
+  runtimeUI.setConnectionIndicator(false)
+
+  assert.deepEqual(events, [
+    ['onConnectionIndicator', true],
+    ['controller', false],
+  ])
+})
+
 test('StackchanRuntimeUI skips redundant ui.update calls when AvatarExpression is clean', async () => {
   installAliases()
   const { StackchanRuntimeUI } = (await import('../runtime-ui.js')) as RuntimeUIModule

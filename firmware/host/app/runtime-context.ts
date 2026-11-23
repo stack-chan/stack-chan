@@ -632,7 +632,7 @@ export class StackchanRuntimeContext implements StackchanContext {
         context.#uiRuntime.ui.setFaceMotionEnabled?.(enabled)
       },
       setConnectionIndicator(visible) {
-        context.#uiRuntime.ui.setConnectionIndicator?.(visible)
+        context.#uiRuntime.setConnectionIndicator(visible)
       },
       setMain(content, options) {
         return context.#uiRuntime.ui.setMain(content, options)

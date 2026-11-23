@@ -1,6 +1,7 @@
 import { createGuruguruView } from 'guruguru-view'
 import { hasGeminiSpeechKey, hasOpenAISpeechKey } from 'muse-account-cascaded'
-import { fitCaption } from 'muse-caption-layout'
+import { captionBounds, captionLineWidths } from 'muse-caption-layout'
+import { createCaptionState } from 'muse-caption-state'
 import * as diagnosticHeap from 'muse-diagnostic-heap'
 import { createPairingPeripheral } from 'muse-pairing/peripheral'
 import PairingNative, { AccountSession, pairingSelftest } from 'muse-pairing-native'
@@ -19,6 +20,7 @@ import { createTalkFeedback, savedStatusBounds, setupActions, voiceMenuAvailable
 import { Application, Behavior, Container, Label, Port, Skin, Style, Text } from 'piu/MC'
 import Preference from 'preference'
 import Timer from 'timer'
+import Time from 'time'
 
 const diagnostics = createSpeechDiagnostics({ timer: Timer, heap: diagnosticHeap, emit: (value) => trace(value) })
 
@@ -51,18 +53,70 @@ const speechProvider = createSpeechProvider({
 const selectedProfile = () => (speechProvider.current() === 'gemini' ? geminiProfile : speechProfile)
 const providerLabel = () => `Speech: ${speechProvider.current() === 'gemini' ? 'Gemini' : 'OpenAI'}`
 const style = new Style({ font: '18px Open Sans', color: 'white', horizontal: 'center' })
-const captionStyle = new Style({ font: 'k8x12-24', color: 'white', horizontal: 'center' })
 const feedback = createTalkFeedback()
 const captionSkin = new Skin({ fill: '#101820' })
+const userCaptionStyle = new Style({ font: 'k8x12-24', color: '#9eead9', horizontal: 'left' })
+const museCaptionStyle = new Style({ font: 'k8x12-24', color: 'white', horizontal: 'center' })
+const captionRows = captionLineWidths.map(
+  (width, index) =>
+    new Label(null, {
+      left: (442 - width) / 2,
+      width,
+      top: index * 28,
+      height: 28,
+      style: museCaptionStyle,
+      string: '',
+      skin: captionSkin,
+      visible: false,
+    }),
+)
+const waiting = new Label(null, {
+  left: 162,
+  right: 162,
+  top: 410,
+  height: 20,
+  style,
+  string: '',
+  visible: false,
+})
 let captionMode = false
 const statusText = new Text(null, { left: 0, right: 0, top: 0, bottom: 0, style, string: 'Checking setup...' })
-const status = new Container(null, { left: 90, right: 90, top: 90, height: 174, clip: true, contents: [statusText] })
+const status = new Container(null, {
+  left: 90,
+  right: 90,
+  top: 90,
+  height: 174,
+  clip: true,
+  contents: [statusText, ...captionRows],
+})
 Object.defineProperty(status, 'string', {
   get() {
     return statusText.string
   },
   set(value) {
-    statusText.string = captionMode ? fitCaption(value, (text) => captionStyle.measure(text).width, 190) : value
+    statusText.string = value
+  },
+})
+const captions = createCaptionState({
+  measure: (text) => museCaptionStyle.measure(text).width,
+  timer: Timer,
+  now: () => Time.ticks,
+  render(value) {
+    captionRows.forEach((row, index) => {
+      const text = value.lines[index] ?? ''
+      if (row.string !== text) row.string = text
+      const style = value.speaker === 'user' ? userCaptionStyle : museCaptionStyle
+      if (row.style !== style) row.style = style
+      row.visible = captionMode && Boolean(text)
+    })
+    waiting.string = value.waiting
+      ? 'Muse...'
+      : value.phase === 'recording'
+        ? 'Recording'
+        : value.phase === 'idle'
+          ? 'Hold A to talk'
+          : ''
+    waiting.visible = captionMode && Boolean(waiting.string)
   },
 })
 class Action extends Behavior {
@@ -88,6 +142,7 @@ class Action extends Behavior {
 class Host extends Behavior {
   onQuit() {
     disposed = true
+    captions.close()
     diagnostics.close()
     controls.close()
     physicalButtons?.close()
@@ -136,7 +191,7 @@ class Talk extends Behavior {
 }
 const talk = new Label(null, {
   ...setupActions.pairing,
-  style: captionStyle,
+  style: museCaptionStyle,
   skin: new Skin({ fill: '#24585d' }),
   string: 'Hold to talk',
   active: true,
@@ -254,7 +309,12 @@ const responseExpression = createResponseExpressionController((expression) => vi
 view.content.visible = false
 const runtime = createSetupConversationRuntime(
   (event) => {
+    if (disposed) return
     diagnostics.event(event)
+    captions.event(event)
+    if (event.type === 'caption.segment' || event.type === 'caption.duration') return
+    if (event.type === 'input.transcript' && event.value.final) captions.transcript(event.value.text)
+    if (event.type === 'output.level' && event.value > 0) captions.audible()
     if (event.type === 'error') {
       const code = [
         'deadline_exceeded',
@@ -281,26 +341,19 @@ const runtime = createSetupConversationRuntime(
       coordinator?.connectionEnded()
     } else if (event.type === 'turn.started') {
       speechBusy = true
-      status.string = 'Asking Muse...'
       view.model.setState('think')
-    } else if (event.type === 'output.text') {
-      status.string = String(event.delta).slice(0, 160)
     } else if (event.type === 'turn.ended') {
       speechBusy = false
       view.model.setState('idle')
     } else if (event.type === 'error' && !event.fatal) {
       speechBusy = false
-      status.string =
-        event.code === 'input_overrun'
-          ? 'Recording limit: 15 seconds. Try a shorter message.'
-          : 'Speech recognition failed. Please try again.'
+      captions.error(event.code === 'input_overrun' ? '短く話してください' : 'もう一度お話しください')
       view.model.setState('idle')
-    } else if (event.type === 'input.transcript' && event.value.final)
-      status.string = event.value.text.trim() ? String(event.value.text).slice(0, 160) : '音声を聞き取れませんでした。'
-    else if (event.type === 'error' && event.fatal) {
+    } else if (event.type === 'error' && event.fatal) {
       speechBusy = false
       view.model.setState('idle')
-      status.string = 'Muse conversation stopped.'
+      connectionFailure = 'Conversation stopped. Reconnect to Muse.'
+      captions.error('会話を終了しました')
       Promise.resolve(runtime.endCall())
         .finally(() => coordinator?.connectionEnded())
         .catch(() => {})
@@ -331,17 +384,24 @@ const runtime = createSetupConversationRuntime(
     getSpeechVoice: speechProfile.current,
     getGeminiVoice: geminiProfile.current,
     getSpeechProvider: speechProvider.current,
-    onPlaybackState(active) {
+    onPlaybackState(active, info) {
+      if (disposed) return
+      if (active) {
+        if (!captions.prepare(info?.outputId, info?.turnId)) return
+      } else if (!captions.stopOutput(info)) return
       feedback.playback(active)
       updateFeedback()
       view.model.setState(active ? 'speak' : 'idle')
     },
   },
 )
+const canTalk = () => !disposed && !switching && coordinator?.snapshot().phase === 'connected'
 const controls = createTalkControls({
-  canTalk: () => !disposed && !switching && coordinator?.snapshot().phase === 'connected',
+  canTalk,
+  canStart: () => canTalk() && !speechBusy,
   setMuted: (value) => runtime.mute(value),
   async disconnect() {
+    captions.clear()
     await runtime.endCall()
     coordinator?.connectionEnded()
   },
@@ -349,15 +409,14 @@ const controls = createTalkControls({
     held = value
     feedback.hold(value)
     updateFeedback()
-    if (value) status.string = '録音中'
-    else if (feedback.snapshot().phase === 'transcribing') status.string = '聞き取り中…'
+    captions.input(value)
     view.model.setState(value ? 'listen' : 'think')
   },
   onError(stage) {
     feedback.reset()
     updateFeedback()
     view.model.setState('idle')
-    status.string = stage === 'disconnect' ? 'Could not disconnect. Retry.' : 'Microphone operation failed.'
+    captions.error(stage === 'disconnect' ? '切断をやり直してください' : 'マイクを確認してください')
   },
 })
 try {
@@ -379,6 +438,7 @@ app.add(talk)
 app.add(voiceChoice)
 app.add(providerChoice)
 app.add(inputMeter)
+app.add(waiting)
 function render() {
   action = undefined
   if (blocked || switching || disposed) return
@@ -392,8 +452,15 @@ function render() {
   voiceChoice.active = canChooseVoice()
   providerChoice.visible = voiceChoice.visible
   providerChoice.active = canChooseVoice()
+  if (captionMode && !connected) captions.clear()
   captionMode = connected
-  statusText.style = connected ? captionStyle : style
+  statusText.visible = !connected
+  if (!connected) {
+    captionRows.forEach((row) => {
+      row.visible = false
+    })
+    waiting.visible = false
+  }
   talk.visible = state?.phase === 'saved' && identity?.sdkReady === true
   talk.active = talk.visible
   button.visible = !connected
@@ -403,21 +470,21 @@ function render() {
   button.coordinates = saved ? setupActions.connect : { left: 120, right: 120, bottom: 80, height: 48 }
   view.content.visible = connected
   status.coordinates = connected
-    ? { left: 138, right: 138, top: 52, height: 56 }
+    ? captionBounds
     : saved
       ? savedStatusBounds
       : { left: 90, right: 90, top: 90, height: 174 }
-  status.skin = connected ? captionSkin : undefined
   if (state?.phase === 'review') {
     status.string = 'Save Wi-Fi and Muse credentials here? Protection follows device settings. This does not connect.'
     button.string = 'Save on device'
     action = describeSetupPrompt(coordinator).confirm
   } else if (state?.phase === 'saved') {
-    status.string = 'Connect with saved settings. Pairing changes require approval.'
+    status.string = connectionFailure ?? 'Connect with saved settings. Pairing changes require approval.'
     button.string = 'Connect to Muse'
     action = describeSetupPrompt(coordinator).confirm
   } else if (state?.phase === 'connected') {
-    status.string = 'Hold A to talk\nB: disconnect'
+    waiting.string = 'Hold A to talk'
+    waiting.visible = true
     button.string = 'Disconnect'
     action = () => controls.disconnect()
   } else if (state?.phase === 'saving' || state?.phase === 'connecting') {

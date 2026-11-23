@@ -166,6 +166,112 @@ test('reply playback gates the next press and permits the next completed turn', 
   await session.close({ mode: 'drain' })
 })
 
+test('caption observation publishes complete synthesis text and keeps turns scoped', async () => {
+  const f = setup({
+    send: async () => ({ status: 'completed', messages: [{ id: 'reply', text: 'One sentence. Another sentence.' }] }),
+  })
+  const session = await f.conversation.open(f.options)
+  const first = await session.submit(user('one'), f.scope)
+  await first.done
+  const second = await session.submit(user('two'), f.scope)
+  await second.done
+  const started = f.events.filter((event) => event.type === 'turn.started')
+  for (const turn of started) {
+    const segments = f.events.filter((event) => event.type === 'caption.segment' && event.turnId === turn.turnId)
+    assert.equal(segments.map((event) => event.text).join(''), 'One sentence. Another sentence.')
+    assert.ok(segments.every((event) => event.outputId.startsWith('reply/')))
+  }
+  assert.equal(started.length, 2)
+  assert.notEqual(started[0].turnId, started[1].turnId)
+  await session.close({ mode: 'drain' })
+})
+
+test('delayed caption observers retain their original output and preserve sink writes', async () => {
+  const synthesisEnd = deferred(),
+    playbackEnd = deferred(),
+    sinkResult = Promise.resolve(),
+    events = [],
+    playback = []
+  let config,
+    inner,
+    synthesisCount = 0
+  const format = mono(24000)
+  const conversation = createMuseCascadedConversation({
+    createConversation(value) {
+      config = value
+      return {
+        open(value) {
+          inner = value
+          return { id: 'test', close: async () => ({}) }
+        },
+      }
+    },
+    createPushToTalk: () => ({ detector: {}, release() {}, press() {} }),
+    createAgent: () => ({ capabilities: {} }),
+    openChat: async () => ({ close() {} }),
+    stt: {},
+    tts: {
+      async open() {
+        const first = synthesisCount++ === 0
+        return {
+          write: () => sinkResult,
+          endInput: () => (first ? synthesisEnd.promise : Promise.resolve()),
+        }
+      },
+    },
+    onPlaybackState: (active, info) => playback.push({ active, info }),
+  })
+  await conversation.open({
+    signal: new AbortController().signal,
+    history: [],
+    onEvent: (event) => events.push(event),
+    media: {
+      output: {
+        format,
+        begin: () => ({ write: () => sinkResult }),
+        finish: () => playbackEnd.promise,
+      },
+    },
+  })
+  inner.onEvent({ type: 'turn.started', turnId: 'one' })
+  const first = await config.tts.open({ format })
+  const firstSink = inner.media.output.begin('same/0', 0)
+  assert.equal(firstSink.write(new Uint8Array(8)), sinkResult)
+  assert.equal(first.write('first'), sinkResult)
+  const firstDone = first.endInput()
+  firstSink.write(new Uint8Array(4))
+  const firstStopped = inner.media.output.finish('same/0')
+
+  inner.onEvent({ type: 'turn.started', turnId: 'two' })
+  const second = await config.tts.open({ format })
+  inner.media.output.begin('same/0', 0).write(new Uint8Array(24))
+  second.write('second')
+  await second.endInput()
+  assert.equal(events.filter((event) => event.type === 'caption.duration').length, 1)
+  const secondStopped = inner.media.output.finish('same/0')
+  playbackEnd.resolve()
+  await Promise.all([secondStopped, firstStopped])
+  synthesisEnd.resolve()
+  await firstDone
+
+  assert.deepEqual(
+    events
+      .filter((event) => event.type === 'caption.duration')
+      .map(({ turnId, durationMs }) => ({ turnId, durationMs })),
+    [
+      { turnId: 'one', durationMs: (6 / 24000) * 1000 },
+      { turnId: 'two', durationMs: (12 / 24000) * 1000 },
+    ],
+  )
+  assert.deepEqual(
+    playback.filter(({ active }) => !active),
+    [
+      { active: false, info: { turnId: 'one', outputId: 'same/0' } },
+      { active: false, info: { turnId: 'two', outputId: 'same/0' } },
+    ],
+  )
+})
+
 test('empty transcript does not send and releases the next press', async () => {
   const f = setup({ transcript: '  ' }),
     session = await f.conversation.open(f.options)

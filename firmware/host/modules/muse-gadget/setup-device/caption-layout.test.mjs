@@ -1,20 +1,30 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { fitCaption } from './caption-layout.js'
-
-const measure = (text) => [...text].reduce((n, c) => n + (c === 'W' ? 14 : c.charCodeAt(0) > 127 ? 18 : 8), 0)
-test('keeps short two-line guidance intact', () => {
-  assert.equal(fitCaption('Hold A to talk\nB: disconnect', measure, 190), 'Hold A to talk\nB: disconnect')
+import { captionLineWidths, paginateCaption } from './caption-layout.js'
+const measure = (text) => [...text].reduce((n, c) => n + (c.codePointAt(0) > 127 ? 24 : 12), 0)
+test('short guidance uses at most two unscaled lines', () => {
+  assert.deepEqual(paginateCaption('こんにちは', measure), [['こんにちは']])
 })
-test('long captions stay within two measured lines and indicate omission', () => {
-  for (const text of [
-    'I found three interesting things about Stack-chan. First, it is a tiny robot.',
-    'W'.repeat(160),
-    '今日はスタックチャンについて調べた内容を順番にお伝えします。'.repeat(4),
-  ]) {
-    const result = fitCaption(text, measure, 190)
-    assert.ok(result.split('\n').length <= 2)
-    assert.ok(result.split('\n').every((line) => measure(line) <= 190))
-    assert.ok(result.endsWith('...'))
+test('all long Japanese text survives sequential two-line pages', () => {
+  const text =
+    '今日はスタックチャンの仕組みを紹介します。小さなロボットでも、さまざまな表情で会話を楽しめます。'.repeat(7)
+  const pages = paginateCaption(text, measure)
+  assert.ok(pages.length > 2)
+  assert.equal(pages.flat().join(''), text)
+  for (const lines of pages) {
+    assert.ok(lines.length <= 2)
+    assert.ok(lines.every((line, index) => measure(line) <= captionLineWidths[index]))
   }
+})
+test('wrapping preserves supplementary Unicode characters', () => {
+  const text = 'こんにちは🙂お元気ですか。'.repeat(12)
+  assert.equal(paginateCaption(text, measure).flat().join(''), text)
+})
+
+test('punctuation after emoji uses code-point boundaries within each measured row', () => {
+  const text = `${'😀'.repeat(10)}。${'あ'.repeat(20)}`
+  const measured = (line) => Array.from(line).length * 24
+  const pages = paginateCaption(text, measured)
+  assert.equal(pages.flat().join(''), text)
+  assert.ok(pages.every((lines) => lines.every((line, index) => measured(line) <= captionLineWidths[index])))
 })

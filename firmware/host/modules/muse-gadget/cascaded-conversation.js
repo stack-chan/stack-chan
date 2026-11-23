@@ -42,7 +42,9 @@ export function createMuseCascadedConversation({
         held = false,
         busy = false,
         stale = false,
-        sent = false
+        sent = false,
+        captionTurn,
+        captionOutput
       const ptt = createPushToTalk()
       const validate = (message) => {
         if (
@@ -56,14 +58,37 @@ export function createMuseCascadedConversation({
       const active = () => {
         if (stale || closing) throw failure('cancelled_unconfirmed')
       }
-      const stopped = () => onPlaybackState?.(false)
+      const notifyCaption = (event) => {
+        if (stale || closing || options.signal.aborted) return
+        try {
+          options.onEvent(event)
+        } catch {}
+      }
+      const stopped = (record = captionOutput) => {
+        onPlaybackState?.(false, record && { turnId: record.turnId, outputId: record.outputId })
+      }
       try {
         chat = await openChat(options)
         const agent = createAgent(chat)
         const output = options.media.output
         session = await createConversation({
           stt,
-          tts,
+          tts: {
+            ...tts,
+            async open(settings) {
+              const synthesis = await tts.open(settings)
+              let caption
+              return {
+                ...synthesis,
+                write(text) {
+                  caption ??= captionOutput
+                  if (caption)
+                    notifyCaption({ type: 'caption.segment', turnId: caption.turnId, outputId: caption.outputId, text })
+                  return synthesis.write(text)
+                },
+              }
+            },
+          },
           voice,
           turnDetector: ptt.detector,
           agent: {
@@ -93,27 +118,47 @@ export function createMuseCascadedConversation({
               ...output,
               begin(id, generation) {
                 const sink = output.begin(id, generation)
-                onPlaybackState?.(true)
-                return sink
+                const record = { turnId: captionTurn, outputId: id, frames: 0 }
+                captionOutput = record
+                onPlaybackState?.(true, { turnId: record.turnId, outputId: id })
+                return {
+                  ...sink,
+                  write(bytes) {
+                    record.frames += bytes.byteLength / (2 * output.format.channels)
+                    return sink.write(bytes)
+                  },
+                }
               },
               async finish(id) {
+                const record = captionOutput
+                if (record?.outputId === id)
+                  notifyCaption({
+                    type: 'caption.duration',
+                    turnId: record.turnId,
+                    outputId: id,
+                    durationMs: (record.frames / output.format.sampleRate) * 1000,
+                  })
                 try {
                   return await output.finish(id)
                 } finally {
-                  stopped()
+                  stopped(record)
                 }
               },
               async fence(generation) {
+                const record = captionOutput
                 try {
                   return await output.fence(generation)
                 } finally {
-                  stopped()
+                  stopped(record)
                 }
               },
             },
           },
           onEvent(event) {
-            if (event.type === 'turn.started') busy = true
+            if (event.type === 'turn.started') {
+              busy = true
+              captionTurn = event.turnId
+            }
             if (event.type === 'input.transcript' && event.value.final && !event.value.text.trim()) busy = false
             if (event.type === 'error') {
               busy = false
@@ -130,6 +175,7 @@ export function createMuseCascadedConversation({
                 if (!closing) options.onEvent({ type: 'error', code: 'cancelled_unconfirmed', fatal: true })
               }
               sent = false
+              captionTurn = undefined
             }
             options.onEvent(event)
           },

@@ -16,6 +16,7 @@
   "modules": {
     "main": "../__tests__/cascaded-device/main",
     "muse-caption-layout": "./caption-layout",
+    "muse-caption-state": "./caption-state",
     "muse-talk-controls": "./talk-controls",
     "muse-diagnostic-heap": "./diagnostic-heap",
     "muse-speech-diagnostics": "./speech-diagnostics",

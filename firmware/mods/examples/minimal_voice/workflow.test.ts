@@ -137,6 +137,31 @@ test('minimal example returns playback-completion-unsupported and closes cleanly
   assert.deepEqual(calls, ['close:abort'])
 })
 
+test('minimal example reports both startup and abort failures in a Result', async () => {
+  const { formatVoiceExampleError, runTextConversation } = await import('./workflow.js')
+  const { pipeline, calls } = fixture()
+  const startupError = new Error('network unavailable')
+  const abortError = new Error('audio release failed')
+  pipeline.start = async () => {
+    throw startupError
+  }
+  pipeline.close = async () => {
+    calls.push('close:abort')
+    throw abortError
+  }
+
+  const result = await runTextConversation(pipeline, ['first'])
+
+  assert(isErr(result))
+  assert.deepEqual(result.error, {
+    kind: 'close-failed',
+    cause: abortError,
+    previous: { kind: 'startup-failed', cause: startupError },
+  })
+  assert.equal(formatVoiceExampleError(result.error), 'network unavailable (close: audio release failed)')
+  assert.deepEqual(calls, ['muted:true', 'close:abort'])
+})
+
 test('minimal example returns close-failed Err instead of rejecting when drain close rejects', async () => {
   installAliases()
   const { formatVoiceExampleError, runTextConversation } = (await import('./workflow.js')) as WorkflowModule

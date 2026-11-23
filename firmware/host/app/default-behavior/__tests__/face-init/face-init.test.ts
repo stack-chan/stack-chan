@@ -250,8 +250,10 @@ async function runAsyncTests() {
   const tone = toneButton?.callback?.(robot)
   assert(finishTone, 'the tone remains pending at scope close')
   await onClose()
+  const messagesAfterClose = balloonMessages.length
   finishTone?.()
   await tone
+  equal(balloonMessages.length, messagesAfterClose, 'a tone completed after scope close must not show a balloon')
   const hidesAfterClose = balloonHides
   await new Promise<void>((resolve) => Timer.set(() => resolve(), 1000))
   equal(balloonHides, hidesAfterClose, 'a tone completed after scope close must not schedule a balloon hide')

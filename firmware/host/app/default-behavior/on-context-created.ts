@@ -332,30 +332,32 @@ const motionAudioAndThemeFeature: ModFeature<DefaultBehaviorDeps, DefaultBehavio
    * Audio tests (Drawer actions)
    */
   let isAudioTesting = false
+  let audioClosed = false
   const runPlayTone = async () => {
-    if (isAudioTesting) return
+    if (audioClosed || isAudioTesting) return
     isAudioTesting = true
     robot.showBalloon('playing tone...')
     try {
       trace('[AudioTest] playTone start\n')
       await robot.tone(880, 400, 0.35)
       trace('[AudioTest] playTone complete\n')
-      robot.showBalloon('tone complete')
+      if (!audioClosed) robot.showBalloon('tone complete')
     } catch (error) {
       trace(`[AudioTest] playTone error ${errorMessage(error)}\n`)
-      robot.showBalloon('tone error')
+      if (!audioClosed) robot.showBalloon('tone error')
     } finally {
       isAudioTesting = false
-      hideBalloonLater()
+      if (!audioClosed) hideBalloonLater()
     }
   }
   const runRecordPlayback = async () => {
-    if (isAudioTesting) return
+    if (audioClosed || isAudioTesting) return
     isAudioTesting = true
     robot.showBalloon('recording...')
     try {
       trace(`[AudioTest] record start duration=${RECORD_PLAYBACK_DURATION_MS}\n`)
       const buffer = await robot.record(RECORD_PLAYBACK_DURATION_MS)
+      if (audioClosed) return
       trace(`[AudioTest] record complete bytes=${buffer.byteLength}\n`)
       if (buffer.byteLength === 0) {
         robot.showBalloon('record failed')
@@ -366,13 +368,13 @@ const motionAudioAndThemeFeature: ModFeature<DefaultBehaviorDeps, DefaultBehavio
       robot.showBalloon('playing...')
       const played = await robot.playAudio(buffer)
       trace(`[AudioTest] playback complete played=${played}\n`)
-      robot.showBalloon(played ? 'playback complete' : `recorded ${buffer.byteLength} bytes`)
+      if (!audioClosed) robot.showBalloon(played ? 'playback complete' : `recorded ${buffer.byteLength} bytes`)
     } catch (error) {
       trace(`[AudioTest] record playback error ${errorMessage(error)}\n`)
-      robot.showBalloon('audio error')
+      if (!audioClosed) robot.showBalloon('audio error')
     } finally {
       isAudioTesting = false
-      hideBalloonLater(1200)
+      if (!audioClosed) hideBalloonLater(1200)
     }
   }
   robot.drawer.addDrawerButton({
@@ -449,6 +451,9 @@ const motionAudioAndThemeFeature: ModFeature<DefaultBehaviorDeps, DefaultBehavio
     })
   }
 
+  scope.own(() => {
+    audioClosed = true
+  })
   return ok(undefined)
 }
 

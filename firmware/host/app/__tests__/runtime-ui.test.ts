@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import type { RobotUI } from 'capabilities'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
 import { Emotion, type FaceState } from '../../modules/ui/state/face-state.js'
+import { SpeechBalloon } from './fakes/speech-balloon.js'
 
 type RuntimeUIModule = typeof import('../runtime-ui.js')
 
@@ -61,6 +62,32 @@ const defaultPose = {
     right: { position: { x: 0.03, y: -0.009, z: 0 }, rotation: { y: 0, p: 0, r: 0 } },
   },
 }
+
+test('StackchanRuntimeUI passes public balloon layout options to the displayed effect', async () => {
+  installAliases()
+  const { StackchanRuntimeUI } = await import('../runtime-ui.js')
+  const { ui } = createFakeUI()
+  const balloons: SpeechBalloon[] = []
+  ui.addEffect = (effect) => {
+    assert(effect instanceof SpeechBalloon)
+    balloons.push(effect)
+  }
+  const runtimeUI = new StackchanRuntimeUI(ui, {
+    getContext: () => {
+      throw new Error('context not needed')
+    },
+    getPose: () => defaultPose,
+    getGazePoint: () => null,
+    isPaused: () => false,
+  })
+
+  runtimeUI.showBalloon('hello', { width: 120, tail: 'bottom-right' })
+
+  assert.equal(balloons.length, 1)
+  assert.equal(balloons[0].text, 'hello')
+  assert.equal(balloons[0].options.width, 120)
+  assert.equal(balloons[0].options.tail, 'bottom-right')
+})
 
 test('StackchanRuntimeUI routes the connection indicator through controllers with or without a dedicated method', async () => {
   installAliases()

@@ -81,9 +81,13 @@ export type DrawerCapability = {
   setDrawerButtonState: (key: string, active: boolean) => void
 }
 export type ShowBalloonOptions = {
-  position?: 'top' | 'bottom'
-  font?: string
-  duration?: number
+  left?: number
+  right?: number
+  top?: number
+  bottom?: number
+  width?: number
+  height?: number
+  tail?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 }
 export type MainScreenOptions = {
   onClose?: () => void

@@ -1,0 +1,21 @@
+{
+  "modules": {
+    "muse-note-tts-player": "./note-tts-player",
+    "muse-note-tts": "./note-tts-device",
+    "esp32-mp3-decoder": "../audio/platforms/m5stackchan-cores3/esp32-mp3-decoder",
+    "pcm-resampler": "../audio/platforms/m5stackchan-cores3/pcm-resampler",
+    "mp3-frames": "../audio/mp3-frames",
+    "mp3-metadata": "../audio/mp3-metadata"
+  },
+  "platforms": {
+    "esp32": {
+      "dependency": [
+        {
+          "name": "esp_audio_codec",
+          "version": "~2.5.0",
+          "includes": ["include/decoder", "include/decoder/impl"]
+        }
+      ]
+    }
+  }
+}

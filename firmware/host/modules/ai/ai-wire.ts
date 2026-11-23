@@ -89,18 +89,26 @@ export function consumeSSE(maxBytes: number, scope: Scope, receive: (json: strin
     lineStart = 0
   return async (bytes) => {
     checkScope(scope)
-    for (const byte of bytes) {
-      if (count === maxBytes) throw failure('resource_exhausted', 'SSE event exceeds byte limit')
-      if (count === buffer.length) {
-        const next = new Uint8Array(Math.min(count * 2, maxBytes))
+    for (let offset = 0; offset < bytes.length; ) {
+      const newline = bytes.indexOf(10, offset)
+      const end = newline < 0 ? bytes.length : newline + 1
+      const needed = count + end - offset
+      if (needed > maxBytes) throw failure('resource_exhausted', 'SSE event exceeds byte limit')
+      if (needed > buffer.length) {
+        let capacity = buffer.length
+        while (capacity < needed) capacity = Math.min(capacity * 2, maxBytes)
+        const next = new Uint8Array(capacity)
         next.set(buffer)
         buffer = next
       }
-      buffer[count++] = byte
-      if (byte !== 10) continue
+      buffer.set(bytes.subarray(offset, end), count)
+      count = needed
+      offset = end
+      if (newline < 0) continue
       if (count - lineStart === 1 || (count - lineStart === 2 && buffer[lineStart] === 13)) {
         const data = String.fromArrayBuffer(buffer.buffer.slice(0, lineStart))
-          .split(/\r?\n/)
+          .split('\n')
+          .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
           .filter((line) => line.startsWith('data:'))
           .map((line) => line.slice(5).trimStart())
           .join('\n')

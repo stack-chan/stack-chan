@@ -1,0 +1,49 @@
+{
+  "build": {
+    "NAME": "guruguru-muse-stopwatch"
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/files/preference/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/dns/resolver/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/ntp/client/manifest.json",
+    "../voice-manifest.json",
+    "../stopwatch-audio/manifest.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json",
+    "../wifi-privacy/manifest.json"
+  ],
+  "modules": {
+    "main": "./boot",
+    "guruguru-muse-mod": "../../../../mods/examples/guruguru_muse/mod",
+    "guruguru-view": "../../../../mods/examples/guruguru_voice/view",
+    "guruguru-avatar": "../../../../mods/examples/guruguru_voice/avatar",
+    "stackchan/voice": "../../voice/index",
+    "stackchan/voice/device": "../../voice/pcm-device",
+    "stackchan/voice/pipeline": "../../voice/pipeline",
+    "stackchan/voice/cascaded": "../../voice/cascaded",
+    "stackchan/voice/runtime": "../../voice/runtime",
+    "stackchan/voice/levels": "../../voice/levels",
+    "muse-host-main": "./main"
+  },
+  "resources": {
+    "*-alpha": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"]
+  },
+  "defines": {
+    "XS_MODS": 0
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 262144,
+      "incremental": 32768
+    },
+    "heap": {
+      "initial": 8192,
+      "incremental": 1024
+    },
+    "stack": 1024
+  }
+}

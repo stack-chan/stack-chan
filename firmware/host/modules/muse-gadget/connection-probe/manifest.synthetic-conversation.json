@@ -1,0 +1,53 @@
+{
+  "build": {
+    "NAME": "muse-connection-probe"
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../pairing/manifest.json",
+    "../voice-native-manifest.json",
+    "../native/pairing-manifest.json",
+    "../note-manifest.json",
+    "../stopwatch-audio/manifest.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json"
+  ],
+  "modules": {
+    "main": "./loader",
+    "muse-note-probe-main": "./synthetic-conversation",
+    "muse-setup-metadata": "../setup-device/metadata",
+    "muse-setup/coordinator": "../setup/coordinator",
+    "muse-setup/prompt": "../setup/prompt",
+    "muse-setup/pairing-controller": "../setup/pairing-controller",
+    "timer": "$(MODULES)/base/timer/timer",
+    "muse-setup/conversation-owner": "../setup/conversation-owner",
+    "muse-setup/conversation-runtime": "../setup-device/conversation-runtime",
+    "stackchan/voice/device": "../../voice/pcm-device",
+    "stackchan/voice/pipeline": "../../voice/pipeline",
+    "stackchan/voice/runtime": "../../voice/runtime",
+    "stackchan/voice/levels": "../../voice/levels",
+    "guruguru-view": "../../../../mods/examples/guruguru_voice/view",
+    "guruguru-avatar": "../../../../mods/examples/guruguru_voice/avatar"
+  },
+  "resources": {
+    "*-alpha": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"
+    ],
+    "*": [
+      "./synthetic-note.pcm"
+    ]
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 262144,
+      "incremental": 32768
+    },
+    "heap": {
+      "initial": 8192,
+      "incremental": 1024
+    },
+    "stack": 1024
+  }
+}

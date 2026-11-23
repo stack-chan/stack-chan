@@ -1,0 +1,91 @@
+{
+  "build": {
+    "NAME": "muse-connection-probe"
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../pairing/manifest.json",
+    "../voice-native-manifest.json",
+    "../native/pairing-manifest.json",
+    "../note-manifest.json",
+    "../stopwatch-audio/manifest.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json",
+    "$(MODDABLE)/modules/piu/MC/colorcell"
+  ],
+  "modules": {
+    "main": "./loader",
+    "muse-note-probe-main": "./synthetic-performance",
+    "muse-setup-metadata": "../setup-device/metadata",
+    "muse-setup/coordinator": "../setup/coordinator",
+    "muse-setup/prompt": "../setup/prompt",
+    "muse-setup/pairing-controller": "../setup/pairing-controller",
+    "timer": "$(MODULES)/base/timer/timer",
+    "muse-setup/conversation-owner": "../setup/conversation-owner",
+    "muse-setup/conversation-runtime": "../setup-device/conversation-runtime",
+    "stackchan/voice/device": "../../voice/pcm-device",
+    "stackchan/voice/pipeline": "../../voice/pipeline",
+    "stackchan/voice/runtime": "../../voice/runtime",
+    "stackchan/voice/levels": "../../voice/levels",
+    "guruguru-view": "../setup-device/kasane-view",
+    "guruguru-avatar": "../../../../mods/examples/guruguru_voice/avatar",
+    "kasane-frames": "../setup-device/kasane-frames"
+  },
+  "resources": {
+    "*-color": [
+      "../setup-device/assets/kasane-mouth-0",
+      "../setup-device/assets/kasane-mouth-1",
+      "../setup-device/assets/kasane-mouth-2",
+      "../setup-device/assets/kasane-mouth-3",
+      "../setup-device/assets/kasane-mouth-4",
+      "../setup-device/assets/kasane-mouth-5",
+      "../setup-device/assets/kasane-mouth-6",
+      "../setup-device/assets/kasane-mouth-7",
+      "../setup-device/assets/kasane-mouth-8"
+    ],
+    "*-image(40)": [
+      "../setup-device/assets/kasane-0",
+      "../setup-device/assets/kasane-1",
+      "../setup-device/assets/kasane-2",
+      "../setup-device/assets/kasane-3",
+      "../setup-device/assets/kasane-4",
+      "../setup-device/assets/kasane-5",
+      "../setup-device/assets/kasane-6",
+      "../setup-device/assets/kasane-7",
+      "../setup-device/assets/kasane-8"
+    ],
+    "*-alpha": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"
+    ],
+    "*": [
+      "./synthetic-performance.pcm",
+      "../setup-device/assets/kasane-eyes-0",
+      "../setup-device/assets/kasane-eyes-1",
+      "../setup-device/assets/kasane-eyes-2",
+      "../setup-device/assets/kasane-eyes-3",
+      "../setup-device/assets/kasane-eyes-4",
+      "../setup-device/assets/kasane-eyes-5",
+      "../setup-device/assets/kasane-eyes-6",
+      "../setup-device/assets/kasane-eyes-7",
+      "../setup-device/assets/kasane-eyes-8"
+    ]
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 262144,
+      "incremental": 32768
+    },
+    "heap": {
+      "initial": 8192,
+      "incremental": 1024
+    },
+    "stack": 1024
+  },
+  "defines": {
+    "muse": {
+      "audio_diagnostics": 1
+    }
+  }
+}

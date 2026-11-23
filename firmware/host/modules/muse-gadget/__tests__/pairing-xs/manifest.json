@@ -1,0 +1,12 @@
+{
+  "include": "$(MODDABLE)/examples/manifest_base.json",
+  "build": {
+    "NAME": "muse-pairing-boundary-test"
+  },
+  "modules": {
+    "*": ["./runner.c"],
+    "boundary": "./boundary",
+    "main": "./main",
+    "~": ["$(MODULES)/files/resource/*"]
+  }
+}

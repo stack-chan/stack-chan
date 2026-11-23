@@ -1,0 +1,43 @@
+{
+  "cjson": {
+    "repository": "https://github.com/DaveGamble/cJSON",
+    "tag": "v1.7.19"
+  },
+  "commit": "f2c702b123e97f4fecdaefb29ded17bb03fab0b0",
+  "localSha256": {
+    "main/link_pairing.c": "70cd26feb77d90dc75099f78c33793b015c043af88c2354b6b1c0d38e336f63e",
+    "main/link_pairing.h": "c20a347689d7e3b498766a5d754dfcd5ee01baaf5ce3c6614fe5ef12f706a4ea",
+    "tests/link_pairing_handshake_harness.c": "454be8df7cb1fbebf2290c99a54ada59870fa02f504abbbc1cb349c34df37127"
+  },
+  "sha256": {
+    "tests/vectors/link_pairing_v5.json": "4fac87ed05ad0c9a76c198a92b95bb0c2a478629e2c986aad8231480841fa12c",
+    "main/pairing_transcript.c": "5839265d65d9c0a21903f8fe66c453d3a1dfb9d6b273650dfa5a341b6f1144c6",
+    "tests/pairing_fakes/freertos/semphr.h": "bd6409e17fd334852f6545681fa37d05cf03504317ab32a668d2c4ed81a4e480",
+    "tests/pairing_fakes/esp_timer.h": "5bcad341ecadc85f2e6d7c1d3806ecf9acd9fd3e00cefdbe4c1c1a9b266f6f82",
+    "tests/test_link_pairing_transcript.py": "b4b813933a118ebf4082ac2a48262d37fb141194fbe2e1e4acc98cc0045f7205",
+    "tests/test_link_pairing_handshake.py": "56aa970bf1ab05f76eaf09c6106c8df790cd95be8042b330f299c3ac3fd371b0",
+    "main/pairing_signer_policy.h": "1afd12c44d550e24b9d8525a1968546f1c702b68bde9ad49e71b29c43b3d67f1",
+    "tests/link_pairing_signer_policy_harness.c": "b0b80b2976e8e73e6cde5f64c9bdf59c13f9d6c1095ae57828617d154b6fd325",
+    "managed_components/espressif__cjson/cJSON/cJSON.c": "298581a04a36c0165da4b0aade235c23088cb2faa58651d720ea2f3706ed0b0d",
+    "main/pairing_transcript.h": "61db7f85fa4a55344b4ee1c3b86232f487ad90525fa130799434836939b9196d",
+    "managed_components/espressif__cjson/cJSON/cJSON.h": "25b0145150d500498e4d209cec69c18c42cf818bffcc54690be3b895a2a16dee",
+    "main/link_pairing.c": "90c105ae35784b046d0354e031113756e37571d9372a2eec812a2cfa6f4a97b5",
+    "tests/link_pairing_handshake_harness.c": "68dab3311d0217b6876a82c1fe03822f8c2b038374b6fe21bf440d30de5e23fa",
+    "tests/link_pairing_transcript_harness.c": "48211dc05b81e1676d678718f8b18cbaea438d64da26fb8d10956d057e183806",
+    "tests/pairing_fakes/freertos/FreeRTOS.h": "69b7334eee3a9e5f72ab36235e6a22550bb77bd502f00e0b46b7960a486ce071",
+    "tests/pairing_fakes/psa_crypto_driver_esp_ecdsa.h": "a93dcd6320201bb5d48a1a6febf33ebe47e1ab0ad9e6cce4780da568fddd2927",
+    "tests/pairing_fakes/psa_crypto_driver_esp_ecdsa_contexts.h": "7decc9ab33bd20597efb147b87277af59e6e5c6d42a42a8089c4b758daa1ccc0",
+    "tests/test_link_pairing_signer_policy.py": "2c0f2a02c69ca0d17afe585dd1a23e7d60910b5bb5c53c5a243680bf5f18910a",
+    "tests/pairing_fakes/esp_log.h": "df40b6d96f463389e83ddf9458b2be9e603f970781001b8994e3d2bee946233c",
+    "main/pairing_signer_policy.c": "e2f9ebc97f30aa5349554bf9a6d29651b170b32ef1f91d43caef8024bcd3e63d",
+    "main/link_pairing.h": "e5c3dc1dab1a5fa9f545d91c65aa537fd6f5801735a9b2d746d82be613e46b84",
+    "managed_components/espressif__cjson/cJSON/LICENSE": "a36dda207c36db5818729c54e7ad4e8b0c6fba847491ba64f372c1a2037b6d5c",
+    "tests/pairing_fakes/esp_random.h": "f49212ec5c8e4f9820be9c8e980943cfd2622c59fdac145bf7e576f3f543d439",
+    "tests/pairing_fakes/esp_efuse.h": "850d6907fdeb34b57c47fcd16e5a98d06295d41a909a1af0aa34897eb434804e"
+  },
+  "source_paths": [
+    "esp32/main",
+    "esp32/tests"
+  ],
+  "repository": "https://github.com/facebookincubator/muse-gadget-sdk"
+}

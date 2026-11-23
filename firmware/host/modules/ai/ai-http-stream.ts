@@ -29,13 +29,14 @@ export function streamResponse<T>(
   apiKey: string,
   timeoutMs: number,
   maxPendingBytes: number,
+  idleTimeout = false,
 ): SendResponseRequest {
   return (body, consume, scope, isComplete) =>
     new Promise((resolve, reject) => {
       checkScope(scope)
       let client: ResponseConnection | undefined
       const abort = () => finish(failure('cancelled', 'Responses request cancelled'))
-      const timeout = platform.schedule(
+      let timeout = platform.schedule(
         () => finish(failure('deadline_exceeded', 'Responses request timed out')),
         timeoutMs,
       )
@@ -94,7 +95,13 @@ export function streamResponse<T>(
             // 最初のreadはcallback内で受け取り、SSE解析はTLSのnativeスタックを抜けてから行う
             await Promise.resolve()
             if (finished) return
+            if (idleTimeout) platform.clear(timeout)
             await consume(new Uint8Array(data))
+            if (idleTimeout && !finished)
+              timeout = platform.schedule(
+                () => finish(failure('deadline_exceeded', 'Responses request timed out')),
+                timeoutMs,
+              )
             if (isComplete?.()) finish()
           }
         } catch (error) {

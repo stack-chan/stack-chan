@@ -20,7 +20,7 @@ String.fromArrayBuffer ??= (value) => new TextDecoder().decode(value)
 const body = { length: 0, *read() {} }
 const turn = () => new Promise<void>((resolve) => setImmediate(resolve))
 
-function fixture(maxBytes = 64) {
+function fixture(maxBytes = 64, idleTimeout = false) {
   let handlers!: Parameters<ResponseConnection['request']>[0]
   let disconnect!: (error?: unknown) => void
   const unread: number[] = []
@@ -64,6 +64,7 @@ function fixture(maxBytes = 64) {
     '',
     5000,
     maxBytes,
+    idleTimeout,
   )
   return {
     send,
@@ -269,5 +270,23 @@ test('HTTP consumer failure closes once without reading the retained remainder',
   assert.equal(await outcome, error)
   io.notify()
   assert.deepEqual(io.reads, [4])
+  assert.equal(io.closes, 1)
+})
+
+test('idle deadline excludes intentional consumer backpressure and resumes afterwards', async () => {
+  const io = fixture(64, true)
+  const held = deferred<void>()
+  const task = io.send(body, async () => held.promise, createVoiceScope())
+  const outcome = task.catch((error) => error)
+  io.headers()
+  io.push(Uint8Array.of(1, 2))
+  await turn()
+  io.tick(5000)
+  assert.equal(io.closes, 0)
+  held.resolve()
+  await turn()
+  io.tick(5000)
+  io.tick()
+  assert.equal((await outcome).code, 'deadline_exceeded')
   assert.equal(io.closes, 1)
 })

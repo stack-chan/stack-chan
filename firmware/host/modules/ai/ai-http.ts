@@ -12,6 +12,7 @@ export function createResponseTransport(
   timeoutMs: number,
   maxPendingBytes: number,
   extraHeaders?: Readonly<Record<string, string>>,
+  idleTimeout = false,
 ) {
   const url = new URL(endpoint)
   if (url.protocol !== 'https:' && url.protocol !== 'http:') throw Error('unsupported endpoint protocol')
@@ -40,5 +41,6 @@ export function createResponseTransport(
     apiKey,
     timeoutMs,
     maxPendingBytes,
+    idleTimeout,
   )
 }

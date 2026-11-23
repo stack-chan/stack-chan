@@ -87,6 +87,38 @@ class HTTP {
   }
 }
 
+test('speech instructions are sent to the configured model without changing the spoken input', async () => {
+  const instructions = 'Speak in a bright, high-pitched, playful voice.'
+  const synthesis = await OpenAISpeechTTS.create({ apiKey: 'test', model: 'gpt-4o-mini-tts', instructions }).open({
+    ...createVoiceScope(),
+    format: mono(24000),
+    voice: 'coral',
+  })
+  await synthesis.write('Hello!')
+  const finished = synthesis.endInput()
+  DNS.pending[0].onResolved('api.openai.com', '127.0.0.1')
+  HTTP.clients[0].respond(Uint8Array.of(1, 0))
+  await finished
+  assert.deepEqual(JSON.parse(HTTP.clients[0].sent), {
+    model: 'gpt-4o-mini-tts',
+    voice: 'coral',
+    input: 'Hello!',
+    response_format: 'pcm',
+    instructions,
+  })
+  await synthesis.close()
+})
+
+test('speech rejects instructions for legacy models before opening a connection', () => {
+  for (const model of [undefined, 'tts-1', 'tts-1-hd']) {
+    assert.throws(() => OpenAISpeechTTS.create({ apiKey: 'test', model, instructions: 'Speak brightly.' }), {
+      code: 'unsupported_capability',
+    })
+  }
+  assert.equal(HTTP.clients.length, 0)
+  assert.equal(DNS.pending.length, 0)
+})
+
 test('speech flush is reusable, seals only at endInput and preserves bounded segment order', async () => {
   const provider = OpenAISpeechTTS.create({ apiKey: 'test' })
   assert.deepEqual(provider.capabilities, { input: 'segmented', output: 'streaming' })
@@ -130,6 +162,11 @@ test('speech flush is reusable, seals only at endInput and preserves bounded seg
     HTTP.clients.map((client) => JSON.parse(client.sent).input),
     ['one', 'two', 'tail'],
   )
+  for (const client of HTTP.clients) {
+    const body = JSON.parse(client.sent)
+    assert.equal(body.model, 'tts-1')
+    assert.equal(Object.hasOwn(body, 'instructions'), false)
+  }
   await synthesis.close()
 })
 

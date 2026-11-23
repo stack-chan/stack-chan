@@ -1,0 +1,32 @@
+{
+  "build": {
+    "NAME": "muse-account-probe"
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../native/pairing-manifest.json",
+    "../wifi-privacy/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/interface/wifi/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/dns/resolver/manifest.json",
+    "$(MODDABLE)/modules/embedded/network/ntp/client/manifest.json",
+    "$(MODDABLE)/modules/embedded/io/socket/manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "muse-setup/account-network": "../setup/account-network",
+    "muse-setup/device-account-network": "../setup/device-account-network",
+    "*": ["../native/account-wifi.c"]
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 131072,
+      "incremental": 32768
+    },
+    "heap": {
+      "initial": 4096,
+      "incremental": 1024
+    },
+    "stack": 1024
+  }
+}

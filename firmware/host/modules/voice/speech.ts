@@ -137,7 +137,11 @@ function streamSpeech(
   })
 }
 
-function createOpenAISpeechTTS(options: { apiKey: string; model?: string }): TTS {
+function createOpenAISpeechTTS(options: { apiKey: string; model?: string; instructions?: string }): TTS {
+  const model = options.model ?? 'tts-1'
+  const instructions = options.instructions
+  if (instructions !== undefined && (model === 'tts-1' || model === 'tts-1-hd'))
+    throw voiceError('unsupported_capability', 'speech instructions require a model that supports them')
   return {
     capabilities: { input: 'segmented', output: 'streaming' },
     async open({ signal, format, voice }) {
@@ -170,7 +174,7 @@ function createOpenAISpeechTTS(options: { apiKey: string; model?: string }): TTS
         const segment = text
         text = ''
         const body = ArrayBuffer.fromString(
-          JSON.stringify({ model: options.model ?? 'tts-1', voice, input: segment, response_format: 'pcm' }),
+          JSON.stringify({ model, voice, input: segment, response_format: 'pcm', instructions }),
         )
         active = streamSpeech(options.apiKey, body, scope.signal, source.offer).then(
           () => {

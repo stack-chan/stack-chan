@@ -132,3 +132,26 @@ test('PCM output levels wait for confirmed playback rather than queued data', as
   audioState.callback?.(10240)
   assert.equal(levels.length, count)
 })
+
+test('emitLevels false omits PCM and native observers including mute and close resets', async () => {
+  for (const nativeBackend of [undefined, 'test-native']) {
+    const scope = createVoiceScope()
+    let observerPassed = true, events = 0, closes = 0
+    const open = (options: LeaseOptions) => {
+      observerPassed = options.onLevel !== undefined
+      return {
+        input: {}, output: {}, media: {},
+        async setInputEnabled() {}, setVolume() {}, async close() { closes++ },
+      } as unknown as DuplexLease
+    }
+    const runtime = bindAudioRuntime({ emitLevels: false, acquireExclusive: () => () => {}, openNativeLease: open }, open)
+    const lease = await runtime.acquire(runtime.microphone, runtime.speaker,
+      { input: [], output: [], duplex: 'half', ...(nativeBackend ? { nativeBackend } : {}) },
+      { signal: scope.signal, budget: { maxBufferedBytes: 100, maxBufferedMs: 100 }, onLevel() { events++ } })
+    assert.equal(observerPassed, false)
+    await lease.setInputEnabled(false)
+    await lease.close()
+    assert.equal(events, 0)
+    assert.equal(closes, 1)
+  }
+})

@@ -1,0 +1,12 @@
+{
+  "include": "$(MODDABLE)/examples/manifest_base.json",
+  "build": { "NAME": "muse-voice-core-test" },
+  "modules": {
+    "voice-bridge": "../../voice-bridge",
+    "bridge-integration": "./bridge-integration",
+    "~": ["$(MODULES)/files/resource/*"],
+    "*": ["./runner.c"],
+    "main": "./main",
+    "muse-voice-core": "../../native/muse-voice-core"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "build": {
+    "NAME": "muse-sdk-provision"
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../native/pairing-manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "muse-sdk-provision": "./device",
+    "timer": "$(MODULES)/base/timer/timer"
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 65536,
+      "incremental": 16384
+    },
+    "heap": {
+      "initial": 4096,
+      "incremental": 512
+    },
+    "stack": 1024
+  }
+}

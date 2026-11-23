@@ -1,0 +1,144 @@
+{
+  "resources": {
+    "*-color": [
+      "../setup-device/assets/kasane-mouth-0",
+      "../setup-device/assets/kasane-mouth-1",
+      "../setup-device/assets/kasane-mouth-2",
+      "../setup-device/assets/kasane-mouth-3",
+      "../setup-device/assets/kasane-mouth-4",
+      "../setup-device/assets/kasane-mouth-5",
+      "../setup-device/assets/kasane-mouth-6",
+      "../setup-device/assets/kasane-mouth-7",
+      "../setup-device/assets/kasane-mouth-8"
+    ],
+    "*-image(40)": [
+      "../setup-device/assets/kasane-0",
+      "../setup-device/assets/kasane-1",
+      "../setup-device/assets/kasane-2",
+      "../setup-device/assets/kasane-3",
+      "../setup-device/assets/kasane-4",
+      "../setup-device/assets/kasane-5",
+      "../setup-device/assets/kasane-6",
+      "../setup-device/assets/kasane-7",
+      "../setup-device/assets/kasane-8",
+      "../setup-device/assets/kasane-happy-0",
+      "../setup-device/assets/kasane-happy-1",
+      "../setup-device/assets/kasane-happy-2",
+      "../setup-device/assets/kasane-happy-3",
+      "../setup-device/assets/kasane-happy-4",
+      "../setup-device/assets/kasane-happy-5",
+      "../setup-device/assets/kasane-happy-6",
+      "../setup-device/assets/kasane-happy-7",
+      "../setup-device/assets/kasane-happy-8",
+      "../setup-device/assets/kasane-sad-0",
+      "../setup-device/assets/kasane-sad-1",
+      "../setup-device/assets/kasane-sad-2",
+      "../setup-device/assets/kasane-sad-3",
+      "../setup-device/assets/kasane-sad-4",
+      "../setup-device/assets/kasane-sad-5",
+      "../setup-device/assets/kasane-sad-6",
+      "../setup-device/assets/kasane-sad-7",
+      "../setup-device/assets/kasane-sad-8",
+      "../setup-device/assets/kasane-happy-eyes-0",
+      "../setup-device/assets/kasane-happy-mouth-0",
+      "../setup-device/assets/kasane-happy-eyes-1",
+      "../setup-device/assets/kasane-happy-mouth-1",
+      "../setup-device/assets/kasane-happy-eyes-2",
+      "../setup-device/assets/kasane-happy-mouth-2",
+      "../setup-device/assets/kasane-happy-eyes-3",
+      "../setup-device/assets/kasane-happy-mouth-3",
+      "../setup-device/assets/kasane-happy-eyes-4",
+      "../setup-device/assets/kasane-happy-mouth-4",
+      "../setup-device/assets/kasane-happy-eyes-5",
+      "../setup-device/assets/kasane-happy-mouth-5",
+      "../setup-device/assets/kasane-happy-eyes-6",
+      "../setup-device/assets/kasane-happy-mouth-6",
+      "../setup-device/assets/kasane-happy-eyes-7",
+      "../setup-device/assets/kasane-happy-mouth-7",
+      "../setup-device/assets/kasane-happy-eyes-8",
+      "../setup-device/assets/kasane-happy-mouth-8",
+      "../setup-device/assets/kasane-sad-eyes-0",
+      "../setup-device/assets/kasane-sad-mouth-0",
+      "../setup-device/assets/kasane-sad-eyes-1",
+      "../setup-device/assets/kasane-sad-mouth-1",
+      "../setup-device/assets/kasane-sad-eyes-2",
+      "../setup-device/assets/kasane-sad-mouth-2",
+      "../setup-device/assets/kasane-sad-eyes-3",
+      "../setup-device/assets/kasane-sad-mouth-3",
+      "../setup-device/assets/kasane-sad-eyes-4",
+      "../setup-device/assets/kasane-sad-mouth-4",
+      "../setup-device/assets/kasane-sad-eyes-5",
+      "../setup-device/assets/kasane-sad-mouth-5",
+      "../setup-device/assets/kasane-sad-eyes-6",
+      "../setup-device/assets/kasane-sad-mouth-6",
+      "../setup-device/assets/kasane-sad-eyes-7",
+      "../setup-device/assets/kasane-sad-mouth-7",
+      "../setup-device/assets/kasane-sad-eyes-8",
+      "../setup-device/assets/kasane-sad-mouth-8"
+    ],
+    "*-alpha": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-18"
+    ],
+    "*-mask": [
+      {
+        "source": "../../ui/assets/fonts/k8x12",
+        "size": 24,
+        "characterFiles": "../../ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ],
+    "*": [
+      "../setup-device/assets/kasane-eyes-0",
+      "../setup-device/assets/kasane-eyes-1",
+      "../setup-device/assets/kasane-eyes-2",
+      "../setup-device/assets/kasane-eyes-3",
+      "../setup-device/assets/kasane-eyes-4",
+      "../setup-device/assets/kasane-eyes-5",
+      "../setup-device/assets/kasane-eyes-6",
+      "../setup-device/assets/kasane-eyes-7",
+      "../setup-device/assets/kasane-eyes-8"
+    ]
+  },
+  "build": {
+    "NAME": "gemini-pressure-stopwatch"
+  },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 262144,
+      "incremental": 32768
+    },
+    "heap": {
+      "initial": 8192,
+      "incremental": 1024
+    },
+    "stack": 1024
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/piu/MC/colorcell"
+  ],
+  "modules": {
+    "main": "./main",
+    "stackchan/voice/contracts": "../../voice/contracts",
+    "pcm-resampler": "../../audio/platforms/m5stackchan-cores3/pcm-resampler",
+    "pressure-fixture": "./fixture",
+    "stackchan/voice/gemini-speech": "../../voice/gemini-speech",
+    "time": "$(MODULES)/base/time/time",
+    "guruguru-view": "../setup-device/kasane-view",
+    "muse-stopwatch-output": "../stopwatch-audio/output",
+    "kasane-frames": "../setup-device/kasane-frames",
+    "offline-heap": "../__tests__/cascaded-device/heap",
+    "stackchan/voice/scope": "../../voice/scope",
+    "stackchan/voice/levels": "../../voice/levels",
+    "stackchan/voice/media": "../../voice/media",
+    "stackchan-ai-core": "../../ai/ai-core",
+    "stackchan/voice/cores3-pcm-output": "../setup-device/cascaded-output",
+    "stackchan-ai-image": "../../ai/ai-image",
+    "muse-resampled-output": "../setup-device/resampled-output",
+    "guruguru-avatar": "../../../../mods/examples/guruguru_voice/avatar",
+    "timer": "$(MODULES)/base/timer/timer",
+    "stackchan-ai-wire": "../../ai/ai-wire"
+  }
+}

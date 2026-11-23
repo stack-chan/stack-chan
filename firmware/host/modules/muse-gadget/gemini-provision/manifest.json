@@ -1,0 +1,29 @@
+{
+  "build": { "NAME": "stackchan-gemini-provision" },
+  "include": ["$(MODDABLE)/examples/manifest_base.json"],
+  "modules": {
+    "main": "./main",
+    "gemini-key-provision": "./device",
+    "timer": "$(MODULES)/base/timer/timer",
+    "*": ["./provision-core.c", "./provision-core.h"]
+  },
+  "platforms": {
+    "esp32": {
+      "dependency": [
+        { "idf": "esp_driver_usb_serial_jtag" },
+        { "idf": "nvs_flash" }
+      ],
+      "esp32Config": {
+        "CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT": "n",
+        "CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT": "y",
+        "CONFIG_ESP_COREDUMP_ENABLE_TO_NONE": "y"
+      }
+    }
+  },
+  "creation": {
+    "static": 0,
+    "chunk": { "initial": 65536, "incremental": 16384 },
+    "heap": { "initial": 4096, "incremental": 512 },
+    "stack": 1024
+  }
+}

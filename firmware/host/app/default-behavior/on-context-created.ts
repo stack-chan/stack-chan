@@ -190,7 +190,6 @@ const cameraPreviewFeature = createCameraPreviewFeature<
   prepareFrame: prepareCameraPreviewFrame,
   createDialog: (preview, options) => createCameraPreviewDialog(preview, options),
   setMain: (content, options) => robot.ui.setMain(content, options),
-  showFace: () => robot.ui.showFace(),
   closeDrawer: () => robot.ui.closeDrawer(),
   showBalloon: (text) => robot.showBalloon(text),
   hideBalloon: () => robot.hideBalloon(),

@@ -437,13 +437,13 @@ test('hand-gesture updates animation on valid selection and resets to none on sc
   assert.deepEqual(animations, ['none', 'clap', 'none'])
 })
 
-test('camera-preview-feature clears preview timer on scope close so showFace is not called after close', async () => {
+test('camera-preview-feature clears the pending restore timer when its screen is replaced', async () => {
   installAliases()
   const { installCameraPreviewFeature } = (await import('./camera-preview-feature.js')) as CameraPreviewFeatureModule
   const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
   FakeTimer.reset()
 
-  let showFaceCount = 0
+  let closeScreenCount = 0
   let stopCount = 0
   let frameClosed = false
   let triggerPreview: (() => Promise<void>) | undefined
@@ -471,9 +471,10 @@ test('camera-preview-feature clears preview timer on scope close so showFace is 
       createDialog: (preview) => ({ preview }),
       setMain(_content, options) {
         onMainClosed = options?.onClose
-      },
-      showFace() {
-        showFaceCount += 1
+        return () => {
+          closeScreenCount += 1
+          onMainClosed?.()
+        }
       },
       closeDrawer() {},
       showBalloon() {},
@@ -497,14 +498,14 @@ test('camera-preview-feature clears preview timer on scope close so showFace is 
 
   assert.equal(frameClosed, true)
   assert.equal(stopCount, 1)
-  assert.equal(showFaceCount, 0)
+  assert.equal(closeScreenCount, 0)
   assert.equal(typeof onMainClosed, 'function')
 
   onMainClosed?.()
   FakeTimer.advance(6000)
-  assert.equal(showFaceCount, 0, 'replacing the preview screen cancels the pending restore timer')
+  assert.equal(closeScreenCount, 0, 'replacing the preview screen cancels the pending restore timer')
 
   await close()
   FakeTimer.advance(6000)
-  assert.equal(showFaceCount, 0)
+  assert.equal(closeScreenCount, 0)
 })

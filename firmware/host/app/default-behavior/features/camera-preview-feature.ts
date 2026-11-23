@@ -51,8 +51,7 @@ export type CameraPreviewFeatureDeps<
       onDismiss: () => void
     },
   ): TDialog
-  setMain(content: TDialog, options?: { onClose?: () => void }): unknown
-  showFace(): void
+  setMain(content: TDialog, options?: { onClose?: () => void }): () => void
   closeDrawer(): void
   showBalloon(text: string): void
   hideBalloon(): void
@@ -93,16 +92,9 @@ export function installCameraPreviewFeature<
 
   let disposed = false
   let activePreview: Promise<void> | undefined
-  let cameraPreviewTimer: CameraPreviewTimerHandle | undefined
+  let closePreviewScreen: (() => void) | undefined
   let cameraStopTimer: CameraPreviewTimerHandle | undefined
   let resolvePaintDelay: (() => void) | undefined
-
-  const clearPreviewTimer = (): void => {
-    if (cameraPreviewTimer !== undefined) {
-      timer.clear(cameraPreviewTimer)
-      cameraPreviewTimer = undefined
-    }
-  }
 
   const finishPaintDelay = (): void => {
     if (cameraStopTimer !== undefined) {
@@ -112,13 +104,6 @@ export function installCameraPreviewFeature<
     const resolve = resolvePaintDelay
     resolvePaintDelay = undefined
     resolve?.()
-  }
-
-  const restoreCameraPreview = (): void => {
-    clearPreviewTimer()
-    if (disposed) return
-    deps.showFace()
-    deps.hideBalloon()
   }
 
   const stopCameraAfterPreviewPaint = async (): Promise<void> => {
@@ -163,22 +148,40 @@ export function installCameraPreviewFeature<
         return
       }
       const previewFrame = deps.prepareFrame(frame)
-      deps.setMain(
+      let screenClosed = false
+      let restoreTimer: CameraPreviewTimerHandle
+      let closeScreen: (() => void) | undefined
+      const dismiss = () => {
+        if (disposed || screenClosed || !closeScreen) return
+        closeScreen()
+        deps.hideBalloon()
+      }
+      closeScreen = deps.setMain(
         deps.createDialog(previewFrame, {
           onRender: (mode) => {
             log(`[CameraPreview] render mode=${mode}\n`)
           },
-          onDismiss: restoreCameraPreview,
+          onDismiss: dismiss,
         }),
-        { onClose: clearPreviewTimer },
+        {
+          onClose() {
+            screenClosed = true
+            if (closePreviewScreen === closeScreen) closePreviewScreen = undefined
+            if (restoreTimer !== undefined) timer.clear(restoreTimer)
+          },
+        },
       )
       log(
         `[CameraPreview] rendered ${previewFrame.width}x${previewFrame.height} ${previewFrame.imageType} via Piu Port\n`,
       )
-      if (disposed) return
+      if (screenClosed) return
+      if (disposed) {
+        closeScreen()
+        return
+      }
+      closePreviewScreen = closeScreen
       deps.closeDrawer()
-      clearPreviewTimer()
-      cameraPreviewTimer = timer.set(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS)
+      if (!screenClosed) restoreTimer = timer.set(dismiss, CAMERA_PREVIEW_DURATION_MS)
     } catch (error) {
       log(`[CameraPreview] error ${errorMessage(error)}\n`)
       if (!disposed) {
@@ -221,9 +224,12 @@ export function installCameraPreviewFeature<
 
   scope.own(async () => {
     disposed = true
-    clearPreviewTimer()
-    finishPaintDelay()
-    await activePreview
+    try {
+      closePreviewScreen?.()
+    } finally {
+      finishPaintDelay()
+      await activePreview
+    }
   })
 
   return ok(undefined)

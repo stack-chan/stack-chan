@@ -24,12 +24,21 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function createFixture(camera: CameraPreviewCameraPort) {
+function createFixture(camera: CameraPreviewCameraPort, replaceDuringSetMain = false) {
   const cleanups: Parameters<ModScope['own']>[0][] = []
   const clearedDelays: number[] = []
+  const scheduledDelays: number[] = []
   let triggerPreview: (() => Promise<void>) | undefined
   let shownScreens = 0
   let shownFaces = 0
+  let screen: 'face' | 'preview' | 'successor' = 'face'
+  let closePreview: (() => void) | undefined
+  let dismissPreview: (() => void) | undefined
+
+  function replacePreview() {
+    screen = 'successor'
+    closePreview?.()
+  }
 
   FakeTimer.reset()
   const installed = installCameraPreviewFeature(
@@ -37,12 +46,26 @@ function createFixture(camera: CameraPreviewCameraPort) {
       camera,
       captureImageType: 'rgb565le',
       prepareFrame: () => ({ width: 200, height: 120, imageType: 'rgb565le' }),
-      createDialog: (preview) => preview,
-      setMain() {
-        shownScreens += 1
+      createDialog(preview, { onDismiss }) {
+        dismissPreview = onDismiss
+        return preview
       },
-      showFace() {
-        shownFaces += 1
+      setMain(_preview, options) {
+        if (screen === 'preview') replacePreview()
+        shownScreens += 1
+        screen = 'preview'
+        const close = () => {
+          if (closePreview !== close) return
+          closePreview = undefined
+          if (screen === 'preview') {
+            screen = 'face'
+            shownFaces += 1
+          }
+          options?.onClose?.()
+        }
+        closePreview = close
+        if (replaceDuringSetMain) replacePreview()
+        return close
       },
       closeDrawer() {},
       showBalloon() {},
@@ -54,6 +77,7 @@ function createFixture(camera: CameraPreviewCameraPort) {
       },
       timer: {
         set(callback, interval) {
+          scheduledDelays.push(interval)
           const handle = FakeTimer.set(callback, interval)
           return () => {
             clearedDelays.push(interval)
@@ -85,6 +109,14 @@ function createFixture(camera: CameraPreviewCameraPort) {
       }
     },
     clearedDelays,
+    scheduledDelays,
+    replacePreview,
+    dismissPreview() {
+      dismissPreview?.()
+    },
+    get screen() {
+      return screen
+    },
     get shownScreens() {
       return shownScreens
     },
@@ -93,6 +125,77 @@ function createFixture(camera: CameraPreviewCameraPort) {
     },
   }
 }
+
+test('a preview replaced during setMain leaves the successor visible after its restore deadline', async () => {
+  const fixture = createFixture(
+    {
+      start() {},
+      async capture() {
+        return {}
+      },
+      stop() {},
+    },
+    true,
+  )
+
+  const preview = fixture.trigger()
+  await flushMicrotasks()
+  FakeTimer.advance(120)
+  await preview
+
+  assert.equal(fixture.screen, 'successor')
+  assert.deepEqual(fixture.scheduledDelays, [120])
+  FakeTimer.advance(5000)
+  assert.equal(fixture.screen, 'successor')
+  await fixture.close()
+  assert.equal(fixture.screen, 'successor')
+})
+
+test('dismissal of an already replaced preview leaves the successor visible', async () => {
+  const fixture = createFixture({
+    start() {},
+    async capture() {
+      return {}
+    },
+    stop() {},
+  })
+
+  const preview = fixture.trigger()
+  await flushMicrotasks()
+  fixture.replacePreview()
+  fixture.dismissPreview()
+  assert.equal(fixture.screen, 'successor')
+  FakeTimer.advance(6000)
+  await preview
+  await fixture.close()
+  assert.equal(fixture.screen, 'successor')
+})
+
+test('dismiss and restore timeout both close an active preview', async () => {
+  const fixture = createFixture({
+    start() {},
+    async capture() {
+      return {}
+    },
+    stop() {},
+  })
+
+  const firstPreview = fixture.trigger()
+  await flushMicrotasks()
+  assert.equal(fixture.screen, 'preview')
+  fixture.dismissPreview()
+  assert.equal(fixture.screen, 'face')
+  FakeTimer.advance(120)
+  await firstPreview
+
+  const secondPreview = fixture.trigger()
+  await flushMicrotasks()
+  assert.equal(fixture.screen, 'preview')
+  FakeTimer.advance(5000)
+  await secondPreview
+  assert.equal(fixture.screen, 'face')
+  await fixture.close()
+})
 
 test('uses the CoreS3 camera native capture mode while rendering a preview', async () => {
   const requests: Parameters<CameraPreviewCameraPort['start']>[0][] = []
@@ -214,7 +317,8 @@ test('closing during the paint delay clears both timers and awaits the immediate
   assert.deepEqual(fixture.clearedDelays, [5000, 120])
   assert.equal(closed, false)
   FakeTimer.advance(6000)
-  assert.equal(fixture.shownFaces, 0)
+  assert.equal(fixture.screen, 'face')
+  assert.equal(fixture.shownFaces, 1)
   stop.resolve(undefined)
   await Promise.all([preview, close])
   assert.deepEqual(calls, ['frame.close', 'stop'])

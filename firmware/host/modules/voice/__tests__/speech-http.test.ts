@@ -222,6 +222,22 @@ test('speech defers socket closure until after its HTTP callback returns', async
   await synthesis.close()
 })
 
+test('speech rejects a request that ends before receiving HTTP headers', async () => {
+  const synthesis = await OpenAISpeechTTS.create({ apiKey: 'test' }).open({
+    ...createVoiceScope(),
+    format: mono(24000),
+    voice: 'alloy',
+  })
+  await synthesis.write('first')
+  const failing = assert.rejects(synthesis.flush(), { code: 'provider_failed' })
+  const client = HTTP.clients[0]
+  client.requestOptions.onDone()
+  Timer.advance(0)
+  await failing
+  assert.equal(client.closed, 1)
+  await synthesis.close()
+})
+
 test('speech settles an exception thrown by the HTTP write callback', async () => {
   const synthesis = await OpenAISpeechTTS.create({ apiKey: 'test' }).open({
     ...createVoiceScope(),

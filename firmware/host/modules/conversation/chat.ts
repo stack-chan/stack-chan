@@ -271,7 +271,7 @@ function createChatConversation(options: {
         callbacks.onFunctionCall?.(call, name, args)
         if (!options.tools) throw voiceError('unsupported_capability', 'Tool unavailable')
         const result = await options.tools.execute(
-          { type: 'function_call', id: call, call_id: call, name, arguments: JSON.stringify(args) },
+          { type: 'function_call', id: call, call_id: call, name, arguments: JSON.stringify(args ?? {}) },
           { sessionId: id, turnId: 'utterance-' + utterance, callId: call, signal: scope.signal },
         )
         if (!scope.signal.aborted) io.sendFunctionResult(call, name, result.output)

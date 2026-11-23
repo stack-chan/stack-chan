@@ -21,6 +21,7 @@ export function createResampledOutput({ openOutput, resample, minimumOutputBytes
           const submitted = output.submittedFrames
           return submitted === undefined ? frames : Math.min(frames, Math.floor((submitted * 3) / 2))
         },
+        allowStreaming: output.allowStreaming && (() => output.allowStreaming()),
         setVolume: (gain) => output.setVolume(gain),
         async write(bytes, onAccepted) {
           if (closed) throw Object.assign(new Error('audio closed'), { code: 'cancelled' })

@@ -19,7 +19,7 @@ const { createVoiceScope, deferred } = await import('../../voice/scope.ts')
 const tick = () => new Promise((resolve) => setImmediate(resolve))
 const user = (text) => ({ type: 'message', role: 'user', content: [{ type: 'input_text', text }] })
 
-function setup({ transcript = 'こんにちは', send, finish, failStt = false, tts, finalSpeech } = {}) {
+function setup({ transcript = 'こんにちは', send, finish, failStt = false, tts, finalSpeech, allowStreaming } = {}) {
   const events = [],
     spoken = [],
     messages = [],
@@ -37,7 +37,7 @@ function setup({ transcript = 'こんにちは', send, finish, failStt = false, 
     budget: { maxBufferedMs: 500, maxBufferedBytes: 24576 },
     begin(_id, epoch) {
       assert.equal(epoch, generation)
-      return sink
+      return Object.assign(sink, { allowStreaming })
     },
     async finish(outputId) {
       await finish?.()
@@ -410,7 +410,7 @@ test('interrupt closes active recognition without finishing or sending it', asyn
 const { createGeminiWorkerTTS } = await import('../../voice/gemini-worker-session.js')
 const { synthesize } = await import('../../voice/gemini-worker-request.js')
 
-function geminiFinalFixture(text, finalSpeech, afterAudio) {
+function geminiFinalFixture(text, finalSpeech, afterAudio, allowStreaming) {
   ArrayBuffer.fromString ??= (s) => new TextEncoder().encode(s).buffer
   String.fromArrayBuffer ??= (buffer, offset = 0, length = buffer.byteLength - offset) =>
     new TextDecoder().decode(new Uint8Array(buffer, offset, length))
@@ -428,7 +428,7 @@ function geminiFinalFixture(text, finalSpeech, afterAudio) {
     }, job),
   )
   const send = async () => ({ status: 'completed', messages: [{ id: 'reply', text }] })
-  return { requests, ...setup({ tts, finalSpeech, send }) }
+  return { requests, ...setup({ tts, finalSpeech, send, allowStreaming }) }
 }
 
 async function runFinal(text, mode) {
@@ -517,6 +517,18 @@ test('Gemini failure after a complete Muse reply permits the next spoken turn in
     ['played'],
   )
   assert.equal(f.counts().closed, 0)
+  await session.close({ mode: 'drain' })
+})
+
+test('buffered playback is armed between the penultimate and final Gemini jobs', async () => {
+  const text = 'a'.repeat(240) + 'b'.repeat(240) + 'c'.repeat(50)
+  const requestCounts = []
+  const f = geminiFinalFixture(text, 'buffered', undefined, () => requestCounts.push(f.requests.length))
+  const session = await f.conversation.open(f.options)
+  const first = await session.submit(user('read this'), f.scope)
+  assert.equal((await first.done).status, 'completed')
+  assert.deepEqual(f.requests.map((part) => part.length), [240, 240, 50])
+  assert.deepEqual(requestCounts, [2])
   await session.close({ mode: 'drain' })
 })
 

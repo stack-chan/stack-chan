@@ -10,7 +10,7 @@ import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import type { SpeechPlayback } from 'speech-playback-types'
+import type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
@@ -29,7 +29,7 @@ export type {
 } from 'local-peer-types'
 export { LocalPeerError } from 'local-peer-types'
 
-export type { SpeechPlayback } from 'speech-playback-types'
+export type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 
 export type UIEffect = PiuContent
 export type RobotLed = {
@@ -118,7 +118,7 @@ export type AudioCapability = {
   speaker: VoiceSpeaker
   microphone?: VoiceMicrophone
   /** Borrows the player while installed and returns the detached previous player for restoration. Audio must be idle. */
-  setSpeechPlayback(playback: SpeechPlayback): SpeechPlayback
+  setSpeechPlayback(playback: SpeechPlayback | SpeakerSpeechPlayback): SpeechPlayback | SpeakerSpeechPlayback
   say(text: string, volume?: number): Promise<Maybe<string>>
   /** Sings raw koe notation. Returns a failure when the active player does not support singing. */
   sing(koe: string, volume?: number): Promise<Maybe<string>>

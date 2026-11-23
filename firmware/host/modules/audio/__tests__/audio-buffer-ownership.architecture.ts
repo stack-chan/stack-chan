@@ -141,21 +141,8 @@ test('device speech playback engines delegate playback state and AudioOut lifecy
   }
 
   const streamingSource = readFileSync('host/modules/audio/stackchan-voice/speech-playback-stackchan-voice.ts', 'utf8')
-  assert.match(streamingSource, /from 'speech-playback-lifecycle'/)
-  assert.match(streamingSource, /beginSpeechPlayback\(this, callback/)
-  assert.match(streamingSource, /lifecycle\.addCleanup\(/)
-  assert.match(streamingSource, /new AudioOut\(/)
-  assert.match(streamingSource, /onWritable: \(size\) => this\.#onWritable\(size\)/)
-  assert.match(streamingSource, /writable - this\.#freeBytes/)
-  assert.match(streamingSource, /const DMA_CHUNK_SAMPLES = 2046/)
-  assert.match(streamingSource, /output\.write\(chunk\.bytes\)/)
-  assert.doesNotMatch(streamingSource, /output\.write\(chunk\.buffer\)/)
-  assert.doesNotMatch(streamingSource, /DRAIN_SAMPLES|drainTimer/)
-  assert.match(streamingSource, /new Resource\('stackchan-ja\.aqd'\)/)
-  assert.match(streamingSource, /props\.volume \?\? 0\.1/)
-  assert.match(streamingSource, /props\.speed \?\? 100/)
-  assert.match(streamingSource, /lifecycle\.onPower\(/)
-  assert.doesNotMatch(streamingSource, /this\.streaming\s*=\s*true/)
+  assert.doesNotMatch(streamingSource, /new AudioOut\(/)
+  assert.match(streamingSource, /from 'stackchan\/voice\/stackchan-voice'/)
 })
 
 test('Whisper multipart upload does not concatenate the whole recording buffer', () => {

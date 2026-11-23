@@ -5,6 +5,7 @@ import type { AudioLevel, DuplexLease } from '../contracts.js'
 import { pcmLevel } from '../levels.js'
 import type { LeaseOptions } from '../runtime-types.js'
 import { createVoiceScope } from '../scope.js'
+import './pcm-magnitude-fake.js'
 
 const audioState = { callback: undefined as ((size: number) => void) | undefined }
 const fakeAudioUrl = `data:text/javascript,${encodeURIComponent(`
@@ -20,7 +21,10 @@ export default class {
 const hooks = registerHooks({
   resolve(specifier, context, next) {
     if (specifier === 'embedded:io/audio/out') return { shortCircuit: true, url: fakeAudioUrl }
-    const local = { 'stackchan/voice/scope': '../scope.js', 'stackchan/voice/levels': '../levels.js' }[specifier]
+    const local = {
+      'stackchan/voice/scope': '../scope.js',
+      'stackchan/voice/pcm-magnitude': './pcm-magnitude-fake.js',
+    }[specifier]
     return local ? next(new URL(local, import.meta.url).href, context) : next(specifier, context)
   },
 })

@@ -40,12 +40,13 @@ import { SpeechPlayback as LocalPlayback } from 'speech-playback-local'
 import { SpeechPlayback as OpenAIPlayback } from 'speech-playback-openai'
 import { SpeechPlayback as RemotePlayback } from 'speech-playback-remote'
 import { SpeechPlayback as StackchanVoicePlayback } from 'speech-playback-stackchan-voice'
+import type { SpeakerSpeechPlayback } from 'speech-playback-types'
 import { SpeechPlayback as VoiceVoxPlayback } from 'speech-playback-voicevox'
 import { SpeechPlayback as VoiceVoxWebPlayback } from 'speech-playback-voicevox-web'
 import Touch, { type TouchOptions } from 'touch'
 import TouchPanel from 'touch-panel'
 import { canonicalizeVolume } from 'volume-model'
-import type { CreateAudioRuntime, LeaseFactory } from '../modules/voice/runtime-types.js'
+import type { CreateAudioRuntime, LeaseFactory, RuntimeOptions } from '../modules/voice/runtime-types.js'
 
 type DeviceButton = {
   read: () => number
@@ -142,7 +143,7 @@ export function createStackchanContext(
     ['rs30x', (param) => new RS30XDriver(param as ConstructorParameters<typeof RS30XDriver>[0])],
     ['none', () => new NoneDriver()],
   ])
-  const speechPlayers = new Map<string, (param: unknown) => SpeechPlayback>([
+  const speechPlayers = new Map<string, (param: unknown) => SpeechPlayback | SpeakerSpeechPlayback>([
     ['local', (param) => new LocalPlayback(param as ConstructorParameters<typeof LocalPlayback>[0])],
     ['remote', (param) => new RemotePlayback(param as ConstructorParameters<typeof RemotePlayback>[0])],
     ['voicevox', (param) => new VoiceVoxPlayback(param as ConstructorParameters<typeof VoiceVoxPlayback>[0])],
@@ -267,7 +268,7 @@ export function createStackchanContext(
   }
 
   const contextParams = {
-    createVoiceRuntime(acquireExclusive: () => () => void) {
+    createVoiceRuntime(acquireExclusive: RuntimeOptions['acquireExclusive']) {
       const { createAudioRuntime } = Modules.importNow('stackchan/voice/device', true) as {
         createAudioRuntime: CreateAudioRuntime
       }

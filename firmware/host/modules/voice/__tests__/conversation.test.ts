@@ -20,13 +20,15 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const local = resolve(root, 'voice')
 writeAliasPackage(local, 'timer', resolve(root, 'testing/fakes/timer.js'), { hasDefaultExport: true })
 writeAliasPackage(local, 'modules', resolve(root, 'testing/fakes/modules.js'), { hasDefaultExport: true })
-for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime', 'levels']) {
+for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime', 'levels', 'play-speech']) {
   writeAliasPackageSubpath(local, 'stackchan', `voice/${module}`, resolve(local, `${module}.js`))
 }
+writeAliasPackageSubpath(local, 'stackchan', 'voice/pcm-magnitude', resolve(local, '__tests__/pcm-magnitude-fake.js'))
 const { createPcmSink, createPcmSource, mono, pcmMedia } = await import('../media.js')
 const { createConversationPipeline } = await import('../pipeline.js')
 const { bindAudioRuntime } = await import('../runtime.js')
 const { createVoiceScope, deferred } = await import('../scope.js')
+const { playSpeech } = await import('../play-speech.js')
 const timer = (await import('../../testing/fakes/timer.js')).default
 const { createCascadedConversation, createPushToTalk } = await import('../cascaded.js')
 const budget = { maxBufferedMs: 250, maxBufferedBytes: 24000 }
@@ -1005,6 +1007,142 @@ test('device lease bounds pending audio, retains queued samples and fences stale
   output.callback(1)
   assert.equal((await drained).state, 'played')
   await tiny.close()
+})
+
+test('speaker-only lease uses the full budget, excludes capture and reports only rendered PCM', async () => {
+  const { createAudioRuntime } = await import('../pcm-device.js')
+  const { resetModules } = await import('../../testing/fakes/modules.js')
+  const { writeSink } = await import('../media.js')
+  let device: Output | undefined
+  class Output {
+    static Volume = 4
+    static Callback = 3
+    static RawSamples = 5
+    callback!: (id: number) => void
+    constructor() {
+      device = this
+    }
+    enqueue() {}
+    start() {}
+    stop() {}
+    close() {}
+  }
+  resetModules({ 'pins/audioout': Output })
+  let releases = 0
+  const runtime = createAudioRuntime({
+    acquireExclusive: () => () => {
+      releases++
+    },
+  })
+  const scope = createVoiceScope()
+  const smallBudget = { maxBufferedMs: 1, maxBufferedBytes: 8 }
+  const levels: number[] = []
+  const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
+    ...scope,
+    budget: smallBudget,
+    onLevel({ value }) {
+      levels.push(value)
+      throw new Error('mouth observer failed')
+    },
+  })
+  assert.equal('input' in lease, false)
+  await assert.rejects(
+    runtime.acquire(
+      runtime.microphone,
+      runtime.speaker,
+      { input: [mono(16000)], output: [mono(24000)], duplex: 'half' },
+      { ...scope, budget },
+    ),
+    /device_busy/,
+  )
+  const writer = lease.output.begin('speech', 0)
+  await writeSink(writer, Uint8Array.of(0, 128, 0, 128, 0, 0, 0, 0))
+  assert.deepEqual(levels, [])
+  assert.ok(device)
+  device.callback(1)
+  assert.deepEqual(levels, [0.5])
+  const blocked = writeSink(writer, new Uint8Array(8))
+  scope.abort()
+  await assert.rejects(blocked, /cancelled/)
+  assert.equal(releases, 0)
+  await assert.rejects(runtime.acquirePlayback(runtime.speaker, [mono(24000)], { ...createVoiceScope(), budget }), {
+    code: 'device_busy',
+  })
+  await lease.close()
+  device.callback(2)
+  assert.deepEqual(levels, [0.5, 0])
+  assert.equal(releases, 1)
+  const again = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], { ...createVoiceScope(), budget })
+  await again.close()
+})
+
+test('cancelling an utterance silences output and keeps the lease until synthesis closes', async () => {
+  const device = makeLease()
+  const runtime = bindAudioRuntime(
+    { acquireExclusive: () => () => {} },
+    () => device.lease,
+    () => device.lease,
+  )
+  const starting = deferred<void>()
+  const stopping = deferred<void>()
+  const stopped = deferred<void>()
+  const utterance = playSpeech(
+    runtime.speaker,
+    async ({ signal, format }) => {
+      const pcm = createPcmSource(format)
+      return {
+        output: pcm.output,
+        async write() {},
+        async flush() {},
+        async endInput() {
+          starting.resolve()
+          return new Promise<void>((_resolve, reject) => {
+            signal.addEventListener('abort', () => reject(signal.reason))
+          })
+        },
+        async close() {
+          stopping.resolve()
+          await stopped.promise
+        },
+      }
+    },
+    'hello',
+    0.5,
+    () => {},
+  )
+  const cancelled = assert.rejects(utterance.done, { code: 'cancelled' })
+  await starting.promise
+  const closing = utterance.close()
+  await stopping.promise
+  assert.equal(device.closes(), 1)
+  const acquire = () => runtime.acquirePlayback(runtime.speaker, [mono(24000)], { ...createVoiceScope(), budget })
+  await assert.rejects(acquire(), { code: 'device_busy' })
+  stopped.resolve()
+  await closing
+  await cancelled
+  await (await acquire()).close()
+})
+
+test('a synthesis failure is reported to the speaker caller but does not fail clean shutdown', async () => {
+  const device = makeLease()
+  const runtime = bindAudioRuntime(
+    { acquireExclusive: () => () => {} },
+    () => device.lease,
+    () => device.lease,
+  )
+  const failure = new Error('dictionary missing')
+  const utterance = playSpeech(
+    runtime.speaker,
+    async () => {
+      throw failure
+    },
+    'hello',
+    0.5,
+    () => {},
+  )
+  await assert.rejects(utterance.done, failure)
+  await utterance.close()
+  assert.equal(device.closes(), 1)
 })
 
 test('CoreS3 output grants ring credit after write and drains a final partial DMA block', async () => {

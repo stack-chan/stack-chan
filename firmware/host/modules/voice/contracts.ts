@@ -200,26 +200,30 @@ export type AudioRequirements = {
   readonly output: readonly PcmFormat[]
   readonly duplex: 'half' | 'full'
 }
-export interface DuplexLease {
-  readonly input: AudioSource
+export interface PlaybackLease {
   readonly output: PlaybackSink
   readonly media: MediaRuntime
-  setInputEnabled(enabled: boolean): Promise<void>
   setVolume(gain: number): void
   close(): Promise<void>
+}
+export interface DuplexLease extends PlaybackLease {
+  readonly input: AudioSource
+  setInputEnabled(enabled: boolean): Promise<void>
 }
 export type AudioLevel = {
   readonly direction: 'input' | 'output'
   /** Mean absolute PCM amplitude / 32768, after output gain. Output follows device playback, with driver latency. */
   readonly value: number
 }
+export type PlaybackOptions = Scope & { readonly budget: MediaBudget; readonly onLevel?: (level: AudioLevel) => void }
 export interface AudioRuntime {
   acquire(
     microphone: Microphone,
     speaker: Speaker,
     requirements: AudioRequirements,
-    options: Scope & { readonly budget: MediaBudget; readonly onLevel?: (level: AudioLevel) => void },
+    options: PlaybackOptions,
   ): Promise<DuplexLease>
+  acquirePlayback(speaker: Speaker, formats: readonly PcmFormat[], options: PlaybackOptions): Promise<PlaybackLease>
 }
 export interface Microphone {
   readonly id: string

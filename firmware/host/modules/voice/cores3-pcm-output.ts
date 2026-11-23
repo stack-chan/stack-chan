@@ -1,5 +1,5 @@
 import AudioOut from 'embedded:io/audio/out'
-import { pcmLevel } from 'stackchan/voice/levels'
+import { pcmMagnitudeSum } from 'stackchan/voice/pcm-magnitude'
 import { deferred, voiceError } from 'stackchan/voice/scope'
 import type { PcmOutput } from './runtime-types.js'
 
@@ -29,6 +29,17 @@ export function openOutput(
     change ??= deferred<void>()
     return change.promise
   }
+  function emitLevel(value: number) {
+    try {
+      onLevel?.(value)
+    } catch {}
+  }
+  function publishLevels() {
+    while (levels.length && levels[0].end <= confirmed) {
+      const level = levels.shift()
+      if (level) emitLevel(level.sum / level.count)
+    }
+  }
   const requireOpen = () => {
     if (closed) throw voiceError('cancelled')
   }
@@ -41,11 +52,7 @@ export function openOutput(
       if (!capacity) capacity = size
       writable = size
       confirmed = Math.max(confirmed, Math.min(audioBytes, submitted - (capacity - writable) - dmaBlockBytes))
-      while (levels.length && levels[0].end <= confirmed) {
-        const level = levels[0]
-        levels.shift()
-        onLevel?.(level.sum / level.count)
-      }
+      publishLevels()
       signal()
     },
   })
@@ -76,13 +83,14 @@ export function openOutput(
           const end = Math.min(audioBytes, (Math.floor(start / dmaBlockBytes) + 1) * dmaBlockBytes)
           const count = end - start
           const from = offset + start - (audioBytes - size)
-          const sum = pcmLevel(bytes.subarray(from, from + count)) * volume * count
+          const sum = (pcmMagnitudeSum(bytes, from, count) / 32768) * volume
+          const frames = count / 2
           const previous = levels[levels.length - 1]
           if (previous && Math.floor((previous.end - 1) / dmaBlockBytes) === Math.floor(start / dmaBlockBytes)) {
             previous.end = end
             previous.sum += sum
-            previous.count += count
-          } else levels.push({ end, sum, count })
+            previous.count += frames
+          } else levels.push({ end, sum, count: frames })
           start = end
         }
       }
@@ -135,14 +143,14 @@ export function openOutput(
       await wait()
       requireOpen()
       confirmed = audioBytes
-      levels.length = 0
-      onLevel?.(0)
+      publishLevels()
+      emitLevel(0)
     },
     close() {
       if (closed) return
       closed = true
       levels.length = 0
-      onLevel?.(0)
+      emitLevel(0)
       signal()
       try {
         audio.stop()

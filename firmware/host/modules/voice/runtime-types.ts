@@ -19,7 +19,7 @@ export type LeaseOptions = Scope & {
 }
 export type LeaseFactory = (options: LeaseOptions) => Promise<DuplexLease> | DuplexLease
 export type RuntimeOptions = {
-  acquireExclusive: () => () => void
+  acquireExclusive: (kind: 'conversation' | 'playback') => () => void
   openNativeLease?: LeaseFactory
   volume?: number
 }

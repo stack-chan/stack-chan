@@ -19,7 +19,13 @@
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {
-      "modules": { "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output" }
+      "include": ["../../../vendor/stackchan-voice/manifest.json"],
+      "modules": {
+        "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output",
+        "stackchan/voice/pcm-magnitude": "./pcm-magnitude",
+        "stackchan/voice/play-speech": "./play-speech",
+        "stackchan/voice/stackchan-voice": "./stackchan-voice"
+      }
     }
   }
 }

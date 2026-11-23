@@ -35,7 +35,7 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeInputConstructorParam &
   RuntimeLightingConstructorParam &
   MotionControllerConstructorParam & {
-    createVoiceRuntime: (acquireExclusive: () => () => void) => {
+    createVoiceRuntime: (acquireExclusive: StackchanRuntimeAudio['acquireExclusive']) => {
       microphone: NonNullable<AudioCapability['microphone']>
       speaker: AudioCapability['speaker']
     }
@@ -85,6 +85,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       isPaused: () => this.#paused,
     })
     this.#audioRuntime = new StackchanRuntimeAudio(params, {
+      getVoiceSpeaker: () => this.#audioCapability.speaker,
       onMouthOpenChanged: (value) => this.setMouthOpen(value),
     })
     this.#inputRuntime = new StackchanRuntimeInput(params)
@@ -436,7 +437,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   private createAudioCapability(createRuntime: RuntimeContextConstructorParam['createVoiceRuntime']): AudioCapability {
     const context = this
     let endpoints: ReturnType<typeof createRuntime>
-    const getEndpoints = () => (endpoints ??= createRuntime(() => this.#audioRuntime.acquireExclusive()))
+    const getEndpoints = () => (endpoints ??= createRuntime((kind) => this.#audioRuntime.acquireExclusive(kind)))
     return {
       get volume() {
         return context.#audioRuntime.volume
@@ -708,7 +709,7 @@ export class StackchanRuntimeContext implements StackchanContext {
         () => this.#lightingRuntime.close(),
       ]) {
         try {
-          closeRuntime()
+          await closeRuntime()
         } catch (error) {
           rememberCloseError(error)
         }

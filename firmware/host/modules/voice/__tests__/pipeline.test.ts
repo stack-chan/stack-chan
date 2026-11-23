@@ -40,6 +40,9 @@ function fixture(onEvent?: (event: ConversationEvent) => void) {
     },
   } as unknown as DuplexLease
   const runtime: AudioRuntime = {
+    async acquirePlayback() {
+      throw new Error('unused')
+    },
     async acquire(_mic, _spk, _req, options) {
       onLevel = options.onLevel
       calls.push('acquire')

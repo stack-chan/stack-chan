@@ -5,6 +5,8 @@
     "../../app/manifest_typings.json"
   ],
   "modules": {
+    "domain-values": "./domain-values",
+    "stackchan-result": "./result",
     "stackchan-util": "./stackchan-util",
     "mac-address": "./sim/mac-address"
   },

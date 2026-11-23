@@ -213,6 +213,9 @@
       "boot-network-recovery": [
         "./host/app/boot-network-recovery.ts"
       ],
+      "app-behavior": [
+        "./host/app/app-behavior.ts"
+      ],
       "app-behavior-resolver": [
         "./host/app/app-behavior-resolver.ts"
       ],
@@ -257,6 +260,18 @@
       ],
       "stackchan-util": [
         "./host/modules/util/stackchan-util.ts"
+      ],
+      "domain-values": [
+        "./host/modules/util/domain-values.ts"
+      ],
+      "stackchan-result": [
+        "./host/modules/util/result.ts"
+      ],
+      "mod-kit": [
+        "./host/app/mod-kit.ts"
+      ],
+      "owned-resources": [
+        "./host/app/owned-resources.ts"
       ],
       "stackchan-application-event": [
         "./host/app/remote-session/application-event.ts"

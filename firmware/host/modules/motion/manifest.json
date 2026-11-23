@@ -15,8 +15,6 @@
     "motion-driver-callback",
     "protocols/dynamixel",
     "dynamixel-driver",
-    "m5stackchan-servo",
-    "m5stackchan-servo-driver",
     "none-driver",
     "protocols/rs30x",
     "protocols/scservo",

@@ -53,7 +53,8 @@
       "./runtime-input",
       "./runtime-lighting",
       "./runtime-ui",
-      "./owned-resources"
+      "./owned-resources",
+      "./mod-kit"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera-preview": "../modules/ui/views/camera-preview/camera-preview-view",

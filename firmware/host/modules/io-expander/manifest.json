@@ -6,7 +6,6 @@
   "modules": {
     "py32-io-expander": "./py32-io-expander"
   },
-  "preload": ["py32-io-expander"],
   "typescript": {
     "tsconfig": {
       "compilerOptions": {

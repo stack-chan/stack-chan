@@ -1,4 +1,5 @@
 import { SPRITE_PULSE_FRAME_COUNT, spritePulseVariantForFraction } from 'effects/emoticon-pulse'
+import type { FaceSkinPalette } from 'face-skin'
 import {
   DEFAULT_FACE_PRIMARY_COLOR,
   DEFAULT_FACE_SECONDARY_COLOR,
@@ -194,6 +195,7 @@ class SpritePulseBehavior extends Behavior {
   #height = 40
   #interval = 33
   #fraction = 0
+  #hasPalette = false
   #primary = primaryColor()
   #variant = spritePulseVariantForFraction(0)
 
@@ -222,7 +224,15 @@ class SpritePulseBehavior extends Behavior {
     port.invalidate()
   }
 
+  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
+    this.#hasPalette = true
+    if (palette.primaryColor === this.#primary) return
+    this.#primary = palette.primaryColor
+    port.invalidate()
+  }
+
   onFaceState(port: PiuPort, face: FaceState) {
+    if (this.#hasPalette) return
     const nextPrimary = primaryColor(face)
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
@@ -254,6 +264,10 @@ class DropBehavior extends Behavior {
   #scaleSmoothing = SWEAT_CONFIG.scaleSmoothing
   #drops: Drop[] = []
   #laneXs: number[] = []
+  #lastXs: number[] = []
+  #lastYs: number[] = []
+  #lastVariants: number[] = []
+  #hasPalette = false
   #primary = primaryColor()
 
   onCreate(port: PiuPort, data: EmoticonOptions = {}, config = SWEAT_CONFIG) {
@@ -268,14 +282,21 @@ class DropBehavior extends Behavior {
     this.#scaleSmoothing = config.scaleSmoothing
     this.#laneXs = this.#buildLaneXs()
     this.#drops = []
+    this.#lastXs = []
+    this.#lastYs = []
+    this.#lastVariants = []
     for (let i = 0; i < this.#count; i++) {
       this.#drops.push(this.#spawnDrop(i, true))
+      this.#lastXs.push(Number.NaN)
+      this.#lastYs.push(Number.NaN)
+      this.#lastVariants.push(-1)
     }
     port.interval = this.#interval
   }
 
   onDisplaying(port: PiuPort) {
     this.#advance(0)
+    this.#syncVisualState()
     port.invalidate()
     port.start()
   }
@@ -286,10 +307,18 @@ class DropBehavior extends Behavior {
 
   onTimeChanged(port: PiuPort) {
     this.#advance(port.interval ?? this.#interval)
+    if (this.#syncVisualState()) port.invalidate()
+  }
+
+  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
+    this.#hasPalette = true
+    if (palette.primaryColor === this.#primary) return
+    this.#primary = palette.primaryColor
     port.invalidate()
   }
 
   onFaceState(port: PiuPort, face: FaceState) {
+    if (this.#hasPalette) return
     const nextPrimary = primaryColor(face)
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
@@ -309,6 +338,23 @@ class DropBehavior extends Behavior {
         drop.y - SPRITE_CELL_SIZE / 2,
       )
     }
+  }
+
+  #syncVisualState(): boolean {
+    let changed = false
+    for (let i = 0; i < this.#drops.length; i++) {
+      const drop = this.#drops[i]
+      const drawX = Math.round(drop.x - SPRITE_CELL_SIZE / 2)
+      const drawY = Math.round(drop.y - SPRITE_CELL_SIZE / 2)
+      const variant = spriteVariantForScale(drop.scale, this.#minScale, this.#holdScale)
+      if (this.#lastXs[i] !== drawX || this.#lastYs[i] !== drawY || this.#lastVariants[i] !== variant) {
+        this.#lastXs[i] = drawX
+        this.#lastYs[i] = drawY
+        this.#lastVariants[i] = variant
+        changed = true
+      }
+    }
+    return changed
   }
 
   #advance(dt: number) {
@@ -379,6 +425,10 @@ class SleepyBubbleBehavior extends Behavior {
   #count = 4
   #interval = 33
   #bubbles: Bubble[] = []
+  #lastXs: number[] = []
+  #lastYs: number[] = []
+  #lastVariants: number[] = []
+  #hasPalette = false
   #primary = primaryColor()
   #secondary = secondaryColor()
 
@@ -388,6 +438,9 @@ class SleepyBubbleBehavior extends Behavior {
     this.#count = data.count ?? this.#count
     this.#interval = data.interval ?? this.#interval
     this.#bubbles = []
+    this.#lastXs = []
+    this.#lastYs = []
+    this.#lastVariants = []
     for (let i = 0; i < this.#count; i++) {
       this.#bubbles.push({
         x: Math.random() * this.#width,
@@ -395,12 +448,16 @@ class SleepyBubbleBehavior extends Behavior {
         y: Math.random() * this.#height,
         r: 4 + Math.random() * 3,
       })
+      this.#lastXs.push(Number.NaN)
+      this.#lastYs.push(Number.NaN)
+      this.#lastVariants.push(-1)
     }
     port.interval = this.#interval
   }
 
   onDisplaying(port: PiuPort) {
     this.#advance()
+    this.#syncVisualState()
     port.invalidate()
     port.start()
   }
@@ -411,10 +468,19 @@ class SleepyBubbleBehavior extends Behavior {
 
   onTimeChanged(port: PiuPort) {
     this.#advance()
+    if (this.#syncVisualState()) port.invalidate()
+  }
+
+  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
+    this.#hasPalette = true
+    if (palette.primaryColor === this.#primary && palette.secondaryColor === this.#secondary) return
+    this.#primary = palette.primaryColor
+    this.#secondary = palette.secondaryColor
     port.invalidate()
   }
 
   onFaceState(port: PiuPort, face: FaceState) {
+    if (this.#hasPalette) return
     const nextPrimary = primaryColor(face)
     const nextSecondary = secondaryColor(face)
     if (nextPrimary === this.#primary && nextSecondary === this.#secondary) return
@@ -437,6 +503,23 @@ class SleepyBubbleBehavior extends Behavior {
         cy - SPRITE_CELL_SIZE / 2,
       )
     }
+  }
+
+  #syncVisualState(): boolean {
+    let changed = false
+    for (let i = 0; i < this.#bubbles.length; i++) {
+      const bubble = this.#bubbles[i]
+      const drawX = Math.round(bubble.x - SPRITE_CELL_SIZE / 2)
+      const drawY = Math.round(this.#height - bubble.y - SPRITE_CELL_SIZE / 2)
+      const variant = clamp(Math.round((bubble.r - 3) / 3), 0, SPRITE_FRAME_COUNT - 1)
+      if (this.#lastXs[i] !== drawX || this.#lastYs[i] !== drawY || this.#lastVariants[i] !== variant) {
+        this.#lastXs[i] = drawX
+        this.#lastYs[i] = drawY
+        this.#lastVariants[i] = variant
+        changed = true
+      }
+    }
+    return changed
   }
 
   #advance() {

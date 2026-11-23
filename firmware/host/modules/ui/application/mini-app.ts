@@ -6,6 +6,7 @@ export type MiniAppContext = Readonly<{
   width: number
   height: number
   close(): void
+  trackResource?(cleanup: () => void): void
 }>
 
 export type MiniAppInstance = Readonly<{
@@ -80,7 +81,13 @@ export class MiniAppRegistry implements MiniAppRegistryCapability {
 
   list(): RegisteredMiniApp[] {
     return [...this.#definitions.values()]
-      .map(({ id, title, icon }) => Object.freeze({ id, title, ...(icon ? { icon } : {}) }))
+      .map(({ id, title, icon }) =>
+        Object.freeze({
+          id,
+          title,
+          ...(icon ? { icon } : {}),
+        }),
+      )
       .sort((left, right) => left.title.localeCompare(right.title))
   }
 

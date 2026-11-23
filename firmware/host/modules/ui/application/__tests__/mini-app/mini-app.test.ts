@@ -2,6 +2,7 @@ import { AppController } from 'app-controller'
 import { ChatStatusBar } from 'chat-status-bar'
 import type { MiniAppContext } from 'mini-app'
 import { Application, Container, type Container as PiuContainer } from 'piu/MC'
+import { ScreenKind } from 'screen-coordinator'
 import { assert, equal } from 'testing/assert'
 
 trace('=== mini-app lifecycle test ===\n')
@@ -130,5 +131,240 @@ controller.showMiniAppLauncher()
 assert(!controller.launchMiniApp('missing'), 'unknown mini app ids should be rejected')
 assert(viewBehavior.main !== viewBehavior.faceMain, 'an unknown id should leave the launcher visible')
 equal(title.string, 'ミニアプリ', 'an unknown id should preserve the launcher AppBar')
+
+let closeOnEntry: (() => void) | undefined
+let entryDisposals = 0
+controller.miniApps.register({
+  id: 'test.close-on-entry',
+  title: 'Close on entry',
+  create(context) {
+    closeOnEntry = context.close
+    context.trackResource?.(() => {
+      entryDisposals += 1
+    })
+    return new Container()
+  },
+})
+const unsubscribeEntry = controller.subscribeScreenChange((next) => {
+  if (next.appId === 'test.close-on-entry') closeOnEntry?.()
+})
+assert(controller.launchMiniApp('test.close-on-entry'), 'the app with an entry-triggered close should be created')
+unsubscribeEntry()
+equal(viewBehavior.main, viewBehavior.faceMain, 'close during the entry notification should restore the face')
+assert(controller.isFaceForeground, 'an entry-triggered close should restore Face foreground state')
+equal(entryDisposals, 1, 'close during the entry notification should revoke tracked resources')
+
+const exitCleanup: string[] = []
+controller.miniApps.register({
+  id: 'test.listener-error',
+  title: 'Listener error',
+  create(context) {
+    context.trackResource?.(() => {
+      exitCleanup.push('resource')
+    })
+    return {
+      content: new Container(null, {
+        Behavior: class extends Behavior {
+          onDispose() {
+            exitCleanup.push('content')
+          }
+        },
+      }),
+      dispose() {
+        exitCleanup.push('instance')
+      },
+    }
+  },
+})
+assert(controller.launchMiniApp('test.listener-error'), 'the app with an exit listener should launch')
+const unsubscribeThrowing = controller.subscribeScreenChange(() => {
+  throw new Error('test screen listener failure')
+})
+let sawFace = false
+const unsubscribeFace = controller.subscribeScreenChange((next) => {
+  sawFace = next.kind === ScreenKind.Face
+})
+controller.onMiniAppBack()
+unsubscribeThrowing()
+unsubscribeFace()
+assert(sawFace, 'a failing listener should not prevent notifying the next screen listener')
+equal(viewBehavior.main, viewBehavior.faceMain, 'a failing listener should not prevent returning to Face')
+equal(exitCleanup.join(','), 'content,instance,resource', 'a failing listener should not skip app cleanup')
+
+let customScreenClosed = 0
+let customBehaviorDisposed = 0
+const customScreen = new Container(null, {
+  Behavior: class extends Behavior {
+    onDispose() {
+      customBehaviorDisposed += 1
+    }
+  },
+})
+const closeCustomScreen = controller.setMain(customScreen, {
+  onClose() {
+    customScreenClosed += 1
+  },
+})
+assert(viewBehavior.main === customScreen, 'setMain should display the custom main screen')
+closeCustomScreen()
+closeCustomScreen()
+equal(viewBehavior.main, viewBehavior.faceMain, 'setMain cleanup handle should restore the face')
+equal(customScreenClosed, 1, 'setMain onClose should run once when closed via handle')
+equal(customBehaviorDisposed, 1, 'setMain content onDispose should run once when closed via handle')
+
+let replacedScreenClosed = 0
+controller.setMain(new Container(), () => {
+  replacedScreenClosed += 1
+})
+controller.showMiniAppLauncher()
+equal(replacedScreenClosed, 1, 'opening the mini-app launcher should notify the displaced main screen')
+controller.showFace()
+
+const closeOrder: string[] = []
+const followUpScreen = new Container()
+let closeFollowUp: (() => void) | undefined
+controller.setMain(new Container(), () => {
+  closeOrder.push('first')
+  closeFollowUp = controller.setMain(followUpScreen, () => {
+    closeOrder.push('follow-up')
+  })
+})
+const closeReplacement = controller.setMain(new Container(), () => {
+  closeOrder.push('replacement')
+})
+equal(viewBehavior.main, followUpScreen, 'setMain called by onClose should display the requested follow-up screen')
+closeReplacement()
+equal(viewBehavior.main, followUpScreen, 'a displaced screen handle should leave the follow-up screen open')
+closeFollowUp?.()
+closeFollowUp?.()
+equal(closeOrder.join(','), 'first,replacement,follow-up', 'each displayed screen should close exactly once')
+equal(viewBehavior.main, viewBehavior.faceMain, 'closing the follow-up should restore the face')
+
+let dismissedOnShow = 0
+const closeDismissedScreen = controller.setMain(
+  new Container(null, {
+    Behavior: class extends Behavior {
+      onShow() {
+        controller.showFace()
+      }
+    },
+  }),
+  () => {
+    dismissedOnShow += 1
+  },
+)
+equal(viewBehavior.main, viewBehavior.faceMain, 'showFace called by onShow should restore the face')
+assert(controller.isFaceForeground, 'the visible face should resume its foreground updates')
+equal(dismissedOnShow, 1, 'the screen dismissed during onShow should close exactly once')
+closeDismissedScreen()
+closeDismissedScreen()
+equal(dismissedOnShow, 1, 'a cleanup handle for the dismissed screen should be idempotent')
+
+let closedReplacement = 0
+const screenOpenedInHide = new Container()
+controller.setMain(
+  new Container(null, {
+    Behavior: class extends Behavior {
+      onHide() {
+        controller.setMain(screenOpenedInHide)
+      }
+    },
+  }),
+)
+controller.setMain(new Container(), () => {
+  closedReplacement += 1
+})
+equal(viewBehavior.main, screenOpenedInHide, 'setMain called by onHide should display the requested screen')
+equal(closedReplacement, 1, 'the screen displaced by an onHide request should close')
+controller.showFace()
+
+const successor = new Container()
+controller.setMain(new Container(), () => {
+  controller.showFace()
+})
+const closeSuccessor = controller.setMain(successor)
+equal(viewBehavior.main, successor, 'an onClose face request should apply only to the departing screen')
+closeSuccessor()
+
+const sameContent = new Container()
+controller.setMain(sameContent, () => {
+  controller.showFace()
+})
+const closeSameContent = controller.setMain(sameContent)
+equal(viewBehavior.main, sameContent, 'a successor may reuse the departing screen content')
+closeSameContent()
+
+controller.miniApps.register({
+  id: 'test.departing',
+  title: 'Departing',
+  create() {
+    return {
+      content: new Container(),
+      dispose() {
+        controller.exitMiniApp()
+        controller.showFace()
+      },
+    }
+  },
+})
+assert(controller.launchMiniApp('test.departing'), 'the departing app should launch')
+assert(controller.launchMiniApp('test.other'), 'the successor app should launch')
+equal(title.string, 'Other', 'a departing app must not close the successor')
+assert(!controller.isFaceForeground, 'the successor app should remain visible')
+controller.showFace()
+
+let nestedLaunch: boolean | undefined
+let nestedCreates = 0
+controller.miniApps.register({
+  id: 'test.nested',
+  title: 'Nested',
+  create() {
+    nestedCreates += 1
+    return new Container()
+  },
+})
+controller.setMain(new Container(), () => {
+  nestedLaunch = controller.launchMiniApp('test.nested')
+})
+const closeNestedReplacement = controller.setMain(new Container())
+equal(nestedLaunch, false, 'a nested launch must not report that an app started')
+equal(nestedCreates, 0, 'a rejected nested launch must not run later')
+closeNestedReplacement()
+
+const afterFailingHook = new Container()
+let closedAfterFailure = 0
+controller.setMain(
+  new Container(null, {
+    Behavior: class extends Behavior {
+      onHide() {
+        controller.setMain(afterFailingHook)
+        throw new Error('test onHide failure')
+      }
+    },
+  }),
+)
+controller.setMain(new Container(), () => {
+  closedAfterFailure += 1
+})
+equal(viewBehavior.main, afterFailingHook, 'a failing onHide must not prevent its queued screen request')
+equal(closedAfterFailure, 1, 'screen replacement after a failing onHide should close its predecessor')
+controller.showFace()
+
+let closedFailingShow = 0
+controller.setMain(
+  new Container(null, {
+    Behavior: class extends Behavior {
+      onShow() {
+        controller.showFace()
+        throw new Error('test onShow failure')
+      }
+    },
+  }),
+  () => {
+    closedFailingShow += 1
+  },
+)
+equal(viewBehavior.main, viewBehavior.faceMain, 'a failing onShow must not prevent its queued close request')
+equal(closedFailingShow, 1, 'a screen with a failing onShow must still close exactly once')
 
 trace('@@STACKCHAN_TEST:PASS@@\n')

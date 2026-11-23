@@ -247,6 +247,7 @@ class HandsBehavior extends Behavior {
     rightY: 144,
     rightRotation: 0,
   }
+  #motionsEnabled = true
   #outer = toPiuColorString(DEFAULT_FACE_PRIMARY_COLOR)
   #phaseIndex = 0
   #phases: AnimationPhase[] = []
@@ -297,6 +298,18 @@ class HandsBehavior extends Behavior {
   onUndisplaying(port: PiuPort): void {
     this.#displaying = false
     port.stop()
+  }
+
+  setMotionsEnabled(port: PiuPort, enabled: boolean): void {
+    if (this.#motionsEnabled === enabled) return
+    this.#motionsEnabled = enabled
+    if (!enabled) {
+      port.stop()
+      return
+    }
+    if (this.#displaying && this.#phases.length > 0) {
+      this.#startPhase(port, this.#phaseIndex < this.#phases.length ? this.#phaseIndex : 0)
+    }
   }
 
   onHandAnimationChanged(port: PiuPort, animation: unknown): boolean {
@@ -366,9 +379,7 @@ class HandsBehavior extends Behavior {
   }
 
   onTimeChanged(port: PiuPort): void {
-    // Timeline mutates the preallocated numeric motion model. Keep this paint
-    // hot path free of allocation and layout mutation; it only invalidates the
-    // old and new fixed-cell regions through #applyMotion.
+    if (!this.#motionsEnabled) return
     const phase = this.#phases[this.#phaseIndex]
     if (!phase) return
     phase.timeline.seekTo(port.time)
@@ -389,6 +400,7 @@ class HandsBehavior extends Behavior {
     }
     this.#applyMotion(port)
 
+    if (!this.#motionsEnabled) return
     const nextIndex = this.#phaseIndex + 1
     if (nextIndex < this.#phases.length) {
       this.#startPhase(port, nextIndex)
@@ -455,10 +467,11 @@ class HandsBehavior extends Behavior {
     }
     port.stop()
     this.#applyFrameInstantly(port, first)
-    if (this.#phases.length > 0) this.#startPhase(port, 0)
+    if (this.#motionsEnabled && this.#phases.length > 0) this.#startPhase(port, 0)
   }
 
   #startPhase(port: PiuPort, index: number): void {
+    if (!this.#motionsEnabled) return
     const phase = this.#phases[index]
     if (!phase) return
     port.stop()

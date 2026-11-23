@@ -137,3 +137,16 @@ test('CommonView mutates drawer items incrementally after batch creation', () =>
     assert.doesNotMatch(blocks[0], /replaceDrawer\(/, `${methodName} should not rebuild the Drawer`)
   }
 })
+
+test('pure UI state and screen models do not import piu/MC or timer', () => {
+  const pureUiModels = [
+    'host/modules/ui/application/screen-coordinator.ts',
+    'host/modules/ui/state/avatar-expression.ts',
+  ]
+
+  for (const file of pureUiModels) {
+    const source = readFileSync(file, 'utf8')
+    assert.doesNotMatch(source, /from\s+['"]piu\/MC['"]/, `${file} should not import piu/MC`)
+    assert.doesNotMatch(source, /from\s+['"]timer['"]/, `${file} should not import timer`)
+  }
+})

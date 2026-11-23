@@ -4,6 +4,7 @@ import { createFaceSkinPalette } from 'face-skin'
 import { createFaceState, Emotion, type FaceState, setColorRGB } from 'face-state'
 import { Eye } from 'parts/eye'
 import { eyeOpenToVariant, IRIS_SPRITE } from 'parts/image/atlas'
+import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import { Content, type Content as PiuContent } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
 
@@ -162,6 +163,31 @@ equal(imageLeftEyelid.variant, eyeOpenToVariant(0), 'ImageFace eyelid should swi
 assert(imageLeftIris.coordinates, 'ImageFace iris should update coordinates for gaze')
 equal(imageLeftIris.coordinates?.left, IRIS_SPRITE.baseLeft + IRIS_SPRITE.maxOffset)
 equal(imageLeftIris.coordinates?.top, IRIS_SPRITE.baseTop - IRIS_SPRITE.maxOffset)
+
+const imageAvatar = new ImageAvatarFace({ motions: [] })
+const avatarHead = imageAvatar.first
+const avatarMouth = imageAvatar.last
+if (!avatarHead || !avatarMouth) throw new Error('Image avatar should have a head and mouth')
+const neutralAvatar = createFaceState()
+imageAvatar.distribute('onFaceState', neutralAvatar)
+const neutralHeadSkin = avatarHead.skin
+const neutralMouthSkin = avatarMouth.skin
+assert(neutralHeadSkin && neutralMouthSkin, 'Image avatar should render its neutral head and mouth')
+
+const happyAvatar = createFaceState()
+happyAvatar.emotion = Emotion.HAPPY
+imageAvatar.distribute('onFaceState', happyAvatar)
+assertChanged(neutralHeadSkin, avatarHead.skin, 'Image avatar should render the happy head skin')
+assertChanged(neutralMouthSkin, avatarMouth.skin, 'Image avatar should render the happy mouth skin')
+
+imageAvatar.distribute('onFaceState', neutralAvatar)
+equal(avatarHead.skin, neutralHeadSkin, 'Returning to neutral should reuse the head skin')
+equal(avatarMouth.skin, neutralMouthSkin, 'Returning to neutral should reuse the mouth skin')
+const closedMouthVariant = avatarMouth.variant
+neutralAvatar.mouth.open = 1
+imageAvatar.distribute('onFaceState', neutralAvatar)
+assertChanged(closedMouthVariant, avatarMouth.variant, 'Opening the image avatar mouth should change the sprite frame')
+equal(avatarMouth.skin, neutralMouthSkin, 'Changing sprite frames should keep the current mouth skin')
 
 const breathRecorder = new Content(null, {
   left: 0,

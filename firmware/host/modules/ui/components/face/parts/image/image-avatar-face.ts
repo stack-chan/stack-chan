@@ -9,6 +9,7 @@ import {
   type ImageAvatarStaticSprite,
 } from 'parts/image/image-avatar-pack'
 import { frameIndexForRatio, resolveExpressionName } from 'parts/image/image-avatar-state'
+import { rememberCachedValue } from 'parts/shape-cache'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
 type PositionedContent = PiuContent & {
@@ -43,17 +44,31 @@ type AnimatedSpriteContentParams = SpriteContentParams & {
   initialRatio: number
 }
 
-function createStaticSkin(sprite: ImageAvatarStaticSprite): PiuSkin {
+const STATIC_SKIN_CACHE_LIMIT = 64
+const ANIMATED_SKIN_CACHE_LIMIT = 64
+
+let staticSkinCache: Map<string, PiuSkin> | null = null
+let animatedSkinCache: Map<string, PiuSkin> | null = null
+
+function getStaticSkin(sprite: ImageAvatarStaticSprite): PiuSkin {
+  staticSkinCache ??= new Map()
+  const key = `${sprite.texture}:${sprite.width}:${sprite.height}:${sprite.color ?? ''}`
+  const cached = staticSkinCache.get(key)
+  if (cached) return cached
   const dictionary: { texture: { path: string }; width: number; height: number; color?: string } = {
     texture: { path: sprite.texture },
     width: sprite.width,
     height: sprite.height,
   }
   if (sprite.color !== undefined) dictionary.color = sprite.color
-  return new Skin(dictionary)
+  return rememberCachedValue(staticSkinCache, key, new Skin(dictionary), STATIC_SKIN_CACHE_LIMIT)
 }
 
-function createAnimatedSkin(source: AnimatedSpriteSource, frames: ImageAvatarSpriteSheet): PiuSkin {
+function getAnimatedSkin(source: AnimatedSpriteSource, frames: ImageAvatarSpriteSheet): PiuSkin {
+  animatedSkinCache ??= new Map()
+  const key = `${frames.texture}:${frames.frameWidth}:${frames.frameHeight}:${source.color ?? ''}`
+  const cached = animatedSkinCache.get(key)
+  if (cached) return cached
   const dictionary: {
     texture: { path: string }
     width: number
@@ -69,7 +84,7 @@ function createAnimatedSkin(source: AnimatedSpriteSource, frames: ImageAvatarSpr
     states: frames.frameHeight,
   }
   if (source.color !== undefined) dictionary.color = source.color
-  return new Skin(dictionary)
+  return rememberCachedValue(animatedSkinCache, key, new Skin(dictionary), ANIMATED_SKIN_CACHE_LIMIT)
 }
 
 const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) => {
@@ -79,7 +94,7 @@ const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) 
     top: initial.y,
     width: initial.width,
     height: initial.height,
-    skin: createStaticSkin(initial),
+    skin: getStaticSkin(initial),
     Behavior: class extends Behavior {
       lastExpression = opts.pack.defaultExpression
       onFaceState(content: PositionedContent, face: FaceState) {
@@ -88,7 +103,10 @@ const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) 
         this.lastExpression = expression
         const sprite = opts.resolveSprite(opts.pack, expression)
         content.coordinates = { left: sprite.x, top: sprite.y, width: sprite.width, height: sprite.height }
-        content.skin = createStaticSkin(sprite)
+        const skin = getStaticSkin(sprite)
+        if (content.skin !== skin) {
+          content.skin = skin
+        }
       }
     },
   }
@@ -104,7 +122,7 @@ const AnimatedSprite = Content.template((opts: AnimatedSpriteContentParams) => {
     top: initialSource.y,
     width: initialFrames.frameWidth,
     height: initialFrames.frameHeight,
-    skin: createAnimatedSkin(initialSource, initialFrames),
+    skin: getAnimatedSkin(initialSource, initialFrames),
     variant: initialVariant,
     Behavior: class extends Behavior {
       lastColor = initialSource.color
@@ -155,7 +173,7 @@ const AnimatedSprite = Content.template((opts: AnimatedSpriteContentParams) => {
           content.coordinates = { left: source.x, top: source.y, width: frames.frameWidth, height: frames.frameHeight }
         }
         if (skinChanged) {
-          content.skin = createAnimatedSkin(source, frames)
+          content.skin = getAnimatedSkin(source, frames)
         }
       }
     },

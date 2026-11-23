@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { registerHooks } from 'node:module'
 import test from 'node:test'
+import { Emotion } from '../../../host/modules/ui/state/face-state.ts'
 import { createWakeConversation } from '../../../host/modules/voice/wake-conversation.ts'
 
 const scopeKey = '__openaiLiveWakeFixture'
@@ -19,6 +20,9 @@ const exportsBySpecifier = new Map([
       'export const VoiceScope = { create: () => ({ signal: {}, abort() {} }) }; export const ConversationPipeline = { create: (options) => globalThis.FIXTURE.createPipeline(options) };',
     ),
   ],
+  ['face-state', new URL('../../../host/modules/ui/state/face-state.ts', import.meta.url).href],
+  ['stackchan-util', fromFixture('export const wait = (ms) => globalThis.FIXTURE.wait(ms)')],
+  ['openai-live-decisions-reactions', new URL('./decisions-reactions.js', import.meta.url).href],
   ['openai-live-session', new URL('./session.js', import.meta.url).href],
   ['openai-live-wake-audio', new URL('./wake-audio.js', import.meta.url).href],
 ])
@@ -33,6 +37,8 @@ const names = { wake: 'openai-live:wake', session: 'openai-live:session', mute: 
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 let nextId = 0
 async function fixture({
+  decisionsReactions = false,
+  wait = () => Promise.resolve(),
   hasDetector = true,
   apiKey = 'test-only',
   pendingNetwork,
@@ -42,7 +48,9 @@ async function fixture({
   const events = [],
     buttons = new Map(),
     states = new Map(),
-    balloons = []
+    balloons = [],
+    emotions = [],
+    motion = []
   const format = { encoding: 'pcm_s16le', sampleRate: 16000, channels: 1 }
   let owner, read, readError, conversation
   const modules = new Map([
@@ -65,7 +73,7 @@ async function fixture({
         },
       },
     ],
-    ['mod/config', { openaiLive: { apiKey } }],
+    ['mod/config', { openaiLive: { apiKey, decisionsReactions } }],
     ['stackchan/voice/wake-conversation', { createWakeConversation }],
     [
       'stackchan/voice/media',
@@ -116,6 +124,7 @@ async function fixture({
   }
   globalThis[scopeKey] = {
     modules,
+    wait,
     createPipeline(options) {
       assert.equal(owner, undefined, 'local detector must release before conversation dispatch')
       assert.deepEqual(Object.keys(options).sort(), ['conversation', 'mediaBudget', 'microphone', 'speaker'])
@@ -138,6 +147,18 @@ async function fixture({
   globalThis.trace = () => {}
   const mod = await import(`./mod.js?test=${++nextId}`)
   mod.onContextCreated({
+    face: { setEmotion: (emotion) => emotions.push(emotion) },
+    motion: {
+      pose: { body: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } } },
+      async withTemporaryTorque(move) {
+        motion.push('torque on')
+        try {
+          await move((pose) => motion.push(pose))
+        } finally {
+          motion.push('torque off')
+        }
+      },
+    },
     audio: { microphone: { runtime }, speaker: { runtime } },
     connectivity: { network: { ready: pendingNetwork ?? Promise.resolve({ status: 'connected' }) } },
     ui: {
@@ -160,6 +181,9 @@ async function fixture({
     states,
     buttons,
     balloons,
+    emotions,
+    motion,
+    conversation: () => conversation,
     fire: (name) => buttons.get(names[name]).callback(),
     wake: () => read(new Uint8Array([1, 0])),
     fault: () => readError(new Error('detector fault')),
@@ -242,6 +266,120 @@ test('wake-initiated pending network can be stopped without waiting or reconnect
   assert.equal(f.states.get(names.wake), false)
   assert.ok(!f.events.includes('conversation created'))
   await f.shutdown()
+})
+
+const inputTranscript = 'session.input_transcript.delta'
+const outputTranscript = 'session.output_transcript.delta'
+
+function transcript(conversation, type, id, end) {
+  conversation.onEvent({ type, event_id: id, delta: 'test', start_ms: end - 100, end_ms: end })
+}
+
+function decision(conversation, type, id, { expression, gesture, delegation = null }) {
+  const answers = [
+    { type: 'choice', name: 'expression', choice: expression },
+    { type: 'choice', name: 'gesture', choice: gesture },
+  ]
+  conversation.onEvent({
+    type: 'decision.event',
+    delegation_id: delegation,
+    trigger_id: 'trigger',
+    source_event_type: type,
+    source_event_id: id,
+    event: { type: 'decision.completed', decision: { answers } },
+  })
+}
+
+test('Decisions opt-in adds transcript triggers alongside Responses delegation', async () => {
+  for (const decisionsReactions of [false, true]) {
+    const f = await fixture({ decisionsReactions })
+    f.fire('session')
+    await settle()
+    const conversation = f.conversation()
+    assert.equal(conversation.delegation.kind, 'hosted')
+    assert.equal(conversation.delegation.model, 'gpt-6-luna')
+    if (decisionsReactions)
+      assert.deepEqual(
+        conversation.triggers.map(({ type, event_type }) => [type, event_type]),
+        [
+          ['decisions', inputTranscript],
+          ['decisions', outputTranscript],
+        ],
+      )
+    else {
+      assert.equal(conversation.triggers, undefined)
+      assert.equal(conversation.onEvent, undefined)
+    }
+    await f.shutdown()
+  }
+})
+
+test('reactions use matched Decisions results and ignore stale, duplicate and closed-session events', async () => {
+  const f = await fixture({ decisionsReactions: true })
+  f.fire('session')
+  await settle()
+  const conversation = f.conversation()
+  transcript(conversation, inputTranscript, 'recent', 400)
+  transcript(conversation, inputTranscript, 'older', 200)
+  decision(conversation, outputTranscript, 'recent', { expression: 'sad' })
+  decision(conversation, inputTranscript, 'unknown', { expression: 'sad' })
+  decision(conversation, inputTranscript, 'recent', { expression: 'sad', delegation: 'other' })
+  decision(conversation, inputTranscript, 'recent', { expression: 'constructor', gesture: 'shake' })
+  assert.deepEqual(f.emotions, [])
+  decision(conversation, inputTranscript, 'recent', { expression: 'happy' })
+  decision(conversation, inputTranscript, 'older', { expression: 'sad', gesture: 'nod' })
+  decision(conversation, inputTranscript, 'recent', { expression: 'sad', gesture: 'nod' })
+  assert.deepEqual(f.emotions, [Emotion.HAPPY])
+  assert.deepEqual(f.motion, [])
+  transcript(conversation, outputTranscript, 'reply', 500)
+  transcript(conversation, inputTranscript, 'new-input', 520)
+  transcript(conversation, outputTranscript, 'next-reply', 540)
+  conversation.onEvent(null)
+  decision(conversation, inputTranscript, 'new-input', { expression: 'sad' })
+  decision(conversation, outputTranscript, 'reply', { expression: 'concerned' })
+  assert.deepEqual(f.emotions, [Emotion.HAPPY, Emotion.DOUBTFUL])
+  await f.shutdown()
+  transcript(conversation, outputTranscript, 'late', 600)
+  decision(conversation, outputTranscript, 'late', { expression: 'happy', gesture: 'nod' })
+  assert.deepEqual(f.emotions, [Emotion.HAPPY, Emotion.DOUBTFUL, Emotion.NEUTRAL])
+  assert.deepEqual(f.motion, [])
+})
+
+test('a nod returns to the original pose and releases torque when the session stops', async () => {
+  let releaseStep
+  const f = await fixture({
+    decisionsReactions: true,
+    wait: () =>
+      releaseStep === undefined
+        ? new Promise((resolve) => {
+            releaseStep = resolve
+          })
+        : Promise.resolve(),
+  })
+  f.fire('session')
+  await settle()
+  const conversation = f.conversation()
+  transcript(conversation, inputTranscript, 'first', 100)
+  decision(conversation, inputTranscript, 'first', { gesture: 'nod' })
+  await settle()
+  assert.equal(f.motion[0], 'torque on')
+  assert.equal(f.motion.length, 2)
+  assert.ok(f.motion[1].rotation.p > 0)
+  transcript(conversation, outputTranscript, 'second', 200)
+  decision(conversation, outputTranscript, 'second', { gesture: 'nod' })
+  let closed = false
+  const closing = f.shutdown().then(() => {
+    closed = true
+  })
+  await settle()
+  assert.equal(closed, false)
+  assert.equal(f.motion.length, 2)
+  releaseStep()
+  await closing
+  assert.deepEqual(f.motion.slice(2), [
+    { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } },
+    'torque off',
+  ])
 })
 
 test('a runtime detector fault disarms, then manual start remains available after positive release', async () => {

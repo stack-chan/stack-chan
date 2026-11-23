@@ -190,7 +190,7 @@ export default class {
 
   #fillQueue() {
     const readBuffer = this.#readBuffer
-    if (!readBuffer || !this.#sourceReady || this.#seekRejected) return
+    if (!readBuffer || !this.#sourceReady || this.#seekRejected || this.#info.done === 2) return
     if (this.#synchronizing && this.#doneError) {
       this.#consumeReadBuffer(this.#readLength)
       this.#input.advanceRead(this.#input.readableBytes)

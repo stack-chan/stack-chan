@@ -460,6 +460,8 @@ async function runTests() {
     core.end('connection reset')
     core.pump()
     equal(outcomes.join(), 'connection reset', 'network errors before synchronization never retry the range')
+    core.pump()
+    equal(outcomes.join(), 'connection reset', 'pumping again after the error must not request an exact fallback')
     core.close()
   }
   for (const estimated of [false, true]) {

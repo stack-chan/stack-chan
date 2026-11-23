@@ -11,6 +11,7 @@ import type {
   MediaStartOptions,
   MediaState,
 } from 'capabilities'
+import type { CBRSeekInfo } from 'mp3streamer'
 import type { Speaker } from 'stackchan/voice/contracts'
 import { mono } from 'stackchan/voice/media'
 import { createVoiceScope, deferred, requireActive } from 'stackchan/voice/scope'
@@ -33,6 +34,7 @@ const BACKOFF_SECONDS = [1, 2, 4, 8, 16, 30] as const
 const STALL_TIMEOUT_MS = 10_000
 const DECODED_PCM_SAMPLE_RATE = 44100
 const OUTPUT_PCM_SAMPLE_RATE = 24000
+type SeekPoint = { offset: number; seconds: number; estimated?: boolean; synchronize?: boolean; cbr?: CBRSeekInfo }
 
 function checkedVolume(volume: number): number {
   if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw new Error('Volume must be between 0 and 1')
@@ -50,6 +52,10 @@ function validateOptions(options: MediaStartOptions): void {
   if (url.username || url.password) throw new Error('URL credentials are not supported')
   if (options.mode !== 'live' && options.mode !== 'finite') throw new Error('Invalid media mode')
   if (options.mode === 'finite' && options.reconnect) throw new Error('Finite playback cannot reconnect')
+  if (options.seekAccuracy !== undefined) {
+    if (options.mode !== 'finite') throw new Error('Seek accuracy requires finite playback')
+    if (!['exact', 'approximate'].includes(options.seekAccuracy)) throw new Error('Invalid seek accuracy')
+  }
   if (options.duration !== undefined && (!Number.isFinite(options.duration) || options.duration <= 0))
     throw new Error('Invalid duration')
   if (options.volume !== undefined) checkedVolume(options.volume)
@@ -85,6 +91,10 @@ class StreamSession {
   #points: { offset: number; seconds: number }[] = []
   #pointSpacing = 5
   #source: { url: string; totalBytes?: number; validator?: string } | undefined
+  #seekInfo?: CBRSeekInfo
+  #seekRejected = false
+  #positionEstimated = false
+  #approximatePoints: SeekPoint[] = []
 
   get progress(): MediaProgress {
     const position = this.#session ? this.#base + this.#session.audio.playedSeconds : this.#position
@@ -92,6 +102,7 @@ class StreamSession {
       position: this.#duration ? Math.min(position, this.#duration) : position,
       duration: this.#duration,
       estimated: this.#estimated,
+      ...(this.#positionEstimated ? { positionEstimated: true } : {}),
       seekable: this.#options?.mode === 'finite' && !!this.#duration,
     }
   }
@@ -132,6 +143,8 @@ class StreamSession {
     this.#clearTimers()
     const closing = this.#closeSession()
     this.#position = this.#duration ? Math.min(seconds, this.#duration) : seconds
+    this.#positionEstimated = false
+    this.#approximatePoints = []
     this.#base = this.#position
     this.#emitProgress()
     await closing
@@ -172,6 +185,9 @@ class StreamSession {
     this.#points = []
     this.#pointSpacing = 5
     this.#source = undefined
+    this.#seekInfo = undefined
+    this.#seekRejected = this.#positionEstimated = false
+    this.#approximatePoints = []
     this.#emitProgress()
     this.#setState('idle')
     this.#options = undefined
@@ -190,28 +206,63 @@ class StreamSession {
   }
 
   /** Start a new radio playback generation using the URL-appropriate HTTP provider. */
-  #openSession(): Promise<void> {
-    const task = this.#connect()
+  #openSession(allowApproximate = true): Promise<void> {
+    const task = this.#connect(allowApproximate)
     this.#opening = task
     return task
   }
 
-  async #connect(): Promise<void> {
+  async #connect(allowApproximate: boolean): Promise<void> {
     const options = this.#options
     if (this.#stopped || !options) return
     const url = new URL(options.url)
-    let point = { offset: 0, seconds: 0 }
+    let point: SeekPoint = { offset: 0, seconds: 0 }
     if (this.#source?.validator) {
-      for (const candidate of this.#points) {
-        if (candidate.seconds > Math.max(0, this.#position - 1)) break
-        point = candidate
+      const limit = Math.max(0, this.#position - 1)
+      if (this.#positionEstimated) {
+        for (const candidate of this.#approximatePoints) {
+          if (candidate.seconds > limit) break
+          point = candidate
+        }
+      }
+      if (!point.estimated) {
+        for (const candidate of this.#points) {
+          if (candidate.seconds > limit) break
+          point = candidate
+        }
+      }
+      if (
+        allowApproximate &&
+        !point.estimated &&
+        options.seekAccuracy === 'approximate' &&
+        !this.#seekRejected &&
+        this.#seekInfo &&
+        this.#position - point.seconds > 5
+      ) {
+        const cbr = this.#seekInfo
+        const offset = cbr.offset + Math.floor((Math.max(0, this.#position - 2) * cbr.bitRate) / 8)
+        const maxFrameBytes = Math.ceil((1152 * cbr.bitRate) / (8 * cbr.sampleRate)) + 4
+        if (this.#source.totalBytes !== undefined && offset + 3 * maxFrameBytes <= this.#source.totalBytes) {
+          point = {
+            offset,
+            seconds: ((offset - cbr.offset) * 8) / cbr.bitRate,
+            estimated: true,
+            synchronize: true,
+            cbr,
+          }
+          // Separate jumps have independent estimated clocks.
+          this.#approximatePoints = []
+        }
       }
     } else {
       // A later response may introduce a validator for replacement content.
       // Its checkpoints must not be mixed with positions from unverified bytes.
       this.#points = []
       this.#pointSpacing = 5
+      this.#approximatePoints = []
     }
+    if (point.offset && !point.cbr && this.#seekInfo) point = { ...point, cbr: this.#seekInfo }
+    this.#positionEstimated = !!point.estimated
     this.#base = this.#position
     const generation = ++this.#generation
     this.#hasPlayed = false
@@ -253,10 +304,20 @@ class StreamSession {
         source: this.#source,
         onSource: (source, reset) => {
           if (!this.#isCurrent(generation)) return
+          if (source.validator !== this.#source?.validator) {
+            this.#seekInfo = undefined
+            this.#seekRejected = false
+          }
           this.#source = source
           if (reset) {
             this.#points = []
             this.#pointSpacing = 5
+            this.#approximatePoints = []
+            const wasEstimated = this.#positionEstimated
+            this.#positionEstimated = false
+            this.#seekInfo = undefined
+            if (wasEstimated) this.#emitProgress()
+            if (!this.#isCurrent(generation)) return
           }
           if (this.#networkRetrying) {
             this.#networkRetrying = false
@@ -266,26 +327,58 @@ class StreamSession {
         },
         onCheckpoint: (point) => {
           if (!this.#isCurrent(generation)) return
-          const last = this.#points[this.#points.length - 1]
-          if (last && point.seconds < last.seconds + this.#pointSpacing) return
-          if (this.#points.length >= 512) {
-            this.#points = this.#points.filter((_point, index) => index % 2 === 0)
-            this.#pointSpacing *= 2
+          const points = point.estimated ? this.#approximatePoints : this.#points
+          const last = points[points.length - 1]
+          const spacing = point.estimated ? 5 : this.#pointSpacing
+          if (last && point.seconds < last.seconds + spacing) return
+          if (this.#points.length + this.#approximatePoints.length >= 512) {
+            if (this.#approximatePoints.length) this.#approximatePoints.shift()
+            else if (point.estimated) return
+            else {
+              this.#points = this.#points.filter((_point, index) => index % 2 === 0)
+              this.#pointSpacing *= 2
+            }
           }
-          this.#points.push(point)
+          if (point.estimated) this.#approximatePoints.push(point)
+          else this.#points.push(point)
+        },
+        onSeekInfo: (info) => {
+          if (!this.#isCurrent(generation)) return
+          if (!info) this.#seekRejected = true
+          this.#seekInfo = !this.#seekRejected && info ? info : undefined
+        },
+        onSeekInvalid: (reason) => {
+          if (!this.#isCurrent(generation)) return
+          if (reason !== 'short-tail') {
+            this.#seekRejected = true
+            this.#seekInfo = undefined
+          }
+          this.#positionEstimated = false
+          this.#approximatePoints = []
+          const retryGeneration = ++this.#generation
+          this.#clearTimers()
+          const closing = this.#closeSession()
+          this.#emitProgress()
+          void closing
+            .then(() => {
+              if (this.#isCurrent(retryGeneration)) return this.#openSession(false)
+            })
+            .catch(() => {})
         },
         onMetadata: (metadata) => {
           if (!this.#isCurrent(generation)) return
           if (!metadata.duration && this.#duration && !this.#estimated) return
+          if (this.#positionEstimated && metadata.estimated && this.#duration && !this.#estimated) return
           this.#duration = metadata.estimated
             ? (options.duration ?? metadata.duration)
             : (metadata.duration ?? options.duration)
           this.#estimated = metadata.estimated || (!metadata.duration && !!options.duration)
           this.#emitProgress()
         },
-        onOutputStart: (seconds) => {
+        onOutputStart: (seconds, estimated) => {
           if (!this.#isCurrent(generation)) return
           this.#base = seconds
+          this.#positionEstimated = !!estimated
           this.#emitProgress()
         },
         audio: { out: audio, stream: 0, sampleRate: DECODED_PCM_SAMPLE_RATE },
@@ -521,7 +614,11 @@ export default class MediaPlayer implements MediaCapability {
     const settings = { ...options, ...createVoiceScope() }
     if (options.mode === 'live')
       await this.open({ mode: 'live', url: options.url, reconnect: options.reconnect }, settings)
-    else await this.open({ mode: 'finite', url: options.url, duration: options.duration }, settings)
+    else
+      await this.open(
+        { mode: 'finite', url: options.url, duration: options.duration, seekAccuracy: options.seekAccuracy },
+        settings,
+      )
   }
   pause() {
     return this.#current?.pause()

@@ -1,0 +1,8 @@
+{
+  "resources": {
+    "*-alpha-monochrome": [
+      "./assets/hands-outer-mask",
+      "./assets/hands-inner-mask"
+    ]
+  }
+}

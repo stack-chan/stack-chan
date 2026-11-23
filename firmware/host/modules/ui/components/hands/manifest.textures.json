@@ -1,0 +1,24 @@
+{
+  "platforms": {
+    "esp32": {
+      "include": ["./manifest.textures.monochrome.json"]
+    },
+    "lin": {
+      "include": ["./manifest.textures.monochrome.json"]
+    },
+    "mac": {
+      "include": ["./manifest.textures.monochrome.json"]
+    },
+    "win": {
+      "include": ["./manifest.textures.monochrome.json"]
+    },
+    "wasm": {
+      "include": ["./manifest.textures.monochrome.json"]
+    },
+    "esp32/m5stack": {
+      "resources": {
+        "*-mask": ["./assets/hands-outer-mask", "./assets/hands-inner-mask"]
+      }
+    }
+  }
+}

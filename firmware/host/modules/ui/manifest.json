@@ -10,6 +10,7 @@
     "../util/manifest.json",
     "./components/face/jitome/manifest.json",
     "./components/face/guruguru/manifest.json",
+    "./components/hands/manifest.textures.json",
     "$(MODDABLE)/modules/piu/MC/outline/manifestRoundRect.json",
     "./components/face/avatar-native/manifest.json"
   ],
@@ -56,10 +57,6 @@
   },
   "resources": {
     "*": ["./assets/images/faces/deal-with-it/deal-with-it-eyes"],
-    "*-alpha-monochrome": [
-      "./components/hands/assets/hands-outer-mask",
-      "./components/hands/assets/hands-inner-mask"
-    ],
     "*-mask": [
       "./assets/images/microphone",
       "./assets/images/indicator",

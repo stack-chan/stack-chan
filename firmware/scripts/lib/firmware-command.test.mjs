@@ -481,6 +481,12 @@ function createFirmwareWrapperFixture(deviceName = 'm5stackchan_cores3', mode = 
     path.join(firmwareDirectory, 'host/modules/realtime-conversation/esp32/manifest.json'),
     path.join(conversationDirectory, 'manifest.json'),
   )
+  for (const dependency of ['muse-gadget', 'voice', 'util']) {
+    const relativeDirectory = path.join('host/modules', dependency)
+    cpSync(path.join(firmwareDirectory, relativeDirectory), path.join(fixtureFirmware, relativeDirectory), {
+      recursive: true,
+    })
+  }
   const solutionDirectory = path.join(root, 'webrtc-solution')
   for (const component of webRtcComponents) {
     const directory = path.join(solutionDirectory, 'components', component)

@@ -11,9 +11,11 @@ import type {
   WebRadioCapability,
   WebRadioStartOptions,
 } from 'capabilities'
+import { isNormalizedGain } from 'domain-values'
 import type Microphone from 'microphone'
 import type Speaker from 'speaker'
 import type { SpeakerSpeechPlayback, UtterancePlayback } from 'speech-playback-types'
+import { AudioArbiter, AudioArbiterState, type AudioRole } from 'stackchan/voice/audio-arbiter'
 import type { AudioLevel, Speaker as VoiceSpeaker } from 'stackchan/voice/contracts'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
 import { DEFAULT_VOLUME, MAX_MEDIA_VOLUME } from 'volume-model'
@@ -81,7 +83,7 @@ export class StackchanRuntimeAudio {
   #closed = false
   #volume: number | undefined
   #onVolumeChanged: RuntimeAudioConstructorParam['onVolumeChanged']
-  #exclusive = false
+  #arbiter = new AudioArbiter()
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
     this.#options = options
@@ -100,7 +102,7 @@ export class StackchanRuntimeAudio {
   }
 
   set volume(volume: number) {
-    if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw new Error('Volume must be between 0 and 1')
+    if (!isNormalizedGain(volume)) throw new Error('Volume must be between 0 and 1')
     if (volume === this.#volume) return
     this.#onVolumeChanged?.(volume)
     this.#volume = volume
@@ -115,7 +117,7 @@ export class StackchanRuntimeAudio {
   }
 
   get #unavailable() {
-    return this.#closed || this.#exclusive || this.#utterance !== undefined
+    return this.#closed || this.#arbiter.state !== AudioArbiterState.Free || this.#utterance !== undefined
   }
 
   get #busy() {
@@ -135,19 +137,21 @@ export class StackchanRuntimeAudio {
   ): (() => void) | Promise<() => void> {
     if (
       this.#closed ||
-      this.#exclusive ||
+      this.#arbiter.state !== AudioArbiterState.Free ||
       this.#activeOperations ||
       this.#microphone?.recording ||
       (this.#utterance && (kind === 'conversation' || interruptible))
     )
       throw new Error('audio busy')
     if (interruptible) return noop
-    this.#exclusive = true
+    const role: AudioRole = kind === 'conversation' ? 'realtime-conversation' : 'short-utterance'
+    if (this.#arbiter.tryAcquire(role) !== 'allow') throw new Error('audio busy')
     let released = false
     const release = () => {
       if (released) return
       released = true
-      this.#exclusive = false
+      this.#arbiter.beginRelease(role)
+      this.#arbiter.confirmRelease(role)
     }
     try {
       const stopping = this.#stopMedia()
@@ -376,7 +380,7 @@ export class StackchanRuntimeAudio {
 
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
     if (this.#unavailable) throw new Error('audio busy')
-    if (volume !== undefined && (volume < 0 || volume > 1)) {
+    if (volume !== undefined && !isNormalizedGain(volume)) {
       throw new Error('Volume must be between 0 and 1')
     }
     this.#activeOperations += 1

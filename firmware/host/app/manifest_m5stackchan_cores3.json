@@ -9,6 +9,7 @@
     "mod-installer": "./mod-installer",
     "mod-manager": "./mod-manager",
     "jpeg-scaled-decoder": "../modules/image/jpeg-scaled-decoder",
+    "stackchan/realtime-qos-adapter": "../platforms/m5stackchan_cores3/realtime-qos-adapter",
     "*": [
       "$(IDF_PATH)/components/esp_http_client/include/esp_http_client.h",
       "$(IDF_PATH)/components/mbedtls/esp_crt_bundle/include/esp_crt_bundle.h",

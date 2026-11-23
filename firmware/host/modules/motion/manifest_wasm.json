@@ -5,6 +5,7 @@
   ],
   "modules": {
     "motion-controller": "./motion-controller",
+    "gaze-tracking-state": "./internal/gaze-tracking-state",
     "wasm-driver": "./wasm/wasm-driver",
     "dynamixel-driver": "./wasm/dynamixel-driver",
     "m5stackchan-servo-driver": "./wasm/m5stackchan-servo-driver",

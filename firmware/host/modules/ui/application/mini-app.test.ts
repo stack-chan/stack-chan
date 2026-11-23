@@ -52,39 +52,3 @@ test('registry snapshots metadata without exposing the create callback', () => {
   assert.equal(Object.isFrozen(listed), true)
   assert.equal('create' in listed, false)
 })
-
-test('MiniAppRegistry validates, deduplicates, and freezes declared permissions', () => {
-  const registry = new MiniAppRegistry()
-  registry.register({
-    id: 'beep-app',
-    title: 'Beep',
-    permissions: ['audio.tone', 'audio.tone', 'input.buttons'],
-    create: () => content,
-  })
-
-  const definition = registry.get('beep-app')
-  assert.deepEqual(definition?.permissions, ['audio.tone', 'input.buttons'])
-  assert.equal(Object.isFrozen(definition?.permissions), true)
-  assert.deepEqual(registry.list()[0].permissions, ['audio.tone', 'input.buttons'])
-
-  assert.throws(
-    () =>
-      registry.register({
-        id: 'bad-perm',
-        title: 'Bad',
-        permissions: ['audio.tone', 'network.raw' as never],
-        create: () => content,
-      }),
-    /unknown mini app permission/,
-  )
-  assert.throws(
-    () =>
-      registry.register({
-        id: 'non-array-perm',
-        title: 'Bad2',
-        permissions: 'audio.tone' as never,
-        create: () => content,
-      }),
-    /mini app permissions must be an array/,
-  )
-})

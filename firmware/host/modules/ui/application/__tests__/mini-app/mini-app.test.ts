@@ -131,4 +131,33 @@ assert(!controller.launchMiniApp('missing'), 'unknown mini app ids should be rej
 assert(viewBehavior.main !== viewBehavior.faceMain, 'an unknown id should leave the launcher visible')
 equal(title.string, 'ミニアプリ', 'an unknown id should preserve the launcher AppBar')
 
+let customScreenClosed = 0
+let customBehaviorDisposed = 0
+const customScreen = new Container(null, {
+  Behavior: class extends Behavior {
+    onDispose() {
+      customBehaviorDisposed += 1
+    }
+  },
+})
+const closeCustomScreen = controller.setMain(customScreen, {
+  onClose() {
+    customScreenClosed += 1
+  },
+})
+assert(viewBehavior.main === customScreen, 'setMain should display the custom main screen')
+closeCustomScreen()
+closeCustomScreen()
+equal(viewBehavior.main, viewBehavior.faceMain, 'setMain cleanup handle should restore the face')
+equal(customScreenClosed, 1, 'setMain onClose should run once when closed via handle')
+equal(customBehaviorDisposed, 1, 'setMain content onDispose should run once when closed via handle')
+
+let replacedScreenClosed = 0
+controller.setMain(new Container(), () => {
+  replacedScreenClosed += 1
+})
+controller.showMiniAppLauncher()
+equal(replacedScreenClosed, 1, 'opening the mini-app launcher should notify the displaced main screen')
+controller.showFace()
+
 trace('@@STACKCHAN_TEST:PASS@@\n')

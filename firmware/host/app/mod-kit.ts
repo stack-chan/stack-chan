@@ -1,7 +1,12 @@
 import type { StackchanAppBehavior, StackchanAppBehaviorOption } from 'app-behavior'
 import type { StackchanContext } from 'capabilities'
-import { type CloseHandler, OwnedResources } from 'owned-resources'
+import type { CloseHandler } from 'owned-resources'
 import { type AsyncResult, isErr, type Result } from 'stackchan-result'
+
+export type { StackchanAppBehavior, StackchanAppBehaviorOption } from 'app-behavior'
+export type ModCloseHandler = CloseHandler
+export type ModBehavior = StackchanAppBehavior
+export type ModBehaviorOption = StackchanAppBehaviorOption
 
 export type ModScope = Readonly<{
   own(cleanup: CloseHandler): void
@@ -35,18 +40,43 @@ export function defineMod(spec: ModDefinition): StackchanAppBehavior {
     onContextCreated(context, option) {
       const handlers: CloseHandler[] = []
       let closing: Promise<void> | undefined
+      let closingStarted = false
+      let drainActive = false
+
+      const drainRemainingAsync = async (initialError?: unknown): Promise<void> => {
+        let firstError = initialError
+        let hasError = initialError !== undefined
+        try {
+          while (handlers.length > 0) {
+            const handler = handlers.shift()
+            if (!handler) continue
+            try {
+              await handler()
+            } catch (error) {
+              if (!hasError) {
+                firstError = error
+                hasError = true
+              }
+            }
+          }
+        } finally {
+          drainActive = false
+        }
+        if (hasError) throw firstError
+      }
 
       const close = (): Promise<void> => {
         if (!closing) {
-          const snapshot = handlers.splice(0, handlers.length)
-          closing = new OwnedResources(snapshot).close()
+          closingStarted = true
+          drainActive = true
+          closing = drainRemainingAsync()
         }
         return closing
       }
 
       const scope: ModScope = {
         own(cleanup) {
-          if (closing) {
+          if (closingStarted && !drainActive) {
             void Promise.resolve()
               .then(() => cleanup())
               .catch((error) => {
@@ -61,28 +91,32 @@ export function defineMod(spec: ModDefinition): StackchanAppBehavior {
       closeActive = close
       const rollbackAsync = async (error: unknown): Promise<never> => {
         if (closeActive === close) closeActive = undefined
-        await close()
+        try {
+          await close()
+        } catch {}
         throw error
       }
       const rollbackSync = (error: unknown): Promise<never> | never => {
         if (closeActive === close) closeActive = undefined
-        if (!closing) {
-          const snapshot = handlers.splice(0, handlers.length)
-          let index = 0
-          for (; index < snapshot.length; index += 1) {
+        if (!closingStarted) {
+          closingStarted = true
+          drainActive = true
+          while (handlers.length > 0) {
+            const handler = handlers.shift()
+            if (!handler) continue
             try {
-              const step = snapshot[index]()
+              const step = handler()
               if (isPromiseLike<void>(step)) {
-                const remaining = snapshot.slice(index + 1)
                 closing = Promise.resolve(step)
                   .catch(() => {})
-                  .then(() => new OwnedResources(remaining).close())
+                  .then(() => drainRemainingAsync().catch(() => {}))
                 return closing.then(() => {
                   throw error
                 })
               }
             } catch {}
           }
+          drainActive = false
           closing = Promise.resolve()
         }
         throw error

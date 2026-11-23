@@ -39,6 +39,43 @@ test('defineMod runs registered cleanups in LIFO order on onClose and is idempot
   assert.deepEqual(events, ['second', 'first'])
 })
 
+test('defineMod runs re-entrantly registered scope.own cleanups during normal onClose and synchronous rollback', async () => {
+  installAliases()
+  const { defineMod } = (await import('./mod-kit.js')) as ModKitModule
+  const closeEvents: string[] = []
+
+  const mod = defineMod({
+    setup(_context, _option, scope) {
+      scope.own(() => {
+        closeEvents.push('outer')
+        scope.own(() => {
+          closeEvents.push('inner')
+        })
+      })
+    },
+  })
+
+  await mod.onContextCreated?.({} as StackchanContext, { config: {} as never })
+  await mod.onClose?.()
+  assert.deepEqual(closeEvents, ['outer', 'inner'])
+
+  const rollbackEvents: string[] = []
+  const failingMod = defineMod({
+    setup(_context, _option, scope) {
+      scope.own(() => {
+        rollbackEvents.push('outer-rollback')
+        scope.own(() => {
+          rollbackEvents.push('inner-rollback')
+        })
+      })
+      throw new Error('sync failure')
+    },
+  })
+
+  assert.throws(() => failingMod.onContextCreated?.({} as StackchanContext, { config: {} as never }), /sync failure/)
+  assert.deepEqual(rollbackEvents, ['outer-rollback', 'inner-rollback'])
+})
+
 test('defineMod rolls back already-owned resources synchronously if setup throws synchronously', async () => {
   installAliases()
   const { defineMod } = (await import('./mod-kit.js')) as ModKitModule

@@ -10,12 +10,7 @@
     "stackchan-util": "./stackchan-util",
     "mac-address": "./sim/mac-address"
   },
-  "preload": [
-    "domain-values",
-    "stackchan-result",
-    "stackchan-util",
-    "mac-address"
-  ],
+  "preload": ["stackchan-util", "mac-address"],
   "platforms": {
     "esp32": {
       "modules": {

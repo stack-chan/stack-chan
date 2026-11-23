@@ -1,3 +1,4 @@
+import { isNormalizedGain } from 'domain-values'
 import type {
   CloseOptions,
   CloseResult,
@@ -141,7 +142,7 @@ export function createConversationPipeline(options: PipelineOptions): Conversati
       return result
     },
     setVolume(gain: number) {
-      if (!Number.isFinite(gain) || gain < 0 || gain > 1) throw new RangeError('volume')
+      if (!isNormalizedGain(gain)) throw new RangeError('volume')
       if (closeTask) throw voiceError('cancelled', 'pipeline is closed')
       volume = gain
       lease?.setVolume(gain)

@@ -5,13 +5,20 @@ import { fileURLToPath } from 'node:url'
 
 import type { BorrowedAudioBuffer } from '../../modules/audio/audio-buffer.js'
 import type { SpeechPlayback } from '../../modules/audio/speech-playback-types.js'
-import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
 
 type RuntimeAudioModule = typeof import('../runtime-audio.js')
 
 function installBareSpecifierPackages(): void {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+  writeAliasPackage(hostRoot, 'domain-values', resolve(hostRoot, 'modules/util/domain-values.js'))
   writeAliasPackage(hostRoot, 'stackchan-util', resolve(hostRoot, 'modules/util/stackchan-util.js'))
+  writeAliasPackageSubpath(
+    hostRoot,
+    'stackchan',
+    'voice/audio-arbiter',
+    resolve(hostRoot, 'modules/voice/audio-arbiter.js'),
+  )
   writeAliasPackage(hostRoot, 'volume-model', resolve(hostRoot, 'modules/preferences/volume-model.js'))
   writeAliasPackage(hostRoot, 'timer', resolve(hostRoot, 'modules/testing/fakes/timer.js'), { hasDefaultExport: true })
   writeAliasPackage(hostRoot, 'mac-address', resolve(hostRoot, 'modules/util/sim/mac-address.js'), {

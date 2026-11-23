@@ -10,6 +10,5 @@
   "modules": {
     "mcp-auth": "./mcp-auth",
     "mcp-server": "./mcp-server"
-  },
-  "preload": ["mcp-server"]
+  }
 }

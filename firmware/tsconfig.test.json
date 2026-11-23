@@ -90,6 +90,9 @@
       "motion-controller": [
         "./host/modules/motion/motion-controller.ts"
       ],
+      "gaze-tracking-state": [
+        "./host/modules/motion/internal/gaze-tracking-state.ts"
+      ],
       "microphone": [
         "./host/modules/testing/fakes/microphone-type.ts"
       ],
@@ -269,6 +272,9 @@
       ],
       "mod-kit": [
         "./host/app/mod-kit.ts"
+      ],
+      "realtime-qos": [
+        "./host/app/realtime-qos.ts"
       ],
       "owned-resources": [
         "./host/app/owned-resources.ts"

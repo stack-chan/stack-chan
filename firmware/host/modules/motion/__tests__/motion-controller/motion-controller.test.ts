@@ -141,6 +141,66 @@ async function testSupersededTorqueAcquisition(pose: Pose) {
   controller.close()
 }
 
+async function testCloseBeforeDriverReplacement() {
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+  const enabled = deferTorque(driver, true)
+  controller.lookAt([1, 2, 2])
+  const finishEnable = await enabled
+  controller.close()
+  const replacement = new FakeMotionDriver()
+  controller.useDriver(replacement)
+  finishEnable()
+  equal(driver.torqueStates.join(','), 'true,false', 'The detached driver must release its pending torque hold')
+  equal(replacement.torqueStates.length, 0, 'The detached driver completion must leave the replacement untouched')
+  equal(replacement.appliedRotation, null, 'The detached driver completion must not move the replacement')
+}
+
+async function testCloseBeforeTemporaryMotion() {
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+  const enabled = deferTorque(driver, true)
+  controller.lookAt([1, 2, 2])
+  const finishEnable = await enabled
+  controller.close()
+
+  let moves = 0
+  const move = async () => {
+    moves++
+  }
+  await withTemporaryTorque(controller, move)
+  equal(moves, 0, 'Temporary motion must wait for a closed gaze enable')
+
+  const released = deferTorque(driver, false)
+  finishEnable()
+  const finishRelease = await released
+  await withTemporaryTorque(controller, move)
+  equal(moves, 0, 'Temporary motion must wait for the gaze torque-off acknowledgment')
+  finishRelease()
+  await withTemporaryTorque(controller, move)
+  equal(moves, 1, 'Temporary motion can start after gaze releases torque')
+  equal(driver.torqueStates.join(','), 'true,false,true,false', 'Gaze and temporary motion have separate torque holds')
+}
+
+async function testCloseDuringGazeSettle() {
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+  controller.lookAt([1, 2, 2])
+
+  const released = deferTorque(driver, false)
+  controller.close()
+  const finishRelease = await released
+  let moves = 0
+  const move = async () => {
+    moves++
+  }
+  await withTemporaryTorque(controller, move)
+  equal(moves, 0, 'Temporary motion must wait for the torque-off sent while settling')
+  finishRelease()
+  await withTemporaryTorque(controller, move)
+  equal(moves, 1, 'Temporary motion can start after close during settle releases torque')
+}
+
 async function runTest() {
   trace('=== motion controller test ===\n')
 
@@ -202,10 +262,25 @@ async function runTest() {
   closingController.lookAt([1, 2, 2])
   equal(closingDriver.torqueStates[0], true, 'lookAt should enable torque before close')
   closingController.close()
+  equal(closingDriver.torqueStates[1], false, 'close during settle should immediately release torque')
   const callsAfterClose = closingDriver.getRotationCalls
   await wait(1200)
-  equal(closingDriver.torqueStates.length, 1, 'close should cancel the pending torque release timer')
+  equal(closingDriver.torqueStates.length, 2, 'close should cancel the pending torque release timer')
   equal(closingDriver.getRotationCalls, callsAfterClose, 'close should stop pose polling')
+
+  const doubleCloseDriver = new FakeMotionDriver()
+  const doubleCloseController = new MotionController({ driver: doubleCloseDriver }, { isPaused: () => false })
+  const pendingEnable = deferTorque(doubleCloseDriver, true)
+  doubleCloseController.lookAt([1, 2, 2])
+  const finishPendingEnable = await pendingEnable
+  doubleCloseController.close()
+  doubleCloseController.close()
+  finishPendingEnable()
+  equal(
+    doubleCloseDriver.torqueStates.join(','),
+    'true,false',
+    'calling close twice while enabling torque must still release torque when enable completes',
+  )
 
   equal(motionDurationSecondsToMilliseconds(0.5), 500, 'seconds should convert to milliseconds')
   equal(motionDurationSecondsToMilliseconds(0.1234), 123, 'millisecond conversion should round to integers')
@@ -252,6 +327,9 @@ async function runTest() {
   equal(nextDriver.appliedRotation, newerPose.rotation, 'A newer pose supersedes the temporary motion and its restore')
   await testTemporaryTorqueRelease(pose)
   await testSupersededTorqueAcquisition(newerPose)
+  await testCloseBeforeDriverReplacement()
+  await testCloseBeforeTemporaryMotion()
+  await testCloseDuringGazeSettle()
 
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }

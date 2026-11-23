@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 import type {
   AudioLevel,
   AudioRuntime,
@@ -13,6 +13,7 @@ import type {
 } from '../contracts.js'
 
 const local = dirname(dirname(fileURLToPath(import.meta.url)))
+writeAliasPackage(local, 'domain-values', resolve(local, '../util/domain-values.js'))
 writeAliasPackageSubpath(local, 'stackchan', 'voice/scope', resolve(local, 'scope.js'))
 const { createConversationPipeline } = await import('../pipeline.js')
 const { deferred } = await import('../scope.js')

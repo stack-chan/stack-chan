@@ -18,6 +18,7 @@ import type {
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const local = resolve(root, 'voice')
+writeAliasPackage(local, 'domain-values', resolve(root, 'util/domain-values.js'))
 writeAliasPackage(local, 'timer', resolve(root, 'testing/fakes/timer.js'), { hasDefaultExport: true })
 writeAliasPackage(local, 'modules', resolve(root, 'testing/fakes/modules.js'), { hasDefaultExport: true })
 for (const module of ['scope', 'media', 'pipeline', 'cascaded', 'runtime', 'levels', 'play-speech']) {

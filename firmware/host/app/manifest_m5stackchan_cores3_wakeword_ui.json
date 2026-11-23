@@ -5,6 +5,7 @@
   ],
   "modules": {
     "stackchan/realtime-ui-performance": "../platforms/m5stackchan_cores3/session-ui-performance",
+    "stackchan/realtime-qos-adapter": "../platforms/m5stackchan_cores3/realtime-qos-adapter",
     "screen-scheduler": "../platforms/m5stackchan_cores3/screen-scheduler"
   },
   "esp32Config": {

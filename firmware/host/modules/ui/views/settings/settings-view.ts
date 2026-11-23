@@ -641,6 +641,7 @@ const SettingsPasswordView = {
       top: 0,
       bottom: 0,
       active: true,
+      clip: UI.safeInset > 0,
       skin: styles.screen,
       contents: [
         new Container(null, {
@@ -684,7 +685,7 @@ const SettingsPasswordView = {
           anchor: 'KEYBOARD',
           left: 0,
           right: 0,
-          bottom: 0,
+          bottom: UI.safeInset ? UI.space * 2 : 0,
           height: PASSWORD_KEYBOARD_HEIGHT,
           Skin: getKeyboardFieldSkinTemplate(),
         }),

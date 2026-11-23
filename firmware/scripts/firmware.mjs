@@ -8,7 +8,6 @@ import {
   assertNoCustomBuildOutput,
   buildOutputDirectory,
   ensureBuildOutputDirectory,
-  firmwareDirectory,
   hostApplicationName,
   moddableOutputArguments,
 } from './lib/build-output.mjs'
@@ -17,7 +16,7 @@ import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
 import { prepareCoreS3VersionSdkconfig, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
-import { localManifests, manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
+import { manifestUsesWebRtc, prepareWebRtcSolution } from './lib/webrtc-solution.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -58,7 +57,6 @@ const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
-let wakewordUiOverrides
 let toolManifest = manifest
 let expectedDescriptorVersion
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
@@ -72,7 +70,6 @@ let realtime = false
 let solutionDirectory
 if (!dryRun && deviceName === 'm5stackchan_cores3' && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
-    wakewordUiOverrides = selectWakewordUiOverrides(manifest, deviceName)
     realtime = manifestUsesWebRtc(manifest, deviceName)
     if (realtime) {
       solutionDirectory = prepareWebRtcSolution()
@@ -115,45 +112,42 @@ if (
   }
 }
 
-if (
-  !dryRun &&
-  !wakewordUiOverrides &&
-  deviceName === 'm5stackchan_cores3' &&
-  command !== 'mod' &&
-  command !== 'mod:build'
-) {
+if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig({
       realtime,
-      realtimePerformance: path.basename(manifest) === 'manifest_openai_live.json',
+      manifestPath: manifest,
     })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
+    if (versionSdkconfig.wakewordUi) expectedDescriptorVersion = versionSdkconfig.version
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
     process.exit(1)
   }
 }
 
-const sdkconfigTarget = wakewordUiOverrides ? 'm5stack_cores3' : device.sdkconfigTarget
-if (!dryRun && sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
+if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
     const moddableDirectory = process.env.MODDABLE
     if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
-    const sourceDirectory = path.join(moddableDirectory, 'build/devices/esp32/targets', sdkconfigTarget, 'sdkconfig')
-    const sdkconfig = prepareVersionSdkconfig({
-      platformName: wakewordUiOverrides ? 'm5stackchan_cores3_wakeword_ui' : deviceName,
+    const versionSdkconfig = prepareVersionSdkconfig({
+      platformName: deviceName,
       moddableDirectory,
-      sourceDirectory,
-      partitionSourcePath: path.join(sourceDirectory, 'partitions.csv'),
-      manifestOverrides: wakewordUiOverrides,
+      sourceDirectory: path.join(moddableDirectory, 'build/devices/esp32/targets', device.sdkconfigTarget, 'sdkconfig'),
+      partitionSourcePath: path.join(
+        moddableDirectory,
+        'build/devices/esp32/targets',
+        device.sdkconfigTarget,
+        'sdkconfig/partitions.csv',
+      ),
     })
-    expectedDescriptorVersion = sdkconfig.version
+    expectedDescriptorVersion = versionSdkconfig.version
     // The included board manifest overrides SDKCONFIGPATH from the environment.
     // Apply this last, as the standard release bundle wrapper does.
     const overrideDirectory = path.join(buildOutputDirectory, 'generated', 'host-manifests', deviceName)
     const overrideManifest = path.join(overrideDirectory, 'sdkconfig.json')
     mkdirSync(overrideDirectory, { recursive: true })
-    writeFileSync(overrideManifest, JSON.stringify({ build: { SDKCONFIGPATH: sdkconfig.directory } }))
+    writeFileSync(overrideManifest, JSON.stringify({ build: { SDKCONFIGPATH: versionSdkconfig.directory } }))
     toolManifest = path.join(
       path.dirname(path.resolve(manifest)),
       `stack-chan-host.${deviceName}.${process.pid}.manifest.json`,
@@ -161,7 +155,7 @@ if (!dryRun && sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].includes
     writeFileSync(toolManifest, JSON.stringify({ include: [path.resolve(manifest), overrideManifest] }))
     process.on('exit', () => rmSync(toolManifest, { force: true }))
   } catch (error) {
-    console.error(`[stack-chan] firmware sdkconfig could not be prepared: ${error.message}`)
+    console.error(`[stack-chan] firmware version could not be prepared: ${error.message}`)
     process.exit(1)
   }
 }
@@ -271,17 +265,6 @@ switch (command) {
     console.error(`[stack-chan] Unknown command: ${command}`)
     printHelp()
     process.exit(1)
-}
-
-function selectWakewordUiOverrides(manifestPath, platformName) {
-  const wakewordUiPath = path.join(firmwareDirectory, 'host/app/manifest_m5stackchan_cores3_wakeword_ui.json')
-  const overrides = new Set()
-  let selected = false
-  for (const { filename, manifest, platform } of localManifests(manifestPath, platformName)) {
-    if (filename === wakewordUiPath) selected = true
-    for (const key of Object.keys({ ...manifest.esp32Config, ...platform?.esp32Config })) overrides.add(key)
-  }
-  return selected ? overrides : undefined
 }
 
 /**

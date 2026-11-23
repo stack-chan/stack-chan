@@ -173,7 +173,7 @@ test('RT release prepares both camera dependencies before the build', () => {
   }
 })
 
-test('wakeword UI builds preserve manifest overrides, partitions and the host API descriptor through includes', {
+test('wakeword UI builds keep the CoreS3 defaults and realtime settings through both wrappers', {
   skip: process.platform === 'win32',
 }, () => {
   const fixture = createFirmwareWrapperFixture()
@@ -183,24 +183,45 @@ test('wakeword UI builds preserve manifest overrides, partitions and the host AP
     const profilePath = path.join(fixture.firmware, 'host/app', profileName)
     const wrapperPath = path.join(fixture.firmware, 'host/app/manifest_wrapped_profile.json')
     const customKey = 'CONFIG_ESPTOOLPY_FLASHMODE_DIO'
-    writeFileSync(profilePath, JSON.stringify({ esp32Config: profile.esp32Config }))
+    const realtimeConfig = {
+      CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL: '1024',
+      CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL: '98304',
+    }
+    writeFileSync(
+      profilePath,
+      JSON.stringify({
+        modules: { realtimeConversation: './conversation' },
+        esp32Config: { ...profile.esp32Config, ...realtimeConfig },
+      }),
+    )
     writeFileSync(wrapperPath, JSON.stringify({ include: profileName, esp32Config: { [customKey]: 'n' } }))
     const boardDirectory = path.join(fixture.fakeModdable, 'build/devices/esp32/targets/m5stack_cores3/sdkconfig')
     const boardPath = path.join(boardDirectory, 'sdkconfig.defaults')
-    const protectedDefaults = 'CONFIG_SPIRAM=y\n'
-    const overriddenDefaults = [...Object.keys(profile.esp32Config), customKey]
-      .map((key, index) => (index % 2 ? `# ${key} is not set\n` : `${key}=n\n`))
-      .join('')
-    const boardDefaults = protectedDefaults + overriddenDefaults
-    writeFileSync(boardPath, boardDefaults)
+    const projectPath = path.join(
+      fixture.firmware,
+      'host/modules/audio/platforms/m5stackchan-cores3/sdkconfig/sdkconfig.defaults',
+    )
+    const projectDefaults = readFileSync(projectPath, 'utf8')
+    const projectValues = new Map(projectDefaults.split('\n').map((line) => line.split('=')))
+    const disarmed = Object.keys(profile.esp32Config)
+      .map((key) => `# ${key} is not set`)
+      .join('\n')
+    const fixtureDefaults = `${projectDefaults}\n${disarmed}\n`
+    writeFileSync(projectPath, fixtureDefaults)
+    writeFileSync(boardPath, 'CONFIG_SPIRAM=y\n')
     writeFileSync(
       path.join(fixture.fakeBin, 'mcconfig'),
       `#!/usr/bin/env node
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs')
 const path = require('node:path')
 const args = process.argv.slice(2)
-const [profile, override] = JSON.parse(readFileSync(args.at(-1), 'utf8')).include
-const { SDKCONFIGPATH } = JSON.parse(readFileSync(override, 'utf8')).build
+const manifestPath = args.at(-1)
+const { include } = JSON.parse(readFileSync(manifestPath, 'utf8'))
+const override = Array.isArray(include) ? include.find((item) => item.endsWith('/sdkconfig.json')) : undefined
+const profile = override ? include[0] : manifestPath
+const SDKCONFIGPATH = override
+  ? JSON.parse(readFileSync(override, 'utf8')).build.SDKCONFIGPATH
+  : process.env.SDKCONFIGPATH
 const defaults = readFileSync(path.join(SDKCONFIGPATH, 'sdkconfig.defaults'), 'utf8')
 const partitions = readFileSync(path.join(SDKCONFIGPATH, 'partitions.csv'), 'utf8')
 writeFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify({ profile, defaults, partitions }))
@@ -218,20 +239,58 @@ writeFileSync(path.join(directory, 'xs_esp32.bin'), image)
 `,
     )
 
-    for (const manifest of [profilePath, wrapperPath]) {
-      const run = runFixture(fixture, 'build', manifest)
-      const [invocation] = readInvocations(fixture.commandLog)
-      assert.equal(invocation.profile, manifest)
-      assert.ok(invocation.defaults.includes(protectedDefaults))
-      for (const key of Object.keys(profile.esp32Config)) {
-        assert.ok(!invocation.defaults.includes(`${key}=`))
-        assert.ok(!invocation.defaults.includes(`# ${key} is not set`))
-      }
-      assert.equal(invocation.defaults.includes(customKey), manifest === profilePath)
-      assert.equal(invocation.partitions, readFileSync(path.join(boardDirectory, 'partitions.csv'), 'utf8'))
-      assert.match(run.stdout, /bundle target validated: .*8\.3\.1\+stackchan\./)
+    const env = {
+      ...process.env,
+      MODDABLE: fixture.fakeModdable,
+      ESP_WEBRTC_SOLUTION: fixture.solutionDirectory,
+      PATH: `${fixture.fakeBin}${path.delimiter}${process.env.PATH}`,
+      STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
     }
-    assert.equal(readFileSync(boardPath, 'utf8'), boardDefaults)
+    for (const manifest of [profilePath, wrapperPath]) {
+      for (const runner of ['firmware', 'mcconfig']) {
+        const run =
+          runner === 'firmware'
+            ? runFixture(fixture, 'build', manifest)
+            : spawnSync(
+                process.execPath,
+                [
+                  'scripts/run-mcconfig.mjs',
+                  '-i',
+                  '-p',
+                  'esp32:./host/platforms/m5stackchan_cores3',
+                  '-t',
+                  'build',
+                  manifest,
+                ],
+                { cwd: fixture.firmware, encoding: 'utf8', env },
+              )
+        assert.ifError(run.error)
+        assert.equal(run.status, 0, run.stderr)
+        const [invocation] = readInvocations(fixture.commandLog)
+        assert.equal(invocation.profile, manifest)
+        const values = new Map(invocation.defaults.split('\n').map((line) => line.split('=')))
+        assert.equal(
+          values.get('CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX'),
+          projectValues.get('CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX'),
+        )
+        assert.equal(
+          values.get('CONFIG_AUDIO_DECODER_MP3_SUPPORT'),
+          projectValues.get('CONFIG_AUDIO_DECODER_MP3_SUPPORT'),
+        )
+        assert.equal(values.get('CONFIG_AUDIO_ENCODER_OPUS_SUPPORT'), 'y')
+        assert.equal(values.get('CONFIG_AUDIO_DECODER_OPUS_SUPPORT'), 'y')
+        assert.equal(values.has('CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL'), false)
+        for (const key of Object.keys(profile.esp32Config)) {
+          assert.ok(!invocation.defaults.includes(`${key}=`))
+          assert.ok(!invocation.defaults.includes(`# ${key} is not set`))
+        }
+        assert.equal(values.has(customKey), manifest === profilePath)
+        assert.equal(invocation.partitions, readFileSync(path.join(boardDirectory, 'partitions.csv'), 'utf8'))
+        assert.match(values.get('CONFIG_APP_PROJECT_VER'), /^"8\.3\.1\+stackchan\.\d+"$/)
+        if (runner === 'firmware') assert.match(run.stdout, /bundle target validated: .*8\.3\.1\+stackchan\./)
+      }
+    }
+    assert.equal(readFileSync(projectPath, 'utf8'), fixtureDefaults)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }

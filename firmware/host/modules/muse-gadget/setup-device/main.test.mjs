@@ -8,7 +8,15 @@ import { createPairingController } from '../setup/pairing-controller.js'
 import { describeSetupPrompt } from '../setup/prompt.js'
 import * as speechProfile from '../speech-profile.js'
 import * as speechProvider from '../speech-provider.js'
-import { fitCaption } from './caption-layout.js'
+import * as captionLayout from './caption-layout.js'
+import { registerHooks } from 'node:module'
+registerHooks({
+  resolve(name, context, next) {
+    if (name === 'muse-caption-layout') return next(new URL('./caption-layout.js', import.meta.url).href, context)
+    return next(name, context)
+  },
+})
+const { createCaptionState } = await import('./caption-state.js')
 import { createResponseExpressionController } from './response-expression.js'
 import { attachTalkButtons, createTalkControls } from './talk-controls.js'
 import * as talkFeedback from './talk-feedback.js'
@@ -61,7 +69,7 @@ async function fixture(stored = false, metadataError = false, sdkReady = true, c
   class Label extends Content {
     constructor(d, o) {
       super(d, o)
-      labels.push(this)
+      if (o.Behavior) labels.push(this)
     }
   }
   class App extends Content {
@@ -117,7 +125,17 @@ async function fixture(stored = false, metadataError = false, sdkReady = true, c
         },
       },
     },
-    timer: { default: {} },
+    timer: {
+      default: { set: (callback, delay) => setTimeout(callback, delay), clear: (handle) => clearTimeout(handle) },
+    },
+    time: {
+      default: {
+        get ticks() {
+          return Date.now()
+        },
+      },
+    },
+    'muse-caption-state': { createCaptionState },
     'muse-diagnostic-heap': {},
     'muse-speech-diagnostics': { createSpeechDiagnostics: () => ({ event() {}, close() {} }) },
     'muse-talk-feedback': talkFeedback,
@@ -130,7 +148,7 @@ async function fixture(stored = false, metadataError = false, sdkReady = true, c
     'guruguru-view': {
       createGuruguruView() {
         return {
-          content: {},
+          content: new Content(null, { left: 0, right: 0, top: 0, bottom: 0 }),
           model: {
             setState() {},
             setLevel() {},
@@ -175,7 +193,7 @@ async function fixture(stored = false, metadataError = false, sdkReady = true, c
       Text: Content,
       Port: Content,
     },
-    'muse-caption-layout': { fitCaption },
+    'muse-caption-layout': captionLayout,
     'muse-pairing-native': {
       default: Native,
       AccountSession: Account,
@@ -300,7 +318,7 @@ test('setup root paints an opaque background even when avatar is hidden', async 
 function rectangle(box) {
   const left = box.left ?? 466 - box.right - box.width
   const top = box.top ?? 466 - box.bottom - box.height
-  return { left, top, width: box.width ?? 466 - left - box.right, height: box.height }
+  return { left, top, width: box.width ?? 466 - left - box.right, height: box.height ?? 466 - top - box.bottom }
 }
 function overlaps(a, b) {
   return a.left < b.left + b.width && b.left < a.left + a.width && a.top < b.top + b.height && b.top < a.top + a.height
@@ -504,35 +522,30 @@ test('quit fences completion of an in-flight automatic connection', async () => 
   assert.notEqual(f.app.children[2].string, 'Disconnect')
 })
 
-test('connected subtitles avoid all expression eyes and mouths inside the round screen', async () => {
+test('connected subtitles overlay the lower part of the centered avatar inside the round screen', async () => {
   const f = await fixture(true, false, true, true, { connected: true })
-  const [, status, action, talk] = f.app.children
+  const [avatar, status, action, talk] = f.app.children
   assert.equal(action.visible, false)
   assert.equal(action.active, false)
   assert.equal(talk.visible, false)
   assert.equal(talk.active, false)
-  const atlas = (await import('./kasane-frames.js')).default
   const caption = rectangle(status)
-  const offset = { x: Math.round((466 - atlas.width) / 2), y: Math.round((466 - atlas.height) / 2) }
-  const sets = { neutral: atlas.frames, ...atlas.expressions }
-  assert.ok(Object.keys(sets).length >= 3)
-  for (const [expression, frames] of Object.entries(sets)) {
-    assert.equal(frames.length, 9)
-    for (const [direction, frame] of frames.entries())
-      for (const part of ['eyes', 'mouth']) {
-        const patch = frame[part]
-        const bounds = { left: offset.x + patch.x, top: offset.y + patch.y, width: patch.width, height: patch.height }
-        assert.equal(overlaps(caption, bounds), false, `${expression}/${direction}/${part} intersects caption`)
-      }
-  }
+  const face = rectangle(avatar)
+  assert.equal(avatar.visible, true)
+  assert.deepEqual(face, { left: 0, top: 0, width: 466, height: 466 })
+  assert.ok(caption.top >= face.top + face.height / 2)
+  assert.ok(overlaps(caption, face))
   const meter = f.app.children.find((child) => child.interval === 100)
   assert.ok(meter)
   assert.equal(overlaps(caption, rectangle(meter)), false)
-  assert.ok(status.skin)
+  assert.equal(status.skin, undefined)
   assert.equal(status.clip, true)
-  assert.equal(status.string.split('\n').length, 2)
-  for (const x of [status.left, 466 - status.right])
-    for (const y of [caption.top, caption.top + caption.height]) assert.ok(Math.hypot(x - 233, y - 233) <= 225)
+  const rows = status.contents.slice(1)
+  assert.equal(rows.length, 2)
+  for (const row of rows)
+    for (const x of [status.left + row.left, status.left + row.left + row.width])
+      for (const y of [caption.top + row.top, caption.top + row.top + row.height])
+        assert.ok(Math.hypot(x - 233, y - 233) <= 225, 'subtitle text crosses the round screen')
   f.buttons[1].edge(true)
   await new Promise((r) => setImmediate(r))
   assert.equal(action.visible, true)
@@ -544,6 +557,22 @@ test('connected subtitles avoid all expression eyes and mouths inside the round 
   assert.equal(status.height, talkFeedback.savedStatusBounds.height)
   assert.equal(status.bottom, undefined)
   assert.equal(status.skin, undefined)
+})
+
+test('pressing A during a reply leaves the current turn alone', async () => {
+  const f = await fixture(true, false, true, true, { connected: true })
+  const [a] = f.buttons
+  f.event({ type: 'turn.started', turnId: 'one' })
+  a.edge(true)
+  a.edge(false)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(f.calls, ['restore', 'connect'])
+
+  f.event({ type: 'turn.ended', turnId: 'one', status: 'completed' })
+  a.edge(true)
+  a.edge(false)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(f.calls, ['restore', 'connect', 'record', 'mute'])
 })
 
 test('complete response content selects an expression and shutdown clears it', async () => {

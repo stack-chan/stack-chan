@@ -1,27 +1,45 @@
-export function fitCaption(value, measure, width) {
-  let rest = String(value).replace(/\r/g, '').trim()
-  const lines = []
-  while (rest && lines.length < 2) {
-    const newline = rest.indexOf('\n')
-    const paragraph = newline < 0 ? rest : rest.slice(0, newline)
-    if (lines.length === 1) {
-      if (newline < 0 && measure(rest) <= width) lines.push(rest)
-      else {
-        let end = 0
-        while (end < paragraph.length && measure(paragraph.slice(0, end + 1) + '...') <= width) end++
-        lines.push(paragraph.slice(0, end).trimEnd() + '...')
+export const captionBounds = { left: 12, right: 12, bottom: 62, height: 56 }
+export const captionLineWidths = [340, 292]
+
+export function paginateCaption(value, measure, widths = captionLineWidths) {
+  const paragraphs = String(value).replace(/\r/g, '').trim().split('\n')
+  const pages = []
+  let lines = []
+  for (const paragraph of paragraphs) {
+    const points = Array.from(paragraph.trim())
+    let offset = 0
+    while (offset < points.length) {
+      const width = widths[lines.length]
+      let end = 0,
+        high = points.length - offset
+      while (end < high) {
+        const middle = Math.ceil((end + high) / 2)
+        if (measure(points.slice(offset, offset + middle).join('')) <= width) end = middle
+        else high = middle - 1
       }
-      break
+      if (!end) end = 1
+      if (offset + end < points.length) {
+        for (let boundary = end - 1; boundary >= Math.floor(end / 2); boundary--) {
+          if (' 、。'.includes(points[offset + boundary])) {
+            end = boundary + 1
+            break
+          }
+        }
+      }
+      lines.push(
+        points
+          .slice(offset, offset + end)
+          .join('')
+          .trimEnd(),
+      )
+      offset += end
+      while (offset < points.length && /\s/.test(points[offset])) offset++
+      if (lines.length === 2) {
+        pages.push(lines)
+        lines = []
+      }
     }
-    let end = 0
-    while (end < paragraph.length && measure(paragraph.slice(0, end + 1)) <= width) end++
-    if (end < paragraph.length) {
-      const space = paragraph.lastIndexOf(' ', end)
-      if (space > 0) end = space
-    }
-    if (!end && paragraph.length) end = 1
-    lines.push(paragraph.slice(0, end).trimEnd())
-    rest = rest.slice(end).trimStart()
   }
-  return lines.join('\n')
+  if (lines.length) pages.push(lines)
+  return pages
 }

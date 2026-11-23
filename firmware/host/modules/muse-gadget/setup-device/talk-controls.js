@@ -1,8 +1,8 @@
-export function createTalkControls({ canTalk, setMuted, disconnect, onHeld, onError }) {
+export function createTalkControls({ canTalk, canStart = canTalk, setMuted, disconnect, onHeld, onError }) {
   let owner, start, generation = 0, stopping, closed = false
   return {
     press(source) {
-      if (closed || stopping || owner || !canTalk()) return false
+      if (closed || stopping || owner || !canStart()) return false
       owner = source
       const current = ++generation
       onHeld(true)

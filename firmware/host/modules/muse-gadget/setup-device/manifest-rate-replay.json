@@ -19,6 +19,7 @@
     "main": "./main",
     "muse-native-speech-enabled": "./native-speech-enabled",
     "muse-caption-layout": "./caption-layout",
+    "muse-caption-state": "./caption-state",
     "muse-talk-controls": "./talk-controls",
     "muse-diagnostic-heap": "./diagnostic-heap",
     "muse-speech-diagnostics": "./speech-diagnostics",

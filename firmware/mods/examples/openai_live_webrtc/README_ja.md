@@ -17,6 +17,12 @@ cp mods/examples/openai_live_webrtc/manifest.local.example.json \
 
 **端末に保存するAPIキーは抽出可能です。** キーを含むMOD・ビルド出力・バックアップを公開しないでください。`manifest.local.json`を強制追加しないでください。キー・SDP・文字起こし・提供元のエラー本文はログに出しません。個人用端末でこの制約を受け入れる場合の例であり、配布端末向けの資格情報発行方式ではありません。
 
+## 会話に合わせた表情とうなずき
+
+`manifest.local.json` の `config.openaiLive.decisionsReactions` を `true` にすると、聞き取り中と応答中の文字起こしからDecisionsが表情とうなずきを選びます。LiveとDecisionsの利用権限があるAPIキーを使用してください。Responsesへの委譲は会話の推論を続け、口パクは再生音声に合わせて動きます。[OpenAIの文字起こしトリガー仕様](https://developers.openai.com/api/docs/guides/decisions-voice#react-to-transcripts)
+
+ホストもこの変更を含む版でビルドしてください。対応ホストとMODを入れたら、会話を開始して「試験に合格したよ」などと話し、聞き取り中と応答中に表情が変わることを確認します。うなずきは判定が選んだときに短く動きます。会話を終了すると表情が通常に戻ります。
+
 ## CPUビルド
 
 無改修Moddable SDK **10.1.1**、対応するESP-IDF **6.1**、`esp-webrtc-solution`基準コミット **c8650846b512e6e1375e5f78c1c41619b8d645eb**を使用します。既存SDKのチェックアウトや版を変更せず、それぞれのパスを設定してください。Wi-Fiの登録は通常のホスト設定を使います。

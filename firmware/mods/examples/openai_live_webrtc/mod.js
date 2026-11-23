@@ -1,7 +1,9 @@
 import Modules from 'modules'
+import { createDecisionsReactions } from 'openai-live-decisions-reactions'
 import { LiveSession } from 'openai-live-session'
 import { openLocalWake } from 'openai-live-wake-audio'
 import { ConversationPipeline, VoiceScope } from 'stackchan/voice'
+import { wait } from 'stackchan-util'
 import Timer from 'timer'
 
 const SESSION = 'openai-live:session'
@@ -88,6 +90,7 @@ export function onContextCreated(robot) {
     networkReady,
     acquireLowLatency: () => power.acquireLowLatency(),
     settings,
+    reactions: settings.decisionsReactions === true ? createDecisionsReactions(robot, wait) : undefined,
     onState(state) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
       try {

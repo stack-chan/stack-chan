@@ -359,6 +359,38 @@ test('emotion-control scope close retries a failed torque disable', async () => 
   assert.deepEqual(fixture.torques, [true, false, false])
 })
 
+test('emotion-control scope close reports a failed final torque disable', async () => {
+  installAliases()
+  const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
+  const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
+  FakeTimer.reset()
+
+  const earlyFailure = new Error('servo response lost')
+  const finalFailure = new Error('servo disable timed out')
+  const fixture = createEmotionFixture()
+  const { scope, close } = createScope()
+  installEmotionControl(
+    {
+      ...fixture.deps,
+      async setTorque(torque) {
+        fixture.torques.push(torque)
+        if (!torque) throw fixture.torques.length === 2 ? earlyFailure : finalFailure
+      },
+    },
+    scope,
+  )
+
+  fixture.emitTouch('forwardSwipe', 100)
+  fixture.emitTouch('backwardSwipe', 500)
+  await flushMicrotasks()
+  fixture.selectEmotion(String(Emotion.SAD))
+  await flushMicrotasks()
+  assert.deepEqual(fixture.torques, [true, false])
+
+  await assert.rejects(close(), (error) => error === finalFailure)
+  assert.deepEqual(fixture.torques, [true, false, false])
+})
+
 test('emotion-control restores a pose after normal expiry waits for the last petting pose', async () => {
   installAliases()
   const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
@@ -394,6 +426,48 @@ test('emotion-control restores a pose after normal expiry waits for the last pet
   assert.deepEqual(fixture.torques, [true])
 
   raised.resolve()
+  await flushMicrotasks()
+  assert.equal(fixture.poses.length, 5)
+  assert.deepEqual(fixture.poses.at(-1)?.rotation, fixture.deps.getBodyPose().rotation)
+  assert.deepEqual(fixture.torques, [true])
+
+  restored.resolve()
+  await flushMicrotasks()
+  assert.deepEqual(fixture.torques, [true, false])
+  await close()
+})
+
+test('emotion-control restores a pose before releasing torque when a pending petting pose fails after expiry', async () => {
+  installAliases()
+  const { installEmotionControl } = (await import('./emotion-control.js')) as EmotionControlModule
+  const { default: FakeTimer } = (await import('../../../modules/testing/fakes/timer.js')) as FakeTimerModule
+  FakeTimer.reset()
+
+  const raised = Promise.withResolvers<void>()
+  const restored = Promise.withResolvers<void>()
+  const fixture = createEmotionFixture()
+  const { scope, close } = createScope()
+  installEmotionControl(
+    {
+      ...fixture.deps,
+      async setPose(pose, durationSec) {
+        await fixture.deps.setPose(pose, durationSec)
+        if (fixture.poses.length === 4) await raised.promise
+        if (fixture.poses.length === 5) await restored.promise
+      },
+    },
+    scope,
+  )
+
+  fixture.emitTouch('forwardSwipe', 100)
+  fixture.emitTouch('backwardSwipe', 500)
+  await flushMicrotasks()
+  assert.equal(fixture.poses.length, 4)
+  FakeTimer.advance(5000)
+  await flushMicrotasks()
+  assert.equal(fixture.poses.length, 4)
+
+  raised.reject(new Error('servo command failed'))
   await flushMicrotasks()
   assert.equal(fixture.poses.length, 5)
   assert.deepEqual(fixture.poses.at(-1)?.rotation, fixture.deps.getBodyPose().rotation)

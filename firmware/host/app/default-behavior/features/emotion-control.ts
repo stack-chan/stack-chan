@@ -149,14 +149,10 @@ export function installEmotionControl<TEffect>(
     if (handle !== undefined) timer.clear(handle)
   }
 
-  const releasePettingTorque = async (contextLabel: string): Promise<void> => {
+  const releasePettingTorque = async (): Promise<void> => {
     if (!pettingTorqueOwned) return
-    try {
-      await deps.setTorque(false)
-      pettingTorqueOwned = false
-    } catch (error) {
-      log(`[TouchPanel] ${contextLabel} torque release error ${errorMessage(error)}\n`)
-    }
+    await deps.setTorque(false)
+    pettingTorqueOwned = false
   }
 
   const performPettingMotion = (label: string, move?: () => Promise<void>): void => {
@@ -164,14 +160,22 @@ export function installEmotionControl<TEffect>(
     pettingMotion = Promise.resolve().then(async () => {
       try {
         if (move && !pettingMotionCanceled) await move()
+      } catch (error) {
+        pettingMotionCanceled = true
+        log(`[TouchPanel] ${label} motion error ${errorMessage(error)}\n`)
+      }
+      try {
         if (pettingRestoreRotation && pettingTorqueOwned) {
           await deps.setPose(poseForRotation(pettingRestoreRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
         }
       } catch (error) {
-        log(`[TouchPanel] ${label} motion error ${errorMessage(error)}\n`)
-        pettingMotionCanceled = true
+        log(`[TouchPanel] restore motion error ${errorMessage(error)}\n`)
+      }
+      try {
+        if (pettingMotionCanceled) await releasePettingTorque()
+      } catch (error) {
+        log(`[TouchPanel] ${label} torque release error ${errorMessage(error)}\n`)
       } finally {
-        if (pettingMotionCanceled) await releasePettingTorque(label)
         pettingRestoreRotation = undefined
         pettingMotion = undefined
       }
@@ -397,7 +401,7 @@ export function installEmotionControl<TEffect>(
       }
     } finally {
       if (pettingMotion) await pettingMotion
-      await releasePettingTorque('cleanup')
+      await releasePettingTorque()
     }
   })
 

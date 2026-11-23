@@ -3,6 +3,6 @@ export interface StackchanAppBehavior {
   onContextCreated?: (
     // biome-ignore lint/suspicious/noExplicitAny: this stub isolates the test from the full app context dependency graph.
     robot: any,
-    option: { config: { ui: { type?: unknown }; [domain: string]: unknown } },
+    option: { config: { ui: { type?: unknown }; driver: { type?: unknown }; [domain: string]: unknown } },
   ) => Promise<void> | void
 }

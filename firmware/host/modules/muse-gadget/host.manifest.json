@@ -1,0 +1,83 @@
+{
+  "include": [
+    "./pairing/manifest.json",
+    "./native/pairing-manifest.json",
+    "../voice/gemini-worker-manifest.json",
+    "../util/manifest.json",
+    "$(MODDABLE)/modules/files/preference/manifest.json",
+    "$(MODDABLE)/modules/base/uuid/manifest.json"
+  ],
+  "modules": {
+    "stackchan/muse-conversation": ["./host-control.js", "./host-control.d.ts"],
+    "muse-host-session": "./host-session",
+    "muse-cascaded-conversation": "./cascaded-conversation",
+    "muse-chat-agent": "./chat-agent",
+    "muse-chat-session": "./chat-session",
+    "chat-turn": "./chat-turn",
+    "muse-session-id": "./session-id",
+    "muse-setup/pairing-controller": "./setup/pairing-controller",
+    "muse-native-transport": "./native/transport",
+    "muse-account-native": "./native/account-voice",
+    "muse-setup-metadata": "./native/metadata",
+    "stackchan/voice/gemini-speech": "../voice/gemini-speech",
+    "stackchan/voice/pcm-base64": "../voice/pcm-base64",
+    "stackchan/voice/buffered-pcm-output": "./playback/device-output",
+    "muse-buffered-playback": "./playback/buffered-playback",
+    "muse-buffered-pcm-page": "./playback/buffered-pcm-page",
+    "*": [
+      "./native/noise_api.h",
+      "./native/muse-transport.h",
+      "./native/gemini-native-http.h",
+      "$(IDF_PATH)/components/mbedtls/esp_crt_bundle/include/esp_crt_bundle.h",
+      "$(IDF_PATH)/components/tcp_transport/include/esp_transport_ws.h",
+      "./native/muse-native.c",
+      "./native/receive.h",
+      "./native/lifetime.h"
+    ]
+  },
+  "data": {
+    "*": [
+      "$(MODULES)/crypt/data/ca109",
+      "$(MODULES)/crypt/data/ca176",
+      "$(MODULES)/crypt/data/ca236"
+    ]
+  },
+  "platforms": {
+    "esp32/m5stack_stopwatch": {
+      "modules": {
+        "stackchan/voice/stopwatch-pcm-output": "./playback/stopwatch-output",
+        "muse-resampled-output": "./playback/resampled-output",
+        "muse-stopwatch-output": "./stopwatch-audio/output",
+        "pcm-resampler": "../audio/platforms/m5stackchan-cores3/pcm-resampler",
+        "stackchan/voice/pcm-magnitude": "../voice/pcm-magnitude"
+      },
+      "dependency": [
+        {
+          "name": "esp_websocket_client",
+          "version": "==1.8.0"
+        }
+      ]
+    },
+    "esp32/m5stackchan_cores3": {
+      "dependency": [
+        {
+          "name": "esp_websocket_client",
+          "version": "~1.4.0"
+        }
+      ]
+    }
+  },
+  "config": {
+    "tls": {
+      "DHE_RSA": false
+    }
+  },
+  "esp32Config": {
+    "CONFIG_WS_BUFFER_SIZE": 4096,
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE": "y",
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL": "y",
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY": "y",
+    "CONFIG_MBEDTLS_DYNAMIC_BUFFER": "y",
+    "CONFIG_MBEDTLS_HAVE_TIME_DATE": "y"
+  }
+}

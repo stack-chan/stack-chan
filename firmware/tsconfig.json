@@ -31,6 +31,8 @@
       "media-player": [
         "./host/modules/audio/platforms/m5stackchan-cores3/media-player.ts"
       ],
+      "guruguru-face": ["./host/modules/ui/components/face/guruguru/guruguru-face"],
+      "guruguru-face/frames": ["./host/modules/ui/components/face/guruguru/frames"],
       "jitome-face": [
         "./host/modules/ui/components/face/jitome/jitome-face"
       ],

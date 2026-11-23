@@ -58,10 +58,10 @@ export function showStartupError(options: {
   let restarting = false
   const root = new Container(null, {
     name: 'startup:error',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
+    top: UI.safeInset,
+    bottom: UI.safeInset,
+    left: UI.safeInset,
+    right: UI.safeInset,
     skin: styles.screen,
     contents: [
       new Column(null, {
@@ -127,7 +127,7 @@ function setMessage(message: string, sntpHost?: string) {
   const text = scroller.first as PiuText
   const column = scroller.container as PiuContainer
   const brand = column.first as PiuContainer
-  column.y = sntpHost ? RECOVERY_TOP : SPLASH_TOP
+  column.y = (column.container?.y ?? 0) + (sntpHost ? RECOVERY_TOP : SPLASH_TOP)
   brand.height = BRAND_HEIGHT
   brand.visible = true
   scroller.height = SPLASH_MESSAGE_HEIGHT
@@ -152,7 +152,7 @@ function setMessage(message: string, sntpHost?: string) {
   }
   lines.push(line)
   text.string = lines.join('\n')
-  const availableHeight = currentActionArea.y - RECOVERY_TOP - UI.space
+  const availableHeight = currentActionArea.y - column.y - UI.space
   // Use the title's space when needed so a full hostname can fit on devices without touch.
   if (text.height > availableHeight - BRAND_HEIGHT) {
     brand.visible = false
@@ -200,30 +200,34 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
   currentMessageScroller = messageScroller
   currentActionArea = actionArea
 
+  const contents = [
+    new Column(null, {
+      left: 0,
+      right: 0,
+      top: SPLASH_TOP,
+      contents: [
+        new Label(null, {
+          left: 0,
+          right: 0,
+          height: BRAND_HEIGHT,
+          string: 'Stack-chan[・＿・]',
+          style: styles.brand,
+        }),
+        messageScroller,
+      ],
+    }),
+    actionArea,
+  ]
+  const inset = UI.safeInset
   const application = new Application(options, {
     commandListLength: 4096,
     // This Application is reused by the main face and multiline balloons.
     displayListLength: 8192,
     touchCount: 1,
     skin: styles.screen,
-    contents: [
-      new Column(null, {
-        left: 0,
-        right: 0,
-        top: SPLASH_TOP,
-        contents: [
-          new Label(null, {
-            left: 0,
-            right: 0,
-            height: BRAND_HEIGHT,
-            string: 'Stack-chan[・＿・]',
-            style: styles.brand,
-          }),
-          messageScroller,
-        ],
-      }),
-      actionArea,
-    ],
+    contents: inset
+      ? [new Container(null, { left: inset, right: inset, top: inset, bottom: inset, contents })]
+      : contents,
   })
 
   showActions([

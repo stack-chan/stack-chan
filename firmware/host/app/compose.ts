@@ -15,6 +15,7 @@ import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
 import { DOMAIN } from 'consts'
 import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
+import { createGuruguruFace } from 'guruguru-face'
 import IMU from 'imu'
 import { createJitomeFace } from 'jitome-face'
 import Led from 'led'
@@ -164,6 +165,7 @@ export function createStackchanContext(
     })
   }
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
+    ['guruguru', (param) => createStackchanUI(createGuruguruFace(), asUIOptions(param))],
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
     ['jitome', (param) => createStackchanUI(createJitomeFace().content, asUIOptions(param))],
     ['deal-with-it', (param) => createStackchanUI(new DealWithItFace(), asUIOptions(param))],

@@ -61,6 +61,16 @@ export const firmwareBundleTargets = [
     partitionSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_cores3', 'sdkconfig', 'partitions.csv'],
     idfDependencyPlatform: 'm5stackchan_cores3',
   },
+  {
+    name: 'm5stack_stopwatch',
+    bundleId: 'com.m5stack.stopwatch',
+    platform: 'esp32:./host/platforms/m5stack_stopwatch',
+    outputPlatform: 'm5stack_stopwatch',
+    manifestPath: path.join(appDirectory, 'manifest_m5stack_stopwatch.json'),
+    sdkconfigSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_stopwatch', 'sdkconfig'],
+    partitionSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_stopwatch', 'sdkconfig', 'partitions.csv'],
+    idfDependencyPlatform: 'm5stack_stopwatch',
+  },
 ]
 
 /**
@@ -131,6 +141,7 @@ export function buildFirmwareBundleTarget(
       applicationName: hostApplicationName,
       mode: 'release',
       realtime,
+      muse: target.name === 'm5stackchan_cores3' || target.name === 'm5stack_stopwatch',
       solutionDirectory,
     })
   }

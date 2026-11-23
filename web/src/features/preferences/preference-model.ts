@@ -13,6 +13,8 @@ export const PREFERENCE_KEYS = [
   'tts.voice',
   'tts.volume',
   'ai.token',
+  'ai.geminiToken',
+  'muse_sdk.sdk_token',
   'ai.context',
   'mcp.token',
 ] as const
@@ -35,6 +37,8 @@ export const DEFAULT_PREFERENCES: PreferenceValues = {
   'tts.voice': '',
   'tts.volume': '1',
   'ai.token': '',
+  'ai.geminiToken': '',
+  'muse_sdk.sdk_token': '',
   'ai.context': '',
   'mcp.token': '',
 }

@@ -30,11 +30,17 @@ export type CreateAudioRuntime = (options: RuntimeOptions) => PairedAudioRuntime
 export interface PcmOutput {
   write(bytes: Uint8Array, onAccepted?: (size: number) => void): void | Promise<void>
   readonly frames: number
+  allowStreaming?(): void
   setVolume(gain: number): void
   drain(): Promise<void>
   close(): void
 }
 export interface PcmOutputModule {
   readonly minimumOutputBytes: number
+  openBufferedOutput?: PcmOutputModule['openOutput']
   openOutput(sampleRate: number, volume: number, limit: number, onLevel?: (value: number) => void): PcmOutput
+}
+
+export interface BufferedPcmOutputModule {
+  openBufferedOutput: (driver: PcmOutputModule, ...options: Parameters<PcmOutputModule['openOutput']>) => PcmOutput
 }

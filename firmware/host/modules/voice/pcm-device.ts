@@ -2,7 +2,6 @@ import Modules from 'modules'
 import type AudioOutput from 'pins/audioout'
 import type {
   AudioLevel,
-  AudioSink,
   DuplexLease,
   MediaBudget,
   PcmFormat,
@@ -10,13 +9,14 @@ import type {
   PlaybackLease,
   PlaybackOptions,
   PlaybackReceipt,
+  PlaybackSegment,
 } from 'stackchan/voice/contracts'
 import { pcmLevel } from 'stackchan/voice/levels'
 import { capacity, createPcmSink, createPcmSource, pcmMedia } from 'stackchan/voice/media'
 import { bindAudioRuntime, type LeaseOptions, type RuntimeOptions } from 'stackchan/voice/runtime'
 import { deferred, requireActive, voiceError } from 'stackchan/voice/scope'
 import Timer from 'timer'
-import type { PairedAudioRuntime, PcmOutput, PcmOutputModule } from './runtime-types.js'
+import type { BufferedPcmOutputModule, PairedAudioRuntime, PcmOutput, PcmOutputModule } from './runtime-types.js'
 
 export function createAudioRuntime(options: RuntimeOptions): PairedAudioRuntime {
   return bindAudioRuntime(options, openPcmLease, openPlayback)
@@ -171,6 +171,7 @@ function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions): 
     directLimit,
     capture.setSuspended,
     onLevel && ((value) => onLevel({ direction: 'output', value })),
+    requirements.playback,
   )
   capture.setSuspended(false)
   return {
@@ -205,12 +206,22 @@ function createPlayback(
   directLimit: number,
   suspendCapture?: (value: boolean) => void,
   onLevel?: (value: number) => void,
+  playback?: 'buffered',
 ): PlaybackLease {
   const AudioOut = Modules.importNow('pins/audioout') as typeof AudioOutput
-  const deviceOutput = Modules.has('stackchan/voice/cores3-pcm-output')
-    ? (Modules.importNow('stackchan/voice/cores3-pcm-output', true) as PcmOutputModule)
+  const deviceOutputName = Modules.has('stackchan/voice/stopwatch-pcm-output')
+    ? 'stackchan/voice/stopwatch-pcm-output'
+    : 'stackchan/voice/cores3-pcm-output'
+  const deviceOutput = Modules.has(deviceOutputName)
+    ? (Modules.importNow(deviceOutputName, true) as PcmOutputModule)
     : undefined
   const directOutput = deviceOutput && directLimit >= deviceOutput.minimumOutputBytes ? deviceOutput : undefined
+  const bufferOutput =
+    playback === 'buffered'
+      ? (Modules.importNow('stackchan/voice/buffered-pcm-output', true) as BufferedPcmOutputModule).openBufferedOutput
+      : undefined
+  if (bufferOutput && !directOutput)
+    throw voiceError('resource_exhausted', 'buffered playback requires device PCM output')
   let out: (InstanceType<typeof AudioOutput> & { callback?: (value: number) => void }) | undefined
   let failedClose: unknown
   let closed = false,
@@ -278,13 +289,15 @@ function createPlayback(
     if (!closed) suspendCapture?.(false)
     return receipt
   }
-  function begin(id: string, epoch: number): AudioSink {
+  function begin(id: string, epoch: number): PlaybackSegment {
     if (closed || epoch !== generation) throw voiceError('cancelled')
     if (active) throw voiceError('device_busy')
     suspendCapture?.(true)
     try {
       if (directOutput) {
-        const direct = directOutput.openOutput(outputFormat.sampleRate, volume, directLimit, onLevel)
+        const direct = bufferOutput
+          ? bufferOutput(directOutput, outputFormat.sampleRate, volume, directLimit, onLevel)
+          : directOutput.openOutput(outputFormat.sampleRate, volume, directLimit, onLevel)
         const item: OutputSegment = {
           id,
           generation,
@@ -316,7 +329,10 @@ function createPlayback(
             onFailure(error)
           }
         }
-        return Object.assign(createPcmSink(outputFormat, write), { writeBorrowed: write })
+        return Object.assign(createPcmSink(outputFormat, write), {
+          writeBorrowed: write,
+          allowStreaming: direct.allowStreaming && (() => direct.allowStreaming?.()),
+        })
       }
       out = new AudioOut({ streams: 1, sampleRate: outputFormat.sampleRate, bitsPerSample: 16, numChannels: 1 })
       const driver = out

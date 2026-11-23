@@ -152,6 +152,44 @@
         }
       }
     },
+    "esp32/m5stack_stopwatch": {
+      "creation": {
+        "static": 0,
+        "chunk": {
+          "initial": 262144,
+          "incremental": 32768
+        },
+        "heap": {
+          "initial": 8192,
+          "incremental": 1280
+        },
+        "stack": 1024,
+        "nativeStack": 15360,
+        "keys": {
+          "initial": 32,
+          "incremental": 32
+        }
+      },
+      "config": {
+        "driver": {
+          "type": "none",
+          "typeLocked": true
+        },
+        "tts": {
+          "sampleRate": 16000
+        },
+        "touchCount": 1,
+        "screenSafeInset": 73,
+        "talkButton": "a"
+      },
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 16000
+        }
+      }
+    },
     "esp32/m5atom_s3": {
       "config": {
         "ui": {

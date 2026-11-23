@@ -1,0 +1,10 @@
+{
+  "modules": {
+    "guruguru-face": "./guruguru-face",
+    "guruguru-face/frames": "./frames"
+  },
+  "resources": {
+    "*-color": ["./assets/head/*", "./assets/mouth/*"],
+    "*": ["./assets/eyes/*"]
+  }
+}

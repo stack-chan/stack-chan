@@ -1,0 +1,6 @@
+{
+  "include": ["./manifest.json", "../modules/muse-gadget/host.manifest.json"],
+  "config": {
+    "enablePowerButton": false
+  }
+}

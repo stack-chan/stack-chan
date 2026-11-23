@@ -83,6 +83,7 @@
   "drawer.face.dog": "狗",
   "drawer.face.image": "图像",
   "drawer.face.deal-with-it": "Deal with it",
+  "drawer.face.guruguru": "GuruguruFace",
   "drawer.face.jitome": "Jitome",
   "drawer.emotion": "表情",
   "drawer.balloon": "气泡",
@@ -93,5 +94,18 @@
   "drawer.recordAndPlay": "录音并播放",
   "drawer.color.light": "白色",
   "drawer.color.dark": "黑色",
-  "drawer.colorScheme": "配色"
+  "drawer.colorScheme": "配色",
+  "muse.start": "开始Muse",
+  "muse.end": "结束Muse",
+  "muse.pair": "连接Muse",
+  "muse.cancel": "取消连接",
+  "muse.confirm": "确认连接",
+  "muse.save": "保存连接",
+  "muse.connecting": "正在连接Muse",
+  "muse.pairing": "连接{name}",
+  "muse.pairRequired": "请连接Muse",
+  "muse.sdkTokenRequired": "设置Muse SDK",
+  "muse.geminiTokenRequired": "设置Gemini API key",
+  "muse.wifiRequired": "请连接Wi-Fi",
+  "muse.failed": "Muse连接失败"
 }

@@ -1,6 +1,7 @@
 {
   "include": [
     "./manifest.json",
+    "../modules/muse-gadget/host.manifest.json",
     "./docks/android-usb-audio/manifest.json",
     "../modules/usb-audio/manifest.json",
     "$(MODDABLE)/modules/data/xml/manifest.json"

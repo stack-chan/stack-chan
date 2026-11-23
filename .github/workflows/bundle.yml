@@ -59,6 +59,9 @@ jobs:
           - target: m5stackchan_cores3
             command: npm run build:release:m5stackchan_cores3
             bundle: true
+          - target: m5stack_stopwatch
+            command: npm run build:release:m5stack_stopwatch
+            bundle: true
           - target: stackchan_rt
             command: npm run build:release:stackchan_rt
             bundle: false
@@ -73,6 +76,13 @@ jobs:
         uses: ./.github/actions/setup
         with:
           target-branch: "10.1.1"
+      - name: Select the pinned StopWatch SDK
+        if: matrix.target == 'm5stack_stopwatch'
+        run: |
+          source "$HOME/.local/share/xs-dev-export.sh"
+          sdk_commit=69158293bcb07adc7514b63641e418679a3b5494
+          git -C "$MODDABLE" fetch --depth 1 https://github.com/meganetaaan/moddable.git "$sdk_commit"
+          git -C "$MODDABLE" checkout --detach "$sdk_commit"
       - name: Prepare pinned WebRTC sources
         if: matrix.target == 'm5stack_cores3' || matrix.target == 'm5stackchan_cores3'
         working-directory: ./firmware

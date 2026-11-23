@@ -1,9 +1,13 @@
 /* global SharedArrayBuffer */
 
 import type { BorrowedAudioBuffer } from 'audio-buffer'
+import Modules from 'modules'
 import AudioOut from 'pins/audioout'
+import type { PcmOutputModule } from '../voice/runtime-types.js'
 
 const WAV_HEADER_SIZE = 44
+const STOPWATCH_OUTPUT = 'stackchan/voice/stopwatch-pcm-output'
+const STOPWATCH_BLOCK_BYTES = 16384
 
 export type ToneProperty = {
   volume?: number
@@ -16,6 +20,13 @@ export default class Speaker {
     this.volume = props.volume ?? 0.5
   }
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
+    if (Modules.has(STOPWATCH_OUTPUT)) {
+      const sampleRate = 16000
+      const samples = new Int16Array(Math.round((sampleRate * duration) / 1000))
+      for (let i = 0; i < samples.length; i++) samples[i] = Math.sin((2 * Math.PI * hz * i) / sampleRate) * 32767
+      await this.playStopWatchPcm(new Uint8Array(samples.buffer), sampleRate, volume ?? this.volume)
+      return
+    }
     const audio = new AudioOut({
       streams: 1,
       sampleRate: 24000,
@@ -44,6 +55,11 @@ export default class Speaker {
       const bitsPerSample = view.getUint16(34, true)
       if (bitsPerSample !== 16 || (numChannels !== 1 && numChannels !== 2)) return false
       if (sampleRate < 8000 || sampleRate > 48000) return false
+      if (Modules.has(STOPWATCH_OUTPUT)) {
+        if (numChannels !== 1) return false
+        await this.playStopWatchPcm(new Uint8Array(buffer, WAV_HEADER_SIZE), sampleRate, this.volume)
+        return true
+      }
 
       // AudioOut.RawSamples requires a non-relocatable buffer; a plain ArrayBuffer is
       // relocatable and rejected, so copy the PCM payload into a SharedArrayBuffer.
@@ -68,6 +84,19 @@ export default class Speaker {
     } catch (error) {
       trace(`Speaker.play error ${error}\n`)
       return false
+    }
+  }
+
+  private async playStopWatchPcm(pcm: Uint8Array, sampleRate: number, volume: number): Promise<void> {
+    const backend = Modules.importNow(STOPWATCH_OUTPUT, true) as PcmOutputModule
+    const output = backend.openOutput(sampleRate, volume, STOPWATCH_BLOCK_BYTES)
+    try {
+      for (let offset = 0; offset < pcm.length; offset += STOPWATCH_BLOCK_BYTES) {
+        await output.write(pcm.subarray(offset, offset + STOPWATCH_BLOCK_BYTES))
+      }
+      await output.drain()
+    } finally {
+      output.close()
     }
   }
 }

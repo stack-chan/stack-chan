@@ -25,12 +25,21 @@ import Timer from 'timer'
 let nextSession = 0
 const historyLimit = 64 * 1024
 
-function speechChunkLength(text: string, final: boolean) {
-  const boundary = text.slice(0, 240).search(/[。！？.!?\n]/)
-  if (boundary >= 0) return boundary + 1
-  if (text.length < 240) return final ? text.length : 0
-  const last = text.charCodeAt(239)
-  return last >= 0xd800 && last <= 0xdbff ? 239 : 240
+const maxSpeechChunk = 240
+function speechChunkLength(text: string, final: boolean, groupFinal = false) {
+  if (groupFinal && final) {
+    if (text.length <= maxSpeechChunk) return text.length
+    // Preserve sentence boundaries when another bounded request is unavoidable.
+    for (let i = maxSpeechChunk - 1; i >= 0; i--) {
+      if ('。！？.!?\n'.includes(text[i])) return i + 1
+    }
+  } else {
+    const boundary = text.slice(0, maxSpeechChunk).search(/[。！？.!?\n]/)
+    if (boundary >= 0) return boundary + 1
+    if (text.length < maxSpeechChunk) return final ? text.length : 0
+  }
+  const last = text.charCodeAt(maxSpeechChunk - 1)
+  return last >= 0xd800 && last <= 0xdbff ? maxSpeechChunk - 1 : maxSpeechChunk
 }
 
 function errorCode(error: unknown): Failure['code'] {
@@ -110,13 +119,17 @@ export function createPushToTalk() {
   }
 }
 
-export function createCascadedConversation(config: CascadedOptions): Conversation {
+export function createCascadedConversation(
+  config: CascadedOptions,
+  finalSpeech: 'sentence' | 'bounded' | 'buffered' = 'sentence',
+): Conversation {
   const imageInput = config.agent.capabilities?.image ?? false
   return {
     audio: {
       input: [mono(16000)],
       output: [mono(24000)],
       duplex: 'half',
+      ...(finalSpeech === 'buffered' ? { playback: 'buffered' as const } : {}),
       preRollMs: config.turnDetector.preRollMs ?? 0,
     },
     capabilities: {
@@ -262,7 +275,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
             }
             return state
           }
-          async function speak(itemId: string, segment: string) {
+          async function speak(itemId: string, segments: readonly string[]) {
             requireActive(scope.signal)
             const state = stateFor(itemId)
             const outputId = `${itemId}/${state.segments++}`
@@ -279,13 +292,18 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
                 signal: scope.signal,
                 budget: ports.output.budget,
               })
-              await synthesis.write(segment)
+              for (const [index, segment] of segments.entries()) {
+                if (index) await synthesis.flush()
+                await synthesis.write(segment)
+              }
+              // TLSのハンドシェイクとI²Sの確保が重ならないよう、最後の要求のPCMが届くまで再生を待つ
+              if (segments.length > 1) sink.allowStreaming?.()
               await synthesis.endInput()
               await link.done
               const receipt = await ports.output.finish(outputId)
               send({ type: 'output.playback', receipt })
               if (receipt.state !== 'played') throw voiceError('cancelled')
-              state.heard += segment
+              state.heard += segments.join('')
             } finally {
               try {
                 await link?.close()
@@ -307,6 +325,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
                   requireActive(scope.signal)
                   if (event.type !== 'response.output_text.delta') return
                   send({ type: 'output.text', outputId: event.item_id, delta: event.delta })
+                  if (finalSpeech === 'buffered') return
                   const state = stateFor(event.item_id)
                   if (event.phase !== 'final_answer') state.early = false
                   if (!state.early) return
@@ -318,7 +337,7 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
                     if (!length) break
                     const sentence = state.pending.slice(0, length)
                     state.pending = state.pending.slice(length)
-                    await speak(event.item_id, sentence)
+                    await speak(event.item_id, [sentence])
                   }
                 },
               },
@@ -344,11 +363,15 @@ export function createCascadedConversation(config: CascadedOptions): Conversatio
                 throw voiceError('provider_failed', 'authoritative final text differs from spoken audio')
               }
               let rest = text.slice(state.heard.length)
+              const segments: string[] = []
               while (rest) {
-                const length = speechChunkLength(rest, true)
-                await speak(item.id, rest.slice(0, length))
+                const length = speechChunkLength(rest, true, finalSpeech !== 'sentence')
+                const segment = rest.slice(0, length)
+                if (finalSpeech === 'buffered') segments.push(segment)
+                else await speak(item.id, [segment])
                 rest = rest.slice(length)
               }
+              if (segments.length) await speak(item.id, segments)
             }
             status = 'completed'
           } catch (error) {

@@ -6,6 +6,14 @@ export const devices = {
     esptoolChip: 'esp32s3',
     firmwareVersionSource: 'moddable',
   },
+  m5stack_stopwatch: {
+    platform: './host/platforms/m5stack_stopwatch',
+    manifest: './host/app/manifest_m5stack_stopwatch.json',
+    label: 'M5StopWatch',
+    esptoolChip: 'esp32s3',
+    firmwareVersionSource: 'moddable',
+    sdkconfigTarget: 'm5stack_stopwatch',
+  },
   stackchan_rt: {
     platform: './host/platforms/stackchan_rt',
     manifest: './host/app/manifest_stackchan_rt.json',
@@ -27,6 +35,7 @@ export const devices = {
 export const aliases = {
   default: 'm5stackchan_cores3',
   m5stackchan: 'm5stackchan_cores3',
+  stopwatch: 'm5stack_stopwatch',
   rt: 'stackchan_rt',
   takao: 'takao_core2_sg90',
 }

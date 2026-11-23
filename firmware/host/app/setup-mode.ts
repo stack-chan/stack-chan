@@ -1,7 +1,10 @@
 import { loadPreferenceConfig } from 'loadPreference'
 import { DOMAIN, PREF_KEYS } from 'consts'
 import { getLocalizationLanguage, normalizeLocale, type SupportedLocale, setLocalizationLanguage } from 'localization'
+import config from 'mc/config'
+import Modules from 'modules'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
+import type { Container } from 'piu/MC'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
 import { BLE_PREFERENCE_WRITE_WINDOW_MS } from 'preference-write-guard'
@@ -55,6 +58,14 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     preferences.time.timezone = applySystemTimezone(preferences.time.timezone)
     preferences.tts.volume = canonicalizeVolume(preferences.tts.volume)
     const status = createInitialSettingsStatus(preferences)
+    const keys: [string, string, StringConstructor | NumberConstructor][] = PREF_KEYS.filter(
+      ([domain, key]) => preferences.driver.type !== 'none' || domain !== DOMAIN.driver || key === 'type',
+    )
+    const writeOnlyKeys: string[] = []
+    if (Modules.has('stackchan/muse-conversation')) {
+      writeOnlyKeys.push('ai.geminiToken', 'muse_sdk.sdk_token')
+      keys.push([DOMAIN.ai, 'geminiToken', String], ['muse_sdk', 'sdk_token', String])
+    }
     const effectiveValues = Object.fromEntries(
       PREF_KEYS.flatMap(([domain, key]) => {
         const value = preferences[domain]?.[key]
@@ -124,6 +135,11 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       currentView?.dispose?.()
       const nextView = settingsViews[id].create(viewContext)
       application.empty()
+      const inset = Number(config.screenSafeInset ?? 0)
+      if (inset) {
+        const content = nextView.content as Container
+        content.coordinates = { left: inset, right: inset, top: inset, bottom: inset }
+      }
       application.add(nextView.content)
       currentView = nextView
       currentViewId = id
@@ -275,8 +291,9 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
         status.ble = SettingsStatusValue.NOT_CONNECTED
         updateCurrentView()
       },
-      keys: PREF_KEYS,
+      keys,
       effectiveValues,
+      writeOnlyKeys,
       readOnlyKeys: preferences.driver.typeLocked === true ? ['driver.type'] : [],
     })
     try {

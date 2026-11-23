@@ -23,6 +23,7 @@ import {
   type Skin as PiuSkin,
   Skin,
 } from 'piu/MC'
+import { UI } from 'ui-theme'
 
 type FaceViewAnchors = {
   FACE?: FaceViewCustomFace
@@ -102,6 +103,13 @@ function measureFaceLayout(face: FaceViewCustomFace): FaceLayout {
     width: faceNumber(coordinates.width, faceNumber(positioned.width, faceNumber(positioned.bounds?.width))),
     height: faceNumber(coordinates.height, faceNumber(positioned.height, faceNumber(positioned.bounds?.height))),
     breathPad,
+  }
+}
+
+function faceViewportCoordinates(left: number, top: number): FaceViewBaseCoordinates {
+  return {
+    left: left + UI.safeInset,
+    top: top + (UI.safeInset ? UI.safeInset + (UI.screenWidth - UI.screenHeight) / 2 : 0),
   }
 }
 
@@ -367,7 +375,8 @@ class FaceViewBehavior extends CommonViewBehavior {
   private getFaceDefaultCoordinates(face: FaceViewCustomFace): FaceViewBaseCoordinates {
     let coordinates = this.faceDefaultCoordinates.get(face)
     if (!coordinates) {
-      coordinates = readFaceBaseCoordinates(face)
+      const { left, top } = readFaceBaseCoordinates(face)
+      coordinates = faceViewportCoordinates(left, top)
       this.faceDefaultCoordinates.set(face, coordinates)
     }
     return coordinates
@@ -407,12 +416,13 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
       $.FACE = face
     }
     const layout = measureFaceLayout(face)
+    const origin = faceViewportCoordinates(layout.left, layout.top)
     setFaceBaseCoordinates(face, layout.breathPad, layout.breathPad)
 
     const faceRegion = new Die($, {
       anchor: 'FACE_REGION',
-      left: layout.left - layout.breathPad,
-      top: layout.top - layout.breathPad,
+      left: origin.left - layout.breathPad,
+      top: origin.top - layout.breathPad,
       width: layout.width + layout.breathPad * 2,
       height: layout.height + layout.breathPad * 2,
       clip: true,
@@ -431,10 +441,10 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
     const effects =
       $.effects ??
       new Container($, {
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
+        left: UI.safeInset,
+        right: UI.safeInset,
+        top: UI.safeInset,
+        bottom: UI.safeInset,
         active: false,
         clip: false,
         anchor: 'EFFECTS',

@@ -60,6 +60,7 @@
     "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
     "app-behavior": "./app-behavior",
     "app-default-behavior": "./default-behavior/behavior",
+    "app-default-behavior/muse-conversation-ui": "./default-behavior/muse-conversation-ui",
     "app-default-behavior/on-context-created": "./default-behavior/on-context-created",
     "app-default-behavior/on-launch": "./default-behavior/on-launch",
     "app-default-behavior/startup-choice": "./default-behavior/startup-choice"
@@ -116,7 +117,7 @@
   },
   "bundle": {
     "id": "tech.moddable.stackchan",
-    "devices": ["com.m5stack", "com.m5stack.core2", "com.m5stack.cores3"]
+    "devices": ["com.m5stack", "com.m5stack.core2", "com.m5stack.cores3", "com.m5stack.stopwatch"]
   },
   "typescript": {
     "tsconfig": {

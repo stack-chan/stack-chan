@@ -155,6 +155,15 @@ debugまたはinstrumentモードが必要な場合は、`--mode=debug` また�
 
 Stack-chan の各ハードウェア構成は、サーボの driver 種別とバスのピンをあらかじめ定義した**サブプラットフォーム**を同梱しています。汎用 `--target=` コマンドではなく、次の npm スクリプトを使ってください。サブプラットフォーム（`-p esp32:./host/platforms/<board>`）と対応するアプリ manifest が自動的に選択されます。
 
+### M5StopWatch
+
+M5StopWatchはModdable SDK 10.1.1ベースのStopWatch対応コミット`69158293bcb07adc7514b63641e418679a3b5494`を使います。SDKを切り替えてから、`firmware/`で`npm run setup:xsl`を実行します。
+
+- ビルドは`npm run build:m5stack_stopwatch`。書き込みは`npm run flash:m5stack_stopwatch -- --port <ポート>`。
+- 配布用ビルドは`npm run build:release:m5stack_stopwatch`。Web書き込みではM5StopWatchを選びます。
+- Wi-Fiは起動画面の「設定」で保存します。標準の顔とGuruguruFaceは本体メニューの「顔」から切り替えます。
+- Muse会話を使うには、起動画面の「設定」を開き、Webの本体設定からGemini APIキーとMuse SDKトークンを登録します。通常起動後、本体メニューでMuseをペアリングして会話を開始します。マイクボタンを押して話し、離して送信します。M5StopWatchでは物理ボタンAも使えます。
+
 | 用途                      | M5StackChan CoreS3 | Stack-chan RT | タカオ版 Core2 + SG90 |
 | ------------------------- | ------------------ | ------------- | --------------------- |
 | ビルドのみ                | `npm run build` または `npm run build:m5stackchan_cores3` | `npm run build:stackchan_rt` | `npm run build:takao_core2_sg90` |

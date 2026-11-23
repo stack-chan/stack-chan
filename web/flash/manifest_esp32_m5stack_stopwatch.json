@@ -1,0 +1,23 @@
+{
+  "name": "Stack-chan for M5StopWatch",
+  "version": "2.1.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "tech.moddable.stackchan/com.m5stack.stopwatch/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "tech.moddable.stackchan/com.m5stack.stopwatch/partition-table.bin",
+          "offset": 32768
+        },
+        {
+          "path": "tech.moddable.stackchan/com.m5stack.stopwatch/xs_esp32.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

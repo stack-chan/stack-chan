@@ -5,7 +5,7 @@ import {
   ChatStatusBarState,
   formatAppBarTime,
 } from 'chat-status-bar'
-import { Application } from 'piu/MC'
+import { Application, type Container } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
 import { uiStyles } from 'ui-theme'
 
@@ -32,6 +32,7 @@ const app = new Application(null, {
 
 type StatusBarBehavior = {
   onChatState?: (container: unknown, state: number, error?: string) => void
+  onPushToTalk?: (container: unknown, setTalking?: (pressed: boolean) => void) => void
   onChatInputLevel?: (container: unknown, level: number) => void
   onConnectionIndicator?: (container: unknown, visible: boolean) => void
   onFinished?: (container: unknown) => void
@@ -267,6 +268,18 @@ assert(levelTrack.visible === false, 'level track should be hidden after failure
 assert(statusIcon.visible === false, 'status icon should be hidden after failure')
 assert(statusIndicator.visible === false, 'connecting indicator should be hidden after failure')
 assert(levelFill.skin !== normalFillSkin, 'failed state should switch level fill to error skin')
+
+const talkButton = bar.content('talkButton') as Container
+const talking: boolean[] = []
+behavior.onChatState?.(bar, ChatStatusBarState.CONNECTED)
+behavior.onPushToTalk?.(bar, (pressed) => talking.push(pressed))
+behavior.onFinished?.(bar)
+assert(talkButton.visible && talkButton.active, 'push-to-talk should stay usable after the bar timeout')
+talkButton.bubble('onTalkPressed', true)
+talkButton.bubble('onTalkPressed', false)
+equal(talking.join(','), 'true,false', 'the microphone control should report press and release')
+behavior.onPushToTalk?.(bar)
+assert(!talkButton.visible && !talkButton.active, 'ending an open conversation should hide push-to-talk')
 
 behavior.onUndisplaying?.(bar)
 assert(clock.running === false, 'teardown should stop the clock timer')

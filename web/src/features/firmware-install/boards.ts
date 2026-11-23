@@ -25,4 +25,9 @@ export const FIRMWARE_BOARDS: readonly FirmwareBoard[] = [
     label: 'M5StackChan CoreS3',
     manifestUrl: new URL('./manifest_esp32_m5stackchan_cores3.json', document.baseURI).href,
   },
+  {
+    id: 'esp32_m5stack_stopwatch',
+    label: 'M5StopWatch',
+    manifestUrl: new URL('./manifest_esp32_m5stack_stopwatch.json', document.baseURI).href,
+  },
 ]

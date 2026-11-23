@@ -30,6 +30,7 @@ export type FaceBaseParams = {
   contents?: PiuContainerDictionary['contents']
   motions?: FaceMotion[]
   intervalMs?: number
+  breathPixels?: number
   left?: number
   top?: number
   right?: number
@@ -43,6 +44,7 @@ export type FaceTemplateCtor = TemplateCtor<FaceBaseParams>
 type FaceBehaviorOptions = {
   motions?: FaceMotion[]
   intervalMs?: number
+  breathPixels?: number
 }
 
 export class FaceBehavior extends Behavior {
@@ -59,7 +61,7 @@ export class FaceBehavior extends Behavior {
   #breathPixels: number
   #breathOffset: number
 
-  constructor({ motions, intervalMs }: FaceBehaviorOptions) {
+  constructor({ motions, intervalMs, breathPixels }: FaceBehaviorOptions) {
     super()
     this.#motions = motions ?? [
       createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
@@ -75,7 +77,7 @@ export class FaceBehavior extends Behavior {
     this.#hasBaseCoordinates = false
     this.#paused = false
     this.#skinPalette = null
-    this.#breathPixels = 6
+    this.#breathPixels = breathPixels ?? 6
     this.#breathOffset = 0
     this.intervalMs = intervalMs ?? 33
   }
@@ -254,6 +256,7 @@ export const FaceBase: FaceTemplateCtor = Container.template(($: FaceBaseParams,
         super({
           motions: params.motions,
           intervalMs: params.intervalMs,
+          breathPixels: params.breathPixels,
         })
       }
     },

@@ -1,0 +1,11 @@
+{
+  "build": {
+    "SUBPLATFORM": "m5stack_stopwatch"
+  },
+  "include": ["$(BUILD)/devices/esp32/targets/m5stack_stopwatch/manifest.json"],
+  "modules": {
+    "sdk-board-provider": "$(BUILD)/devices/esp32/targets/m5stack_stopwatch/host/provider",
+    "setup/stackchan-stopwatch": "./setup-input"
+  },
+  "preload": ["setup/stackchan-stopwatch"]
+}

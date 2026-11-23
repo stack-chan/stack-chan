@@ -301,8 +301,8 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
   const skins = getDrawerSkins()
   return {
     name: 'drawer',
-    top: 0,
-    bottom: 0,
+    top: UI.safeInset,
+    bottom: UI.safeInset,
     width: drawerWidth,
     clip: true,
     active: true,
@@ -329,7 +329,12 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
       }),
     ],
     Behavior: class extends Behavior {
-      coordinates = { right: drawerHiddenOffset, width: drawerWidth, top: 0, bottom: 0 } as unknown as Coordinates
+      coordinates = {
+        right: drawerHiddenOffset,
+        width: drawerWidth,
+        top: UI.safeInset,
+        bottom: UI.safeInset,
+      } as unknown as Coordinates
       isOpen = false
       buttonList: PiuContainer | null = null
       timeline: Timeline | null = null
@@ -375,7 +380,7 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
         trace(`[Drawer] setOpen ${open}\n`)
         if (this.isOpen === open && !this.timeline) return
         this.isOpen = open
-        const to = this.isOpen ? 0 : drawerHiddenOffset
+        const to = this.isOpen ? UI.safeInset : drawerHiddenOffset
         this.startAnimation(container, to)
       }
       toggle(container: PiuContainer) {

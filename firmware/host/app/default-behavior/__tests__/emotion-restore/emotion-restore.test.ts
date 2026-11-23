@@ -41,7 +41,7 @@ function createHarness(baseEmotion: Emotion = Emotion.NEUTRAL) {
       },
     },
   }
-  onContextCreated?.(robot as never, { config: { ui: { type: 'simple' } } } as never)
+  onContextCreated?.(robot as never, { config: { ui: { type: 'simple' }, driver: {} } } as never)
   const selectEmotion = (value: Emotion) => {
     buttons.find((button) => button.key === 'cycleEmotion')?.callback?.(robot, String(value))
   }

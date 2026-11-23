@@ -83,6 +83,7 @@
   "drawer.face.dog": "Dog",
   "drawer.face.image": "Image",
   "drawer.face.deal-with-it": "Deal with it",
+  "drawer.face.guruguru": "GuruguruFace",
   "drawer.face.jitome": "Jitome",
   "drawer.emotion": "Expression",
   "drawer.balloon": "Speech Bubble",
@@ -93,5 +94,18 @@
   "drawer.recordAndPlay": "Record and Play",
   "drawer.color.light": "White",
   "drawer.color.dark": "Black",
-  "drawer.colorScheme": "Color Scheme"
+  "drawer.colorScheme": "Color Scheme",
+  "muse.start": "Start Muse",
+  "muse.end": "End Muse",
+  "muse.pair": "Pair Muse",
+  "muse.cancel": "Cancel pairing",
+  "muse.confirm": "Confirm pairing",
+  "muse.save": "Save pairing",
+  "muse.connecting": "Connecting to Muse",
+  "muse.pairing": "Pair with {name}",
+  "muse.pairRequired": "Pair Muse first",
+  "muse.sdkTokenRequired": "Set Muse SDK token in Settings",
+  "muse.geminiTokenRequired": "Set Gemini API key in Settings",
+  "muse.wifiRequired": "Connect to Wi-Fi first",
+  "muse.failed": "Muse connection failed"
 }

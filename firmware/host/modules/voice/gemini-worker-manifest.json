@@ -1,0 +1,16 @@
+{
+  "include": [
+    "$(MODULES)/base/worker/manifest.json"
+  ],
+  "modules": {
+    "stackchan/voice/gemini-worker-tts": "./gemini-worker-tts",
+    "gemini-native-reader": "./gemini-native-reader",
+    "gemini-native-transport": "./gemini-native-transport",
+    "gemini-worker-scan": "./gemini-worker-scan",
+    "gemini-worker-session": "./gemini-worker-session",
+    "gemini-worker-entry": "./gemini-worker-entry",
+    "gemini-worker-bridge": "./gemini-worker-bridge",
+    "gemini-worker-events": "./gemini-worker-events",
+    "gemini-worker-request": "./gemini-worker-request"
+  }
+}

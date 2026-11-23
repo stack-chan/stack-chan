@@ -93,7 +93,7 @@ if (
 
 if (
   !dryRun &&
-  ['m5stackchan_cores3', 'stackchan_rt'].includes(deviceName) &&
+  ['m5stackchan_cores3', 'm5stack_stopwatch', 'stackchan_rt'].includes(deviceName) &&
   command !== 'mod' &&
   command !== 'mod:build'
 ) {
@@ -104,6 +104,7 @@ if (
       applicationName: hostApplicationName,
       mode: buildMode,
       realtime,
+      muse: deviceName === 'm5stackchan_cores3' || deviceName === 'm5stack_stopwatch',
       solutionDirectory,
     })
   } catch (error) {
@@ -134,12 +135,14 @@ if (!dryRun && device.sdkconfigTarget && ['build', 'flash', 'deploy', 'debug'].i
       platformName: deviceName,
       moddableDirectory,
       sourceDirectory: path.join(moddableDirectory, 'build/devices/esp32/targets', device.sdkconfigTarget, 'sdkconfig'),
-      partitionSourcePath: path.join(
-        moddableDirectory,
-        'build/devices/esp32/targets',
-        device.sdkconfigTarget,
-        'sdkconfig/partitions.csv',
-      ),
+      partitionSourcePath: device.partitions
+        ? path.resolve(device.partitions)
+        : path.join(
+            moddableDirectory,
+            'build/devices/esp32/targets',
+            device.sdkconfigTarget,
+            'sdkconfig/partitions.csv',
+          ),
     })
     expectedDescriptorVersion = versionSdkconfig.version
     // The included board manifest overrides SDKCONFIGPATH from the environment.
@@ -412,6 +415,7 @@ function printHelp() {
 
 Devices:
   m5stackchan_cores3  M5StackChan CoreS3 (default)
+  m5stack_stopwatch   M5StopWatch
   stackchan_rt        Stack-chan RT CoreS3
   takao_core2_sg90    Stack-chan Takao Core2 + SG90
 

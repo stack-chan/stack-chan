@@ -1,6 +1,6 @@
 import type { Port as PiuPort } from 'piu/MC'
 import { Container, Content, Label, Port, Skin } from 'piu/MC'
-import { ActionButton } from 'ui-controls'
+import { ActionButton, IconView } from 'ui-controls'
 import { UI, uiStyles } from 'ui-theme'
 
 export const ChatStatusBarState = Object.freeze({
@@ -277,6 +277,8 @@ class ChatStatusBarBehavior extends Behavior {
   #menuButton?: Container
   #appsButton?: Container
   #backButton?: Container
+  #talkButton?: Container
+  #setTalking?: (pressed: boolean) => void
   #title?: Label
   #clock?: Label
   #battery?: PiuPort
@@ -292,6 +294,7 @@ class ChatStatusBarBehavior extends Behavior {
     this.#menuButton = container.content('menuButton') as Container
     this.#appsButton = container.content('appsButton') as Container
     this.#backButton = container.content('backButton') as Container
+    this.#talkButton = container.content('talkButton') as Container
     this.#title = container.content('title') as Label
     this.#clock = container.content('clock') as Label
     this.#battery = container.content('battery') as PiuPort
@@ -349,6 +352,15 @@ class ChatStatusBarBehavior extends Behavior {
     this.updateUI()
   }
 
+  onPushToTalk(_container: Container, setTalking?: (pressed: boolean) => void) {
+    this.#setTalking = setTalking
+    this.updateUI()
+  }
+
+  onTalkPressed(_container: Container, pressed: boolean) {
+    this.#setTalking?.(pressed)
+  }
+
   onChatInputLevel(_container: Container, level: number) {
     this.#inputLevel = level
     this.updateLevel()
@@ -368,7 +380,9 @@ class ChatStatusBarBehavior extends Behavior {
     const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
     const isConnecting = this.#state === ChatStatusBarState.CONNECTING || this.#connectionPending
     const persistentInputVisible = faceMode && !faceChromeVisible && isUserSpeaking && !isConnecting
-    const faceStatusVisible = faceChromeVisible || persistentInputVisible
+    const talkVisible = faceMode && this.#setTalking !== undefined
+    setControlVisible(this.#talkButton, talkVisible)
+    const faceStatusVisible = faceChromeVisible || persistentInputVisible || talkVisible
     const skins = getSkins()
     if (this.#container) {
       this.#container.visible = !faceMode || faceStatusVisible
@@ -446,9 +460,9 @@ export const ChatStatusBar = Container.template((options: ChatStatusBarOptions =
   return {
     name: 'ChatStatusBar',
     anchor: 'APP_BAR',
-    left: 0,
-    right: 0,
-    top: 0,
+    left: UI.safeInset,
+    right: UI.safeInset,
+    top: UI.safeInset,
     height: barHeight,
     skin: skins.bar,
     contents: [
@@ -544,6 +558,37 @@ export const ChatStatusBar = Container.template((options: ChatStatusBarOptions =
             skin: skins.levelFill,
           }),
         ],
+      }),
+      new Container(null, {
+        name: 'talkButton',
+        left: 52,
+        top: 0,
+        width: 44,
+        height: 44,
+        visible: false,
+        active: false,
+        skin: skins.chrome,
+        contents: [new IconView({ icon: 'microphone', enabled: true, selected: false }, { width: 32, height: 32 })],
+        Behavior: class extends Behavior {
+          #touch?: number
+
+          onTouchBegan(button: Container, id: number, x: number, y: number, ticks: number) {
+            if (this.#touch !== undefined) return
+            this.#touch = id
+            button.captureTouch(id, x, y, ticks)
+            button.bubble('onTalkPressed', true)
+          }
+
+          onTouchEnded(button: Container, id: number) {
+            if (this.#touch !== id) return
+            this.#touch = undefined
+            button.bubble('onTalkPressed', false)
+          }
+
+          onTouchCancelled(button: Container, id: number) {
+            this.onTouchEnded(button, id)
+          }
+        },
       }),
       new ActionButton(
         {

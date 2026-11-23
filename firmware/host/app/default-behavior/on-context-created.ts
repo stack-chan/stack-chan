@@ -4,6 +4,7 @@ import type { CameraImageType } from 'camera'
 import { type CameraPreviewFrame, createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
+import { createGuruguruFace } from 'guruguru-face'
 import { type HandAnimationName, isHandAnimationName } from 'hands'
 import type { MotionType } from 'imu'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
@@ -60,6 +61,7 @@ function errorMessage(error: unknown): string {
 }
 
 export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot, options) => {
+  const motionAvailable = options.config.driver.type !== 'none'
   const emotions: Emotion[] = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
   const emotionOptions = [
     { value: String(Emotion.NEUTRAL), label: localize('drawer.emotion.neutral') },
@@ -164,10 +166,10 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     }
   }
 
-  type FaceMode = 'simple' | 'dog' | 'image' | 'jitome' | 'deal-with-it'
+  type FaceMode = 'simple' | 'dog' | 'image' | 'jitome' | 'deal-with-it' | 'guruguru'
   const faceModes: FaceMode[] = isJitomeFaceSupported()
-    ? ['simple', 'dog', 'image', 'jitome', 'deal-with-it']
-    : ['simple', 'dog', 'image', 'deal-with-it']
+    ? ['simple', 'dog', 'image', 'jitome', 'deal-with-it', 'guruguru']
+    : ['simple', 'dog', 'image', 'deal-with-it', 'guruguru']
   const configuredFace = options.config.ui.type
   let faceMode: FaceMode = faceModes.includes(configuredFace as FaceMode) ? (configuredFace as FaceMode) : 'simple'
   let handAnimation: HandAnimationName = 'none'
@@ -180,6 +182,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   const syncHandAnimation = () => robot.ui.setHandAnimation(handAnimation)
   const closeDrawer = () => robot.ui.closeDrawer()
   const createCurrentFace = () => {
+    if (faceMode === 'guruguru') return createGuruguruFace()
     if (faceMode === 'deal-with-it') return new DealWithItFace({})
     if (faceMode === 'dog') return new DogFace({})
     if (faceMode === 'image') return new ImageFace({})
@@ -413,14 +416,16 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     trace(`looking at: [${x}, ${y}, ${z}]\n`)
     robot.lookAt([x, y, z])
   }
-  Timer.repeat(targetLoop, 5000)
-  robot.drawer.addDrawerButton({
-    key: 'toggleLookAround',
-    label: localize('drawer.lookAround'),
-    kind: 'toggle',
-    initialState: isFollowing,
-    callback: toggleLookAround,
-  })
+  if (motionAvailable) {
+    Timer.repeat(targetLoop, 5000)
+    robot.drawer.addDrawerButton({
+      key: 'toggleLookAround',
+      label: localize('drawer.lookAround'),
+      kind: 'toggle',
+      initialState: isFollowing,
+      callback: toggleLookAround,
+    })
+  }
 
   /**
    * Servo test (Drawer action)
@@ -466,12 +471,13 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       isMoving = false
       trace(`[ServoTest] unexpected error ${errorMessage(error)}\n`)
     })
-  robot.drawer.addDrawerButton({
-    key: 'servoTest',
-    label: localize('drawer.servo'),
-    icon: 'play',
-    callback: startServoTest,
-  })
+  if (motionAvailable)
+    robot.drawer.addDrawerButton({
+      key: 'servoTest',
+      label: localize('drawer.servo'),
+      icon: 'play',
+      callback: startServoTest,
+    })
 
   /**
    * LED test(Drawer action)
@@ -635,7 +641,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
 
   if (robot.button != null) {
-    if (robot.button.a != null) {
+    if (motionAvailable && robot.button.a != null) {
       robot.button.a.onEvent = (event) => {
         if (!event.pressed) {
           return
@@ -643,7 +649,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         void toggleLookAround().catch((error) => trace(`[Button] look error ${errorMessage(error)}\n`))
       }
     }
-    if (robot.button.b != null) {
+    if (motionAvailable && robot.button.b != null) {
       robot.button.b.onEvent = (event) => {
         if (!event.pressed) {
           return

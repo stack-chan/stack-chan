@@ -173,10 +173,13 @@ export type PlaybackReceipt = {
   readonly position: PlaybackCursor
   readonly state: 'played' | 'interrupted' | 'failed'
 }
+export interface PlaybackSegment extends AudioSink {
+  allowStreaming?(): void
+}
 export interface PlaybackSink extends AudioSink {
   readonly budget: MediaBudget
   position?(outputId: string): PlaybackCursor
-  begin(outputId: string, generation: number): AudioSink
+  begin(outputId: string, generation: number): PlaybackSegment
   finish(outputId: string): Promise<PlaybackReceipt>
   fence(nextGeneration: number): Promise<readonly PlaybackReceipt[]>
 }
@@ -196,6 +199,7 @@ export interface MediaRuntime {
 }
 export type AudioRequirements = {
   readonly preRollMs?: number
+  readonly playback?: 'buffered'
   readonly nativeBackend?: string
   readonly input: readonly PcmFormat[]
   readonly output: readonly PcmFormat[]

@@ -9,9 +9,11 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { webRtcComponents } from './webrtc-solution.mjs'
 
 const dependenciesByPlatform = {
+  m5stack_stopwatch: [],
   m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
   stackchan_rt: [
     ['espressif/esp32-camera', '^2.0.10'],
@@ -24,8 +26,8 @@ const dependenciesByPlatform = {
 }
 
 /**
- * Seeds a generated CoreS3 IDF manifest before Moddable adds dependencies.
- * @param {{outputDirectory: string, platformName: string, applicationName: string, mode: string}} options - Build output configuration.
+ * Seeds a generated ESP32 IDF manifest before Moddable adds dependencies.
+ * @param {{outputDirectory: string, platformName: string, applicationName: string, mode: string, muse?: boolean}} options - Build output configuration.
  * @returns {string} Path to the prepared IDF component manifest.
  */
 export function prepareCoreS3IdfDependencies({
@@ -35,10 +37,11 @@ export function prepareCoreS3IdfDependencies({
   mode,
   realtime = false,
   solutionDirectory,
+  muse = false,
 }) {
   if (!outputDirectory) throw new Error('Build output directory is required')
-  const dependencies = dependenciesByPlatform[platformName]
-  if (!dependencies) throw new Error(`Unsupported CoreS3 platform: ${platformName}`)
+  const baseDependencies = dependenciesByPlatform[platformName]
+  if (!baseDependencies) throw new Error(`Unsupported IDF platform: ${platformName}`)
   if (!applicationName) throw new Error('Application name is required')
   if (!['debug', 'instrument', 'release'].includes(mode)) throw new Error(`Unsupported build mode: ${mode}`)
 
@@ -63,10 +66,36 @@ export function prepareCoreS3IdfDependencies({
     throw new Error(`IDF component manifest has no dependencies block: ${manifestPath}`)
   }
 
-  for (const [name, version] of dependencies) {
+  for (const [name, version] of baseDependencies) {
     if (manifest.includes(`  ${name}:`)) continue
     if (!manifest.endsWith('\n')) manifest += '\n'
     manifest += `  ${name}: ${version}\n`
+  }
+
+  if (muse) {
+    const museManifest = JSON.parse(
+      readFileSync(new URL('../../host/modules/muse-gadget/host.manifest.json', import.meta.url)),
+    )
+    const websocket = museManifest.platforms[`esp32/${platformName}`]?.dependency?.find(
+      ({ name }) => name === 'esp_websocket_client',
+    )
+    if (!websocket) throw new Error(`Muse is not supported on ${platformName}`)
+    const dependency = `  espressif/esp_websocket_client: '${websocket.version}'`
+    const existing = /^ {2}espressif\/esp_websocket_client:.*$/m
+    if (existing.test(manifest)) manifest = manifest.replace(existing, dependency)
+    else {
+      if (!manifest.endsWith('\n')) manifest += '\n'
+      manifest += `${dependency}\n`
+    }
+
+    const componentDirectory = path.join(mainDirectory, '..', 'components')
+    mkdirSync(componentDirectory, { recursive: true })
+    for (const component of ['noise', 'pairing']) {
+      const source = fileURLToPath(
+        new URL(`../../host/modules/muse-gadget/native/${component}_component`, import.meta.url),
+      )
+      linkComponent(source, path.join(componentDirectory, `stackchan_muse_${component}`))
+    }
   }
 
   if (realtime) {

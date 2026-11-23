@@ -147,6 +147,15 @@ Run `npm run clean` to remove all generated files under `firmware/dist/`.
 
 Stack-chan hardware variants ship their own **subplatform**, which already defines the servo driver type and bus pins. Use the board-specific npm scripts below instead of generic `--target=` commands; each one selects the subplatform (`-p esp32:./host/platforms/<board>`) and its matching app manifest automatically.
 
+### M5StopWatch
+
+M5StopWatch uses `meganetaaan/moddable` commit `69158293bcb07adc7514b63641e418679a3b5494`, based on Moddable SDK 10.1.1. After selecting that SDK, run `npm run setup:xsl` in `firmware/`.
+
+- Build with `npm run build:m5stack_stopwatch`. Flash with `npm run flash:m5stack_stopwatch -- --port <port>`.
+- Build the release artifact with `npm run build:release:m5stack_stopwatch`. Select M5StopWatch when installing from the web.
+- Save Wi-Fi from Settings on the startup screen. Switch between the standard face and GuruguruFace from Face in the device menu.
+- To use Muse, open Settings on startup and enter the Gemini API key and Muse SDK token in the web device settings. After booting, pair and start Muse from the device menu. Hold the microphone button to talk and release it to send. M5StopWatch also supports physical button A.
+
 | Task                    | M5StackChan CoreS3 | Stack-chan RT | Takao Core2 + SG90 |
 | ----------------------- | ------------------ | ------------- | ------------------ |
 | Build only              | `npm run build` or `npm run build:m5stackchan_cores3` | `npm run build:stackchan_rt` | `npm run build:takao_core2_sg90` |

@@ -83,6 +83,7 @@
   "drawer.face.dog": "いぬ",
   "drawer.face.image": "画像",
   "drawer.face.deal-with-it": "Deal with it",
+  "drawer.face.guruguru": "GuruguruFace",
   "drawer.face.jitome": "ジト目",
   "drawer.emotion": "表情",
   "drawer.balloon": "吹き出し",
@@ -93,5 +94,18 @@
   "drawer.recordAndPlay": "録音と再生",
   "drawer.color.light": "白",
   "drawer.color.dark": "黒",
-  "drawer.colorScheme": "配色"
+  "drawer.colorScheme": "配色",
+  "muse.start": "Muse会話を開始",
+  "muse.end": "Muse会話を終了",
+  "muse.pair": "Museとペアリング",
+  "muse.cancel": "ペアリングを中止",
+  "muse.confirm": "ペアリングを確認",
+  "muse.save": "ペアリングを保存",
+  "muse.connecting": "Museに接続中",
+  "muse.pairing": "{name}とペアリング",
+  "muse.pairRequired": "Museとペアリングしてください",
+  "muse.sdkTokenRequired": "設定でMuse SDKトークンを登録",
+  "muse.geminiTokenRequired": "設定でGemini APIキーを登録",
+  "muse.wifiRequired": "Wi-Fiに接続してください",
+  "muse.failed": "Museへの接続に失敗しました"
 }

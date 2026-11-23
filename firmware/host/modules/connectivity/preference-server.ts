@@ -1,4 +1,3 @@
-import type { PREF_KEYS } from 'consts'
 import Preference from 'preference'
 import { isAllowedPreferenceWrite, parsePreferenceProperty } from 'preference-write-guard'
 import Time from 'time'
@@ -11,15 +10,17 @@ type PreferenceServerProps = {
   onPreferenceChanged?: (key: string, value: ReturnType<(typeof Preference)['get']>) => void
   onConnected?: () => void
   onDisconnected?: () => void
-  keys?: typeof PREF_KEYS
+  keys?: ReadonlyArray<readonly [string, string, StringConstructor | NumberConstructor]>
   effectiveValues?: Readonly<Record<string, PreferenceValue>>
   readOnlyKeys?: readonly string[]
+  writeOnlyKeys?: readonly string[]
 }
 export class PreferenceServer extends UARTServer {
   #tx_characteristic
   #keys
   #effectiveValues
   #readOnlyKeys
+  #writeOnlyKeys
   #rxBuffer = ''
   #timeout
   #writesEnabled = false
@@ -41,6 +42,7 @@ export class PreferenceServer extends UARTServer {
     this.#keys = Array.isArray(option?.keys) ? option.keys.slice() : []
     this.#effectiveValues = option?.effectiveValues ?? {}
     this.#readOnlyKeys = option?.readOnlyKeys ?? []
+    this.#writeOnlyKeys = option?.writeOnlyKeys ?? []
   }
 
   // Only an explicit on-device setup action should open a bounded write window.
@@ -123,6 +125,10 @@ export class PreferenceServer extends UARTServer {
       for (const item of this.#keys) {
         const [domain, key] = item
         const prop = `${domain}.${key}`
+        if (this.#writeOnlyKeys.includes(prop)) {
+          this.notifyPreference(prop, '')
+          continue
+        }
         const readOnly = this.#readOnlyKeys.includes(prop)
         const currentValue = readOnly
           ? this.#effectiveValues[prop]
@@ -144,7 +150,6 @@ export class PreferenceServer extends UARTServer {
   onRX(data) {
     if (!this.#isWriteWindowOpen()) return
     this.#rxBuffer += String.fromArrayBuffer(data)
-    trace(`${this.#rxBuffer}\n`)
     let _batch: object
     let prop: string
     let value: PreferenceValue
@@ -202,18 +207,18 @@ export class PreferenceServer extends UARTServer {
     }
     const prop = `${domain}.${key}`
     if (this.#readOnlyKeys.includes(prop)) {
-      trace(`ignoring read-only preference ... ${prop}: ${value}\n`)
+      trace(`ignoring read-only preference ... ${prop}\n`)
       const currentValue = this.#effectiveValues[prop]
       if (currentValue != null) this.notifyPreference(prop, currentValue, true)
       return
     }
     const currentValue = Preference.get(domain, key) ?? this.#effectiveValues[prop]
     if (currentValue !== value) {
-      trace(`changing preference ... ${domain}.${key}: ${value}\n`)
+      trace(`changing preference ... ${domain}.${key}\n`)
       // Parsing, storage reads or earlier batch callbacks may have crossed expiry.
       if (!this.#isWriteWindowOpen()) return
       Preference.set(domain, key, value)
-      this.notifyPreference(prop, value)
+      if (!this.#writeOnlyKeys.includes(prop)) this.notifyPreference(prop, value)
       this.#handlePreferenceChanged?.(prop, value)
     }
   }

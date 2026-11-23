@@ -114,6 +114,11 @@
         "audio-in": "./platforms/m5stack-fire/audio-in"
       }
     },
+    "esp32/m5stack_stopwatch": {
+      "modules": {
+        "audio-in": "../../platforms/m5stack_stopwatch/audio-in"
+      }
+    },
     "esp32/m5stack_cores3": {
       "defines": {
         "audioOut": {

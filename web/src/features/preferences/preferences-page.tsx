@@ -169,6 +169,7 @@ export function PreferencesPage() {
               {selectField('ui.type', '顔の種類', [
                 { value: 'simple', label: 'シンプル' },
                 { value: 'dog', label: 'いぬ' },
+                { value: 'guruguru', label: 'GuruguruFace', translate: false },
               ])}
               {selectField('ui.language', '本体の表示言語', [
                 { value: 'ja', label: '日本語', translate: false },
@@ -177,7 +178,7 @@ export function PreferencesPage() {
               ])}
             </>
           )}
-          {section(
+          {!(preferences.readOnly.has('driver.type') && preferences.values['driver.type'] === 'none') && section(
             'サーボ',
             <>
               {selectField(
@@ -226,6 +227,8 @@ export function PreferencesPage() {
             'AI',
             <>
               {inputField({ name: 'ai.token', label: 'トークン', type: 'password' })}
+              {inputField({ name: 'ai.geminiToken', label: 'Gemini API key', type: 'password' })}
+              {inputField({ name: 'muse_sdk.sdk_token', label: 'Muse SDK token', type: 'password' })}
               <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="ai.context">{t('システムロール')}</Label>
                 <Textarea

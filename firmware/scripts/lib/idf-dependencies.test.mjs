@@ -191,3 +191,39 @@ test('rejects missing WebRTC sources before invoking the SDK', () => {
     rmSync(outputDirectory, { recursive: true, force: true })
   }
 })
+
+test('standard Host discovers Muse components on both supported targets', async () => {
+  const { realpathSync, writeFileSync } = await import('node:fs')
+  const sourceManifest = JSON.parse(
+    readFileSync(new URL('../../host/modules/muse-gadget/host.manifest.json', import.meta.url)),
+  )
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-muse-deps-'))
+  try {
+    for (const platformName of ['m5stack_stopwatch', 'm5stackchan_cores3']) {
+      const options = {
+        outputDirectory,
+        platformName,
+        applicationName: 'stack-chan-host',
+        mode: 'release',
+        muse: true,
+      }
+      const manifest = prepareCoreS3IdfDependencies(options)
+      const dependency = sourceManifest.platforms[`esp32/${platformName}`].dependency.find(
+        ({ name }) => name === 'esp_websocket_client',
+      )
+      const original = readFileSync(manifest, 'utf8')
+      assert.ok(original.includes(`espressif/esp_websocket_client: '${dependency.version}'`))
+      writeFileSync(manifest, original.replace(dependency.version, '0.0.0'))
+      prepareCoreS3IdfDependencies(options)
+      assert.equal(readFileSync(manifest, 'utf8'), original)
+      assert.equal(count(original, 'espressif/esp_websocket_client:'), 1)
+      for (const component of ['noise', 'pairing']) {
+        const generated = path.resolve(path.dirname(manifest), '..', 'components', `stackchan_muse_${component}`)
+        const source = new URL(`../../host/modules/muse-gadget/native/${component}_component`, import.meta.url)
+        assert.equal(realpathSync(generated), realpathSync(source))
+      }
+    }
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})

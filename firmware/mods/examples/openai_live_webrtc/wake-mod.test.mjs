@@ -140,6 +140,7 @@ async function fixture({
       events.push('conversation created')
       return {
         setVolume() {},
+        async setMicrophoneMuted() {},
         start() {
           owner = 'conversation'
           events.push('conversation started')
@@ -465,4 +466,27 @@ test('session UI scheduling spans active audio and is released after each kind o
     assert.deepEqual(f.events.slice(-2), ['conversation released', 'UI scheduler released'])
     await f.shutdown()
   }
+})
+
+test('the MOD distinguishes OpenAI standby from local wake and keeps mute through resume', async () => {
+  const f = await fixture()
+  f.fire('session')
+  await settle()
+  const live = f.conversation()
+  live.onStandbyChanged(true)
+  assert.equal(f.balloons.at(-1), 'OpenAI 待機中・マイク送信中')
+  assert.equal(f.states.get(names.session), true)
+  f.fire('mute')
+  await settle()
+  assert.equal(f.states.get(names.mute), true)
+  assert.equal(f.balloons.at(-1), 'OpenAI 待機中・ミュート中')
+  live.onStandbyChanged(false)
+  assert.equal(f.balloons.at(-1), 'OpenAI 会話中')
+  assert.equal(f.states.get(names.mute), true)
+  f.fire('session')
+  await settle()
+  const label = f.balloons.at(-1)
+  live.onStandbyChanged(true)
+  assert.equal(f.balloons.at(-1), label)
+  await f.shutdown()
 })

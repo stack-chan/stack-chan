@@ -1,5 +1,14 @@
 export class LiveSession {
-  constructor({ createConversation, createPipeline, networkReady, acquireLowLatency, settings, reactions, onState }) {
+  constructor({
+    createConversation,
+    createPipeline,
+    networkReady,
+    acquireLowLatency,
+    settings,
+    reactions,
+    onState,
+    onStandbyChanged,
+  }) {
     Object.assign(this, {
       createConversation,
       createPipeline,
@@ -8,6 +17,7 @@ export class LiveSession {
       settings,
       reactions,
       onState,
+      onStandbyChanged,
     })
   }
 
@@ -58,6 +68,11 @@ export class LiveSession {
             if (this.active === entry && !entry.cancelled) this.reactions.receive(event)
           },
         }),
+        onStandbyChanged: (standby) => {
+          if (this.active !== entry || entry.cancelled) return
+          entry.standby = standby
+          if (entry.connected) this.onStandbyChanged?.(standby)
+        },
         onError: () => {
           if (this.active !== entry) return
           entry.failure = 'error'
@@ -72,7 +87,8 @@ export class LiveSession {
       entry.pipeline.setVolume(this.settings.volume ?? 0.1)
       await entry.pipeline.start()
       if (entry.cancelled || this.active !== entry) return false
-      this.onState('connected')
+      entry.connected = true
+      this.onState('connected', entry.standby)
       return true
     } catch {
       if (!entry.cancelled) entry.failure = 'error'

@@ -78,6 +78,20 @@ export function onContextCreated(robot) {
       // A rendering failure must not prevent session cleanup.
     }
   }
+  function renderConversation(standby) {
+    const message = standby
+      ? session.active?.muted
+        ? 'OpenAI 待機中・ミュート中'
+        : 'OpenAI 待機中・マイク送信中'
+      : standby === undefined && coordinator
+        ? '話しかけてください'
+        : messages.connected
+    try {
+      robot.ui.showBalloon(message)
+    } catch {
+      // A display failure must not end the conversation.
+    }
+  }
   session = new LiveSession({
     createConversation: LiveConversation.create,
     createPipeline: (conversation) =>
@@ -91,7 +105,8 @@ export function onContextCreated(robot) {
     acquireLowLatency: () => power.acquireLowLatency(),
     settings,
     reactions: settings.decisionsReactions === true ? createDecisionsReactions(robot, wait) : undefined,
-    onState(state) {
+    onStandbyChanged: renderConversation,
+    onState(state, standby) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
       try {
         if (state === 'connected' && !releaseUI) releaseUI = uiPerformance?.acquire()
@@ -121,7 +136,8 @@ export function onContextCreated(robot) {
       try {
         drawer.setDrawerButtonState(SESSION, active)
         drawer.setDrawerButtonState(MUTE, false)
-        robot.ui.showBalloon(coordinator && state === 'connected' ? '話しかけてください' : messages[state])
+        if (state === 'connected') renderConversation(standby)
+        else robot.ui.showBalloon(messages[state])
       } catch {
         // Display failures must not prevent native audio/radio cleanup.
       }
@@ -245,10 +261,13 @@ export function onContextCreated(robot) {
       }
       if (changingMute) return
       changingMute = true
-      const muted = !session.active?.muted
+      const entry = session.active
+      const muted = !entry?.muted
       void session.setMicrophoneMuted(muted).then((value) => {
         changingMute = false
+        if (session.active !== entry) return
         drawer.setDrawerButtonState(MUTE, value)
+        if (entry?.connected && !entry.cancelled && entry.standby) renderConversation(true)
       })
     },
   })

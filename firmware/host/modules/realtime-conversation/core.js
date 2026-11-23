@@ -39,6 +39,7 @@ export default class Conversation {
   #signaled = false
   #sessionId
   #ready = false
+  #inference = 'waiting'
   #closeSent = false
   #timers = new Set()
   #connectTimer
@@ -68,7 +69,7 @@ export default class Conversation {
         hangup: (sessionId) => adapter.hangup({ sessionId }),
       }
     }
-    for (const name of ['onStateChanged', 'onTranscript', 'onEvent', 'onError', 'onToolResult'])
+    for (const name of ['onStateChanged', 'onStandbyChanged', 'onTranscript', 'onEvent', 'onError', 'onToolResult'])
       if (options[name] !== undefined && typeof options[name] !== 'function')
         throw new TypeError(`${name} must be a function`)
     if (options.triggers !== undefined && !Array.isArray(options.triggers)) throw new TypeError('Invalid Live triggers')
@@ -80,6 +81,7 @@ export default class Conversation {
       delegation: options.delegation === undefined ? undefined : JSON.parse(JSON.stringify(options.delegation)),
       triggers: options.triggers?.length ? JSON.parse(JSON.stringify(options.triggers)) : undefined,
       onStateChanged: options.onStateChanged,
+      onStandbyChanged: options.onStandbyChanged,
       onTranscript: options.onTranscript,
       onEvent: options.onEvent,
       onError: options.onError,
@@ -250,6 +252,7 @@ export default class Conversation {
         delegation: options.delegation,
         ...(options.triggers === undefined ? {} : { triggers: options.triggers }),
         store: false,
+        ...(!this.#signaling && { wake_policy: { type: 'speech' }, idle_timeout_s: 30 }),
       }
       let response
       if (this.#signaling) {
@@ -343,8 +346,20 @@ export default class Conversation {
           if (this.#state === 'closing') this.#sendClose()
           else {
             this.#setState('connected')
+            if (!this.#signaling && this.#state === 'connected')
+              this.#notify('onStandbyChanged', this.#inference !== 'awake')
             this.#connection.resolve({ id: this.#sessionId })
           }
+          break
+        case 'session.paused':
+        case 'session.resumed':
+          if (
+            !this.#signaling &&
+            ['connecting', 'connected'].includes(this.#state) &&
+            typeof message.event_id === 'string' &&
+            message.event_id
+          )
+            this.#setInference(message.type === 'session.paused' ? 'paused' : 'awake')
           break
         case 'session.input_transcript.delta':
         case 'session.output_transcript.delta':
@@ -355,6 +370,13 @@ export default class Conversation {
             message.end_ms < message.start_ms
           )
             throw new ConversationError('Invalid transcript fragment', 'invalid_transcript', 'events')
+          if (
+            !this.#signaling &&
+            ['connecting', 'connected'].includes(this.#state) &&
+            this.#inference === 'waiting' &&
+            message.delta
+          )
+            this.#setInference('awake')
           this.#notify('onTranscript', {
             role: message.type === 'session.input_transcript.delta' ? 'user' : 'assistant',
             delta: message.delta,
@@ -402,6 +424,13 @@ export default class Conversation {
     } catch (error) {
       this.#fail(error)
     }
+  }
+
+  #setInference(next) {
+    const wasStandby = this.#inference !== 'awake'
+    this.#inference = next
+    const standby = next !== 'awake'
+    if (this.#state === 'connected' && standby !== wasStandby) this.#notify('onStandbyChanged', standby)
   }
 
   #send(message) {

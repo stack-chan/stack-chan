@@ -50,6 +50,7 @@ declare module 'realtimeConversation' {
       error?: string
     }): void
     onStateChanged?(state: 'idle' | 'connecting' | 'connected' | 'closing' | 'closed' | 'error'): void
+    onStandbyChanged?(standby: boolean): void
     onTranscript?(fragment: Transcript): void
     onEvent?(event: { type: string; [key: string]: unknown }): void
     onError?(error: Error & { code: string; stage: string; status?: number }): void

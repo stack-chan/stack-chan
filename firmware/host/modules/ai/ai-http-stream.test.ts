@@ -284,6 +284,39 @@ test('HTTP retains the first transport error if EOF is reported afterwards', asy
   await outcome
 })
 
+test('HTTP reads the final bytes when a staged chunk returns credit before EOF', async () => {
+  const io = fixture(4)
+  const first = deferred<void>()
+  const second = deferred<void>()
+  const received: number[] = []
+  const task = io.send(
+    body,
+    (bytes) => {
+      received.push(...bytes)
+      if (received.length === 3) return first.promise
+      if (received.length === 4) return second.promise
+    },
+    createVoiceScope(),
+  )
+  const outcome = task.then(
+    () => undefined,
+    (error) => error,
+  )
+  io.headers()
+  io.push(Uint8Array.of(1, 2, 3))
+  await turn()
+  io.push(Uint8Array.of(4, 5, 6, 7))
+  first.resolve()
+  await turn()
+  assert.deepEqual(received, [1, 2, 3, 4])
+  io.end()
+  second.resolve()
+  await turn()
+  io.tick()
+  assert.equal(await outcome, undefined)
+  assert.deepEqual(received, [1, 2, 3, 4, 5, 6, 7])
+})
+
 test('HTTP consumer failure closes once without reading the retained remainder', async () => {
   const io = fixture(4)
   const error = new Error('observer failed')

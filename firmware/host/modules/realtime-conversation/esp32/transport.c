@@ -366,6 +366,8 @@ void xs_live_transport_start(xsMachine *the)
 	t->started = true;
 	if (xTaskCreatePinnedToCore(worker, "live_peer", 12288, t, 10, NULL, 1) != pdPASS) {
 		t->started = false;
+		releaseAudioLease(t->lease);
+		t->lease = NULL;
 		xsUnknownError("No memory for WebRTC task");
 	}
 }

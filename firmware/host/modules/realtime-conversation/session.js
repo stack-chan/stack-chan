@@ -151,7 +151,7 @@ export function liveConversation(options, platform) {
                       id: ctx.itemId ?? ctx.callId,
                       call_id: ctx.callId,
                       name: definition.name,
-                      arguments: JSON.stringify(args),
+                      arguments: JSON.stringify(args ?? {}),
                     },
                     {
                       sessionId,

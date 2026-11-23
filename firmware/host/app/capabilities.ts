@@ -10,7 +10,7 @@ import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import type { RealtimeQoSPort } from 'realtime-qos'
+import type { RealtimeConversationPerformance } from 'realtime-qos'
 import type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
@@ -31,7 +31,7 @@ export type {
 } from 'local-peer-types'
 export { LocalPeerError } from 'local-peer-types'
 
-export type { OperatingMode, QoSLease, RealtimeQoSPort } from 'realtime-qos'
+export type { RealtimeConversationPerformance } from 'realtime-qos'
 export type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 
 export type UIEffect = PiuContent
@@ -60,7 +60,7 @@ export type RobotUI = {
   update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void
   removeEffect(effect: UIEffect): void
-  application?: { distribute?: (event: string, ...args: unknown[]) => void }
+  application?: unknown
   setFace(face: PiuContainer): void
   /** Select one of the built-in hand animations shown around the face. */
   setHandAnimation(animation: HandAnimationName): void
@@ -199,6 +199,8 @@ export type RemoteConversationSession = RemoteConversationSessionDelegate & {
 export type ConversationCapability = {
   say(text: string, volume?: number): Promise<Maybe<string>>
   remoteSession?: RemoteConversationSession
+  /** Open after network readiness, before connecting. The host also closes the session at context shutdown. */
+  openRealtimePerformance?(): RealtimeConversationPerformance
 }
 
 export type NetworkReadyResult =
@@ -280,7 +282,6 @@ export type StackchanCapabilityNamespaces = {
   conversation: ConversationCapability
   connectivity: ConnectivityCapability
   lifecycle: LifecycleCapability
-  realtimeQoS?: RealtimeQoSPort
   ui: RuntimeUICapability
 }
 
@@ -290,7 +291,7 @@ export type StackchanLegacyFlatCapability = FaceCapability &
   InputCapability &
   LightingCapability &
   CameraCapability &
-  ConversationCapability &
+  Omit<ConversationCapability, 'openRealtimePerformance'> &
   ConnectivityCapability &
   UICapability
 

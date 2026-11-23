@@ -20,7 +20,7 @@ import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { OwnedResources } from 'owned-resources'
-import { createRealtimeQoS, type RealtimeQoSPort } from 'realtime-qos'
+import { createRealtimePerformanceScope, type RealtimeQoSPort } from 'realtime-qos'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
@@ -76,7 +76,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   #paused: boolean
   #faceForeground: boolean
   #faceMotionEnabled = true
-  #realtimeQoS: RealtimeQoSPort
+  #realtimePerformance?: ReturnType<typeof createRealtimePerformanceScope>
   #uiCapability: RuntimeUICapability
   #uiRuntime: StackchanRuntimeUI
   #unsubscribeScreenChange: (() => void) | undefined
@@ -89,7 +89,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#ownedResources = new OwnedResources(params.closeHandlers)
     this.#paused = false
     this.#faceForeground = params.ui.isFaceForeground !== false
-    this.#realtimeQoS = params.realtimeQoS ?? createRealtimeQoS()
+    if (params.realtimeQoS) this.#realtimePerformance = createRealtimePerformanceScope(params.realtimeQoS)
     this.#motionController = new MotionController(params, {
       isPaused: () => this.#paused,
     })
@@ -158,10 +158,6 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   get lifecycle(): LifecycleCapability {
     return this.#lifecycleCapability
-  }
-
-  get realtimeQoS(): RealtimeQoSPort {
-    return this.#realtimeQoS
   }
 
   /**
@@ -552,10 +548,18 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   private createConversationCapability(remoteSession?: RemoteConversationSession): ConversationCapability {
-    return {
+    const capability: ConversationCapability = {
       say: (text, volume) => this.say(text, volume),
       ...(remoteSession ? { remoteSession } : {}),
     }
+    const performance = this.#realtimePerformance
+    if (performance) {
+      capability.openRealtimePerformance = () => {
+        if (this.#closed) throw new Error('Stack-chan context is closed')
+        return performance.open()
+      }
+    }
+    return capability
   }
 
   private createConnectivityCapability(connectivity: ConnectivityCapability): ConnectivityCapability {
@@ -738,6 +742,11 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
     try {
       await this.#ownedResources.close()
+    } catch (error) {
+      rememberCloseError(error)
+    }
+    try {
+      this.#realtimePerformance?.close()
     } catch (error) {
       rememberCloseError(error)
     }

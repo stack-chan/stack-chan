@@ -42,7 +42,7 @@ function fixture(overrides = {}) {
     createConversation: (options) => options,
     createPipeline: (options) => new Conversation(options),
     networkReady: Promise.resolve({ status: 'connected' }),
-    acquireLowLatency() {
+    openRealtimePerformance() {
       events.push('radio acquired')
       return { close: () => events.push('radio released') }
     },
@@ -147,7 +147,7 @@ test('transport errors and remote close release audio/radio and permit manual re
 })
 test('failed radio acquisition leaves the pipeline unopened', async () => {
   const f = fixture({
-    acquireLowLatency() {
+    openRealtimePerformance() {
       throw new Error('radio')
     },
   })

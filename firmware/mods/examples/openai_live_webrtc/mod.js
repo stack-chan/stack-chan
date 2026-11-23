@@ -11,17 +11,17 @@ const MUTE = 'openai-live:mute'
 const WAKE = 'openai-live:wake'
 let session, stopWake
 const messages = {
-  idle: 'OpenAI ��b���I�����܂���',
-  connecting: 'OpenAI �ɐڑ���',
-  connected: 'OpenAI ��b��',
-  closing: '��b���I����',
-  configuration: 'API �L�[��ݒ肵�Ă�������',
-  error: '��b�G���[�B������x�J�n���Ă�������',
+  idle: 'OpenAI 会話を終了しました',
+  connecting: 'OpenAI に接続中',
+  connected: 'OpenAI 会話中',
+  closing: '会話を終了中',
+  configuration: 'API キーを設定してください',
+  error: '会話エラー。もう一度開始してください',
 }
 
 export function onContextCreated(robot) {
   if (!Modules.has('realtimeConversation') || !robot.audio.microphone || !globalThis.amp) {
-    robot.ui.showBalloon('OpenAI WebRTC �Ή��z�X�g���K�v�ł�')
+    robot.ui.showBalloon('OpenAI WebRTC 対応ホストが必要です')
     return
   }
   const { LiveConversation } = Modules.importNow('realtimeConversation', true)
@@ -42,11 +42,11 @@ export function onContextCreated(robot) {
   function renderWake() {
     if (disposed || !coordinator) return
     if (coordinator.status === 'fault') {
-      robot.ui.showBalloon('�����̉�����m�F�ł��܂���')
+      robot.ui.showBalloon('音声の解放を確認できません')
     } else if (wakeUnavailable) {
-      robot.ui.showBalloon('�E�F�C�N���[�h���J�n�ł��܂���')
+      robot.ui.showBalloon('ウェイクワードを開始できません')
     } else if (coordinator.wakeEnabled && coordinator.status === 'listening') {
-      robot.ui.showBalloon('�uHi, Stack Chan�v�ŉ�b���J�n')
+      robot.ui.showBalloon('「Hi, Stack Chan」で会話を開始')
     }
     drawer.setDrawerButtonState(WAKE, coordinator.wakeEnabled)
   }
@@ -81,10 +81,10 @@ export function onContextCreated(robot) {
   function renderConversation(standby) {
     const message = standby
       ? session.active?.muted
-        ? 'OpenAI �ҋ@���E�~���[�g��'
-        : 'OpenAI �ҋ@���E�}�C�N���M��'
+        ? 'OpenAI 待機中・ミュート中'
+        : 'OpenAI 待機中・マイク送信中'
       : standby === undefined && coordinator
-        ? '�b�������Ă�������'
+        ? '話しかけてください'
         : messages.connected
     try {
       robot.ui.showBalloon(message)
@@ -203,7 +203,7 @@ export function onContextCreated(robot) {
       }
       drawer.addDrawerButton({
         key: WAKE,
-        label: '�E�F�C�N���[�h�ҋ@',
+        label: 'ウェイクワード待機',
         kind: 'toggle',
         initialState: false,
         callback: () => {
@@ -219,7 +219,7 @@ export function onContextCreated(robot) {
   } else stopWake = undefined
   drawer.addDrawerButton({
     key: SESSION,
-    label: 'OpenAI ��b',
+    label: 'OpenAI 会話',
     kind: 'toggle',
     initialState: false,
     callback: () => {
@@ -249,7 +249,7 @@ export function onContextCreated(robot) {
   })
   drawer.addDrawerButton({
     key: MUTE,
-    label: '�}�C�N�~���[�g',
+    label: 'マイクミュート',
     kind: 'toggle',
     initialState: false,
     callback: () => {

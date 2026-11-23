@@ -279,9 +279,9 @@ await test('transcript triggers ride the session request alongside hosted Respon
 await test('preserve overlapping transcript fragments and cumulative usage', async () => {
   const h = harness()
   await h.connect()
-  h.message({ type: 'session.input_transcript.delta', delta: ' ����', start_ms: 10, end_ms: 40 })
-  h.message({ type: 'session.output_transcript.delta', delta: '�͂�', start_ms: 20, end_ms: 30 })
-  equal(h.transcripts[0], { role: 'user', delta: ' ����', start_ms: 10, end_ms: 40 })
+  h.message({ type: 'session.input_transcript.delta', delta: ' 東京', start_ms: 10, end_ms: 40 })
+  h.message({ type: 'session.output_transcript.delta', delta: 'はい', start_ms: 20, end_ms: 30 })
+  equal(h.transcripts[0], { role: 'user', delta: ' 東京', start_ms: 10, end_ms: 40 })
   equal(h.transcripts[1].role, 'assistant')
   h.message({ type: 'session.usage.updated', usage: { seconds: 8 } })
   h.message({ type: 'session.usage.updated', usage: { seconds: 9 } })

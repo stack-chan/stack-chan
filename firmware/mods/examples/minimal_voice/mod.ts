@@ -1,9 +1,9 @@
 import { formatVoiceExampleError, runTextConversation } from 'minimal-voice-workflow'
 import { defineMod, type StackchanAppBehaviorOption } from 'mod-kit'
-import { ensure, isErr } from 'stackchan-result'
 import { Agent, OpenAIResponsesLLM, ToolSet } from 'stackchan/ai'
 import { CascadedConversation, ConversationPipeline, PushToTalk } from 'stackchan/voice'
 import { OpenAISpeechTTS, WhisperSTT } from 'stackchan/voice/speech'
+import { ensure, isErr } from 'stackchan-result'
 
 type VoiceAiConfig = Readonly<{
   token?: string

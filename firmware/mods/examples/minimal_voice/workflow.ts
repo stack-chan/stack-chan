@@ -1,5 +1,5 @@
-import { type AsyncResult, ensure, err, fromPromise, isErr, ok, withResourceScope } from 'stackchan-result'
 import type { CloseResult, ConversationPipeline, TurnResult } from 'stackchan/voice'
+import { type AsyncResult, ensure, err, fromPromise, isErr, ok, withResourceScope } from 'stackchan-result'
 
 export type VoiceExampleError =
   | { readonly kind: 'playback-completion-unsupported' }

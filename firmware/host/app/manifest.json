@@ -64,7 +64,10 @@
     "app-default-behavior": "./default-behavior/behavior",
     "app-default-behavior/on-context-created": "./default-behavior/on-context-created",
     "app-default-behavior/on-launch": "./default-behavior/on-launch",
-    "app-default-behavior/startup-choice": "./default-behavior/startup-choice"
+    "app-default-behavior/startup-choice": "./default-behavior/startup-choice",
+    "app-default-behavior/features/emotion-control": "./default-behavior/features/emotion-control",
+    "app-default-behavior/features/hand-gesture": "./default-behavior/features/hand-gesture",
+    "app-default-behavior/features/camera-preview-feature": "./default-behavior/features/camera-preview-feature"
   },
   "preload": [
     "runtime-context",

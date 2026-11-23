@@ -17,8 +17,20 @@ declare module 'capabilities' {
       reconnect?: boolean
       onStateChanged?: (state: WebRadioState, reason?: string) => void
     }): Promise<void>
-    stop(): void
+    stop(): Promise<void> | void
     setVolume(volume: number): void
+  }
+
+  export type DrawerCapability = {
+    addDrawerButton(button: {
+      key: string
+      label: string
+      kind: 'choice'
+      value: string
+      options: { value: string; label: string }[]
+      callback: (context: StackchanContext, value?: string) => unknown
+    }): void
+    removeDrawerButton?(key: string): void
   }
 
   export type StackchanContext = {
@@ -30,16 +42,6 @@ declare module 'capabilities' {
         >
       }
     }
-    drawer: {
-      addDrawerButton(button: {
-        key: string
-        label: string
-        kind: 'choice'
-        value: string
-        options: { value: string; label: string }[]
-        callback: (context: StackchanContext, value?: string) => unknown
-      }): void
-    }
     ui: {
       application?: {
         distribute?(event: 'onConnectionIndicator', visible: boolean): void
@@ -47,8 +49,9 @@ declare module 'capabilities' {
       addEffect(effect: PiuContent, key?: string): void
       removeEffect(effect: PiuContent): void
       setFaceMotionEnabled?(enabled: boolean): void
+      drawer: DrawerCapability
+      showBalloon(text: string): void
+      hideBalloon(): void
     }
-    showBalloon(text: string): void
-    hideBalloon(): void
   }
 }

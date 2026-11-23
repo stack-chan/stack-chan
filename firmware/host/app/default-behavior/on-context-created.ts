@@ -1,16 +1,23 @@
-import type { StackchanAppBehavior } from 'app-behavior'
+import type { StackchanAppBehavior, StackchanAppBehaviorOption } from 'app-behavior'
+import {
+  type CameraPreviewFeatureError,
+  type CameraPreviewImageType,
+  createCameraPreviewFeature,
+} from 'app-default-behavior/features/camera-preview-feature'
+import { createEmotionControlFeature, type EmotionControlError } from 'app-default-behavior/features/emotion-control'
+import { createHandGestureFeature, type HandGestureError } from 'app-default-behavior/features/hand-gesture'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
-import type { CameraImageType } from 'camera'
+import type { CameraFrame } from 'camera'
 import { type CameraPreviewFrame, createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
-import { Emoticon, type EmoticonKey } from 'effects/emoticon'
-import { Emotion } from 'face-state'
-import { type HandAnimationName, isHandAnimationName } from 'hands'
-import type { MotionType } from 'imu'
+import type { StackchanContext } from 'capabilities'
+import { Emoticon } from 'effects/emoticon'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
 import { localize } from 'localization'
 import config from 'mc/config'
+import { composeFeatures, defineMod, type ModFeature } from 'mod-kit'
 import { DealWithItFace } from 'parts/image/deal-with-it-face'
-import type { Content as PiuContent } from 'piu/MC'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import { ok } from 'stackchan-result'
 import { randomBetween, wait } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -36,21 +43,23 @@ const UP = {
   p: -Math.PI / 6,
 }
 const RECORD_PLAYBACK_DURATION_MS = 2000
-const CAMERA_PREVIEW_DURATION_MS = 5000
-const CAMERA_PREVIEW_STOP_DELAY_MS = 120
-// Capture at the GC0308's native QQVGA size. The preview renderer scales this
-// to 200x120; requesting 200 pixels wide selects the larger 240x176 mode and
-// increases both the contiguous DMA requirement and frame overflow pressure.
-const CAMERA_PREVIEW_CAPTURE_WIDTH = 160
-const CAMERA_PREVIEW_CAPTURE_HEIGHT = 120
-const CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE: CameraImageType =
+const CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE: CameraPreviewImageType =
   (config as { format?: string }).format === 'RGB565BE' ? 'rgb565be' : 'rgb565le'
-const TOUCH_PANEL_PETTING_WINDOW_MS = 1500
-const TOUCH_PANEL_HAPPY_DURATION_MS = 5000
-const TOUCH_PANEL_PET_MOTION_STEP_MS = 220
-const TOUCH_PANEL_PET_MOTION_STEP_SEC = TOUCH_PANEL_PET_MOTION_STEP_MS / 1000
-const MOTION_DETECT_COLD_DURATION_MS = 5000
 const SPEECH_SYNTHESIS_TEXT = 'こんにちわ。すたっくちゃんです。'
+
+type FaceMode = 'simple' | 'dog' | 'image' | 'jitome' | 'deal-with-it'
+
+type DefaultBehaviorFeatureError =
+  | EmotionControlError
+  | HandGestureError
+  | CameraPreviewFeatureError
+  | { readonly feature: string; readonly reason: string }
+
+type DefaultBehaviorDeps = Readonly<{
+  robot: StackchanContext
+  options: StackchanAppBehaviorOption
+  hideBalloonLater: (delay?: number) => void
+}>
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -59,126 +68,18 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
-export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot, options) => {
-  const emotions: Emotion[] = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
-  const emotionOptions = [
-    { value: String(Emotion.NEUTRAL), label: localize('drawer.emotion.neutral') },
-    { value: String(Emotion.HAPPY), label: localize('drawer.emotion.happy') },
-    { value: String(Emotion.ANGRY), label: localize('drawer.emotion.angry') },
-    { value: String(Emotion.SAD), label: localize('drawer.emotion.sad') },
-    { value: String(Emotion.HOT), label: localize('drawer.emotion.hot') },
-    { value: String(Emotion.SLEEPY), label: localize('drawer.emotion.sleepy') },
-  ]
-  let speechVisible = false
-  let emoticonEffect: PiuContent | null = null
-  let currentEmotion: Emotion = Emotion.NEUTRAL
-  let pettingRestoreTimer: ReturnType<typeof Timer.set> | undefined
-  let pettingPreviousEmotion: Emotion | undefined
-  let pettingPreviousRotation: typeof robot.pose.body.rotation | undefined
-  let pettingMotionActive = false
-  let pettingHoldTimer: ReturnType<typeof Timer.set> | undefined
-  let motionDetectRestoreTimer: ReturnType<typeof Timer.set> | undefined
-  let motionDetectPreviousEmotion: Emotion | undefined
-  let motionDetectEmotion: Emotion | undefined
-  const emotionKeyMap: Record<Emotion, EmoticonKey | null> = {
-    [Emotion.HAPPY]: 'heart',
-    [Emotion.ANGRY]: 'angry',
-    [Emotion.SAD]: 'tear',
-    [Emotion.HOT]: 'sweat',
-    [Emotion.SLEEPY]: 'sleepy',
-    [Emotion.NEUTRAL]: null,
-    [Emotion.DOUBTFUL]: null,
-    [Emotion.COLD]: null,
-  }
-  const setEmotionWithEffect = (target: typeof robot, nextEmotion: Emotion) => {
-    currentEmotion = nextEmotion
-    target.setEmotion(nextEmotion)
-    if (emoticonEffect) {
-      target.ui.removeEffect(emoticonEffect)
-      emoticonEffect = null
-    }
-    const key = emotionKeyMap[nextEmotion]
-    if (key) {
-      emoticonEffect = new Emoticon({ key, name: 'emotion' })
-      target.ui.addEffect(emoticonEffect)
-    }
-  }
-  const poseForRotation = (rotation: typeof robot.pose.body.rotation) => ({
-    position: { ...robot.pose.body.position },
-    rotation,
-  })
-  const runPettingHoldMotion = async (upRotation: typeof robot.pose.body.rotation) => {
-    try {
-      await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-    } catch (error) {
-      trace(`[TouchPanel] pet hold motion error ${errorMessage(error)}\n`)
-      try {
-        await robot.setTorque(false)
-      } catch (torqueError) {
-        trace(`[TouchPanel] pet hold torque release error ${errorMessage(torqueError)}\n`)
-      }
-    }
-  }
-  const runPettingMotion = async (
-    upRotation: typeof robot.pose.body.rotation,
-    leftRight: (direction: number) => typeof robot.pose.body.rotation,
-    firstDirection: number,
-  ) => {
-    try {
-      await robot.setTorque(true)
-      // Multiple visible steps make this read as head shaking, not a single pose change.
-      await robot.setPose(poseForRotation(leftRight(firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      await wait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-      await robot.setPose(poseForRotation(leftRight(-firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      await wait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-      await robot.setPose(poseForRotation(leftRight(firstDirection * 0.55)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      await wait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-      // Keep the happy reaction looking upward until the restore timer returns to the original pose.
-      await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-      pettingHoldTimer = Timer.set(() => {
-        pettingHoldTimer = undefined
-        void runPettingHoldMotion(upRotation)
-      }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
-    } catch (error) {
-      trace(`[TouchPanel] pet motion error ${errorMessage(error)}\n`)
-      try {
-        await robot.setTorque(false)
-      } catch (torqueError) {
-        trace(`[TouchPanel] pet motion torque release error ${errorMessage(torqueError)}\n`)
-      }
-    } finally {
-      pettingMotionActive = false
-    }
-  }
-  const runPettingRestoreMotion = async (rotation: typeof robot.pose.body.rotation) => {
-    try {
-      await robot.setPose(poseForRotation(rotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-    } catch (error) {
-      trace(`[TouchPanel] restore motion error ${errorMessage(error)}\n`)
-    } finally {
-      try {
-        await robot.setTorque(false)
-      } catch (torqueError) {
-        trace(`[TouchPanel] restore torque release error ${errorMessage(torqueError)}\n`)
-      }
-    }
-  }
-
-  type FaceMode = 'simple' | 'dog' | 'image' | 'jitome' | 'deal-with-it'
+const faceModeFeature: ModFeature<DefaultBehaviorDeps, DefaultBehaviorFeatureError> = ({ robot, options }) => {
   const faceModes: FaceMode[] = isJitomeFaceSupported()
     ? ['simple', 'dog', 'image', 'jitome', 'deal-with-it']
     : ['simple', 'dog', 'image', 'deal-with-it']
   const configuredFace = options.config.ui.type
   let faceMode: FaceMode = faceModes.includes(configuredFace as FaceMode) ? (configuredFace as FaceMode) : 'simple'
-  let handAnimation: HandAnimationName = 'none'
-  let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
+
   const syncFaceMode = (
     app = robot.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
   ) => {
     app?.distribute?.('onFaceMode', faceMode)
   }
-  const syncHandAnimation = () => robot.ui.setHandAnimation(handAnimation)
-  const closeDrawer = () => robot.ui.closeDrawer()
   const createCurrentFace = () => {
     if (faceMode === 'deal-with-it') return new DealWithItFace({})
     if (faceMode === 'dog') return new DogFace({})
@@ -186,15 +87,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     if (faceMode === 'jitome') return createJitomeFace().content
     return new SimpleFace({})
   }
-  const restoreCameraPreview = () => {
-    if (cameraPreviewTimer) {
-      Timer.clear(cameraPreviewTimer)
-      cameraPreviewTimer = undefined
-    }
-    // Restore the preserved face main component (keeps the current avatar mode/emotion).
-    robot.ui.showFace()
-    robot.hideBalloon()
-  }
+
   robot.drawer.addDrawerButton({
     key: 'toggleFace',
     label: localize('drawer.face'),
@@ -210,41 +103,35 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     },
   })
   syncFaceMode()
-  robot.drawer.addDrawerButton({
-    key: 'cycleEmotion',
-    label: localize('drawer.emotion'),
-    kind: 'choice',
-    value: String(currentEmotion),
-    options: emotionOptions,
-    callback: (target, value) => {
-      const nextEmotion = Number(value) as Emotion
-      if (!emotions.includes(nextEmotion) && nextEmotion !== Emotion.NEUTRAL) return
-      if (motionDetectRestoreTimer) {
-        Timer.clear(motionDetectRestoreTimer)
-        motionDetectRestoreTimer = undefined
-      }
-      motionDetectPreviousEmotion = undefined
-      motionDetectEmotion = undefined
-      let canceledPettingMotion = false
-      if (pettingRestoreTimer) {
-        Timer.clear(pettingRestoreTimer)
-        pettingRestoreTimer = undefined
-        pettingPreviousEmotion = undefined
-        canceledPettingMotion = true
-      }
-      if (pettingHoldTimer) {
-        Timer.clear(pettingHoldTimer)
-        pettingHoldTimer = undefined
-        canceledPettingMotion = true
-      }
-      if (canceledPettingMotion) {
-        void target
-          .setTorque(false)
-          .catch((error) => trace(`[TouchPanel] canceled petting torque release error ${errorMessage(error)}\n`))
-      }
-      setEmotionWithEffect(target, nextEmotion)
-    },
-  })
+
+  return ok(undefined)
+}
+
+const emotionControlFeature = createEmotionControlFeature<DefaultBehaviorDeps, PiuContent>(({ robot }) => ({
+  setEmotion: (emotion) => robot.setEmotion(emotion),
+  addEffect: (effect) => robot.ui.addEffect(effect),
+  removeEffect: (effect) => robot.ui.removeEffect(effect),
+  createEmoticon: (key) => new Emoticon({ key, name: 'emotion' }),
+  addDrawerButton: (button) => {
+    robot.drawer.addDrawerButton({
+      key: button.key,
+      label: button.label,
+      kind: button.kind,
+      value: button.value,
+      options: button.options,
+      callback: (_target, value) => button.callback(value),
+    })
+  },
+  getBodyPose: () => robot.pose.body,
+  setPose: (pose, durationSec) => robot.setPose(pose, durationSec),
+  setTorque: (torque) => robot.setTorque(torque),
+  localize,
+  imu: robot.imu,
+  touchPanel: robot.touchPanel,
+}))
+
+const balloonAndSpeakFeature: ModFeature<DefaultBehaviorDeps, DefaultBehaviorFeatureError> = ({ robot }) => {
+  let speechVisible = false
   robot.drawer.addDrawerButton({
     key: 'toggleSpeech',
     label: localize('drawer.balloon'),
@@ -264,7 +151,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     key: 'speakStackchan',
     label: 'Speak',
     callback: async (target) => {
-      closeDrawer()
+      robot.ui.closeDrawer()
       try {
         const result = await target.audio.say(SPEECH_SYNTHESIS_TEXT)
         if ('reason' in result) trace(`[SpeechSynthesis] ${result.reason}\n`)
@@ -273,115 +160,60 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       }
     },
   })
-  robot.drawer.addDrawerButton({
-    key: 'handAnimation',
-    label: '手',
-    kind: 'choice',
-    value: handAnimation,
-    options: [
-      { value: 'none', label: '無し' },
-      { value: 'rock-paper-scissors', label: 'グーチョキパー' },
-      { value: 'clap', label: '拍手' },
-      { value: 'thinking', label: '考え中' },
-    ],
-    callback: (target, value) => {
-      if (!isHandAnimationName(value)) return
-      handAnimation = value
-      target.ui.setHandAnimation(handAnimation)
-      target.ui.closeDrawer()
-    },
-  })
-  syncHandAnimation()
 
-  const runCameraPreview = async (target: typeof robot) => {
-    let frame: Awaited<ReturnType<typeof target.camera.capture>> | undefined
-    let previewFrame: CameraPreviewFrame | undefined
-    const stopCameraAfterPreviewPaint = () =>
-      new Promise<void>((resolve) => {
-        Timer.set(() => {
-          try {
-            trace('[CameraPreview] camera stop begin\n')
-            const result = target.camera.stop()
-            if (result && typeof (result as { then?: unknown }).then === 'function') {
-              ;(result as Promise<void>).then(
-                () => {
-                  trace('[CameraPreview] camera stop done\n')
-                  resolve()
-                },
-                (stopError: unknown) => {
-                  trace(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
-                  resolve()
-                },
-              )
-            } else {
-              trace('[CameraPreview] camera stop done\n')
-              resolve()
-            }
-          } catch (stopError) {
-            trace(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
-            resolve()
-          }
-        }, CAMERA_PREVIEW_STOP_DELAY_MS)
-      })
-    try {
-      target.showBalloon('starting camera...')
-      await target.camera.start({
-        width: CAMERA_PREVIEW_CAPTURE_WIDTH,
-        height: CAMERA_PREVIEW_CAPTURE_HEIGHT,
-        imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE,
-      })
-      frame = await target.camera.capture({
-        width: CAMERA_PREVIEW_CAPTURE_WIDTH,
-        height: CAMERA_PREVIEW_CAPTURE_HEIGHT,
-        imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE,
-      })
-      if (!frame) {
-        trace('[CameraPreview] capture returned no frame\n')
-        target.showBalloon('camera unavailable')
-        return
-      }
-      previewFrame = prepareCameraPreviewFrame(frame)
-      // Swap the whole main area for a full-area preview dialog; AppBar/Drawer stay active on top.
-      // The dialog draws its own caption, so no preview-time balloon is needed.
-      target.ui.setMain(
-        createCameraPreviewDialog(previewFrame, {
-          onRender: (mode) => {
-            trace(`[CameraPreview] render mode=${mode}\n`)
-          },
-          onDismiss: restoreCameraPreview,
-        }),
-      )
-      trace(
-        `[CameraPreview] rendered ${previewFrame.width}x${previewFrame.height} ${previewFrame.imageType} via Piu Port\n`,
-      )
-      closeDrawer()
-      if (cameraPreviewTimer) Timer.clear(cameraPreviewTimer)
-      cameraPreviewTimer = Timer.set(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS)
-    } catch (error) {
-      trace(`[CameraPreview] error ${errorMessage(error)}\n`)
-      try {
-        target.showBalloon('camera error')
-      } catch (balloonError) {
-        trace(`[CameraPreview] error balloon failed ${errorMessage(balloonError)}\n`)
-      }
-    } finally {
-      if (frame) {
-        trace('[CameraPreview] frame close begin\n')
-        frame.close?.()
-        trace('[CameraPreview] frame close done\n')
-      }
-      await stopCameraAfterPreviewPaint()
-      hideBalloonLater(1200)
-    }
-  }
-  if (robot.camera.available !== false) {
+  return ok(undefined)
+}
+
+const handGestureFeature = createHandGestureFeature<DefaultBehaviorDeps>(({ robot }) => ({
+  setHandAnimation: (animation) => robot.ui.setHandAnimation(animation),
+  closeDrawer: () => robot.ui.closeDrawer(),
+  addDrawerButton: (button) => {
     robot.drawer.addDrawerButton({
-      key: 'cameraPreview',
-      label: localize('drawer.camera'),
-      icon: 'camera',
-      callback: (target) => runCameraPreview(target),
+      key: button.key,
+      label: button.label,
+      kind: button.kind,
+      value: button.value,
+      options: button.options,
+      callback: (_target, value) => button.callback(value),
     })
-  }
+  },
+}))
+
+const cameraPreviewFeature = createCameraPreviewFeature<
+  DefaultBehaviorDeps,
+  CameraFrame,
+  CameraPreviewFrame,
+  PiuContainer
+>(({ robot, hideBalloonLater }) => ({
+  camera: robot.camera,
+  captureImageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE,
+  prepareFrame: prepareCameraPreviewFrame,
+  createDialog: (preview, options) => createCameraPreviewDialog(preview, options),
+  setMain: (content) => robot.ui.setMain(content),
+  showFace: () => robot.ui.showFace(),
+  closeDrawer: () => robot.ui.closeDrawer(),
+  showBalloon: (text) => robot.showBalloon(text),
+  hideBalloon: () => robot.hideBalloon(),
+  hideBalloonLater,
+  localize,
+  addDrawerButton: (button) => {
+    robot.drawer.addDrawerButton({
+      key: button.key,
+      label: button.label,
+      icon: button.icon,
+      callback: () => button.callback(),
+    })
+  },
+}))
+
+const motionAudioAndThemeFeature: ModFeature<DefaultBehaviorDeps, DefaultBehaviorFeatureError> = (
+  { robot, hideBalloonLater },
+  scope,
+) => {
+  const poseForRotation = (rotation: typeof robot.pose.body.rotation) => ({
+    position: { ...robot.pose.body.position },
+    rotation,
+  })
 
   /**
    * Look around (Drawer toggle)
@@ -413,7 +245,10 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     trace(`looking at: [${x}, ${y}, ${z}]\n`)
     robot.lookAt([x, y, z])
   }
-  Timer.repeat(targetLoop, 5000)
+  const lookAroundTimer = Timer.repeat(targetLoop, 5000)
+  scope.own(() => {
+    Timer.clear(lookAroundTimer)
+  })
   robot.drawer.addDrawerButton({
     key: 'toggleLookAround',
     label: localize('drawer.lookAround'),
@@ -455,7 +290,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       }
       isMoving = false
       if (failed) {
-        Timer.set(() => robot.hideBalloon(), 1200)
+        hideBalloonLater(1200)
       } else {
         robot.hideBalloon()
       }
@@ -473,9 +308,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     callback: startServoTest,
   })
 
-  /**
-   * LED test(Drawer action)
-   */
   if (Object.keys(robot.led).length) {
     const ledName = Object.keys(robot.led)[0] as string
     let isLighting = false
@@ -501,11 +333,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
    * Audio tests (Drawer actions)
    */
   let isAudioTesting = false
-  const hideBalloonLater = (delay = 900) => {
-    Timer.set(() => {
-      robot.hideBalloon()
-    }, delay)
-  }
   const runPlayTone = async () => {
     if (isAudioTesting) return
     isAudioTesting = true
@@ -596,145 +423,69 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
   registerColorDrawerButton()
 
-  if (robot.imu != null) {
-    const motionEmotionMap: Record<MotionType, Emotion> = {
-      upsideDown: Emotion.SAD,
-      fallenForward: Emotion.ANGRY,
-      fallenBackward: Emotion.ANGRY,
-      fallenLeft: Emotion.ANGRY,
-      fallenRight: Emotion.ANGRY,
-      shake: Emotion.HOT,
-    }
-    robot.imu.start()
-    robot.imu.onEvent = (event) => {
-      const type = event.motion
-      trace(`[IMU] motion detected: ${type}\n`)
-      if (motionDetectPreviousEmotion === undefined) {
-        // Save the base emotion, not the other temporary reaction.
-        motionDetectPreviousEmotion =
-          pettingRestoreTimer && currentEmotion === Emotion.HAPPY
-            ? (pettingPreviousEmotion ?? currentEmotion)
-            : currentEmotion
-      }
-      if (motionDetectRestoreTimer) Timer.clear(motionDetectRestoreTimer)
-
-      const motionEmotion = motionEmotionMap[type]
-      motionDetectEmotion = motionEmotion
-      setEmotionWithEffect(robot, motionEmotion)
-      motionDetectRestoreTimer = Timer.set(() => {
-        const restoreEmotion = pettingRestoreTimer ? Emotion.HAPPY : (motionDetectPreviousEmotion ?? Emotion.NEUTRAL)
-        if (currentEmotion === motionEmotion) {
-          trace(`[IMU] restore emotion ${restoreEmotion}\n`)
-          setEmotionWithEffect(robot, restoreEmotion)
-        }
-        motionDetectPreviousEmotion = undefined
-        motionDetectEmotion = undefined
-        motionDetectRestoreTimer = undefined
-      }, MOTION_DETECT_COLD_DURATION_MS)
-    }
-  }
-
   if (robot.button != null) {
-    if (robot.button.a != null) {
-      robot.button.a.onEvent = (event) => {
-        if (!event.pressed) {
-          return
-        }
-        void toggleLookAround().catch((error) => trace(`[Button] look error ${errorMessage(error)}\n`))
-      }
+    const buttonA = robot.button.a
+    const buttonB = robot.button.b
+    const buttonC = robot.button.c
+    const onButtonA = (event: { pressed: boolean }) => {
+      if (!event.pressed) return
+      void toggleLookAround().catch((error) => trace(`[Button] look error ${errorMessage(error)}\n`))
     }
-    if (robot.button.b != null) {
-      robot.button.b.onEvent = (event) => {
-        if (!event.pressed) {
-          return
-        }
-        void startServoTest()
-      }
+    const onButtonB = (event: { pressed: boolean }) => {
+      if (!event.pressed) return
+      void startServoTest()
     }
-    if (robot.button.c != null) {
-      robot.button.c.onEvent = (event) => {
-        if (!event.pressed) {
-          return
-        }
-        applyColor(colorMode === 'light' ? 'dark' : 'light')
-      }
+    const onButtonC = (event: { pressed: boolean }) => {
+      if (!event.pressed) return
+      applyColor(colorMode === 'light' ? 'dark' : 'light')
     }
-  }
+    if (buttonA != null) buttonA.onEvent = onButtonA
+    if (buttonB != null) buttonB.onEvent = onButtonB
+    if (buttonC != null) buttonC.onEvent = onButtonC
 
-  if (robot.touchPanel != null) {
-    let lastForwardSwipeTicks: number | undefined
-    let lastBackwardSwipeTicks: number | undefined
-    robot.touchPanel.subscribe((event) => {
-      const type = event.gesture
-      trace(`[TouchPanel] gesture: ${type}\n`)
-      if (type !== 'forwardSwipe' && type !== 'backwardSwipe') return
-
-      if (type === 'forwardSwipe') lastForwardSwipeTicks = event.ticks
-      else lastBackwardSwipeTicks = event.ticks
-
-      const hasRecentForwardSwipe =
-        lastForwardSwipeTicks !== undefined && event.ticks - lastForwardSwipeTicks <= TOUCH_PANEL_PETTING_WINDOW_MS
-      const hasRecentBackwardSwipe =
-        lastBackwardSwipeTicks !== undefined && event.ticks - lastBackwardSwipeTicks <= TOUCH_PANEL_PETTING_WINDOW_MS
-      if (hasRecentForwardSwipe && hasRecentBackwardSwipe) {
-        trace('[TouchPanel] petting detected: set emotion HAPPY with heart effect\n')
-        if (pettingPreviousEmotion === undefined) {
-          // Keep the original base even when motion reactions restart or change type.
-          pettingPreviousEmotion =
-            motionDetectRestoreTimer && currentEmotion === motionDetectEmotion
-              ? (motionDetectPreviousEmotion ?? currentEmotion)
-              : currentEmotion
-        }
-        if (pettingPreviousRotation === undefined) pettingPreviousRotation = { ...robot.pose.body.rotation }
-        if (pettingRestoreTimer) Timer.clear(pettingRestoreTimer)
-        if (pettingHoldTimer) {
-          Timer.clear(pettingHoldTimer)
-          pettingHoldTimer = undefined
-        }
-        setEmotionWithEffect(robot, Emotion.HAPPY)
-        if (!pettingMotionActive) {
-          pettingMotionActive = true
-          const baseRotation = pettingPreviousRotation
-          const yawAmount = randomBetween(Math.PI / 15, Math.PI / 10)
-          const pitch = Math.max(-Math.PI / 4, baseRotation.p - randomBetween(Math.PI / 10, Math.PI / 8))
-          const firstDirection = Math.random() < 0.5 ? -1 : 1
-          const upRotation = { ...baseRotation, p: pitch }
-          const leftRight = (direction: number) => ({
-            ...baseRotation,
-            p: pitch,
-            y: Math.max(-Math.PI / 6, Math.min(Math.PI / 6, baseRotation.y + direction * yawAmount)),
-          })
-          trace(
-            `[TouchPanel] pet motion shake yaw=${yawAmount.toFixed(3)} pitch=${pitch.toFixed(3)} direction=${firstDirection}\n`,
-          )
-          void runPettingMotion(upRotation, leftRight, firstDirection).catch((error) =>
-            trace(`[TouchPanel] pet motion rejected ${errorMessage(error)}\n`),
-          )
-        }
-        pettingRestoreTimer = Timer.set(() => {
-          const restoreEmotion = motionDetectRestoreTimer
-            ? (motionDetectEmotion ?? Emotion.NEUTRAL)
-            : (pettingPreviousEmotion ?? Emotion.NEUTRAL)
-          trace(`[TouchPanel] restore emotion ${restoreEmotion}\n`)
-          if (currentEmotion === Emotion.HAPPY) {
-            setEmotionWithEffect(robot, restoreEmotion)
-          }
-          if (pettingHoldTimer) {
-            Timer.clear(pettingHoldTimer)
-            pettingHoldTimer = undefined
-          }
-          if (pettingPreviousRotation) {
-            void runPettingRestoreMotion(pettingPreviousRotation).catch((error) =>
-              trace(`[TouchPanel] restore motion rejected ${errorMessage(error)}\n`),
-            )
-          }
-          pettingPreviousEmotion = undefined
-          pettingPreviousRotation = undefined
-          pettingRestoreTimer = undefined
-        }, TOUCH_PANEL_HAPPY_DURATION_MS)
-        lastForwardSwipeTicks = undefined
-        lastBackwardSwipeTicks = undefined
-      }
+    scope.own(() => {
+      if (buttonA && buttonA.onEvent === onButtonA) buttonA.onEvent = undefined
+      if (buttonB && buttonB.onEvent === onButtonB) buttonB.onEvent = undefined
+      if (buttonC && buttonC.onEvent === onButtonC) buttonC.onEvent = undefined
     })
   }
+
+  return ok(undefined)
 }
+
+const DEFAULT_BEHAVIOR_FEATURES: readonly ModFeature<DefaultBehaviorDeps, DefaultBehaviorFeatureError>[] = [
+  faceModeFeature,
+  emotionControlFeature,
+  balloonAndSpeakFeature,
+  handGestureFeature,
+  cameraPreviewFeature,
+  motionAudioAndThemeFeature,
+]
+
+const defaultContextBehavior = defineMod({
+  setup(robot, options, scope) {
+    const pendingBalloonTimers = new Set<ReturnType<typeof Timer.set>>()
+    const hideBalloonLater = (delay = 900) => {
+      const handle = Timer.set(() => {
+        pendingBalloonTimers.delete(handle)
+        robot.hideBalloon()
+      }, delay)
+      pendingBalloonTimers.add(handle)
+    }
+    scope.own(() => {
+      for (const handle of pendingBalloonTimers) {
+        Timer.clear(handle)
+      }
+      pendingBalloonTimers.clear()
+    })
+
+    return composeFeatures({ robot, options, hideBalloonLater }, scope, DEFAULT_BEHAVIOR_FEATURES, (error) => {
+      trace(`[DefaultBehavior] feature ${error.feature} failed: ${error.reason}\n`)
+    })
+  },
+})
+
+export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot, options) =>
+  defaultContextBehavior.onContextCreated?.(robot, options)
+
+export const onClose: NonNullable<StackchanAppBehavior['onClose']> = () => defaultContextBehavior.onClose?.()

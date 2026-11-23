@@ -246,6 +246,27 @@
       "app-default-behavior/on-context-created": [
         "./host/app/default-behavior/on-context-created"
       ],
+      "app-default-behavior/features/emotion-control": [
+        "./host/app/default-behavior/features/emotion-control"
+      ],
+      "app-default-behavior/features/hand-gesture": [
+        "./host/app/default-behavior/features/hand-gesture"
+      ],
+      "app-default-behavior/features/camera-preview-feature": [
+        "./host/app/default-behavior/features/camera-preview-feature"
+      ],
+      "web-radio-config": [
+        "./mods/examples/web_radio/config"
+      ],
+      "web-radio-domain": [
+        "./mods/examples/web_radio/domain"
+      ],
+      "web-radio-workflow": [
+        "./mods/examples/web_radio/workflow"
+      ],
+      "web-radio-adapters": [
+        "./mods/examples/web_radio/adapters"
+      ],
       "app-default-behavior/wasm/behavior": [
         "./host/app/default-behavior/wasm/behavior"
       ],

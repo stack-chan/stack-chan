@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.test.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/web-radio-tests",
+    "rootDir": "../../..",
+    "types": ["node", "../../../typings/xs-runtime"]
+  },
+  "include": ["domain.ts", "workflow.ts", "workflow.test.ts"]
+}

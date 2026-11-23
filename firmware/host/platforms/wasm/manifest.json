@@ -54,6 +54,9 @@
     "app-default-behavior/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
     "app-default-behavior/startup-choice": "../../app/default-behavior/startup-choice",
     "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created",
+    "app-default-behavior/features/emotion-control": "../../app/default-behavior/features/emotion-control",
+    "app-default-behavior/features/hand-gesture": "../../app/default-behavior/features/hand-gesture",
+    "app-default-behavior/features/camera-preview-feature": "../../app/default-behavior/features/camera-preview-feature",
     "stackchan/voice/audio-arbiter": "../../modules/voice/audio-arbiter",
     "embedded:system": "./system"
   },

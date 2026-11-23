@@ -19,9 +19,9 @@ type FloatingNoteOptions = {
   drift: number
 }
 
-const PORT_WIDTH = 32
+const PORT_WIDTH = 44
 const RISE_PIXELS = 30
-const NOTE_HEIGHT = 16 + RISE_PIXELS
+const NOTE_HEIGHT = effectFrames.mintNote[3] + RISE_PIXELS
 const ANIMATION_INTERVAL_MS = 150
 const FADE_DURATION_MS = 1200
 const CYCLE_DURATION_MS = 1800

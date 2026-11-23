@@ -32,16 +32,15 @@ type EffectLayout = {
 
 type PoseAnimation = EffectLayout & {
   kind: 'pose'
-  frame: SpriteFrame
-  rebound?: SpriteFrame
-  x: Int8Array
-  y: Int8Array
-  useRebound?: Uint8Array
+  frames: readonly SpriteFrame[]
+  sequence: Uint8Array
+  offsetX?: Int8Array
+  offsetY?: Int8Array
 }
 
 type DropAnimation = EffectLayout & {
   kind: 'drop'
-  frames: readonly [small: SpriteFrame, falling: SpriteFrame, splash: SpriteFrame]
+  frames: readonly [small: SpriteFrame, falling: SpriteFrame, splash?: SpriteFrame]
   lanes: readonly [number, number]
   duration: number
   smallScale: number
@@ -54,33 +53,32 @@ type BubbleAnimation = EffectLayout & {
   duration: number
 }
 
+const POSE_CELL_HEIGHT = 40
 const POSE_DURATION = 64
 const ANIMATION_INTERVAL = 48
 
 const heart: PoseAnimation = {
   kind: 'pose',
-  left: 12,
-  top: 12,
-  width: 40,
-  height: 40,
-  frame: effectFrames.heart,
-  rebound: effectFrames.heartSquash,
-  x: Int8Array.of(-4, -3, -1, 2, 3, 4, 5, 5, 4, 3, 2, 0, -1, -3, -4, -4, -4, -4),
-  y: Int8Array.of(4, 1, -3, -6, -7, -5, -2, 1, 2, -2, -4, -3, 0, 3, 4, 4, 4, 4),
-  useRebound: Uint8Array.of(1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1),
+  left: 8,
+  top: 6,
+  width: 56,
+  height: 56,
+  frames: [effectFrames.heart, effectFrames.heartSquash],
+  offsetX: Int8Array.of(-4, -3, -1, 2, 3, 4, 5, 5, 4, 3, 2, 0, -1, -3, -4, -4, -4, -4),
+  offsetY: Int8Array.of(4, 1, -3, -6, -7, -5, -2, 1, 2, -2, -4, -3, 0, 3, 4, 4, 4, 4),
+  sequence: Uint8Array.of(1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1),
 }
 
 const angry: PoseAnimation = {
   kind: 'pose',
-  left: 12,
-  top: 12,
-  width: 40,
-  height: 40,
-  frame: effectFrames.angry,
-  rebound: effectFrames.angryRebound,
-  x: Int8Array.of(-3, 0, 4, 1, 4, 1, 3, 1, 1, 1, 1, 0, -2),
-  y: Int8Array.of(2, -4, -6, -3, -3, -1, -1, 0, 0, 0, 0, 1, 1),
-  useRebound: Uint8Array.of(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1),
+  left: 8,
+  top: 6,
+  width: 56,
+  height: 56,
+  frames: [effectFrames.angry, effectFrames.angryRebound],
+  offsetX: Int8Array.of(-3, 0, 4, 1, 4, 1, 3, 1, 1, 1, 1, 0, -2),
+  offsetY: Int8Array.of(2, -4, -6, -3, -3, -1, -1, 0, 0, 0, 0, 1, 1),
+  sequence: Uint8Array.of(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1),
 }
 
 const gloom: PoseAnimation = {
@@ -89,29 +87,34 @@ const gloom: PoseAnimation = {
   top: 8,
   width: 48,
   height: 64,
-  frame: effectFrames.gloom,
-  x: Int8Array.of(-2, -2, -1, -1, 0, 1, 2, 3, 3, 3, 3, 3, 3, 2, 1, 0, -1, -2),
-  y: Int8Array.of(-9, -10, -9, -7, -4, 1, 6, 8, 8, 8, 8, 8, 7, 5, 1, -3, -6, -8),
+  frames: [
+    effectFrames.gloomShort,
+    effectFrames.gloomLow,
+    effectFrames.gloomMedium,
+    effectFrames.gloomHigh,
+    effectFrames.gloomTall,
+  ],
+  sequence: Uint8Array.of(0, 0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 3, 2, 1, 0),
 }
 
 const sleepy: BubbleAnimation = {
   kind: 'bubble',
   left: 16,
   top: 8,
-  width: 48,
-  height: 64,
+  width: 60,
+  height: 68,
   duration: 1450,
 }
 
 const sweat: DropAnimation = {
   kind: 'drop',
   left: 8,
-  top: 10,
-  width: 72,
-  height: 100,
-  frames: [effectFrames.smallSweat, effectFrames.sweat, effectFrames.sweatSplash],
-  lanes: [0.54, 0.75],
-  duration: 1400,
+  top: 50,
+  width: 64,
+  height: 76,
+  frames: [effectFrames.smallSweat, effectFrames.sweat],
+  lanes: [0.2, 0.5],
+  duration: 1280,
   smallScale: 0.26,
   holdScale: 0.3,
   minScale: 0.24,
@@ -122,7 +125,7 @@ const tear: DropAnimation = {
   left: 60,
   top: 96,
   width: 200,
-  height: 60,
+  height: 66,
   frames: [effectFrames.smallTear, effectFrames.tear, effectFrames.tearSplash],
   lanes: [0.15, 0.85],
   duration: 1080,
@@ -144,7 +147,7 @@ class EmoticonPortBehavior extends Behavior {
   constructor(options: EmoticonOptions, animation: Animation) {
     super()
     this.#animation = animation
-    this.#duration = animation.kind === 'pose' ? animation.x.length * POSE_DURATION : animation.duration
+    this.#duration = animation.kind === 'pose' ? animation.sequence.length * POSE_DURATION : animation.duration
     const requestedCount = options.count ?? 2
     const count =
       animation.kind === 'pose'
@@ -159,6 +162,7 @@ class EmoticonPortBehavior extends Behavior {
       const midpoint = (Math.max(animation.minScale, small * 0.9) + hold) / 2
       const growth = (midpoint - small) / Math.max(0.01, hold - small)
       this.#growUntil = Math.max(0, Math.min(1, growth)) * 0.55
+      if (animation.frames.length === 2) this.#growUntil += 0.16
     }
   }
 
@@ -187,8 +191,10 @@ class EmoticonPortBehavior extends Behavior {
     if (sprites.length === 0) return
     if (animation.kind === 'pose') {
       const pose = Math.floor(this.#elapsed / POSE_DURATION)
-      const frame = animation.useRebound?.[pose] && animation.rebound ? animation.rebound : animation.frame
-      sprites[0].place(port, frame, port.width / 2 + animation.x[pose], port.height / 2 + animation.y[pose])
+      const frame = animation.frames[animation.sequence[pose]]
+      const x = port.width / 2 + (animation.offsetX?.[pose] ?? 0)
+      const top = animation.offsetY ? (port.height - POSE_CELL_HEIGHT) / 2 + animation.offsetY[pose] : 4
+      sprites[0].place(port, frame, x, top + frame[3] / 2)
       return
     }
 
@@ -218,7 +224,7 @@ class EmoticonPortBehavior extends Behavior {
     const travel = Math.min(1, progress / 0.8)
     const frame = progress < 0.8 ? effectFrames.sleepyBubble : effectFrames.sleepyPop
     const x = port.width / 2 + direction * (3 + 24 * travel * (1 - travel))
-    const y = port.height - 9 - Math.max(0, port.height - 17) * travel
+    const y = port.height - 13 - Math.max(0, port.height - 26) * travel
     sprite.place(port, frame, x, y)
   }
 
@@ -235,10 +241,21 @@ class EmoticonPortBehavior extends Behavior {
       return
     }
 
+    const frames = animation.frames
+    const splash = frames[2]
+    const drop = progress >= this.#growUntil ? frames[1] : frames[0]
+    if (!splash) {
+      const travel = progress / 0.9
+      const distance = Math.max(0, port.height - frames[1][3] - 10)
+      const top = 6 + distance * travel * travel * travel
+      sprite.place(port, drop, port.width * lane, top + drop[3] / 2)
+      return
+    }
+
     const travel = Math.min(1, progress / 0.76)
-    const frame = animation.frames[progress >= 0.76 ? 2 : progress >= this.#growUntil ? 1 : 0]
+    const frame = progress >= 0.76 ? splash : drop
     const x = port.width * lane + direction * (2 + 5 * travel * travel)
-    const y = 8 + Math.max(0, port.height - 17) * travel * travel
+    const y = 14 + Math.max(0, port.height - 30) * travel * travel
     sprite.place(port, frame, x, y)
   }
 }

@@ -43,6 +43,22 @@ npm run mod -- mods/examples/hello_balloon/manifest.json
 
 環境構築、ターゲット別のコマンド、書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照してください。
 
+### ドロワーから専用画面を開く
+
+[専用画面のサンプル](./examples/drawer_screen/mod.ts)には、戻るボタンとタイマーがあります。[manifest](./examples/drawer_screen/manifest.json)にはSDKのMOD用manifestと公開型定義を指定します。
+
+1. `context.ui.drawer.addDrawerButton()`でドロワーにボタンを登録します。コールバックでは、専用画面を開く前に`context.ui.closeDrawer()`を呼びます。
+2. `context.ui.setMain(content, { onClose })`で画面を開きます。戻り値の関数を戻るボタンから呼びます。
+3. `onClose`で画面のタイマーや購読を解除します。画面の置き換えが予約されていると、`setMain()`が戻る前に`onClose`が呼ばれることがあります。戻り値の関数を画面が開いている印にする場合は、サンプルのように`onClose`がまだ呼ばれていないときだけ保存します。MOD終了時のドロワーボタンの削除は`defineMod()`の`scope.own()`に登録します。
+
+日本語を表示するラベルには、ホストのフォント`k8x12-12`を使います。
+
+`firmware`ディレクトリからサンプルをビルドします。
+
+```console
+npm run mod:build -- mods/examples/drawer_screen/manifest.json
+```
+
 ## MODの実行モデル
 
 ホストは `mod` モジュールの名前付きエクスポートから[フック](../host/app/app-behavior.ts)を読み込みます。

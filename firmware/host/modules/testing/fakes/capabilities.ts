@@ -1,6 +1,7 @@
 export type { SpeechPlayback } from 'speech-playback-types'
 
 import type { FaceState } from '../../ui/state/face-state.js'
+import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../../voice/contracts.js'
 
 export type * from '../../audio/media-types.js'
 
@@ -26,7 +27,14 @@ export type RemoteConversationSession = RemoteConversationSessionDelegate & {
   deactivate(): void
 }
 
-export type StackchanContext = unknown
+export type StackchanContext = {
+  audio: {
+    microphone?: VoiceMicrophone
+    speaker?: VoiceSpeaker
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
 
 export type RobotLed = {
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number): void

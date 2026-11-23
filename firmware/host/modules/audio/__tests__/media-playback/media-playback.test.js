@@ -1025,6 +1025,43 @@ async function runTests() {
     equal(clients.length, count, 'stop inside retry notification cancels the scheduled connection')
     equal(await session.done, 'stopped')
   }
+  for (const stopViaAbort of [false, true]) {
+    const stopError = new Error('media output close failed after release')
+    let failClose = true
+    const player = new MediaPlayer(() => ({
+      runtime: {
+        async acquirePlayback(_speaker, formats, options) {
+          const lease = await runtime.acquirePlayback(runtime.speaker, formats, options)
+          return {
+            ...lease,
+            async close() {
+              await lease.close()
+              if (failClose) {
+                failClose = false
+                throw stopError
+              }
+            },
+          }
+        },
+      },
+    }))
+    const scope = createVoiceScope()
+    const failed = await player.open({ url: 'http://example.test/old', mode: 'live' }, scope)
+    tick()
+    if (stopViaAbort) {
+      scope.abort()
+      equal(await failed.done.catch((error) => error), stopError, 'abort reports the stop failure through done')
+    } else {
+      equal(await failed.stop().catch((error) => error), stopError, 'the old session reports its stop failure')
+    }
+    const replacement = await player.open({ url: 'http://example.test/new', mode: 'live' }, createVoiceScope())
+    tick()
+    equal(lastClient().callbacks.path, '/new', 'the next open starts after a reported stop failure')
+    equal(await failed.stop().catch((error) => error), stopError, 'the old stop handle stays bound to its session')
+    assert(!lastClient().closed, 'stopping the old session must leave the replacement connected')
+    await replacement.stop()
+  }
+
   // Replacing playback from a state callback opens only the replacement session.
   {
     const player = new MediaPlayer(getSpeaker)

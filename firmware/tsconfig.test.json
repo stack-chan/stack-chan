@@ -27,6 +27,10 @@
       "stackchan/ai": ["./host/modules/ai/index.ts"],
       "stackchan/voice": ["./host/modules/voice/index.ts"],
       "minimal-voice-workflow": ["./mods/examples/minimal_voice/workflow.ts"],
+      "web-radio-config": ["./mods/examples/web_radio/config.ts"],
+      "web-radio-domain": ["./mods/examples/web_radio/domain.ts"],
+      "web-radio-workflow": ["./mods/examples/web_radio/workflow.ts"],
+      "web-radio-adapters": ["./mods/examples/web_radio/adapters.ts"],
       "piu/MC": [
         "./node_modules/@moddable/typings/piu/MC.d.ts"
       ],
@@ -239,6 +243,15 @@
       ],
       "app-default-behavior/wasm/on-launch": [
         "./host/app/default-behavior/wasm/on-launch.ts"
+      ],
+      "app-default-behavior/features/emotion-control": [
+        "./host/app/default-behavior/features/emotion-control.ts"
+      ],
+      "app-default-behavior/features/hand-gesture": [
+        "./host/app/default-behavior/features/hand-gesture.ts"
+      ],
+      "app-default-behavior/features/camera-preview-feature": [
+        "./host/app/default-behavior/features/camera-preview-feature.ts"
       ],
       "mac-address": [
         "./host/modules/util/sim/mac-address.ts"

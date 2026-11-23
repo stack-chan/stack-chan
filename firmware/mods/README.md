@@ -43,6 +43,22 @@ npm run mod -- mods/examples/hello_balloon/manifest.json
 
 See [Build and flash programs](../docs/flashing-firmware.md) for setup, target-specific commands, and installation details.
 
+### Open a screen from the drawer
+
+Use the [drawer screen example](./examples/drawer_screen/mod.ts) for a screen with a Back button and a timer. Its [manifest](./examples/drawer_screen/manifest.json) includes the SDK MOD manifest and the public type declarations.
+
+1. Register a drawer button with `context.ui.drawer.addDrawerButton()`. In the callback, call `context.ui.closeDrawer()` before opening your screen.
+2. Open your screen with `context.ui.setMain(content, { onClose })`. Connect the function it returns to your Back button.
+3. Cancel the screen's timers and subscriptions in `onClose`. A queued screen replacement can call `onClose` before `setMain()` returns. If you keep the returned function as a marker that the screen is open, save it only if `onClose` has not run, as in the example. Use `scope.own()` from `defineMod()` to remove the drawer button when the MOD closes.
+
+Use the host font `k8x12-12` for Japanese labels.
+
+Build the example from `firmware`.
+
+```console
+npm run mod:build -- mods/examples/drawer_screen/manifest.json
+```
+
 ## MOD runtime model
 
 The host reads [hooks](../host/app/app-behavior.ts) from the named exports of the `mod` module.

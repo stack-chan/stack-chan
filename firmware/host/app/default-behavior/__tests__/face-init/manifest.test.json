@@ -9,7 +9,12 @@
   },
   "modules": {
     "app-behavior": "./app-behavior-stub",
+    "owned-resources": "../../../owned-resources",
+    "mod-kit": "../../../mod-kit",
     "app-default-behavior/on-context-created": "../../on-context-created",
+    "app-default-behavior/features/emotion-control": "../../features/emotion-control",
+    "app-default-behavior/features/hand-gesture": "../../features/hand-gesture",
+    "app-default-behavior/features/camera-preview-feature": "../../features/camera-preview-feature",
     "imu": "./imu-stub",
     "main": "./face-init.test"
   }

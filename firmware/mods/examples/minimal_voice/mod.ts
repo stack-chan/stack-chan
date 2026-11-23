@@ -1,38 +1,69 @@
-import { runTextConversation } from 'minimal-voice-workflow'
+import { formatVoiceExampleError, runTextConversation } from 'minimal-voice-workflow'
+import { defineMod, type StackchanAppBehaviorOption } from 'mod-kit'
 import { Agent, OpenAIResponsesLLM, ToolSet } from 'stackchan/ai'
-import type { Microphone, Speaker } from 'stackchan/voice'
 import { CascadedConversation, ConversationPipeline, PushToTalk } from 'stackchan/voice'
 import { OpenAISpeechTTS, WhisperSTT } from 'stackchan/voice/speech'
+import { ensure, isErr } from 'stackchan-result'
 
-let pipeline: ReturnType<typeof ConversationPipeline.create> | undefined
+type VoiceAiConfig = Readonly<{
+  token?: string
+  model?: string
+}>
 
-export function onContextCreated(
-  robot: { audio: { microphone?: Microphone; speaker?: Speaker } },
-  option: { config: { ai: { token: string; model?: string } } },
-) {
-  const { microphone, speaker } = robot.audio
-  const { token, model = 'gpt-4o-mini' } = option.config.ai
-  if (!microphone || !speaker) throw new Error('This host does not provide conversation audio')
-  if (!token) throw new Error('Configure ai.token before starting this example')
-
-  const conversation = CascadedConversation.create({
-    stt: WhisperSTT.create({ apiKey: token }),
-    agent: Agent.create({
-      llm: OpenAIResponsesLLM.create({ apiKey: token, model }),
-      tools: ToolSet.create([]),
-      instructions: 'Reply in one short sentence.',
-      maxToolRounds: 1,
-    }),
-    tts: OpenAISpeechTTS.create({ apiKey: token }),
-    turnDetector: PushToTalk.create().detector,
-    voice: 'alloy',
-  })
-  pipeline = ConversationPipeline.create({ microphone, speaker, conversation, microphoneMuted: true })
-  void runTextConversation(pipeline, ['Hello.', 'What did I just say?']).catch((error: unknown) => {
-    trace(`minimal_voice: ${error instanceof Error ? error.message : String(error)}\n`)
-  })
+function readAiConfig(option: StackchanAppBehaviorOption): VoiceAiConfig {
+  const ai = option.config.ai
+  const token = typeof ai?.token === 'string' && ai.token.length > 0 ? ai.token : undefined
+  const model = typeof ai?.model === 'string' && ai.model.length > 0 ? ai.model : undefined
+  return { token, model }
 }
 
-export function onClose() {
-  return pipeline?.close()
-}
+export const { onContextCreated, onClose } = defineMod({
+  setup(context, option, scope) {
+    const { token, model = 'gpt-4o-mini' } = readAiConfig(option)
+
+    const validMicrophone = ensure(
+      context.audio.microphone,
+      () => new Error('This host does not provide conversation audio'),
+    )
+    if (isErr(validMicrophone)) throw validMicrophone.error
+    const validSpeaker = ensure(context.audio.speaker, () => new Error('This host does not provide conversation audio'))
+    if (isErr(validSpeaker)) throw validSpeaker.error
+    const validToken = ensure(token, () => new Error('Configure ai.token before starting this example'))
+    if (isErr(validToken)) throw validToken.error
+
+    const conversation = CascadedConversation.create({
+      stt: WhisperSTT.create({ apiKey: validToken.value }),
+      agent: Agent.create({
+        llm: OpenAIResponsesLLM.create({ apiKey: validToken.value, model }),
+        tools: ToolSet.create([]),
+        instructions: 'Reply in one short sentence.',
+        maxToolRounds: 1,
+      }),
+      tts: OpenAISpeechTTS.create({ apiKey: validToken.value }),
+      turnDetector: PushToTalk.create().detector,
+      voice: 'alloy',
+    })
+
+    const pipeline = ConversationPipeline.create({
+      microphone: validMicrophone.value,
+      speaker: validSpeaker.value,
+      conversation,
+      microphoneMuted: true,
+    })
+
+    scope.own(async () => {
+      await pipeline.close()
+    })
+
+    void runTextConversation(pipeline, ['Hello.', 'What did I just say?']).then(
+      (result) => {
+        if (isErr(result)) {
+          trace(`minimal_voice: ${formatVoiceExampleError(result.error)}\n`)
+        }
+      },
+      (cause) => {
+        trace(`minimal_voice: ${cause instanceof Error ? cause.message : String(cause)}\n`)
+      },
+    )
+  },
+})

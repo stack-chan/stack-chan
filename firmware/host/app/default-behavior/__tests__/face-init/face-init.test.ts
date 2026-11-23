@@ -1,7 +1,8 @@
-import { onContextCreated } from 'app-default-behavior/on-context-created'
+import { onClose, onContextCreated } from 'app-default-behavior/on-context-created'
 import { Emotion } from 'face-state'
 import { isJitomeFaceSupported } from 'jitome-face'
 import { assert, equal } from 'testing/assert'
+import Timer from 'timer'
 
 trace('=== default-mod face init test ===\n')
 
@@ -28,6 +29,8 @@ const balloonMessages: string[] = []
 const torqueRequests: boolean[] = []
 let servoFailure: Error | undefined
 let drawerCloseCount = 0
+let balloonHides = 0
+let finishTone: (() => void) | undefined
 type TouchPanelTestEvent = {
   gesture: 'forwardSwipe' | 'backwardSwipe'
   position: number
@@ -104,10 +107,16 @@ const robot = {
     torqueRequests.push(enabled)
     return servoFailure ? Promise.reject(servoFailure) : Promise.resolve()
   },
+  tone: () =>
+    new Promise<void>((resolve) => {
+      finishTone = resolve
+    }),
   showBalloon: (message: string) => {
     balloonMessages.push(message)
   },
-  hideBalloon: () => {},
+  hideBalloon: () => {
+    balloonHides += 1
+  },
   setEmotion: (emotion: unknown) => {
     emotions.push(emotion)
   },
@@ -236,6 +245,18 @@ async function testServoRecovery() {
 async function runAsyncTests() {
   await testSpeakStackchan()
   await testServoRecovery()
+  const toneButton = buttons.find((button) => button.key === 'playTone')
+  assert(toneButton?.callback, 'the tone button should be registered')
+  const tone = toneButton?.callback?.(robot)
+  assert(finishTone, 'the tone remains pending at scope close')
+  await onClose()
+  const messagesAfterClose = balloonMessages.length
+  finishTone?.()
+  await tone
+  equal(balloonMessages.length, messagesAfterClose, 'a tone completed after scope close must not show a balloon')
+  const hidesAfterClose = balloonHides
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 1000))
+  equal(balloonHides, hidesAfterClose, 'a tone completed after scope close must not schedule a balloon hide')
   trace('@@STACKCHAN_TEST:PASS@@\n')
 }
 

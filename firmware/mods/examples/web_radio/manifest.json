@@ -2,11 +2,14 @@
   "include": [
     "$(MODDABLE)/examples/manifest_mod.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../host/app/manifest_typings.json"
+    "../../../typings/voice-api/manifest.json"
   ],
   "modules": {
-    "*": ["./mod", "./types"],
-    "web-radio-config": "./config"
+    "mod": "./mod",
+    "web-radio-config": "./config",
+    "web-radio-domain": "./domain",
+    "web-radio-workflow": "./workflow",
+    "web-radio-adapters": "./adapters"
   },
   "typescript": {
     "tsconfig": {

@@ -1,6 +1,7 @@
 {
   "modules": {
     "*": ["../../typings/*"],
+    "effects/*": ["../../typings/effects/*"],
     "piu/*": ["../../typings/piu/*"]
   },
   "typescript": {

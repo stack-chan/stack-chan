@@ -1,4 +1,4 @@
-export const state = { writes: [], finishes: 0, closes: 0 }
+export const state = { writes: [], finishes: 0, flushes: 0, closes: 0 }
 class Synthesis {
   output = {}
   async write(text) {
@@ -9,7 +9,8 @@ class Synthesis {
     await state.onFinish?.()
   }
   async flush() {
-    await state.onFinish?.()
+    state.flushes++
+    await state.onFlush?.()
   }
   async close() {
     state.closes++

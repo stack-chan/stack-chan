@@ -7,6 +7,7 @@
       ],
       "modules": {
         "stackchan/voice/sanotts": "../../voice/sanotts",
+        "stackchan/voice/synthesis": "../../voice/synthesis",
         "speech-playback-sanotts": "../../voice/sanotts-playback"
       }
     }

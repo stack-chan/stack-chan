@@ -26,7 +26,7 @@ export function onContextCreated(robot) {
   }
   const { LiveConversation } = Modules.importNow('realtimeConversation', true)
   const realtimeQoS = robot.realtimeQoS
-  const power = Modules.importNow('network-power')
+  const power = !realtimeQoS && Modules.has('network-power') ? Modules.importNow('network-power') : undefined
   const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
   const uiPerformance =
     !realtimeQoS && Modules.has('stackchan/realtime-ui-performance')
@@ -90,7 +90,13 @@ export function onContextCreated(robot) {
         mediaBudget: { maxBufferedBytes: 128 * 1024, maxBufferedMs: 1000 },
       }),
     networkReady,
-    acquireLowLatency: () => power.acquireLowLatency(),
+    acquireLowLatency: () => {
+      if (realtimeQoS) {
+        const lease = realtimeQoS.enterMode('realtime-connecting')
+        return { close: () => lease.release() }
+      }
+      return power?.acquireLowLatency()
+    },
     settings,
     reactions: settings.decisionsReactions === true ? createDecisionsReactions(robot, wait) : undefined,
     onState(state) {

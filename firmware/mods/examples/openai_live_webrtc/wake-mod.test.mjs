@@ -72,6 +72,7 @@ async function fixture({
       'network-power',
       {
         acquireLowLatency() {
+          if (realtimeQoS) events.push('direct network-power acquired')
           return { close() {} }
         },
       },
@@ -485,7 +486,7 @@ test('session UI scheduling spans active audio and is released after each kind o
   }
 })
 
-test('robot.realtimeQoS acquires realtime-conversation mode and releases across close paths', async () => {
+test('robot.realtimeQoS acquires pre-connect and conversation modes without direct network-power calls', async () => {
   for (const close of ['shutdown', 'remoteClose', 'remoteError']) {
     let finish
     const f = await fixture({
@@ -498,14 +499,24 @@ test('robot.realtimeQoS acquires realtime-conversation mode and releases across 
     assert.deepEqual(f.events, [])
     f.fire('session')
     await settle()
-    assert.deepEqual(f.events, ['conversation created', 'conversation started', 'QoS acquired:realtime-conversation'])
+    assert.deepEqual(f.events, [
+      'QoS acquired:realtime-connecting',
+      'conversation created',
+      'conversation started',
+      'QoS acquired:realtime-conversation',
+    ])
     const closing = f[close]()
     await settle()
     assert.equal(f.events.at(-1), 'QoS acquired:realtime-conversation')
     finish()
     await closing
     await settle()
-    assert.deepEqual(f.events.slice(-2), ['conversation released', 'QoS released:realtime-conversation'])
+    assert.deepEqual(f.events.slice(-3), [
+      'conversation released',
+      'QoS released:realtime-connecting',
+      'QoS released:realtime-conversation',
+    ])
+    assert.ok(!f.events.includes('direct network-power acquired'))
     await f.shutdown()
   }
 })

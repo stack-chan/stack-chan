@@ -11,7 +11,6 @@ import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { RealtimeQoSPort } from 'realtime-qos'
-import type { ScreenChangeListener } from 'screen-coordinator'
 import type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
@@ -45,19 +44,19 @@ export type RobotLed = {
 
 export type { I18nCapability } from 'localization'
 export type {
-  MiniAppCapabilities,
   MiniAppContext,
   MiniAppDefinition,
   MiniAppInstance,
-  MiniAppPermission,
   MiniAppRegistryCapability,
 } from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
+export type MainScreenOptions = {
+  onClose?: () => void
+}
+
 export type RobotUI = {
   readonly miniApps: MiniAppRegistryCapability
-  readonly isFaceForeground?: boolean
-  subscribeScreenChange?: (listener: ScreenChangeListener) => () => void
   update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void
   removeEffect(effect: UIEffect): void
@@ -67,12 +66,17 @@ export type RobotUI = {
   setHandAnimation(animation: HandAnimationName): void
   /** Enable or disable periodic face motions without replacing or hiding the current face. */
   setFaceMotionEnabled?(enabled: boolean): void
-  /** Replace the swappable main component (e.g. a full-area dialog) while keeping AppBar/Drawer active. */
-  setMain(content: PiuContainer): void
+  /** Show or hide the connection indicator in the status bar. */
+  setConnectionIndicator?(visible: boolean): void
+  /**
+   * Replace the swappable main component (e.g. a full-area dialog) while keeping AppBar/Drawer active.
+   * When options.onClose (or an onClose callback) is provided, it runs once whenever this screen is
+   * replaced by showFace(), another setMain(), the mini-app launcher, or context shutdown.
+   * Returns an idempotent close function that restores the face if this screen is still active.
+   */
+  setMain(content: PiuContainer, options?: MainScreenOptions | (() => void)): () => void
   /** Restore the face as the main component after a dialog was shown via setMain. */
   showFace(): void
-  /** Dispose the active mini-app session if one is currently running. */
-  exitMiniApp?(): void
   setDrawerButtons(buttons: DrawerButtonViewSpec[]): void
   addDrawerButton(button: DrawerButtonViewSpec): void
   removeDrawerButton(key: string): void

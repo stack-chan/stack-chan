@@ -37,7 +37,9 @@ function createFakeUI() {
     removeEffect() {},
     setFace() {},
     setHandAnimation() {},
-    setMain() {},
+    setMain() {
+      return () => {}
+    },
     showFace() {},
     setDrawerButtons() {},
     addDrawerButton() {},

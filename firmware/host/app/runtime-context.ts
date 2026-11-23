@@ -26,11 +26,17 @@ import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runt
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
 import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
 import { StackchanRuntimeUI } from 'runtime-ui'
-import { ScreenKind } from 'screen-coordinator'
+import { type ScreenChangeListener, ScreenKind } from 'screen-coordinator'
 import { type Maybe, type Pose, type Vector3, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
 const INTERVAL_FACE = 1000 / 30
+
+type HostControllerUI = RobotUI & {
+  readonly isFaceForeground?: boolean
+  subscribeScreenChange?: (listener: ScreenChangeListener) => () => void
+  exitMiniApp?: () => void
+}
 
 type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeCameraConstructorParam &
@@ -45,7 +51,7 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
     remoteConversationSession?: RemoteConversationSession
     realtimeQoS?: RealtimeQoSPort
     closeHandlers?: ReadonlyArray<() => void | Promise<void>>
-    ui: RobotUI
+    ui: HostControllerUI
   }
 
 export class StackchanRuntimeContext implements StackchanContext {
@@ -621,8 +627,11 @@ export class StackchanRuntimeContext implements StackchanContext {
         context.#syncFaceUpdateTimer()
         context.#uiRuntime.ui.setFaceMotionEnabled?.(enabled)
       },
-      setMain(content) {
-        context.#uiRuntime.ui.setMain(content)
+      setConnectionIndicator(visible) {
+        context.#uiRuntime.ui.setConnectionIndicator?.(visible)
+      },
+      setMain(content, options) {
+        return context.#uiRuntime.ui.setMain(content, options)
       },
       showFace() {
         context.#uiRuntime.ui.showFace()
@@ -717,7 +726,8 @@ export class StackchanRuntimeContext implements StackchanContext {
       hasCloseError = true
     }
     try {
-      this.#uiRuntime.ui.exitMiniApp?.()
+      ;(this.#uiRuntime.ui as HostControllerUI).exitMiniApp?.()
+      this.#uiRuntime.ui.showFace()
     } catch (error) {
       rememberCloseError(error)
     }

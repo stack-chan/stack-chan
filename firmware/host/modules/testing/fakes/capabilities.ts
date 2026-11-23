@@ -1,5 +1,4 @@
 export type { SpeechPlayback } from 'speech-playback-types'
-import type { ScreenChangeListener } from '../../ui/application/screen-coordinator.js'
 import type { FaceState } from '../../ui/state/face-state.js'
 
 export type * from '../../audio/media-types.js'
@@ -77,10 +76,11 @@ export type ShowBalloonOptions = {
   font?: string
   duration?: number
 }
+export type MainScreenOptions = {
+  onClose?: () => void
+}
 export type RobotUI = {
   readonly miniApps: { register: (...args: unknown[]) => () => void }
-  readonly isFaceForeground?: boolean
-  subscribeScreenChange?: (listener: ScreenChangeListener) => () => void
   update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void
   removeEffect(effect: UIEffect): void
@@ -88,9 +88,9 @@ export type RobotUI = {
   setFace(face: unknown): void
   setHandAnimation(name: string): void
   setFaceMotionEnabled?(enabled: boolean): void
-  setMain(content: unknown): void
+  setConnectionIndicator?(visible: boolean): void
+  setMain(content: unknown, options?: MainScreenOptions | (() => void)): () => void
   showFace(): void
-  exitMiniApp?(): void
   setDrawerButtons(buttons: DrawerButtonViewSpec[]): void
   addDrawerButton(button: DrawerButtonViewSpec): void
   removeDrawerButton(key: string): void

@@ -1,6 +1,19 @@
 {
-  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "include": [
+    "../../manifest.json",
+    "../../../testing/manifest.json",
+    "$(MODULES)/base/worker/manifest.json",
+    "$(MODULES)/data/text/encoder/manifest.json"
+  ],
   "modules": {
+    "*": [
+      "$(MODULES)/network/services/chatAudioIO/workers/ChatWorker",
+      "$(MODULES)/network/services/chatAudioIO/workers/ChatWebSocketWorker",
+      "$(MODULES)/network/services/chatAudioIO/workers/JSONBase64Parser",
+      "$(MODULES)/network/services/chatAudioIO/workers/openAIRealtimeModel"
+    ],
+    "ChatAudioIO/Codecs": "$(MODULES)/network/services/chatAudioIO/codecs/audio-codecs",
+    "testing/worker-flow": "./worker-flow",
     "main": "./chat-service.test"
   },
   "config": {

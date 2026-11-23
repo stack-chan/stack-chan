@@ -1,5 +1,6 @@
 {
   "modules": {
+    "realtimeConversation/audioLease": "./audio-lease.js",
     "realtimeConversation/transport": "./transport.js",
     "*": [
       "./transport.c",

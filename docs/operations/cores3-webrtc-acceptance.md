@@ -1,9 +1,9 @@
 # Standard CoreS3 WebRTC acceptance
 
-Release impact: **minor**. Standard firmware for ordinary M5Stack CoreS3 and
-M5StackChan CoreS3 includes `realtimeConversation`. Host API remains 2; no
-partition resize, history partition, migration, or automatic conversation is
-introduced. Non-S3 targets do not include the native backend.
+Host API 3 exposes `LiveConversation` through the standard firmware for
+M5Stack CoreS3 and M5StackChan CoreS3. The native transport is available on
+these boards. Earlier measurements below refer to the firmware revisions named
+in each measurement.
 
 ## Build and activation contract
 
@@ -31,16 +31,12 @@ the idle Worker can remain until a later request or caller VM termination.
 A conversation's awaited `close()` releases its native transport/audio; an
 asynchronous hangup can keep the HTTP Worker alive beyond that point.
 
-`realtimeConversation` is a low-level protocol/native transport module. Its
-caller must reserve the host audio capability with `robot.audio.acquireExclusive()`
-before starting native audio, configure `globalThis.amp.sampleRate = 48000`, and
-release that lease only after awaited conversation closure. Restore the amp to
-the SDK baseline of 24000 Hz before returning to host playback. The supplied
-`mods/examples/openai_live_webrtc/session.js` implements this sequence and
-cleans up failed starts. In a Worker-based MOD, the main VM coordinates the host
-lease and amp; do not bypass that coordination or open `AudioIn`/`AudioOut`
-alongside the native duplex session. Native ownership also rejects concurrent
-WebRTC transports across VMs.
+A MOD passes `LiveConversation.create(options)` and the two host audio
+endpoints to `ConversationPipeline`. Starting the pipeline reserves the
+host audio capability. The CoreS3 audio lease configures the amplifier at
+48000 Hz and lends its native ports to the peer. Closing the pipeline waits
+for the peer before closing the ports and restoring the 24000 Hz amplifier
+rate. Native ownership also rejects concurrent WebRTC transports across VMs.
 
 Both boards use the SDK's CoreS3 ES7210 microphone and AW88298 amplifier setup.
 The native duplex bus derives controller and pin definitions from the selected
@@ -50,7 +46,7 @@ an amp configuration failure closes that newly allocated AudioOut.
 SDK 10.0.2's AW88298 setter caches the requested rate before its I2C write.
 If that write fails, retrying the same rate on the same amplifier instance can
 skip the write. AudioOut cleanup proves I2S release, not physical amplifier
-recovery. The Live example attempts to restore 24000 Hz after a failed 48000 Hz
+recovery. The CoreS3 audio lease attempts to restore 24000 Hz after a failed 48000 Hz
 start, but that restoration can also fail. Transient amplifier-I2C failure and
 same-rate retry recovery are **NOT RUN** on both boards; no SDK recovery change
 is included here.

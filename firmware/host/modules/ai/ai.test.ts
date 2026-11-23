@@ -1,0 +1,744 @@
+import assert from 'node:assert/strict'
+import { dirname, resolve } from 'node:path'
+import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { inflateSync } from 'node:zlib'
+import { writeAliasPackage } from '../testing/node-alias-package.js'
+import type { FunctionCall, InputItem, LLM, ModelResponse } from '../voice/contracts.js'
+import { createVoiceScope } from '../voice/scope.js'
+import type { ResponseConnection } from './ai-http-stream.js'
+
+const directory = dirname(fileURLToPath(import.meta.url))
+for (const name of ['ai-core', 'ai-image', 'ai-wire', 'ai-responses']) {
+  writeAliasPackage(resolve(directory, '../../..'), 'stackchan-' + name, resolve(directory, name + '.js'))
+}
+const { asDelegateAgent, createAgent, createToolSet, createVision, outputText, toolsFromMCP } = await import(
+  './ai-core.js'
+)
+const { createResponsesLLM, prepareBody } = await import('./ai-responses.js')
+const { streamResponse } = await import('./ai-http-stream.js')
+const { createChatLLM } = await import('./ai-chat.js')
+
+ArrayBuffer.fromString ??= (s: string) => new TextEncoder().encode(s).buffer as ArrayBuffer
+String.fromArrayBuffer ??= (b: ArrayBuffer) => new TextDecoder().decode(b)
+const call: FunctionCall = {
+  type: 'function_call',
+  id: 'item',
+  call_id: 'call',
+  name: 'move',
+  arguments: '{"angle":10}',
+}
+const message = {
+  type: 'message' as const,
+  id: 'message',
+  role: 'assistant' as const,
+  phase: 'final_answer' as const,
+  content: [{ type: 'output_text' as const, text: 'はい' }],
+}
+const result: ModelResponse = { status: 'completed', id: 'response', output: [message] }
+const tool = {
+  definition: {
+    type: 'function' as const,
+    name: 'move',
+    description: 'move head',
+    parameters: {
+      type: 'object',
+      properties: { angle: { type: 'integer' } },
+      required: ['angle'],
+      additionalProperties: false,
+    },
+  },
+  execute: () => 'moved',
+}
+
+test('ToolSet executes every request across a long session', async () => {
+  let executions = 0
+  const tools = createToolSet([{ ...tool, execute: () => String(++executions) }])
+  for (let i = 0; i < 260; i++) {
+    const callId = 'call-' + i
+    const output = await tools.execute(
+      { ...call, call_id: callId },
+      { ...createVoiceScope(), sessionId: 'long-session', turnId: 'turn-' + i, callId },
+    )
+    assert.equal(output.call_id, callId)
+    assert.equal(output.output, String(i + 1))
+  }
+  assert.equal(executions, 260)
+})
+
+test('ToolSet executes independent requests even when their identifiers and arguments match', async () => {
+  let executions = 0
+  const tools = createToolSet([{ ...tool, execute: () => String(++executions) }])
+  const context = { ...createVoiceScope(), sessionId: 'independent', turnId: 'turn', callId: call.call_id }
+  assert.equal((await tools.execute(call, context)).output, '1')
+  assert.equal((await tools.execute(call, context)).output, '2')
+  assert.equal(executions, 2)
+})
+
+test('ToolSet keeps argument and result budgets and rejects cancelled requests before effects', async () => {
+  let executions = 0
+  const tools = createToolSet(
+    [
+      {
+        ...tool,
+        execute: () => {
+          executions++
+          return 'too long'
+        },
+      },
+    ],
+    { maxOutputChars: 2 },
+  )
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  await assert.rejects(tools.execute({ ...call, arguments: ' '.repeat(8193) }, context), { code: 'tool_failed' })
+  context.abort()
+  await assert.rejects(tools.execute(call, context), { code: 'cancelled' })
+  assert.equal(executions, 0)
+  await assert.rejects(tools.execute(call, { ...context, ...createVoiceScope() }), { code: 'resource_exhausted' })
+  assert.equal(executions, 1)
+})
+
+test('MCP schemas need explicit validators for unsupported keywords and forward the call scope', async () => {
+  const calls: string[] = []
+  let receivedScope: unknown
+  const client = {
+    async listTools() {
+      return {
+        tools: [
+          { name: 'simple', inputSchema: tool.definition.parameters },
+          {
+            name: 'formatted',
+            inputSchema: { type: 'object', properties: { email: { type: 'string', format: 'email' } } },
+          },
+          {
+            name: 'choice',
+            inputSchema: { type: 'object', oneOf: [{ required: ['angle'] }, { required: ['email'] }] },
+          },
+        ],
+      }
+    },
+    async callTool(name: string, _input: unknown, scope?: unknown) {
+      calls.push(name)
+      receivedScope = scope
+      return 'ok'
+    },
+  }
+  await assert.rejects(toolsFromMCP(client), { code: 'unsupported_capability', message: /formatted/ })
+  const adapted = await toolsFromMCP(client, {
+    validators: {
+      formatted: (input) => typeof input.email === 'string' && input.email.includes('@'),
+      choice: (input) => Object.hasOwn(input, 'angle') !== Object.hasOwn(input, 'email'),
+    },
+  })
+  const tools = createToolSet(adapted)
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  assert.equal((await tools.execute({ ...call, name: 'simple' }, context)).output, 'ok')
+  await assert.rejects(tools.execute({ ...call, name: 'formatted', arguments: '{"email":"invalid"}' }, context), {
+    code: 'tool_failed',
+  })
+  await assert.rejects(tools.execute({ ...call, name: 'choice', arguments: '{"angle":1,"email":"a@b"}' }, context), {
+    code: 'tool_failed',
+  })
+  assert.equal(
+    (await tools.execute({ ...call, name: 'formatted', arguments: '{"email":"a@b"}' }, context)).output,
+    'ok',
+  )
+  assert.equal((receivedScope as { signal: unknown }).signal, context.signal)
+  assert.deepEqual(calls, ['simple', 'formatted'])
+})
+
+test('ToolSet releases a cancelled wait and handles a late provider rejection', async () => {
+  const scope = createVoiceScope()
+  let rejectPending!: (error: unknown) => void
+  let listeners = 0
+  const signal = {
+    get aborted() {
+      return scope.signal.aborted
+    },
+    addEventListener(type: 'abort', listener: () => void) {
+      listeners++
+      scope.signal.addEventListener(type, listener)
+    },
+    removeEventListener(type: 'abort', listener: () => void) {
+      listeners--
+      scope.signal.removeEventListener(type, listener)
+    },
+  }
+  let executions = 0
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute: () =>
+        ++executions === 1
+          ? new Promise((_resolve, reject) => {
+              rejectPending = reject
+            })
+          : 'reused',
+    },
+  ])
+  const waiting = tools.execute(call, { signal, sessionId: 's', turnId: 't', callId: call.call_id })
+  assert.equal(listeners, 1)
+  scope.abort()
+  await assert.rejects(waiting, { code: 'cancelled_unconfirmed' })
+  assert.equal(listeners, 0)
+  const fresh = { ...createVoiceScope(), sessionId: 's', turnId: 'next', callId: call.call_id }
+  await assert.rejects(tools.execute(call, fresh), { code: 'cancelled_unconfirmed' })
+  assert.equal(executions, 1)
+  rejectPending(new Error('late provider failure'))
+  await Promise.resolve()
+  assert.equal((await tools.execute(call, fresh)).output, 'reused')
+})
+
+test('Agent preserves uncertainty when an asynchronous tool is still running after cancellation', async () => {
+  const scope = createVoiceScope()
+  let started!: () => void
+  const entered = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  let finish!: (value: unknown) => void
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute: () => {
+        started()
+        return new Promise((resolve) => {
+          finish = resolve
+        })
+      },
+    },
+  ])
+  const agent = createAgent({
+    llm: {
+      capabilities: { tools: true, image: false },
+      async createResponse() {
+        return { ...result, output: [call] }
+      },
+    },
+    tools,
+    instructions: '',
+    maxToolRounds: 1,
+  })
+  const run = agent.run({ input: [], sessionId: 's', turnId: 't' }, scope)
+  await entered
+  scope.abort()
+  const cancelled = await run
+  assert.equal(cancelled.status, 'cancelled')
+  assert.equal('error' in cancelled && cancelled.error.code, 'cancelled_unconfirmed')
+  assert.equal(cancelled.appended.at(-1)?.type, 'function_call_output')
+  finish('done')
+})
+
+test('tool output preserves ordinary JSON values with an exact escaped-character budget', async () => {
+  const shared = { x: 1 }
+  const value = {
+    quotes: '"\\\b\f\n\r\t\u0000',
+    unicode: '\ud800\udc00\ud800x\udc00',
+    items: [undefined, () => {}, Symbol('x'), NaN, Infinity, -0, Object(2)],
+    sparse: new Array(2),
+    omit: undefined,
+    hidden: () => {},
+    date: new Date('2026-01-01T00:00:00.000Z'),
+    custom: {
+      toJSON(key: string) {
+        return { key }
+      },
+    },
+    first: shared,
+    second: shared,
+  }
+  const expected = JSON.stringify(value)
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  const tools = createToolSet([{ ...tool, execute: () => value }], { maxOutputChars: expected.length })
+  assert.equal((await tools.execute(call, context)).output, expected)
+  const short = createToolSet([{ ...tool, execute: () => value }], { maxOutputChars: expected.length - 1 })
+  await assert.rejects(short.execute(call, context), { code: 'resource_exhausted' })
+})
+
+test('tool output stops before traversing oversized objects, arrays, keys, cycles, and deep results', async () => {
+  const context = { ...createVoiceScope(), sessionId: 's', turnId: 't', callId: call.call_id }
+  const execute = (value: unknown, maxOutputChars = 32) =>
+    createToolSet([{ ...tool, execute: () => value }], { maxOutputChars }).execute(call, context)
+  let visited = 0
+  const huge: Record<string, unknown> = {}
+  for (let i = 0; i < 1000; i++)
+    Object.defineProperty(huge, String(i), {
+      enumerable: true,
+      get() {
+        visited++
+        return i
+      },
+    })
+  await assert.rejects(execute(huge), { code: 'resource_exhausted' })
+  assert.ok(visited < 20)
+  await assert.rejects(execute(new Array(1000000)), { code: 'resource_exhausted' })
+  await assert.rejects(execute({ value: '\\'.repeat(100000) }), { code: 'resource_exhausted' })
+  await assert.rejects(execute({ ['x'.repeat(100000)]: 1 }), { code: 'resource_exhausted' })
+  const circular: { self?: unknown } = {}
+  circular.self = circular
+  await assert.rejects(execute(circular), { code: 'tool_failed' })
+  let deep: unknown = 1
+  for (let i = 0; i < 100; i++) deep = [deep]
+  await assert.rejects(execute(deep, 4096), { code: 'resource_exhausted' })
+  assert.equal((await execute({ omitted: undefined, kept: 1 })).output, '{"kept":1}')
+  await assert.rejects(execute(1n), { code: 'tool_failed' })
+  await assert.rejects(execute(Object(1n)), { code: 'tool_failed' })
+})
+
+test('Agent stops tool rounds even when the model ignores tool_choice none', async () => {
+  let executions = 0
+  const choices: unknown[] = []
+  const agent = createAgent({
+    llm: {
+      capabilities: { tools: true, image: false },
+      async createResponse(request) {
+        choices.push(request.tool_choice)
+        return { ...result, output: [call] }
+      },
+    },
+    tools: createToolSet([{ ...tool, execute: () => String(++executions) }]),
+    instructions: '',
+    maxToolRounds: 1,
+  })
+  const response = await agent.run({ input: [], sessionId: 's', turnId: 't' }, createVoiceScope())
+  assert.equal(response.status, 'failed')
+  assert.equal('error' in response && response.error.code, 'resource_exhausted')
+  assert.equal(executions, 1)
+  assert.deepEqual(choices, [undefined, 'none'])
+  assert.deepEqual(response.appended.at(-1), {
+    type: 'function_call_output',
+    call_id: call.call_id,
+    output: '{"status":"not_executed"}',
+  })
+})
+
+test('Agent exposes its LLM image capability to conversation strategies', () => {
+  for (const image of [false, true]) {
+    const agent = createAgent({
+      llm: {
+        capabilities: { image, tools: false },
+        async createResponse() {
+          return result
+        },
+      },
+      tools: createToolSet([]),
+      instructions: '',
+      maxToolRounds: 0,
+    })
+    assert.equal(agent.capabilities?.image, image)
+  }
+})
+
+test('Responses sends exact PNG colors from both RGB565 byte orders without materializing a base64 image', () => {
+  for (const format of ['rgb565le', 'rgb565be'] as const) {
+    const image = {
+      format,
+      width: 3,
+      height: 1,
+      data: Uint8Array.from(format === 'rgb565le' ? [0, 248, 224, 7, 31, 0] : [248, 0, 7, 224, 0, 31]),
+    }
+    const body = prepareBody(
+      {
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: '色は？' },
+              { type: 'input_image', image },
+            ],
+          },
+        ],
+      },
+      'model',
+      'p',
+      4096,
+    )
+    const bytes = Buffer.concat([...body.read()])
+    assert.equal(bytes.length, body.length)
+    const wire = JSON.parse(bytes.toString()).input[0].content
+    assert.equal(wire[0].text, '色は？')
+    const png = Buffer.from(wire[1].image_url.split(',')[1], 'base64')
+    const deflate = []
+    for (let offset = 8; offset < png.length; ) {
+      const len = png.readUInt32BE(offset)
+      if (png.toString('ascii', offset + 4, offset + 8) === 'IDAT')
+        deflate.push(png.subarray(offset + 8, offset + 8 + len))
+      offset += len + 12
+    }
+    assert.deepEqual([...inflateSync(Buffer.concat(deflate))], [0, 255, 0, 0, 0, 255, 0, 0, 0, 255])
+  }
+})
+
+test('fragmented Responses SSE preserves Japanese text, ordered callback waits, and opaque reasoning items', async () => {
+  const reasoning = { type: 'reasoning', id: 'r', encrypted_content: 'sealed' }
+  const events = [
+    { type: 'response.output_item.added', item: { type: 'message', id: 'message', phase: 'final_answer' } },
+    { type: 'response.output_text.delta', item_id: 'message', delta: 'は' },
+    { type: 'response.output_text.delta', item_id: 'message', delta: 'い' },
+    { type: 'response.completed', response: { ...result, output: [reasoning, message] } },
+  ]
+  const stream = new TextEncoder().encode(events.map((e) => 'data: ' + JSON.stringify(e) + '\r\n\r\n').join(''))
+  const seen: string[] = []
+  const llm = createResponsesLLM({
+    model: 'model',
+    provider: 'p',
+    send: async (_body, consume) => {
+      for (let i = 0; i < stream.length; i += 3) await consume(stream.subarray(i, i + 3))
+    },
+  })
+  const response = await llm.createResponse(
+    { input: [] },
+    {
+      ...createVoiceScope(),
+      onEvent: async (e) => {
+        await Promise.resolve()
+        assert.equal(e.type === 'response.output_text.delta' && e.phase, 'final_answer')
+        seen.push(e.delta)
+      },
+    },
+  )
+  assert.deepEqual(seen, ['は', 'い'])
+  assert.deepEqual(response.output[1], message)
+  assert.equal(outputText({ ...response, output: [{ ...message, phase: 'commentary' }, ...response.output] }), 'はい')
+  const replay = prepareBody({ input: response.output }, 'model', 'p', 4096)
+  assert.deepEqual(JSON.parse(Buffer.concat([...replay.read()]).toString()).input, [reasoning, message])
+  assert.throws(() => prepareBody({ input: response.output }, 'model', 'other', 4096), /incompatible provider/)
+})
+
+test('Agent records an already executed tool when barge-in aborts before the next model request', async () => {
+  const scope = createVoiceScope()
+  let count = 0
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute() {
+        count++
+        scope.abort()
+        return 'moved'
+      },
+    },
+  ])
+  const llm: LLM = {
+    capabilities: { tools: true, image: true },
+    async createResponse() {
+      return { ...result, output: [call] }
+    },
+  }
+  const agent = createAgent({ llm, tools, instructions: '', maxToolRounds: 2 })
+  const response = await agent.run({ input: [], sessionId: 's', turnId: 't' }, scope)
+  assert.equal(response.status, 'cancelled')
+  assert.deepEqual(response.appended, [call, { type: 'function_call_output', call_id: 'call', output: 'moved' }])
+  assert.equal(count, 1)
+})
+
+test('incomplete tool call never moves the head; validated tool calls continue with original item order', async () => {
+  const requests: (readonly InputItem[])[] = []
+  let incomplete = true,
+    count = 0
+  const llm: LLM = {
+    capabilities: { tools: true, image: true },
+    async createResponse(req) {
+      requests.push(req.input)
+      if (req.input.length) assert.equal(req.tool_choice, 'none')
+      return req.input.length ? result : { ...result, status: incomplete ? 'incomplete' : 'completed', output: [call] }
+    },
+  }
+  const tools = createToolSet([
+    {
+      ...tool,
+      execute() {
+        count++
+        return 'moved'
+      },
+    },
+  ])
+  const agent = createAgent({ llm, tools, instructions: '', maxToolRounds: 1 })
+  const req = { input: [], sessionId: 's', turnId: 't' }
+  assert.equal((await agent.run(req, createVoiceScope())).status, 'incomplete')
+  assert.equal(count, 0)
+  incomplete = false
+  assert.equal((await agent.run(req, createVoiceScope())).status, 'completed')
+  assert.equal(count, 1)
+  assert.deepEqual(requests[2], [call, { type: 'function_call_output', call_id: 'call', output: 'moved' }])
+  await assert.rejects(
+    tools.execute(
+      { ...call, call_id: 'bad', arguments: '{"angle":"x"}' },
+      { ...createVoiceScope(), callId: 'bad', turnId: 't', sessionId: 's' },
+    ),
+  )
+  assert.equal(count, 1)
+})
+
+test('client delegation returns only the completed final answer and rejects cancelled work', async () => {
+  let status: ModelResponse['status'] = 'completed'
+  const llm: LLM = {
+    capabilities: { image: true, tools: true },
+    async createResponse() {
+      return {
+        ...result,
+        status,
+        output: [
+          { type: 'provider_item', provider: 'test', id: 'private', value: { encrypted_content: 'sealed' } },
+          { ...message, phase: 'commentary' },
+          message,
+        ],
+      }
+    },
+  }
+  const agent = createAgent({ llm, tools: createToolSet(), instructions: '', maxToolRounds: 1 })
+  const delegate = asDelegateAgent(agent)
+  const request = { input: [], sessionId: 's', turnId: 't', delegationId: 'd' }
+  assert.deepEqual(await delegate.run(request, createVoiceScope()), [message])
+  status = 'incomplete'
+  await assert.rejects(delegate.run(request, createVoiceScope()), { code: 'provider_failed' })
+
+  let settle!: () => void
+  const wait = new Promise<void>((resolve) => {
+    settle = resolve
+  })
+  const scope = createVoiceScope()
+  const slow = asDelegateAgent({
+    async run(received, options) {
+      assert.equal(received, request)
+      assert.equal(options.signal, scope.signal)
+      await wait
+      return { status: 'completed', response: result, appended: [message] }
+    },
+  })
+  const pending = slow.run(request, scope)
+  scope.abort()
+  settle()
+  await assert.rejects(pending, { code: 'cancelled' })
+})
+
+test('Vision releases the borrowed frame after success and a provider error', async () => {
+  let releases = 0,
+    calls = 0
+  const image = { format: 'png' as const, data: Uint8Array.of(1) }
+  const camera = {
+    async capture() {
+      return {
+        image,
+        capturedAtMs: 100,
+        release() {
+          releases++
+        },
+      }
+    },
+  }
+  const llm: LLM = {
+    capabilities: { image: true, tools: false },
+    async createResponse(request) {
+      assert.deepEqual(request.input, [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_text', text: '色は？' },
+            { type: 'input_image', image },
+          ],
+        },
+      ])
+      assert.equal(calls, releases)
+      if (++calls === 2) throw Error('network')
+      return result
+    },
+  }
+  const vision = createVision({ camera, llm })
+  assert.deepEqual(await vision.observe({ question: '色は？' }, createVoiceScope()), {
+    text: 'はい',
+    capturedAtMs: 100,
+  })
+  await assert.rejects(vision.observe({ question: '色は？' }, createVoiceScope()), /network/)
+  assert.equal(releases, 2)
+})
+
+function httpFixture(maxBytes: number) {
+  let handlers!: Parameters<ResponseConnection['request']>[0]
+  let disconnect!: (error?: unknown) => void
+  let closes = 0
+  const transport = streamResponse(
+    {
+      path: '/v1/responses',
+      connect(onError) {
+        disconnect = onError
+        return {
+          request(options) {
+            handlers = options
+          },
+          close() {
+            closes++
+          },
+        }
+      },
+      schedule: (callback, ms) => setTimeout(callback, ms),
+      clear: (handle) => clearTimeout(handle),
+    },
+    '',
+    5000,
+    maxBytes,
+  )
+  return {
+    transport,
+    disconnect(error?: unknown) {
+      disconnect(error)
+    },
+    get handlers() {
+      return handlers
+    },
+    get closes() {
+      return closes
+    },
+  }
+}
+
+test('Responses drains final SSE on socket close and rejects a stream containing only deltas', async () => {
+  for (const withFinal of [false, true]) {
+    const io = httpFixture(2048)
+    const model = createResponsesLLM({ model: 'test', provider: 'test', send: io.transport })
+    const pending = model.createResponse({ input: [] }, createVoiceScope())
+    const events: object[] = [{ type: 'response.output_text.delta', item_id: 'message', delta: 'はい' }]
+    if (withFinal) events.push({ type: 'response.completed', response: result })
+    const bytes = ArrayBuffer.fromString(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''))
+    io.handlers.onHeaders(200)
+    io.handlers.onReadable.call({ read: () => bytes, write: () => 0 }, bytes.byteLength)
+    io.handlers.onDone(new Error())
+    io.disconnect(new Error('socket reset'))
+    if (withFinal) assert.equal((await pending).status, 'completed')
+    else await assert.rejects(pending, /socket reset/)
+    assert.equal(io.closes, 1)
+  }
+})
+
+test('HTTP drains accepted response callbacks and honors each writable credit returned by the socket', async () => {
+  const io = httpFixture(1024)
+  const uploaded: number[] = []
+  const body = {
+    length: 5,
+    *read() {
+      yield Uint8Array.of(1, 2, 3)
+      yield Uint8Array.of(4, 5)
+    },
+  }
+  const received: number[] = []
+  const task = io.transport(
+    body,
+    async (chunk) => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 5))
+      received.push(...chunk)
+    },
+    createVoiceScope(),
+  )
+  const writer = {
+    write(data: Uint8Array) {
+      uploaded.push(...data)
+      return 0
+    },
+    read() {
+      return Uint8Array.of(9, 8).buffer
+    },
+  }
+  io.handlers.onWritable.call(writer, 4)
+  assert.deepEqual(uploaded, [1, 2, 3])
+  io.handlers.onWritable.call(writer, 4)
+  assert.deepEqual(uploaded, [1, 2, 3, 4, 5])
+  assert.equal(io.handlers.headers.get('content-length'), '5')
+  io.handlers.onHeaders(200)
+  io.handlers.onReadable.call(writer, 2)
+  io.handlers.onDone()
+  await task
+  assert.deepEqual(received, [9, 8])
+  assert.equal(io.closes, 1)
+})
+
+test('HTTP abort and invalid reads close once and stop reading the camera buffer', async () => {
+  for (const abort of [false, true]) {
+    const io = httpFixture(4)
+    const scope = createVoiceScope()
+    let reads = 0
+    const task = io.transport(
+      {
+        length: 1,
+        *read() {
+          reads++
+          yield Uint8Array.of(1)
+        },
+      },
+      async () => {},
+      scope,
+    )
+    const source = {
+      write() {
+        return 0
+      },
+      read() {
+        return new ArrayBuffer(8)
+      },
+    }
+    if (abort) scope.abort()
+    else io.handlers.onReadable.call(source, 8)
+    io.handlers.onWritable.call(source, 10)
+    io.handlers.onDone()
+    await assert.rejects(task, abort ? { code: 'cancelled' } : /short HTTP read/)
+    assert.equal(io.closes, 1)
+    assert.equal(reads, 0)
+  }
+})
+test('Chat Completions streams a tool call and replays Gemini signature with its result', async () => {
+  const payloads: Record<string, unknown>[][] = []
+  const llm = createChatLLM({
+    model: 'model',
+    provider: 'gemini',
+    send: async (body, consume) => {
+      payloads.push(JSON.parse(Buffer.concat([...body.read()]).toString()).messages)
+      const frames =
+        payloads.length === 1
+          ? [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'call',
+                      type: 'function',
+                      function: { name: 'move', arguments: '{"angle":' },
+                      extra_content: { google: { thought_signature: 'sig' } },
+                    },
+                  ],
+                },
+              },
+              { delta: { tool_calls: [{ index: 0, function: { arguments: '10}' } }] }, finish_reason: 'tool_calls' },
+            ]
+          : [{ delta: { content: 'はい' }, finish_reason: 'stop' }]
+      for (const choice of frames)
+        await consume(new TextEncoder().encode('data: ' + JSON.stringify({ id: 'r', choices: [choice] }) + '\n\n'))
+    },
+  })
+  const agent = createAgent({ llm, tools: createToolSet([tool]), instructions: 'instruction', maxToolRounds: 1 })
+  const run = await agent.run(
+    {
+      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'こんにちは' }] }],
+      turnId: '1',
+      sessionId: 's',
+    },
+    createVoiceScope(),
+  )
+  assert.equal(run.status, 'completed')
+  assert.deepEqual(payloads[1], [
+    { role: 'system', content: 'instruction' },
+    { role: 'user', content: [{ type: 'text', text: 'こんにちは' }] },
+    {
+      role: 'assistant',
+      content: null,
+      tool_calls: [
+        {
+          id: 'call',
+          type: 'function',
+          function: { name: 'move', arguments: '{"angle":10}' },
+          extra_content: { google: { thought_signature: 'sig' } },
+        },
+      ],
+    },
+    { role: 'tool', tool_call_id: 'call', content: 'moved' },
+  ])
+})

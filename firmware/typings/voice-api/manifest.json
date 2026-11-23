@@ -1,0 +1,28 @@
+{
+  "include": [
+    "../../host/app/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
+  "modules": {
+    "stackchan/ai": "./ai-index.d.ts",
+    "stackchan-ai-core": "./ai-core.d.ts",
+    "stackchan-ai-chat": "./ai-chat.d.ts",
+    "stackchan-ai-responses": "./ai-responses.d.ts",
+    "stackchan-ai-wire": "./ai-wire.d.ts",
+    "stackchan-ai-image": "./ai-image.d.ts",
+    "stackchan-ai-http": "./ai-http.d.ts",
+    "stackchan-ai-http-stream": "./ai-http-stream.d.ts",
+    "stackchan/voice": "./voice-index.d.ts",
+    "stackchan/voice/contracts": "./voice-contracts.d.ts",
+    "stackchan/voice/scope": "./voice-scope.d.ts",
+    "stackchan/voice/media": "./voice-media.d.ts",
+    "stackchan/voice/pipeline": "./voice-pipeline.d.ts",
+    "stackchan/voice/cascaded": "./voice-cascaded.d.ts",
+    "stackchan/voice/speech": "./voice-speech.d.ts",
+    "stackchan/voice/pcm-http": "./voice-pcm-http.d.ts",
+    "stackchan/voice/adapters": "./voice-adapters.d.ts",
+    "stt-whisper": "./stt-whisper.d.ts",
+    "whisper-multipart": "./whisper-multipart.d.ts",
+    "realtimeConversation/http-core": "../../host/modules/ai/http-core-types.d.ts"
+  }
+}

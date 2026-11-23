@@ -2,11 +2,18 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/base/modules/manifest.json",
     "../connectivity/mcp-client/manifest.json"
   ],
   "modules": {
     "*": ["./*"],
     "StackChanChatAudioIO": "./StackChanChatAudioIO",
+    "stackchan/voice/contracts": "../voice/contracts",
+    "stackchan/voice/scope": "../voice/scope",
+    "stackchan/voice/media": "../voice/media",
+    "stackchanBorrowedChatIO": "./chat-audioio/borrowed-io",
+    "stackchanChatWorkerSession": "./chat-audioio/worker-session",
+    "stackchanVoiceChatWorker": "./chat-audioio/ack-worker",
     "stackchanPcmRingWriter": "./chat-audioio/pcm-ring-writer"
   },
   "platforms": {
@@ -58,7 +65,7 @@
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
         "~": "./StackChanChatAudioIO",
-        "StackChanChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+        "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     }
   },

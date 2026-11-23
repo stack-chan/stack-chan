@@ -1,6 +1,6 @@
+import { SpeechPlayback } from 'speech-playback-stackchan-voice'
 import { resetState, state } from 'stackchan-voice-test-state'
 import { assert, equal } from 'testing/assert'
-import { TTS } from 'tts-stackchan-voice'
 
 resetState()
 
@@ -8,7 +8,7 @@ const playedPowers: number[] = []
 let callbackCalls = 0
 let callbackError: unknown
 let doneCalls = 0
-const tts = new TTS({
+const player = new SpeechPlayback({
   onDone: () => {
     doneCalls += 1
   },
@@ -18,17 +18,17 @@ const tts = new TTS({
   volume: 0.25,
 })
 
-tts.stream('デバイス再生', 0.75, (error) => {
+player.stream('デバイス再生', 0.75, (error) => {
   callbackCalls += 1
   callbackError = error
 })
 
-equal(state.constructors.length, 1, 'device TTS should construct one stackchan-voice renderer')
-equal(state.constructors[0].preset, 1, 'device TTS should select the cute voice preset')
-equal(state.constructors[0].resourceName, 'stackchan-ja.aqd', 'device TTS should load its dictionary')
-equal(state.says.length, 1, 'device TTS should synthesize one utterance')
-equal(state.says[0].text, 'デバイス再生', 'device TTS should forward the utterance')
-equal(state.says[0].speed, 130, 'device TTS should forward the configured speed')
+equal(state.constructors.length, 1, 'device SpeechPlayback should construct one stackchan-voice renderer')
+equal(state.constructors[0].preset, 1, 'device SpeechPlayback should select the cute voice preset')
+equal(state.constructors[0].resourceName, 'stackchan-ja.aqd', 'device SpeechPlayback should load its dictionary')
+equal(state.says.length, 1, 'device SpeechPlayback should synthesize one utterance')
+equal(state.says[0].text, 'デバイス再生', 'device SpeechPlayback should forward the utterance')
+equal(state.says[0].speed, 130, 'device SpeechPlayback should forward the configured speed')
 equal(state.audio.sampleRate, 24000, 'device playback should use the synthesized sample rate')
 equal(state.audio.bitsPerSample, 16, 'device playback should use 16-bit PCM')
 equal(state.audio.channels, 1, 'device playback should be mono')
@@ -56,18 +56,18 @@ equal(state.audio.closed, 1, 'completed device playback should close AudioOut')
 equal(doneCalls, 1, 'completed device playback should notify onDone once')
 equal(callbackCalls, 1, 'completed device playback should invoke its callback once')
 equal(callbackError, undefined, 'completed device playback should not report an error')
-equal(tts.streaming, false, 'completed device playback should clear streaming state')
+equal(player.streaming, false, 'completed device playback should clear streaming state')
 
 let singingCallbackCalls = 0
 let singingCallbackError: unknown
-tts.streamKoe('#C4,500ki#D4,500ra', undefined, (error) => {
+player.streamKoe('#C4,500ki#D4,500ra', undefined, (error) => {
   singingCallbackCalls += 1
   singingCallbackError = error
 })
 
-equal(state.koes.length, 1, 'device TTS should synthesize one singing utterance')
-equal(state.koes[0].koe, '#C4,500ki#D4,500ra', 'device TTS should forward raw koe notation')
-equal(state.koes[0].speed, 130, 'device TTS should use the configured speed for singing consonants')
+equal(state.koes.length, 1, 'device SpeechPlayback should synthesize one singing utterance')
+equal(state.koes[0].koe, '#C4,500ki#D4,500ra', 'device SpeechPlayback should forward raw koe notation')
+equal(state.koes[0].speed, 130, 'device SpeechPlayback should use the configured speed for singing consonants')
 equal(state.audio.started, 2, 'device singing should use the same AudioOut playback path')
 assert(
   state.audio.writes.slice(2).some((write) => write.some((byte) => byte !== 0)),
@@ -75,6 +75,6 @@ assert(
 )
 equal(singingCallbackCalls, 1, 'completed device singing should invoke its callback once')
 equal(singingCallbackError, undefined, 'completed device singing should not report an error')
-equal(tts.streaming, false, 'completed device singing should clear streaming state')
+equal(player.streaming, false, 'completed device singing should clear streaming state')
 
 trace('@@STACKCHAN_TEST:PASS@@\n')

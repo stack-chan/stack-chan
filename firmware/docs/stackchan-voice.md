@@ -4,9 +4,7 @@
 firmware and the WASM simulator. It synthesizes 8 kHz PCM and converts it to the
 24 kHz mono output used by Stack-chan. Device firmware streams that PCM to
 AudioOut. The WASM simulator renders the same vendored engine into a WAV buffer
-and plays it through the browser Audio bridge. Playback power is forwarded
-through the standard `TTS.onPlayed` callback, so the existing runtime mouth
-animation works without a conversation-module-specific integration.
+and plays it through the browser Audio bridge. During playback, `SpeechPlayback.onPlayed` reports the audio power that drives the mouth animation.
 
 Select it with these preferences:
 
@@ -58,9 +56,7 @@ select sharps and flats, and `#R,150` inserts a 150 millisecond rest. Notes
 hold a stable pitch with a short portamento; notes longer than roughly 350 ms
 also receive a delayed vibrato. One note consumes one mora.
 
-Singing is optional on the active TTS provider. `robot.audio.sing(...)`
-returns a failed result instead of silently speaking the notation when the
-current provider does not implement singing.
+Singing is optional on a `SpeechPlayback` provider. `robot.audio.sing(...)` returns a failed result if the configured player cannot sing.
 
 The block editor hides the raw notation. Its 「テンポ … で…を歌う」 block takes
 one score list and one global BPM. Every list item has the same

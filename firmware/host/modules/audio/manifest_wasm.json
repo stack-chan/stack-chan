@@ -11,16 +11,16 @@
     "speaker": "./wasm/speaker",
     "microphone": "./wasm/microphone",
     "audio-in": "./wasm/audio-in",
-    "tts-types": "./tts-types",
-    "tts-local": "./wasm/tts-local",
-    "tts-remote": "./wasm/tts-remote",
-    "tts-voicevox": "./wasm/tts-voicevox",
-    "tts-voicevox-web": "./wasm/tts-voicevox-web",
-    "tts-elevenlabs": "./wasm/tts-elevenlabs",
-    "tts-openai": "./wasm/tts-openai",
-    "tts-stackchan-voice": "./wasm/tts-stackchan-voice",
+    "speech-playback-types": "./speech-playback-types",
+    "speech-playback-local": "./wasm/speech-playback-local",
+    "speech-playback-remote": "./wasm/speech-playback-remote",
+    "speech-playback-voicevox": "./wasm/speech-playback-voicevox",
+    "speech-playback-voicevox-web": "./wasm/speech-playback-voicevox-web",
+    "speech-playback-elevenlabs": "./wasm/speech-playback-elevenlabs",
+    "speech-playback-openai": "./wasm/speech-playback-openai",
+    "speech-playback-stackchan-voice": "./wasm/speech-playback-stackchan-voice",
     "stackchan-voice-wav": "./wasm/stackchan-voice-wav",
-    "tts-stub": "./wasm/tts-stub"
+    "speech-playback-stub": "./wasm/speech-playback-stub"
   },
   "preload": ["wasm-audio-bridge"]
 }

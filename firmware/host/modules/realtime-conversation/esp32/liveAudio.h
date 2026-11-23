@@ -17,6 +17,9 @@ typedef struct {
 } LiveAudioStats;
 
 int liveAudioOpen(LiveAudio **audio, esp_webrtc_media_provider_t *provider);
+void liveAudioFence(LiveAudio *audio, bool discard);
+bool liveAudioQuiet(LiveAudio *audio);
+void liveAudioDetach(LiveAudio *audio);
 void liveAudioStop(LiveAudio *audio);
 void liveAudioClose(LiveAudio *audio);
 void liveAudioMute(LiveAudio *audio, bool mute);

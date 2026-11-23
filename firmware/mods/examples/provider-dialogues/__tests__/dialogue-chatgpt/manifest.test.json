@@ -2,22 +2,18 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../manifest.json",
-    "../../../../../host/app/manifest_typings.json"
+    "../../../../../host/app/manifest_typings.json",
+    "../../../../../host/modules/ai/manifest.json"
   ],
   "modules": {
-    "main": "./dialogue-chatgpt.test"
+    "main": "./dialogue-chatgpt.test",
+    "stackchan/voice/contracts": "../../../../../host/modules/voice/contracts",
+    "stackchan/voice/scope": "../../../../../host/modules/voice/scope"
   },
   "defines": {
     "main": {
       "async": 1
     }
-  },
-  "data": {
-    "*": ["$(MODULES)/crypt/data/ca233"]
-  },
-  "config": {
-    "mcp": {}
   },
   "creation": {
     "static": 110592,

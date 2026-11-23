@@ -66,15 +66,23 @@ const DEMO_COLORS: Record<DemoExpressionName, { head: string; eye: string; mouth
   angry: { head: '#ffa882', eye: '#5c2a2a', mouth: '#78242d', hand: '#f0603d' },
 }
 
-function demoTexture(part: string, expression: DemoExpressionName): string {
-  return `stackchan-demo-${part}-${expression}.png`
+const DEMO_MASKS = {
+  normal: ['eye-left-normal', 'eye-left-normal', 'mouth-normal', 'hand-left-normal', 'hand-right-normal'],
+  happy: ['eye-left-happy', 'eye-left-happy', 'mouth-normal', 'hand-left-happy', 'hand-right-happy'],
+  sad: ['eye-left-sad', 'eye-left-normal', 'mouth-sad', 'hand-left-normal', 'hand-right-normal'],
+  angry: ['eye-left-normal', 'eye-left-normal', 'mouth-angry', 'hand-left-normal', 'hand-right-normal'],
+} as const
+
+function demoTexture(mask: string): string {
+  return `stackchan-demo-${mask}.png`
 }
 
 function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
   const colors = DEMO_COLORS[expression]
+  const [leftEye, rightEye, mouth, leftHand, rightHand] = DEMO_MASKS[expression]
   return {
     head: {
-      texture: demoTexture('head', expression),
+      texture: demoTexture('head-normal'),
       color: colors.head,
       x: 0,
       y: 0,
@@ -83,28 +91,28 @@ function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
     },
     eyes: {
       left: {
-        texture: demoTexture('eye-left', expression),
+        texture: demoTexture(leftEye),
         color: colors.eye,
         x: 44,
         y: 36,
         width: 28,
         height: 28,
         blinkFrames: {
-          texture: demoTexture('eye-left', expression),
+          texture: demoTexture(leftEye),
           frameWidth: 28,
           frameHeight: 28,
           frameCount: 4,
         },
       },
       right: {
-        texture: demoTexture('eye-right', expression),
+        texture: demoTexture(rightEye),
         color: colors.eye,
         x: 128,
         y: 36,
         width: 28,
         height: 28,
         blinkFrames: {
-          texture: demoTexture('eye-right', expression),
+          texture: demoTexture(rightEye),
           frameWidth: 28,
           frameHeight: 28,
           frameCount: 4,
@@ -112,14 +120,14 @@ function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
       },
     },
     mouth: {
-      texture: demoTexture('mouth', expression),
+      texture: demoTexture(mouth),
       color: colors.mouth,
       x: 60,
       y: 70,
       width: 80,
       height: 32,
       frames: {
-        texture: demoTexture('mouth', expression),
+        texture: demoTexture(mouth),
         frameWidth: 80,
         frameHeight: 32,
         frameCount: 4,
@@ -127,7 +135,7 @@ function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
     },
     hands: {
       left: {
-        texture: demoTexture('hand-left', expression),
+        texture: demoTexture(leftHand),
         color: colors.hand,
         x: -8,
         y: 80,
@@ -135,7 +143,7 @@ function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
         height: 36,
       },
       right: {
-        texture: demoTexture('hand-right', expression),
+        texture: demoTexture(rightHand),
         color: colors.hand,
         x: 166,
         y: 80,

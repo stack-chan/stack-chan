@@ -86,6 +86,7 @@ function streamSpeech(
     let client: Pick<HTTPClient, 'request' | 'close'>,
       timer: ReturnType<typeof Timer.set>,
       offset = 0,
+      receivedHeaders = false,
       closed = false
     const receiver = createPcmBodyReader(consume, finish)
     function finish(error?: unknown) {
@@ -132,6 +133,7 @@ function streamSpeech(
         ]),
         onHeaders(status) {
           if (status !== 200) finish(voiceError('provider_failed', `speech HTTP ${status}`))
+          else receivedHeaders = true
         },
         onWritable(count) {
           if (closed) return
@@ -149,7 +151,9 @@ function streamSpeech(
           receiver.ready(this, count)
         },
         onDone(error) {
-          receiver.done(error)
+          receiver.done(
+            error ?? (receivedHeaders ? undefined : voiceError('provider_failed', 'speech HTTP closed early')),
+          )
         },
       })
     } catch (error) {

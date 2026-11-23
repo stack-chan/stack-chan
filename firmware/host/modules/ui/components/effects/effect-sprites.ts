@@ -22,6 +22,13 @@ export const effectFrames = {
   sleepyBubble: [96, 40, 20, 24, 0x9bdeff],
   sleepyPop: [96, 64, 20, 16, 0x9bdeff],
   thinking: [116, 80, 28, 32, 0xffd36d],
+  ideaDim: [0, 112, 34, 36, 0xffd76a],
+  ideaLit: [34, 112, 34, 36, 0xffd76a],
+  surprised: [68, 112, 24, 36, 0xff925b],
+  listeningNear: [92, 112, 28, 28, 0x83dfff],
+  listeningFar: [120, 112, 28, 28, 0x83dfff],
+  blush: [92, 140, 24, 12, 0xff8fba],
+  shiver: [144, 42, 16, 26, 0xa7ddff],
 } as const satisfies Record<string, SpriteFrame>
 
 let texture: Texture | undefined

@@ -1,7 +1,7 @@
 import { EffectSprite, effectFrames, type SpriteFrame } from 'effects/effect-sprites'
 import { Container, type Container as PiuContainer, type Port as PiuPort, Port } from 'piu/MC'
 
-export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy' | 'gloom' | 'thinking'
+export type EmoticonKey = keyof typeof animations
 
 export type EmoticonOptions = {
   name?: string
@@ -36,6 +36,9 @@ type PoseAnimation = EffectLayout & {
   sequence: Uint8Array
   offsetX?: Int8Array
   offsetY?: Int8Array
+  opacity?: Uint8Array
+  spread?: number
+  once?: true
 }
 
 type DropAnimation = EffectLayout & {
@@ -109,6 +112,66 @@ const thinking: PoseAnimation = {
   offsetY: Int8Array.of(3, 2, 0, -2, -4, -6, -7, -8, -8, -8, -7, -6, -4, -2, 0, 2, 3, 3),
 }
 
+const idea: PoseAnimation = {
+  kind: 'pose',
+  left: 16,
+  top: 8,
+  width: 56,
+  height: 56,
+  frames: [effectFrames.ideaDim, effectFrames.ideaLit],
+  sequence: Uint8Array.of(0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+  opacity: Uint8Array.of(80, 128, 184, 216, 255, 255, 255, 255, 255, 255, 255, 255, 240, 200, 150, 106),
+}
+
+const listening: PoseAnimation = {
+  kind: 'pose',
+  left: 16,
+  top: 83,
+  width: 56,
+  height: 40,
+  frames: [effectFrames.listeningNear, effectFrames.listeningFar],
+  sequence: Uint8Array.of(0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+  opacity: Uint8Array.of(84, 120, 156, 196, 232, 255, 255, 255, 255, 236, 212, 184, 152, 120, 84, 56),
+}
+
+const surprised: PoseAnimation = {
+  kind: 'pose',
+  left: 18,
+  top: 6,
+  width: 56,
+  height: 64,
+  frames: [effectFrames.surprised],
+  sequence: new Uint8Array(10),
+  offsetY: Int8Array.of(15, 4, -5, -9, -10, -9, -7, -5, -4, -4),
+  opacity: Uint8Array.of(168, 255, 255, 255, 255, 240, 200, 126, 56, 0),
+  once: true,
+}
+
+const blush: PoseAnimation = {
+  kind: 'pose',
+  left: 72,
+  top: 120,
+  width: 176,
+  height: 28,
+  frames: [effectFrames.blush],
+  sequence: new Uint8Array(16),
+  opacity: Uint8Array.of(48, 72, 104, 144, 184, 220, 248, 255, 255, 255, 248, 218, 184, 144, 104, 72),
+  spread: 67,
+}
+
+const shiver: PoseAnimation = {
+  kind: 'pose',
+  left: 22,
+  top: 88,
+  width: 276,
+  height: 46,
+  frames: [effectFrames.shiver],
+  sequence: new Uint8Array(8),
+  offsetX: Int8Array.of(-2, 2, -2, 2, -2, 1, 0, 0),
+  offsetY: Int8Array.of(1, -1, 1, -1, 1, 0, 0, 0),
+  spread: 114,
+}
+
 const sleepy: BubbleAnimation = {
   kind: 'bubble',
   left: 16,
@@ -146,7 +209,7 @@ const tear: DropAnimation = {
   minScale: 0.3,
 }
 
-const animations = { heart, angry, sweat, tear, sleepy, gloom, thinking }
+const animations = { heart, angry, sweat, tear, sleepy, gloom, thinking, idea, listening, surprised, blush, shiver }
 type Animation = PoseAnimation | DropAnimation | BubbleAnimation
 
 class EmoticonPortBehavior extends Behavior {
@@ -163,7 +226,9 @@ class EmoticonPortBehavior extends Behavior {
     const requestedCount = options.count ?? 2
     const count =
       animation.kind === 'pose'
-        ? 1
+        ? animation.spread === undefined
+          ? 1
+          : 2
         : animation.kind === 'drop'
           ? Math.max(1, Math.min(2, requestedCount))
           : requestedCount
@@ -179,6 +244,7 @@ class EmoticonPortBehavior extends Behavior {
   }
 
   onDisplaying(port: PiuPort) {
+    if (this.#animation.kind === 'pose' && this.#animation.once) this.#elapsed = 0
     this.#update(port)
     port.start()
   }
@@ -188,7 +254,14 @@ class EmoticonPortBehavior extends Behavior {
   }
 
   onTimeChanged(port: PiuPort) {
-    this.#elapsed = (this.#elapsed + port.interval) % this.#duration
+    const elapsed = this.#elapsed + port.interval
+    if (this.#animation.kind === 'pose' && this.#animation.once && elapsed >= this.#duration) {
+      this.#elapsed = this.#duration - 1
+      this.#update(port)
+      port.stop()
+      return
+    }
+    this.#elapsed = elapsed % this.#duration
     this.#update(port)
   }
 
@@ -206,7 +279,13 @@ class EmoticonPortBehavior extends Behavior {
       const frame = animation.frames[animation.sequence[pose]]
       const x = port.width / 2 + (animation.offsetX?.[pose] ?? 0)
       const top = animation.offsetY ? (port.height - POSE_CELL_HEIGHT) / 2 + animation.offsetY[pose] : 4
-      sprites[0].place(port, frame, x, top + frame[3] / 2)
+      const y = top + frame[3] / 2
+      const opacity = animation.opacity?.[pose] ?? 255
+      const spread = animation.spread ?? 0
+      for (let index = 0; index < sprites.length; index++) {
+        if (opacity) sprites[index].place(port, frame, x + (index === 0 ? -spread : spread), y, opacity)
+        else sprites[index].hide(port)
+      }
       return
     }
 

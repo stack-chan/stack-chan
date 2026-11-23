@@ -84,11 +84,9 @@ export async function withResourceScope<T, E>(
   run: (scope: ResourceScope) => AsyncResult<T, E>,
 ): AsyncResult<ScopedValue<T>, E> {
   const cleanups: Array<() => void | Promise<void>> = []
-  let closed = false
+  let closing: Promise<void> | undefined
 
-  const closeAll = async (): Promise<void> => {
-    if (closed) return
-    closed = true
+  const closeResources = async (): Promise<void> => {
     let firstError: unknown
     let hasError = false
     for (let i = cleanups.length - 1; i >= 0; i -= 1) {
@@ -105,11 +103,13 @@ export async function withResourceScope<T, E>(
     if (hasError) throw firstError
   }
 
+  const closeAll = () => (closing ??= Promise.resolve().then(closeResources))
+
   const scope: ResourceScope = {
     async acquire(open, close) {
       const opened = await open()
       if (isOk(opened)) {
-        if (closed) {
+        if (closing) {
           try {
             await close(opened.value)
           } catch {}

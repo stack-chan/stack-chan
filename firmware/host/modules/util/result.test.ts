@@ -150,3 +150,35 @@ test('withResourceScope releases late acquisitions that resolve after scope roll
   await Promise.resolve()
   assert.deepEqual(closed, ['late-resource'])
 })
+
+test('overlapping closes wait for the same pending resource cleanup', async () => {
+  let finishCleanup: () => void = () => {}
+  const pendingCleanup = new Promise<void>((resolve) => {
+    finishCleanup = resolve
+  })
+  let cleanupCalls = 0
+  const acquired = await withResourceScope(async (scope) => {
+    await scope.acquire(
+      () => ok('resource'),
+      async () => {
+        cleanupCalls += 1
+        await pendingCleanup
+      },
+    )
+    return ok(undefined)
+  })
+  assert.ok(acquired.ok)
+
+  const firstClose = acquired.value.close()
+  let secondFinished = false
+  const secondClose = acquired.value.close().then(() => {
+    secondFinished = true
+  })
+  await Promise.resolve()
+  const finishedBeforeCleanup = secondFinished
+  finishCleanup()
+  await Promise.all([firstClose, secondClose])
+
+  assert.equal(finishedBeforeCleanup, false)
+  assert.equal(cleanupCalls, 1)
+})

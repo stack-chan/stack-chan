@@ -39,6 +39,7 @@ test('Chat executes and replies to more than 256 distinct tool requests in one s
     tools: {
       definitions: [],
       async execute(call) {
+        assert.equal(call.arguments, '{}')
         executions++
         return { type: 'function_call_output', call_id: call.call_id, output: 'ok' }
       },
@@ -49,7 +50,7 @@ test('Chat executes and replies to more than 256 distinct tool requests in one s
     const io = FakeIO.instances.at(-1)
     for (let i = 0; i < 300; i++) {
       const call = 'mcp:number:' + i
-      io.emitFunctionCall(call, 'echo', {})
+      io.emitFunctionCall(call, 'echo', i === 0 ? undefined : {})
       await new Promise(setImmediate)
       assert.deepEqual(replies.at(-1), { call, name: 'echo', result: 'ok' })
     }

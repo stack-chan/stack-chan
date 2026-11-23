@@ -280,7 +280,7 @@ export class StackchanRuntimeAudio {
         })
       },
       stop() {
-        runtime.#webRadio?.stop()
+        return runtime.#webRadio?.stop()
       },
       setVolume(volume: number) {
         runtime.#webRadio?.setVolume(volume)

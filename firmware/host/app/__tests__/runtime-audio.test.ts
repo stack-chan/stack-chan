@@ -395,6 +395,22 @@ test('StackchanRuntimeAudio stays busy until all overlapping playback completes'
   assert.equal(radioStarts, 1)
 })
 
+test('StackchanRuntimeAudio forwards completion of a standalone WebRadio stop', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const stopped = Promise.resolve()
+  const runtime = new StackchanRuntimeAudio({
+    speechPlayback: fakeSpeechPlayback(),
+    webRadio: {
+      state: 'playing',
+      async start() {},
+      stop: () => stopped,
+      setVolume() {},
+    },
+  })
+  assert.equal(runtime.webRadio?.stop(), stopped)
+})
+
 test('StackchanRuntimeAudio close stops WebRadio', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule

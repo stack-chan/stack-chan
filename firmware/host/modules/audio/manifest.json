@@ -116,6 +116,7 @@
     },
     "esp32/m5stack_stopwatch": {
       "modules": {
+        "~": "./audio-in",
         "audio-in": "../../platforms/m5stack_stopwatch/audio-in"
       }
     },

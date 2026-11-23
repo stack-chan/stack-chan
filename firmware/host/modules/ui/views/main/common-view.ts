@@ -75,14 +75,23 @@ export class CommonViewBehavior extends Behavior {
     const previous = this.main
     if (previous) {
       this.container.remove(previous)
-      ;(previous.behavior as MainContentBehavior | undefined)?.onHide?.(previous)
+      this.#notifyMain(previous, 'onHide')
     }
     this.main = content
     // Insert before the AppBar (always present via zero-height fallback) to preserve z-order.
     const anchor = this.appBar ?? this.overlay
     if (anchor) this.container.insert(content, anchor)
     else this.container.add(content)
-    ;(content.behavior as MainContentBehavior | undefined)?.onShow?.(content)
+    this.#notifyMain(content, 'onShow')
+  }
+
+  #notifyMain(content: PiuContainer, hook: 'onHide' | 'onShow'): void {
+    const behavior = content.behavior as MainContentBehavior | undefined
+    try {
+      behavior?.[hook]?.(content)
+    } catch (error) {
+      trace(`[CommonView] ${hook} failed error=${String(error)}\n`)
+    }
   }
 
   openDrawer(): void {

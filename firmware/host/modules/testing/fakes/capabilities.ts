@@ -1,4 +1,5 @@
 export type { SpeechPlayback } from 'speech-playback-types'
+
 import type { FaceState } from '../../ui/state/face-state.js'
 import type { Microphone as VoiceMicrophone, Speaker as VoiceSpeaker } from '../../voice/contracts.js'
 
@@ -92,7 +93,7 @@ export type RobotUI = {
   update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void
   removeEffect(effect: UIEffect): void
-  application?: { distribute?: (event: string, ...args: unknown[]) => void }
+  application?: unknown
   setFace(face: unknown): void
   setHandAnimation(name: string): void
   setFaceMotionEnabled?(enabled: boolean): void

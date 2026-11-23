@@ -5,7 +5,6 @@ import Camera from 'camera'
 import type {
   ConnectivityCapability,
   MediaCapability,
-  RealtimeQoSPort,
   RemoteConversationSession,
   RobotLed,
   RobotUI,
@@ -30,6 +29,7 @@ import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
 import Preference from 'preference'
 import PY32Led from 'py32-led'
+import type { RealtimeQoSPort } from 'realtime-qos'
 import { RS30XDriver } from 'rs30x-driver'
 import { lazySpeechPlayback } from 'runtime-audio'
 import { StackchanRuntimeContext } from 'runtime-context'

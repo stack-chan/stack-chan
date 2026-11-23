@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createRealtimeQoS, type OperatingMode, type RealtimeQoSAdapter } from './realtime-qos.js'
+import {
+  createRealtimePerformanceScope,
+  createRealtimeQoS,
+  type OperatingMode,
+  type RealtimeQoSAdapter,
+} from './realtime-qos.js'
 
 test('createRealtimeQoS works without an adapter and tracks operating modes', () => {
   const qos = createRealtimeQoS()
@@ -134,5 +139,57 @@ test('release restores active mode and stays idempotent even if adapter release 
   assert.equal(qos.mode, 'wake-listening')
 
   wake.release()
+  assert.equal(qos.mode, 'idle')
+})
+
+test('conversation performance promotes before releasing the connection lease and closes outstanding sessions', () => {
+  const events: string[] = []
+  const qos = createRealtimeQoS({
+    acquire(mode) {
+      events.push(`acquire ${mode}`)
+      return { release: () => events.push(`release ${mode}`) }
+    },
+  })
+  const scope = createRealtimePerformanceScope(qos)
+  const connected = scope.open()
+  connected.connected()
+  connected.connected()
+  const connecting = scope.open()
+  assert.equal(qos.mode, 'realtime-connecting')
+
+  scope.close()
+  connected.close()
+  connecting.connected()
+  assert.equal(qos.mode, 'idle')
+  assert.deepEqual(events, [
+    'acquire realtime-connecting',
+    'acquire realtime-conversation',
+    'release realtime-connecting',
+    'acquire realtime-connecting',
+    'release realtime-conversation',
+    'release realtime-connecting',
+  ])
+})
+
+test('a failed promotion keeps its connection lease until shutdown, which releases all sessions', () => {
+  let releaseCount = 0
+  const qos = createRealtimeQoS({
+    acquire(mode) {
+      if (mode === 'realtime-conversation') throw new Error('UI unavailable')
+      return {
+        release() {
+          releaseCount += 1
+          if (releaseCount === 1) throw new Error('release failed')
+        },
+      }
+    },
+  })
+  const scope = createRealtimePerformanceScope(qos)
+  const session = scope.open()
+  assert.throws(() => session.connected(), /UI unavailable/)
+  assert.equal(qos.mode, 'realtime-connecting')
+  scope.open()
+  assert.throws(() => scope.close(), /release failed/)
+  assert.equal(releaseCount, 2)
   assert.equal(qos.mode, 'idle')
 })

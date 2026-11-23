@@ -71,6 +71,7 @@ export class AppController extends Behavior {
   #activeMiniApp: ActiveMiniApp | null = null
   #drawerActions = new Map<string, (value?: string) => void>()
   #miniAppRegistry = new MiniAppRegistry()
+  #pendingScreenTransitions: (() => void)[] | undefined
   #screens = new ScreenCoordinator()
   #view: PiuContainer | null = null
   #viewBehavior: FaceViewBehavior | null = null
@@ -80,7 +81,7 @@ export class AppController extends Behavior {
     const main = data.main ?? new FaceMainTemplate(data, { anchor: 'MAIN' })
     const viewData: FaceViewParams = { ...data, main }
     this.showView(FaceView, viewData)
-    this.#miniAppRegistry.subscribe(() => this.#onMiniAppRegistryChanged())
+    this.#miniAppRegistry.subscribe(() => this.#runScreenTransition(() => this.#onMiniAppRegistryChanged()))
     this.#setAppBarMode({ kind: 'face' })
     this.#syncMiniAppAvailability()
   }
@@ -145,30 +146,41 @@ export class AppController extends Behavior {
   }
 
   setMain(content: PiuContainer, options?: MainScreenOptions | (() => void)): () => void {
-    this.#disposeActiveMainScreen()
-    if (this.#activeMiniApp) {
-      const active = this.#activeMiniApp
-      this.#activeMiniApp = null
-      this.#disposeMiniAppContent(active.content, active.dispose, active.revokeResources)
-    }
-    this.#viewBehavior?.setMain?.(content)
     const onClose = typeof options === 'function' ? options : options?.onClose
-    if (content === this.#viewBehavior?.faceMain) {
-      this.#screens.returnToFace()
-      return () => {}
-    }
     const active: ActiveMainScreen = { content, onClose }
-    this.#activeMainScreen = active
-    this.#screens.enterSystemView()
+    this.#runScreenTransition(() => this.#setMainScreen(active))
     return () => {
-      if (this.#activeMainScreen !== active) return
-      this.showFace()
+      this.#runScreenTransition(() => {
+        if (this.#activeMainScreen === active) this.#showFace()
+      })
     }
   }
 
-  showFace(): void {
+  #setMainScreen(active: ActiveMainScreen): void {
+    this.#disposeActiveMainScreen()
     if (this.#activeMiniApp) {
-      this.exitMiniApp()
+      const miniApp = this.#activeMiniApp
+      this.#activeMiniApp = null
+      this.#disposeMiniAppContent(miniApp.content, miniApp.dispose, miniApp.revokeResources)
+    }
+    const isFace = active.content === this.#viewBehavior?.faceMain
+    if (!isFace) this.#activeMainScreen = active
+    this.#viewBehavior?.setMain?.(active.content)
+    if (isFace) this.#screens.returnToFace()
+    else this.#screens.enterSystemView()
+  }
+
+  showFace(): void {
+    const main = this.#viewBehavior?.main
+    const active = this.#activeMainScreen
+    this.#runScreenTransition(() => {
+      if (this.#viewBehavior?.main === main && this.#activeMainScreen === active) this.#showFace()
+    })
+  }
+
+  #showFace(): void {
+    if (this.#activeMiniApp) {
+      this.#exitMiniApp()
       return
     }
     this.#disposeActiveMainScreen()
@@ -178,20 +190,27 @@ export class AppController extends Behavior {
   }
 
   showMiniAppLauncher(): void {
-    if (this.#miniAppRegistry.list().length === 0) return
-    this.#disposeActiveMainScreen()
-    if (this.#activeMiniApp) this.exitMiniApp()
-    this.closeDrawer()
-    this.#renderMiniAppLauncher()
+    this.#runScreenTransition(() => {
+      if (this.#miniAppRegistry.list().length === 0) return
+      this.#disposeActiveMainScreen()
+      if (this.#activeMiniApp) this.#exitMiniApp()
+      this.closeDrawer()
+      this.#renderMiniAppLauncher()
+    })
   }
 
   launchMiniApp(id: string): boolean {
+    if (this.#pendingScreenTransitions) return false
+    return this.#runScreenTransition(() => this.#launchMiniApp(id)) ?? false
+  }
+
+  #launchMiniApp(id: string): boolean {
     const definition = this.#miniAppRegistry.get(id)
     const app = this.#application
     if (!definition || !app || !this.#viewBehavior) return false
 
     this.#disposeActiveMainScreen()
-    if (this.#activeMiniApp) this.exitMiniApp()
+    if (this.#activeMiniApp) this.#exitMiniApp()
     let activeSessionId = 0
     let closeRequested = false
     let resourcesRevoked = false
@@ -229,18 +248,20 @@ export class AppController extends Behavior {
         height: Math.max(0, (app.height || 240) - MINI_APP_BAR_HEIGHT),
         trackResource,
         close: () => {
-          if (activeSessionId !== 0 && this.#activeMiniApp?.sessionId === activeSessionId) {
-            this.exitMiniApp()
-          } else {
+          if (activeSessionId === 0) {
             closeRequested = true
+            return
           }
+          this.#runScreenTransition(() => {
+            if (this.#activeMiniApp?.sessionId === activeSessionId) this.#exitMiniApp()
+          })
         },
       })
       instance = unwrapMiniAppInstance(definition.create(context))
       dispose = instance.dispose?.bind(instance)
       if (closeRequested) {
         this.#disposeMiniAppContent(instance.content, dispose, revokeResources)
-        this.showFace()
+        this.#showFace()
         return true
       }
       const viewport = createMiniAppViewport(instance.content)
@@ -266,6 +287,14 @@ export class AppController extends Behavior {
   }
 
   exitMiniApp(): void {
+    const active = this.#activeMiniApp
+    if (!active) return
+    this.#runScreenTransition(() => {
+      if (this.#activeMiniApp === active) this.#exitMiniApp()
+    })
+  }
+
+  #exitMiniApp(): void {
     if (!this.#activeMiniApp) return
     const active = this.#activeMiniApp
     this.#activeMiniApp = null
@@ -354,18 +383,27 @@ export class AppController extends Behavior {
   }
 
   onMiniAppBack(): void {
-    const kind = this.#screens.kind
-    if (kind === ScreenKind.MiniAppRunning) {
-      this.exitMiniApp()
-      return
+    if (this.#viewBehavior?.main !== this.#viewBehavior?.faceMain) this.showFace()
+  }
+
+  #runScreenTransition<TResult>(transition: () => TResult): TResult | undefined {
+    if (this.#pendingScreenTransitions) {
+      this.#pendingScreenTransitions.push(transition)
+      return undefined
     }
-    if (kind === ScreenKind.MiniAppLauncher || kind === ScreenKind.SystemView) {
-      this.showFace()
+    // Piuの画面フックと終了通知は同期で実行される。そこからの画面操作は現在の遷移を確定してから適用する
+    const pending: (() => void)[] = []
+    this.#pendingScreenTransitions = pending
+    try {
+      const result = transition()
+      for (const next of pending) next()
+      return result
+    } finally {
+      this.#pendingScreenTransitions = undefined
     }
   }
 
   #renderMiniAppLauncher(): void {
-    this.#disposeActiveMainScreen()
     const launcher = new MiniAppLauncher({
       apps: this.#miniAppRegistry.list(),
       onLaunch: (id) => this.launchMiniApp(id),
@@ -378,11 +416,11 @@ export class AppController extends Behavior {
   #onMiniAppRegistryChanged(): void {
     this.#syncMiniAppAvailability()
     if (this.#activeMiniApp && !this.#miniAppRegistry.get(this.#activeMiniApp.definition.id)) {
-      this.exitMiniApp()
+      this.#exitMiniApp()
       return
     }
     if (this.#screens.kind === ScreenKind.MiniAppLauncher) {
-      if (this.#miniAppRegistry.list().length === 0) this.showFace()
+      if (this.#miniAppRegistry.list().length === 0) this.#showFace()
       else this.#renderMiniAppLauncher()
     }
   }

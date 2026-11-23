@@ -56,7 +56,10 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
-    "*": ["./assets/images/faces/deal-with-it/deal-with-it-eyes"],
+    "*": [
+      "./assets/images/faces/deal-with-it/deal-with-it-eyes",
+      "./assets/images/emoticon"
+    ],
     "*-alpha-monochrome": [
       "./components/hands/assets/hands-outer-mask",
       "./components/hands/assets/hands-inner-mask"
@@ -65,7 +68,6 @@
       "./assets/images/microphone",
       "./assets/images/indicator",
       "./assets/images/bubble",
-      "./assets/images/emoticon",
       "./assets/images/faces/image-face/moddable-avatar/eye",
       "./assets/images/faces/image-face/moddable-avatar/eyelid",
       "./assets/images/faces/image-face/moddable-avatar/mouth",

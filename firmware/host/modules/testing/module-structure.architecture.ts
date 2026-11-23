@@ -368,7 +368,6 @@ test('runtime state machines keep internal state as numeric constants', () => {
 
 test('UI palette state stays numeric and converts colors at Piu render boundaries', () => {
   const colorStateSources = [
-    join(MODULE_ROOT, 'ui', 'components', 'effects', 'emoticon.ts'),
     join(MODULE_ROOT, 'ui', 'components', 'face', 'parts', 'mouth.ts'),
     join(MODULE_ROOT, 'ui', 'components', 'face', 'parts', 'dog', 'eyebrow.ts'),
     join(MODULE_ROOT, 'ui', 'components', 'face', 'parts', 'dog', 'mouth.ts'),
@@ -393,12 +392,6 @@ test('UI palette state stays numeric and converts colors at Piu render boundarie
       `${sourcePath} should type palette state as numeric color values`,
     )
   }
-
-  const emoticon = readFileSync(join(MODULE_ROOT, 'ui', 'components', 'effects', 'emoticon.ts'), 'utf8')
-  assert.match(emoticon, /function primaryColor\(face\?: FaceState\): number/)
-  assert.match(emoticon, /function secondaryColor\(face\?: FaceState\): number/)
-  assert.match(emoticon, /function drawSpriteCell\([^)]*color: number/)
-  assert.match(emoticon, /drawTexture\(\s*getEmoticonTexture\(\),\s*colorString\(color\)/)
 })
 
 test('shared fakes live in modules/testing and module-local fakes stay under module tests', () => {

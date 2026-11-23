@@ -1,23 +1,7 @@
-import { SPRITE_PULSE_FRAME_COUNT, spritePulseVariantForFraction } from 'effects/emoticon-pulse'
-import type { FaceSkinPalette } from 'face-skin'
-import {
-  DEFAULT_FACE_PRIMARY_COLOR,
-  DEFAULT_FACE_SECONDARY_COLOR,
-  type FaceState,
-  toPiuColorNumber,
-  toPiuColorString,
-} from 'face-state'
-import {
-  Container,
-  type Container as PiuContainer,
-  type Content as PiuContent,
-  type Port as PiuPort,
-  type Texture as PiuTexture,
-  Port,
-  Texture,
-} from 'piu/MC'
+import { EffectSprite, effectFrames, type SpriteFrame } from 'effects/effect-sprites'
+import { Container, type Container as PiuContainer, type Port as PiuPort, Port } from 'piu/MC'
 
-export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
+export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy' | 'gloom'
 
 export type EmoticonOptions = {
   name?: string
@@ -39,176 +23,147 @@ export type EmoticonParams = EmoticonOptions & {
   key: EmoticonKey
 }
 
-type Drop = {
-  x: number
-  y: number
-  speed: number
-  life: number
-  maxLife: number
-  scale: number
-  laneIndex: number
-}
-
-type Bubble = {
-  x: number
-  y: number
-  vx: number
-  r: number
-}
-
-type DropConfig = {
+type EffectLayout = {
+  left: number
+  top: number
   width: number
   height: number
-  count: number
-  interval: number
+}
+
+type PoseAnimation = EffectLayout & {
+  kind: 'pose'
+  frame: SpriteFrame
+  rebound?: SpriteFrame
+  x: Int8Array
+  y: Int8Array
+  useRebound?: Uint8Array
+}
+
+type DropAnimation = EffectLayout & {
+  kind: 'drop'
+  frames: readonly [small: SpriteFrame, falling: SpriteFrame, splash: SpriteFrame]
+  lanes: readonly [number, number]
+  duration: number
   smallScale: number
   holdScale: number
   minScale: number
-  scaleSmoothing: number
-  laneRatios: readonly [number, number]
-  jitterRatio: number
-  spawnY: number
-  spawnRange: number
-  despawnMargin: number
-  maxLifeBase: number
-  maxLifeJitter: number
-  speedBase: number
-  speedJitter: number
-  laneSpeedStep: number
-  fadeInRatio: number
-  fadeOutRatio: number
 }
 
-const SPRITE_CELL_SIZE = 32
-const SPRITE_FRAME_COUNT = SPRITE_PULSE_FRAME_COUNT
-const CLEAR_COLOR = 'transparent'
-const HEART_ROW = 0
-const ANGRY_ROW = 1
-const DROP_ROW = 2
-const BUBBLE_ROW = 3
+type BubbleAnimation = EffectLayout & {
+  kind: 'bubble'
+  duration: number
+}
 
-const SWEAT_CONFIG: DropConfig = Object.freeze({
+const POSE_DURATION = 64
+const ANIMATION_INTERVAL = 48
+
+const heart: PoseAnimation = {
+  kind: 'pose',
+  left: 12,
+  top: 12,
+  width: 40,
+  height: 40,
+  frame: effectFrames.heart,
+  rebound: effectFrames.heartSquash,
+  x: Int8Array.of(-4, -3, -1, 2, 3, 4, 5, 5, 4, 3, 2, 0, -1, -3, -4, -4, -4, -4),
+  y: Int8Array.of(4, 1, -3, -6, -7, -5, -2, 1, 2, -2, -4, -3, 0, 3, 4, 4, 4, 4),
+  useRebound: Uint8Array.of(1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1),
+}
+
+const angry: PoseAnimation = {
+  kind: 'pose',
+  left: 12,
+  top: 12,
+  width: 40,
+  height: 40,
+  frame: effectFrames.angry,
+  rebound: effectFrames.angryRebound,
+  x: Int8Array.of(-3, 0, 4, 1, 4, 1, 3, 1, 1, 1, 1, 0, -2),
+  y: Int8Array.of(2, -4, -6, -3, -3, -1, -1, 0, 0, 0, 0, 1, 1),
+  useRebound: Uint8Array.of(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1),
+}
+
+const gloom: PoseAnimation = {
+  kind: 'pose',
+  left: 16,
+  top: 8,
+  width: 48,
+  height: 64,
+  frame: effectFrames.gloom,
+  x: Int8Array.of(-2, -2, -1, -1, 0, 1, 2, 3, 3, 3, 3, 3, 3, 2, 1, 0, -1, -2),
+  y: Int8Array.of(-9, -10, -9, -7, -4, 1, 6, 8, 8, 8, 8, 8, 7, 5, 1, -3, -6, -8),
+}
+
+const sleepy: BubbleAnimation = {
+  kind: 'bubble',
+  left: 16,
+  top: 8,
+  width: 48,
+  height: 64,
+  duration: 1450,
+}
+
+const sweat: DropAnimation = {
+  kind: 'drop',
+  left: 8,
+  top: 10,
   width: 72,
   height: 100,
-  count: 2,
-  interval: 33,
+  frames: [effectFrames.smallSweat, effectFrames.sweat, effectFrames.sweatSplash],
+  lanes: [0.54, 0.75],
+  duration: 1400,
   smallScale: 0.26,
   holdScale: 0.3,
   minScale: 0.24,
-  scaleSmoothing: 0.2,
-  laneRatios: Object.freeze([0.3, 0.7]),
-  jitterRatio: 0.06,
-  spawnY: -20,
-  spawnRange: 20,
-  despawnMargin: 16,
-  maxLifeBase: 1700,
-  maxLifeJitter: 1100,
-  speedBase: 0.55,
-  speedJitter: 0.35,
-  laneSpeedStep: 0.05,
-  fadeInRatio: 0.3,
-  fadeOutRatio: 0.85,
-})
+}
 
-const TEAR_CONFIG: DropConfig = Object.freeze({
+const tear: DropAnimation = {
+  kind: 'drop',
+  left: 60,
+  top: 96,
   width: 200,
   height: 60,
-  count: 2,
-  interval: 33,
+  frames: [effectFrames.smallTear, effectFrames.tear, effectFrames.tearSplash],
+  lanes: [0.15, 0.85],
+  duration: 1080,
   smallScale: 0.33,
   holdScale: 0.39,
   minScale: 0.3,
-  scaleSmoothing: 0.2,
-  laneRatios: Object.freeze([0.15, 0.85]),
-  jitterRatio: 0.04,
-  spawnY: -10,
-  spawnRange: 8,
-  despawnMargin: 8,
-  maxLifeBase: 900,
-  maxLifeJitter: 400,
-  speedBase: 0.45,
-  speedJitter: 0.2,
-  laneSpeedStep: 0.04,
-  fadeInRatio: 0.25,
-  fadeOutRatio: 0.75,
-})
-
-let emoticonTexture: PiuTexture | null = null
-let colorStringCache: Map<number, string> | null = null
-
-function getEmoticonTexture() {
-  if (!emoticonTexture) emoticonTexture = new Texture('emoticon.png')
-  return emoticonTexture
 }
 
-function colorString(color: number): string {
-  if (!colorStringCache) colorStringCache = new Map()
-  const cached = colorStringCache.get(color)
-  if (cached) return cached
-  const value = toPiuColorString(color)
-  colorStringCache.set(color, value)
-  return value
-}
+const animations = { heart, angry, sweat, tear, sleepy, gloom }
+type Animation = PoseAnimation | DropAnimation | BubbleAnimation
 
-function primaryColor(face?: FaceState): number {
-  return face ? toPiuColorNumber(face.theme.primary) : DEFAULT_FACE_PRIMARY_COLOR
-}
+class EmoticonPortBehavior extends Behavior {
+  #elapsed = 0
+  #animation: Animation
+  #sprites: EffectSprite[] = []
+  #duration: number
+  #growUntil = 0
 
-function secondaryColor(face?: FaceState): number {
-  return face ? toPiuColorNumber(face.theme.secondary) : DEFAULT_FACE_SECONDARY_COLOR
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}
-
-function centeredSpriteX(width: number) {
-  return Math.round((width - SPRITE_CELL_SIZE) / 2)
-}
-
-function centeredSpriteY(height: number) {
-  return Math.round((height - SPRITE_CELL_SIZE) / 2)
-}
-
-function spriteVariantForScale(scale: number, minScale: number, holdScale: number) {
-  const normalized = (scale - minScale) / Math.max(0.01, holdScale - minScale)
-  return clamp(Math.round(normalized * (SPRITE_FRAME_COUNT - 1)), 0, SPRITE_FRAME_COUNT - 1)
-}
-
-function drawSpriteCell(port: PiuPort, row: number, variant: number, color: number, x: number, y: number) {
-  const frame = clamp(variant, 0, SPRITE_FRAME_COUNT - 1)
-  port.drawTexture(
-    getEmoticonTexture(),
-    colorString(color),
-    Math.round(x),
-    Math.round(y),
-    frame * SPRITE_CELL_SIZE,
-    row * SPRITE_CELL_SIZE,
-    SPRITE_CELL_SIZE,
-    SPRITE_CELL_SIZE,
-  )
-}
-
-class SpritePulseBehavior extends Behavior {
-  #row = HEART_ROW
-  #width = 40
-  #height = 40
-  #interval = 33
-  #fraction = 0
-  #hasPalette = false
-  #primary = primaryColor()
-  #variant = spritePulseVariantForFraction(0)
-
-  onCreate(port: PiuPort, data: EmoticonOptions = {}, row = HEART_ROW) {
-    this.#row = row
-    this.#width = data.width ?? port.width ?? this.#width
-    this.#height = data.height ?? port.height ?? this.#height
-    this.#interval = data.interval ?? this.#interval
-    port.interval = this.#interval
+  constructor(options: EmoticonOptions, animation: Animation) {
+    super()
+    this.#animation = animation
+    this.#duration = animation.kind === 'pose' ? animation.x.length * POSE_DURATION : animation.duration
+    const requestedCount = options.count ?? 2
+    const count =
+      animation.kind === 'pose'
+        ? 1
+        : animation.kind === 'drop'
+          ? Math.max(1, Math.min(2, requestedCount))
+          : requestedCount
+    for (let index = 0; index < count; index++) this.#sprites.push(new EffectSprite())
+    if (animation.kind === 'drop') {
+      const small = options.smallScale ?? animation.smallScale
+      const hold = options.holdScale ?? animation.holdScale
+      const midpoint = (Math.max(animation.minScale, small * 0.9) + hold) / 2
+      const growth = (midpoint - small) / Math.max(0.01, hold - small)
+      this.#growUntil = Math.max(0, Math.min(1, growth)) * 0.55
+    }
   }
 
   onDisplaying(port: PiuPort) {
-    port.invalidate()
+    this.#update(port)
     port.start()
   }
 
@@ -217,394 +172,88 @@ class SpritePulseBehavior extends Behavior {
   }
 
   onTimeChanged(port: PiuPort) {
-    this.#fraction += (2 * Math.PI) / 100
-    const nextVariant = spritePulseVariantForFraction(this.#fraction)
-    if (nextVariant === this.#variant) return
-    this.#variant = nextVariant
-    port.invalidate()
-  }
-
-  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-    this.#hasPalette = true
-    if (palette.primaryColor === this.#primary) return
-    this.#primary = palette.primaryColor
-    port.invalidate()
-  }
-
-  onFaceState(port: PiuPort, face: FaceState) {
-    if (this.#hasPalette) return
-    const nextPrimary = primaryColor(face)
-    if (nextPrimary === this.#primary) return
-    this.#primary = nextPrimary
-    port.invalidate()
+    this.#elapsed = (this.#elapsed + port.interval) % this.#duration
+    this.#update(port)
   }
 
   onDraw(port: PiuPort) {
-    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
-    drawSpriteCell(
-      port,
-      this.#row,
-      this.#variant,
-      this.#primary,
-      centeredSpriteX(this.#width),
-      centeredSpriteY(this.#height),
-    )
+    const sprites = this.#sprites
+    for (let index = 0; index < sprites.length; index++) sprites[index].draw(port)
+  }
+
+  #update(port: PiuPort) {
+    const animation = this.#animation
+    const sprites = this.#sprites
+    if (sprites.length === 0) return
+    if (animation.kind === 'pose') {
+      const pose = Math.floor(this.#elapsed / POSE_DURATION)
+      const frame = animation.useRebound?.[pose] && animation.rebound ? animation.rebound : animation.frame
+      sprites[0].place(port, frame, port.width / 2 + animation.x[pose], port.height / 2 + animation.y[pose])
+      return
+    }
+
+    const progress = this.#elapsed / this.#duration
+    if (animation.kind === 'bubble') {
+      for (let index = 0; index < sprites.length; index++) {
+        const phase = (progress + index / sprites.length) % 1
+        this.#updateBubble(port, sprites[index], phase, index % 2 === 0 ? -1 : 1)
+      }
+      return
+    }
+
+    if (sprites.length > 1) {
+      this.#updateDrop(port, sprites[0], animation, animation.lanes[0], progress, -1)
+      this.#updateDrop(port, sprites[1], animation, animation.lanes[1], (progress + 0.5) % 1, 1)
+    } else {
+      this.#updateDrop(port, sprites[0], animation, 0.5, progress, 1)
+    }
+  }
+
+  #updateBubble(port: PiuPort, sprite: EffectSprite, progress: number, direction: number) {
+    if (progress >= 0.91) {
+      sprite.hide(port)
+      return
+    }
+
+    const travel = Math.min(1, progress / 0.8)
+    const frame = progress < 0.8 ? effectFrames.sleepyBubble : effectFrames.sleepyPop
+    const x = port.width / 2 + direction * (3 + 24 * travel * (1 - travel))
+    const y = port.height - 9 - Math.max(0, port.height - 17) * travel
+    sprite.place(port, frame, x, y)
+  }
+
+  #updateDrop(
+    port: PiuPort,
+    sprite: EffectSprite,
+    animation: DropAnimation,
+    lane: number,
+    progress: number,
+    direction: number,
+  ) {
+    if (progress >= 0.9) {
+      sprite.hide(port)
+      return
+    }
+
+    const travel = Math.min(1, progress / 0.76)
+    const frame = animation.frames[progress >= 0.76 ? 2 : progress >= this.#growUntil ? 1 : 0]
+    const x = port.width * lane + direction * (2 + 5 * travel * travel)
+    const y = 8 + Math.max(0, port.height - 17) * travel * travel
+    sprite.place(port, frame, x, y)
   }
 }
 
-class DropBehavior extends Behavior {
-  #config = SWEAT_CONFIG
-  #width = SWEAT_CONFIG.width
-  #height = SWEAT_CONFIG.height
-  #count = SWEAT_CONFIG.count
-  #interval = SWEAT_CONFIG.interval
-  #smallScale = SWEAT_CONFIG.smallScale
-  #holdScale = SWEAT_CONFIG.holdScale
-  #minScale = SWEAT_CONFIG.minScale
-  #scaleSmoothing = SWEAT_CONFIG.scaleSmoothing
-  #drops: Drop[] = []
-  #laneXs: number[] = []
-  #lastXs: number[] = []
-  #lastYs: number[] = []
-  #lastVariants: number[] = []
-  #hasPalette = false
-  #primary = primaryColor()
-
-  onCreate(port: PiuPort, data: EmoticonOptions = {}, config = SWEAT_CONFIG) {
-    this.#config = config
-    this.#width = data.width ?? port.width ?? config.width
-    this.#height = data.height ?? port.height ?? config.height
-    this.#count = clamp(data.count ?? config.count, 1, 2)
-    this.#interval = data.interval ?? config.interval
-    this.#smallScale = data.smallScale ?? config.smallScale
-    this.#holdScale = data.holdScale ?? config.holdScale
-    this.#minScale = Math.max(config.minScale, this.#smallScale * 0.9)
-    this.#scaleSmoothing = config.scaleSmoothing
-    this.#laneXs = this.#buildLaneXs()
-    this.#drops = []
-    this.#lastXs = []
-    this.#lastYs = []
-    this.#lastVariants = []
-    for (let i = 0; i < this.#count; i++) {
-      this.#drops.push(this.#spawnDrop(i, true))
-      this.#lastXs.push(Number.NaN)
-      this.#lastYs.push(Number.NaN)
-      this.#lastVariants.push(-1)
-    }
-    port.interval = this.#interval
-  }
-
-  onDisplaying(port: PiuPort) {
-    this.#advance(0)
-    this.#syncVisualState()
-    port.invalidate()
-    port.start()
-  }
-
-  onUndisplaying(port: PiuPort) {
-    port.stop()
-  }
-
-  onTimeChanged(port: PiuPort) {
-    this.#advance(port.interval ?? this.#interval)
-    if (this.#syncVisualState()) port.invalidate()
-  }
-
-  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-    this.#hasPalette = true
-    if (palette.primaryColor === this.#primary) return
-    this.#primary = palette.primaryColor
-    port.invalidate()
-  }
-
-  onFaceState(port: PiuPort, face: FaceState) {
-    if (this.#hasPalette) return
-    const nextPrimary = primaryColor(face)
-    if (nextPrimary === this.#primary) return
-    this.#primary = nextPrimary
-    port.invalidate()
-  }
-
-  onDraw(port: PiuPort) {
-    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
-    for (const drop of this.#drops) {
-      const variant = spriteVariantForScale(drop.scale, this.#minScale, this.#holdScale)
-      drawSpriteCell(
-        port,
-        DROP_ROW,
-        variant,
-        this.#primary,
-        drop.x - SPRITE_CELL_SIZE / 2,
-        drop.y - SPRITE_CELL_SIZE / 2,
-      )
-    }
-  }
-
-  #syncVisualState(): boolean {
-    let changed = false
-    for (let i = 0; i < this.#drops.length; i++) {
-      const drop = this.#drops[i]
-      const drawX = Math.round(drop.x - SPRITE_CELL_SIZE / 2)
-      const drawY = Math.round(drop.y - SPRITE_CELL_SIZE / 2)
-      const variant = spriteVariantForScale(drop.scale, this.#minScale, this.#holdScale)
-      if (this.#lastXs[i] !== drawX || this.#lastYs[i] !== drawY || this.#lastVariants[i] !== variant) {
-        this.#lastXs[i] = drawX
-        this.#lastYs[i] = drawY
-        this.#lastVariants[i] = variant
-        changed = true
-      }
-    }
-    return changed
-  }
-
-  #advance(dt: number) {
-    for (const drop of this.#drops) {
-      drop.life += dt
-      const t = drop.life / drop.maxLife
-      let targetScale =
-        t < this.#config.fadeInRatio
-          ? this.#smallScale + (this.#holdScale - this.#smallScale) * (t / this.#config.fadeInRatio)
-          : this.#holdScale
-      if (t > this.#config.fadeOutRatio) {
-        const k = 1 - (t - this.#config.fadeOutRatio) / (1 - this.#config.fadeOutRatio)
-        targetScale *= Math.max(0, k)
-      }
-      if (!Number.isFinite(targetScale) || !Number.isFinite(drop.x) || !Number.isFinite(drop.y)) {
-        this.#respawn(drop)
-        continue
-      }
-      targetScale = Math.max(this.#minScale, targetScale)
-      drop.scale += (targetScale - drop.scale) * this.#scaleSmoothing
-      drop.y += drop.speed * (dt / 16.67)
-      if (drop.y > this.#height + this.#config.despawnMargin) this.#respawn(drop)
-    }
-  }
-
-  #buildLaneXs() {
-    if (this.#count <= 1) return [this.#width * 0.5]
-    return [this.#width * this.#config.laneRatios[0], this.#width * this.#config.laneRatios[1]]
-  }
-
-  #spawnDrop(laneIndex = 0, initial = false): Drop {
-    const maxLife = this.#config.maxLifeBase + Math.random() * this.#config.maxLifeJitter
-    const baseOffset = (maxLife / this.#count) * (laneIndex % this.#count)
-    const startOffset = initial ? baseOffset + Math.random() * (maxLife * 0.05) : 0
-    const laneX = this.#laneXs[laneIndex % this.#laneXs.length] ?? this.#width * 0.5
-    const jitter = this.#width * this.#config.jitterRatio
-    return {
-      x: laneX + (Math.random() - 0.5) * jitter,
-      y: this.#config.spawnY - Math.random() * this.#config.spawnRange,
-      speed:
-        this.#config.speedBase +
-        Math.random() * this.#config.speedJitter +
-        (laneIndex % this.#count) * this.#config.laneSpeedStep,
-      life: startOffset,
-      maxLife,
-      scale: Math.max(this.#minScale, this.#holdScale),
-      laneIndex,
-    }
-  }
-
-  #respawn(drop: Drop) {
-    const laneIndex = drop.laneIndex % this.#count
-    const laneX = this.#laneXs[laneIndex % this.#laneXs.length] ?? this.#width * 0.5
-    const jitter = this.#width * this.#config.jitterRatio
-    drop.x = laneX + (Math.random() - 0.5) * jitter
-    drop.y = this.#config.spawnY - Math.random() * this.#config.spawnRange
-    drop.speed =
-      this.#config.speedBase + Math.random() * this.#config.speedJitter + laneIndex * this.#config.laneSpeedStep
-    drop.life = 0
-    drop.maxLife = this.#config.maxLifeBase + Math.random() * this.#config.maxLifeJitter
-    drop.scale = Math.max(this.#minScale, this.#holdScale)
-  }
-}
-
-class SleepyBubbleBehavior extends Behavior {
-  #width = 48
-  #height = 64
-  #count = 4
-  #interval = 33
-  #bubbles: Bubble[] = []
-  #lastXs: number[] = []
-  #lastYs: number[] = []
-  #lastVariants: number[] = []
-  #hasPalette = false
-  #primary = primaryColor()
-  #secondary = secondaryColor()
-
-  onCreate(port: PiuPort, data: EmoticonOptions = {}) {
-    this.#width = data.width ?? port.width ?? this.#width
-    this.#height = data.height ?? port.height ?? this.#height
-    this.#count = data.count ?? this.#count
-    this.#interval = data.interval ?? this.#interval
-    this.#bubbles = []
-    this.#lastXs = []
-    this.#lastYs = []
-    this.#lastVariants = []
-    for (let i = 0; i < this.#count; i++) {
-      this.#bubbles.push({
-        x: Math.random() * this.#width,
-        vx: 0,
-        y: Math.random() * this.#height,
-        r: 4 + Math.random() * 3,
-      })
-      this.#lastXs.push(Number.NaN)
-      this.#lastYs.push(Number.NaN)
-      this.#lastVariants.push(-1)
-    }
-    port.interval = this.#interval
-  }
-
-  onDisplaying(port: PiuPort) {
-    this.#advance()
-    this.#syncVisualState()
-    port.invalidate()
-    port.start()
-  }
-
-  onUndisplaying(port: PiuPort) {
-    port.stop()
-  }
-
-  onTimeChanged(port: PiuPort) {
-    this.#advance()
-    if (this.#syncVisualState()) port.invalidate()
-  }
-
-  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-    this.#hasPalette = true
-    if (palette.primaryColor === this.#primary && palette.secondaryColor === this.#secondary) return
-    this.#primary = palette.primaryColor
-    this.#secondary = palette.secondaryColor
-    port.invalidate()
-  }
-
-  onFaceState(port: PiuPort, face: FaceState) {
-    if (this.#hasPalette) return
-    const nextPrimary = primaryColor(face)
-    const nextSecondary = secondaryColor(face)
-    if (nextPrimary === this.#primary && nextSecondary === this.#secondary) return
-    this.#primary = nextPrimary
-    this.#secondary = nextSecondary
-    port.invalidate()
-  }
-
-  onDraw(port: PiuPort) {
-    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
-    for (const bubble of this.#bubbles) {
-      const variant = clamp(Math.round((bubble.r - 3) / 3), 0, SPRITE_FRAME_COUNT - 1)
-      const cy = this.#height - bubble.y
-      drawSpriteCell(
-        port,
-        BUBBLE_ROW,
-        variant,
-        this.#primary,
-        bubble.x - SPRITE_CELL_SIZE / 2,
-        cy - SPRITE_CELL_SIZE / 2,
-      )
-    }
-  }
-
-  #syncVisualState(): boolean {
-    let changed = false
-    for (let i = 0; i < this.#bubbles.length; i++) {
-      const bubble = this.#bubbles[i]
-      const drawX = Math.round(bubble.x - SPRITE_CELL_SIZE / 2)
-      const drawY = Math.round(this.#height - bubble.y - SPRITE_CELL_SIZE / 2)
-      const variant = clamp(Math.round((bubble.r - 3) / 3), 0, SPRITE_FRAME_COUNT - 1)
-      if (this.#lastXs[i] !== drawX || this.#lastYs[i] !== drawY || this.#lastVariants[i] !== variant) {
-        this.#lastXs[i] = drawX
-        this.#lastYs[i] = drawY
-        this.#lastVariants[i] = variant
-        changed = true
-      }
-    }
-    return changed
-  }
-
-  #advance() {
-    for (const bubble of this.#bubbles) {
-      const upwardSpeed = 1 - bubble.r / 12
-      bubble.vx = bubble.vx * 0.85 + 0.1 * (Math.random() - 0.5)
-      bubble.x += bubble.vx
-      bubble.x = clamp(bubble.x, bubble.r, this.#width - bubble.r)
-      bubble.y += upwardSpeed * 2
-      if (bubble.y > this.#height - bubble.r) {
-        bubble.y = bubble.r
-        bubble.x = this.#width * (1 - Math.random() * 0.2)
-        bubble.vx = -3
-      }
-      bubble.r = clamp(bubble.r + 0.2 * (Math.random() - 0.5), 3, 12)
-    }
-  }
-}
-
-const Heart = Port.template((opts: EmoticonOptions) => ({
-  left: opts.left ?? 12,
-  right: opts.right,
-  top: opts.top ?? 12,
-  bottom: opts.bottom,
-  width: opts.width ?? 40,
-  height: opts.height ?? 40,
-  Behavior: class extends SpritePulseBehavior {
-    onCreate(port: PiuPort) {
-      super.onCreate(port, opts, HEART_ROW)
-    }
-  },
-}))
-
-const Angry = Port.template((opts: EmoticonOptions) => ({
-  left: opts.left ?? 12,
-  right: opts.right,
-  top: opts.top ?? 12,
-  bottom: opts.bottom,
-  width: opts.width ?? 40,
-  height: opts.height ?? 40,
-  Behavior: class extends SpritePulseBehavior {
-    onCreate(port: PiuPort) {
-      super.onCreate(port, opts, ANGRY_ROW)
-    }
-  },
-}))
-
-const Sweat = Port.template((opts: EmoticonOptions) => ({
-  left: opts.left ?? 8,
-  right: opts.right,
-  top: opts.top ?? 10,
-  bottom: opts.bottom,
-  width: opts.width ?? SWEAT_CONFIG.width,
-  height: opts.height ?? SWEAT_CONFIG.height,
-  Behavior: class extends DropBehavior {
-    onCreate(port: PiuPort) {
-      super.onCreate(port, opts, SWEAT_CONFIG)
-    }
-  },
-}))
-
-const Tear = Port.template((opts: EmoticonOptions) => ({
-  left: opts.left ?? 60,
-  right: opts.right,
-  top: opts.top ?? 96,
-  bottom: opts.bottom,
-  width: opts.width ?? TEAR_CONFIG.width,
-  height: opts.height ?? TEAR_CONFIG.height,
-  Behavior: class extends DropBehavior {
-    onCreate(port: PiuPort) {
-      super.onCreate(port, opts, TEAR_CONFIG)
-    }
-  },
-}))
-
-const Sleepy = Port.template((opts: EmoticonOptions) => ({
-  left: opts.left ?? 16,
-  right: opts.right,
-  top: opts.top ?? 8,
-  bottom: opts.bottom,
-  width: opts.width ?? 48,
-  height: opts.height ?? 64,
-  Behavior: class extends SleepyBubbleBehavior {
-    onCreate(port: PiuPort) {
-      super.onCreate(port, opts)
+const EmoticonPort = Port.template(({ options, animation }: { options: EmoticonOptions; animation: Animation }) => ({
+  left: options.left ?? animation.left,
+  right: options.right,
+  top: options.top ?? animation.top,
+  bottom: options.bottom,
+  width: options.width ?? animation.width,
+  height: options.height ?? animation.height,
+  interval: options.interval ?? ANIMATION_INTERVAL,
+  Behavior: class extends EmoticonPortBehavior {
+    constructor() {
+      super(options, animation)
     }
   },
 }))
@@ -645,40 +294,17 @@ class EmoticonBehavior extends Behavior {
   }
 }
 
-export const Emoticon = Container.template((opts: EmoticonParams) => {
-  const data = opts ?? { key: 'heart' }
-  const key = data.key
-  const name = data.name ?? `Emoticon:${key}`
-  let content: PiuContent
-  switch (key) {
-    case 'heart':
-      content = new Heart(data)
-      break
-    case 'angry':
-      content = new Angry(data)
-      break
-    case 'sweat':
-      content = new Sweat(data)
-      break
-    case 'tear':
-      content = new Tear(data)
-      break
-    case 'sleepy':
-      content = new Sleepy(data)
-      break
-    default:
-      content = new Heart(data)
-      break
-  }
+export const Emoticon = Container.template((params: EmoticonParams) => {
+  const options = params ?? { key: 'heart' }
+  const animation = Object.hasOwn(animations, options.key) ? animations[options.key] : heart
   return {
-    name,
+    name: options.name ?? `Emoticon:${options.key}`,
     left: 0,
     right: 0,
     top: 0,
     bottom: 0,
-    clip: false,
     active: false,
     Behavior: EmoticonBehavior,
-    contents: [content],
+    contents: [new EmoticonPort({ options, animation })],
   }
 })

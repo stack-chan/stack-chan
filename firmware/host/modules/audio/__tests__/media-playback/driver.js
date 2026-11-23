@@ -5,10 +5,13 @@ export default class Output {
   closed = false
   constructor(options) {
     this.options = options
+    this.sampleRate = options.sampleRate
+    this.channels = options.channels
+    this.bitsPerSample = options.bitsPerSample
     outputs.push(this)
   }
   start() {
-    this.writable(16)
+    this.writable(10240)
   }
   stop() {}
   close() {

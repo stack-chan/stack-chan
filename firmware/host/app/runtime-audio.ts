@@ -1,6 +1,11 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type {
+  FiniteMediaSession,
+  FiniteMediaSource,
+  LiveMediaSource,
   MediaCapability,
+  MediaOpenOptions,
+  MediaSession,
   MediaStartOptions,
   SpeechPlayback,
   WebRadioCapability,
@@ -109,29 +114,55 @@ export class StackchanRuntimeAudio {
     return this.#microphone !== undefined
   }
 
-  /** Reserve I2S for a native conversation after existing short playback finishes. */
-  acquireExclusive(kind: 'conversation' | 'playback' = 'conversation'): () => void {
+  get #unavailable() {
+    return this.#closed || this.#exclusive || this.#utterance !== undefined
+  }
+
+  get #busy() {
+    return this.#unavailable || this.#activeOperations > 0
+  }
+
+  #stopMedia() {
+    const stopped = this.#media?.stop()
+    const radio = this.#webRadio?.stop()
+    if (stopped && radio) return Promise.all([stopped, radio]).then(() => {})
+    return stopped || radio
+  }
+
+  acquireExclusive(
+    kind: 'conversation' | 'playback' = 'conversation',
+    interruptible = false,
+  ): (() => void) | Promise<() => void> {
     if (
       this.#closed ||
       this.#exclusive ||
       this.#activeOperations ||
       this.#microphone?.recording ||
-      (this.#utterance && kind === 'conversation')
+      (this.#utterance && (kind === 'conversation' || interruptible))
     )
       throw new Error('audio busy')
+    if (interruptible) return noop
     this.#exclusive = true
-    try {
-      this.#media?.stop()
-      this.#webRadio?.stop()
-    } catch (error) {
-      this.#exclusive = false
-      throw error
-    }
     let released = false
-    return () => {
+    const release = () => {
       if (released) return
       released = true
       this.#exclusive = false
+    }
+    try {
+      const stopping = this.#stopMedia()
+      if (stopping)
+        return stopping.then(
+          () => release,
+          (error) => {
+            release()
+            throw error
+          },
+        )
+      return release
+    } catch (error) {
+      release()
+      throw error
     }
   }
 
@@ -139,7 +170,43 @@ export class StackchanRuntimeAudio {
     const media = this.#media
     if (!media) return undefined
     const runtime = this
+    const player = media
+    function requireAvailable() {
+      if (runtime.#busy) throw new Error('audio busy')
+    }
+    function open(source: LiveMediaSource, options: MediaOpenOptions): Promise<MediaSession>
+    function open(source: FiniteMediaSource, options: MediaOpenOptions): Promise<FiniteMediaSession>
+    async function open(source: LiveMediaSource | FiniteMediaSource, options: MediaOpenOptions) {
+      requireAvailable()
+      const settings = {
+        ...options,
+        volume: options.volume ?? (runtime.#volume === undefined ? undefined : runtime.#volume * MAX_MEDIA_VOLUME),
+      }
+      if (source.mode === 'live') return player.open(source, settings)
+      const session = await player.open(source, settings)
+      return {
+        get state() {
+          return session.state
+        },
+        get progress() {
+          return session.progress
+        },
+        done: session.done,
+        setVolume: (volume: number) => session.setVolume(volume),
+        stop: () => session.stop(),
+        pause: () => session.pause(),
+        async resume() {
+          requireAvailable()
+          await session.resume()
+        },
+        async seek(seconds: number) {
+          requireAvailable()
+          await session.seek(seconds)
+        },
+      }
+    }
     return {
+      open,
       get state() {
         return media.state
       },
@@ -147,28 +214,25 @@ export class StackchanRuntimeAudio {
         return media.progress
       },
       pause() {
-        media.pause()
+        return media.pause()
       },
-      resume() {
-        if (runtime.#closed || runtime.#exclusive || runtime.#utterance || runtime.#activeOperations > 0)
-          return Promise.reject(new Error('audio busy'))
-        return media.resume()
+      async resume() {
+        requireAvailable()
+        await media.resume()
       },
-      seek(seconds: number) {
-        if (runtime.#closed || runtime.#exclusive || runtime.#utterance || runtime.#activeOperations > 0)
-          return Promise.reject(new Error('audio busy'))
-        return media.seek(seconds)
+      async seek(seconds: number) {
+        requireAvailable()
+        await media.seek(seconds)
       },
-      start(options: MediaStartOptions) {
-        if (runtime.#closed || runtime.#exclusive || runtime.#utterance || runtime.#activeOperations > 0)
-          return Promise.reject(new Error('audio busy'))
+      async start(options: MediaStartOptions) {
+        requireAvailable()
         return media.start({
           ...options,
           volume: options.volume ?? (runtime.#volume === undefined ? undefined : runtime.#volume * MAX_MEDIA_VOLUME),
         })
       },
       stop() {
-        media.stop()
+        return media.stop()
       },
       setVolume(volume: number) {
         media.setVolume(volume)
@@ -194,7 +258,7 @@ export class StackchanRuntimeAudio {
           })
         },
         stop() {
-          media.stop()
+          return media.stop()
         },
         setVolume(volume: number) {
           media.setVolume(volume)
@@ -207,8 +271,7 @@ export class StackchanRuntimeAudio {
         return runtime.#webRadio?.state ?? 'idle'
       },
       start(options: WebRadioStartOptions) {
-        if (runtime.#closed || runtime.#exclusive || runtime.#utterance || runtime.#activeOperations > 0)
-          return Promise.reject(new Error('audio busy'))
+        if (runtime.#busy) return Promise.reject(new Error('audio busy'))
         const webRadio = runtime.#webRadio
         if (!webRadio) return Promise.reject(new Error('WebRadio is not supported'))
         return webRadio.start({
@@ -217,7 +280,7 @@ export class StackchanRuntimeAudio {
         })
       },
       stop() {
-        runtime.#webRadio?.stop()
+        return runtime.#webRadio?.stop()
       },
       setVolume(volume: number) {
         runtime.#webRadio?.setVolume(volume)
@@ -226,7 +289,7 @@ export class StackchanRuntimeAudio {
   }
 
   setSpeechPlayback(speechPlayback: StandalonePlayback): StandalonePlayback {
-    if (this.#closed || this.#exclusive || this.#activeOperations || this.#utterance) throw new Error('audio busy')
+    if (this.#busy) throw new Error('audio busy')
     const previous = this.#speechPlayback
     if ('stream' in previous) {
       previous.onDone = noop
@@ -259,7 +322,7 @@ export class StackchanRuntimeAudio {
   }
 
   async #speak(kind: 'text' | 'koe', text: string, volume?: number): Promise<Maybe<string>> {
-    if (this.#closed || this.#exclusive || this.#utterance) return { success: false, reason: 'audio busy' }
+    if (this.#unavailable) return { success: false, reason: 'audio busy' }
     const playback = this.#speechPlayback
     const gain = volume ?? this.#volume
     try {
@@ -281,8 +344,8 @@ export class StackchanRuntimeAudio {
       } else if ('stream' in playback) {
         this.#activeOperations += 1
         try {
-          this.#media?.stop()
-          this.#webRadio?.stop()
+          const stopping = this.#stopMedia()
+          if (stopping) await stopping
           const stream = kind === 'text' ? playback.stream : playback.streamKoe
           if (!stream) throw new Error('The active speech player does not support singing.')
           await waitForCompletion((callback) => stream.call(playback, text, gain, callback))
@@ -297,12 +360,14 @@ export class StackchanRuntimeAudio {
   }
 
   async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
-    if (this.#closed || this.#exclusive || this.#utterance) throw new Error('audio busy')
+    if (this.#unavailable) throw new Error('audio busy')
     if (!this.#microphone) {
       throw Error('This device does not support a microphone.')
     }
     this.#activeOperations += 1
     try {
+      const stopping = this.#stopMedia()
+      if (stopping) await stopping
       return await this.#microphone.record(durationMilliSec)
     } finally {
       this.#activeOperations -= 1
@@ -310,14 +375,14 @@ export class StackchanRuntimeAudio {
   }
 
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
-    if (this.#closed || this.#exclusive || this.#utterance) throw new Error('audio busy')
+    if (this.#unavailable) throw new Error('audio busy')
     if (volume !== undefined && (volume < 0 || volume > 1)) {
       throw new Error('Volume must be between 0 and 1')
     }
     this.#activeOperations += 1
     try {
-      this.#media?.stop()
-      this.#webRadio?.stop()
+      const stopping = this.#stopMedia()
+      if (stopping) await stopping
       await this.#speaker?.tone(hz, duration, volume ?? this.#volume)
     } finally {
       this.#activeOperations -= 1
@@ -325,12 +390,12 @@ export class StackchanRuntimeAudio {
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
-    if (this.#closed || this.#exclusive || this.#utterance) return false
+    if (this.#unavailable) return false
     if (!this.#speaker) return false
     this.#activeOperations += 1
     try {
-      this.#media?.stop()
-      this.#webRadio?.stop()
+      const stopping = this.#stopMedia()
+      if (stopping) await stopping
       return await this.#speaker.play(buffer)
     } finally {
       this.#activeOperations -= 1
@@ -344,8 +409,8 @@ export class StackchanRuntimeAudio {
       () => {},
     )
     try {
-      this.#media?.stop()
-      this.#webRadio?.stop()
+      const stopping = this.#stopMedia()
+      if (stopping) await stopping
     } finally {
       try {
         this.#microphone?.stop()

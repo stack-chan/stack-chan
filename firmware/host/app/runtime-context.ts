@@ -437,7 +437,8 @@ export class StackchanRuntimeContext implements StackchanContext {
   private createAudioCapability(createRuntime: RuntimeContextConstructorParam['createVoiceRuntime']): AudioCapability {
     const context = this
     let endpoints: ReturnType<typeof createRuntime>
-    const getEndpoints = () => (endpoints ??= createRuntime((kind) => this.#audioRuntime.acquireExclusive(kind)))
+    const getEndpoints = () =>
+      (endpoints ??= createRuntime((kind, interruptible) => this.#audioRuntime.acquireExclusive(kind, interruptible)))
     return {
       get volume() {
         return context.#audioRuntime.volume

@@ -175,6 +175,7 @@ export type PlaybackReceipt = {
 }
 export interface PlaybackSink extends AudioSink {
   readonly budget: MediaBudget
+  position?(outputId: string): PlaybackCursor
   begin(outputId: string, generation: number): AudioSink
   finish(outputId: string): Promise<PlaybackReceipt>
   fence(nextGeneration: number): Promise<readonly PlaybackReceipt[]>
@@ -215,7 +216,12 @@ export type AudioLevel = {
   /** Mean absolute PCM amplitude / 32768, after output gain. Output follows device playback, with driver latency. */
   readonly value: number
 }
-export type PlaybackOptions = Scope & { readonly budget: MediaBudget; readonly onLevel?: (level: AudioLevel) => void }
+export type PlaybackOptions = Scope & {
+  readonly budget: MediaBudget
+  readonly onLevel?: (level: AudioLevel) => void
+  /** A background stream can yield its device when foreground audio is requested. */
+  readonly interrupt?: () => Promise<void>
+}
 export interface AudioRuntime {
   acquire(
     microphone: Microphone,

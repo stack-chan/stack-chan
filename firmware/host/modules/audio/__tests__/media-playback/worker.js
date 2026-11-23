@@ -6,6 +6,7 @@ export default class Worker {
   }
   postMessage(message) {
     this.messages.push(message)
+    if (message.id === 'close') Promise.resolve().then(() => this.send({ id: 'closed' }))
   }
   terminate() {
     this.terminated = true

@@ -3,7 +3,12 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
-import { profileFor } from '../editor/capabilities.mjs'
+import {
+  CAPABILITY_HOST_API_VERSIONS,
+  inspectDeploymentCompatibility,
+  profileFor,
+} from '../editor/capabilities.mjs'
+import { STACKCHAN_HOST_API_VERSION } from '../../firmware/scripts/lib/moddable-version.mjs'
 import { isXsVersionCompatible } from '../editor/xs-compatibility.mjs'
 import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
@@ -149,6 +154,31 @@ test('Media Player Gallery exposes the same shared Podcast and Radio sources as 
   const gallery = new URL('./samples/media-player/mod/', import.meta.url)
   for (const file of gallerySources()) {
     assert.deepEqual(readFileSync(new URL(file, gallery)), readFileSync(new URL(file, firmware)), file)
+  }
+})
+
+test('published media sessions require the declared host API before Gallery installation', async () => {
+  const definition = (await loadModCatalog(catalogUrl, fileFetch)).find(
+    (item) => item.id === 'tech.stackchan.samples.media-player'
+  )
+  assert.ok(definition.capabilities.includes('audio.media'))
+  const minimum = CAPABILITY_HOST_API_VERSIONS['audio.media']
+  assert.ok(STACKCHAN_HOST_API_VERSION >= minimum)
+  const archive = readFileSync(definition.artifacts[0].url)
+  for (let hostApiVersion = 0; hostApiVersion <= STACKCHAN_HOST_API_VERSION; hostApiVersion++) {
+    const result = inspectDeploymentCompatibility('m5stackchan-cores3', {
+      chip: 'ESP32-S3',
+      firmwareVersion: `10.1.0+stackchan.${hostApiVersion}`,
+      hostApiVersion,
+      xsVersion: xsArchiveVersion(archive),
+      requirements: definition.capabilities,
+      entrypoints: definition.entrypoints,
+      requireFirmware: true,
+      requireArchive: true,
+    })
+    assert.equal(result.compatible, hostApiVersion >= minimum, `host API ${hostApiVersion}`)
+    if (hostApiVersion < minimum)
+      assert.deepEqual(result.diagnostics.map((item) => item.code), ['VP_HOST_CAPABILITY_UNAVAILABLE'])
   }
 })
 

@@ -10,7 +10,7 @@ function context(volume, releaseFails = false) {
     torque: [],
     gazes: [],
     away: 0,
-    audio: volume === undefined ? {} : { volume },
+    audio: volume === undefined ? {} : { volume, media: { open() {} } },
     i18n: { localize: (key) => key },
     showBalloon(message) {
       state.balloons.push(message)
@@ -46,6 +46,12 @@ async function run() {
   equal(oldHost.registrations.length, 0, 'old host does not install unusable apps')
   equal(oldHost.buttons.size, 0)
   equal(oldHost.torque.length, 0)
+
+  const oldMediaHost = context(0.35)
+  delete oldMediaHost.audio.media.open
+  await onContextCreated(oldMediaHost)
+  equal(oldMediaHost.balloons[0], 'podcast.hostRequired')
+  equal(oldMediaHost.registrations.length, 0, 'a volume-only host must update before registering media sessions')
 
   const previous = context(0.35, true)
   await onContextCreated(previous)

@@ -223,20 +223,18 @@ self.onmessage = (message) => {
       streamer?.end(message.reason)
       pump()
       break
-    case 'close':
+    case 'close': {
+      let reason
       try {
         if (completionTimer !== undefined) Timer.clear(completionTimer)
         streamer?.close()
       } catch (error) {
-        trace(`[web-radio-worker] close failed: ${String(error)}\n`)
+        reason = String(error)
       }
       completionTimer = undefined
       streamer = audio = undefined
-      try {
-        self.postMessage({ id: 'closed' })
-      } finally {
-        self.close()
-      }
+      self.postMessage({ id: 'closed', reason })
       break
+    }
   }
 }

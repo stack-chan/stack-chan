@@ -16,10 +16,12 @@ export type FakeMP3StreamerOptions = {
   onReady?: (ready: boolean) => void
   onPlayed?: (buffer?: unknown) => void
   onError?: (reason: string) => void
+  onRetry?: (reason: string) => void
   onDone?: () => void
 }
 
 let constructorFailure: unknown
+let constructorCompletes = false
 const instances: MP3Streamer[] = []
 
 export default class MP3Streamer {
@@ -29,6 +31,7 @@ export default class MP3Streamer {
     if (constructorFailure !== undefined) throw constructorFailure
     this.options = options
     instances.push(this)
+    if (constructorCompletes) options.onDone?.()
   }
   close(): void {
     this.closed = true
@@ -41,9 +44,14 @@ export function getMP3StreamerInstances(): MP3Streamer[] {
 
 export function resetMP3Streamers(): void {
   constructorFailure = undefined
+  constructorCompletes = false
   instances.length = 0
 }
 
 export function setMP3StreamerConstructorFailure(error: unknown): void {
   constructorFailure = error
+}
+
+export function setMP3StreamerConstructorCompletes(): void {
+  constructorCompletes = true
 }

@@ -3,6 +3,7 @@ export const CAPABILITIES: Readonly<{
   SPEECH: 'audio.speech'
   SINGING: 'audio.singing'
   TONE: 'audio.tone'
+  MEDIA: 'audio.media'
   VOLUME: 'audio.volume'
   MOTION: 'motion'
   LIGHTING: 'lighting'

@@ -52,7 +52,8 @@ function levelReporter({ signal, onLevel }: PlaybackOptions, directions: readonl
 }
 
 export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory, openPlayback?: PlaybackFactory) {
-  let reserved = false
+  let reserved: { interrupt?: () => Promise<void> } | undefined
+  let interrupting = false
 
   async function reserve<T extends PlaybackLease>(
     kind: 'conversation' | 'playback',
@@ -61,23 +62,40 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory,
     open: (onLevel: PlaybackOptions['onLevel']) => T | Promise<T>,
   ) {
     const { signal } = setup
+    const interrupt = kind === 'playback' ? setup.interrupt : undefined
     requireActive(signal)
-    if (reserved) throw voiceError('device_busy')
-    let release: () => void
-    try {
-      release = options.acquireExclusive(kind)
-    } catch {
-      throw voiceError('device_busy')
+    if (interrupting) throw voiceError('device_busy')
+    const owner = reserved
+    if (owner) {
+      if (interrupt || !owner.interrupt) throw voiceError('device_busy')
+      interrupting = true
+      try {
+        await owner.interrupt()
+      } finally {
+        interrupting = false
+      }
+      requireActive(signal)
+      if (reserved) throw voiceError('device_busy')
     }
-    reserved = true
+
+    reserved = { interrupt }
     const levels = levelReporter(setup, directions)
+    let release: (() => void) | undefined
     let lease: T
     try {
+      try {
+        const claim = options.acquireExclusive(kind, !!interrupt)
+        release = typeof claim === 'function' ? claim : await claim
+      } catch (error) {
+        if (error instanceof Error && error.message === 'audio busy') throw voiceError('device_busy')
+        throw error
+      }
+      requireActive(signal)
       lease = await open(levels.observe)
     } catch (error) {
       levels.stop(false)
-      release()
-      reserved = false
+      release?.()
+      reserved = undefined
       throw error
     }
     let stopping: Promise<void> | undefined
@@ -91,8 +109,8 @@ export function bindAudioRuntime(options: RuntimeOptions, openPCM: LeaseFactory,
     }
     function close() {
       closing ??= stop().then(() => {
-        release()
-        reserved = false
+        release?.()
+        reserved = undefined
       })
       return closing
     }

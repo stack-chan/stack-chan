@@ -4,7 +4,6 @@ import {
   type Rotation as RotationType,
   randomBetween,
   type Vector3,
-  waitForCompletion,
   writeBodyRelativeVector3,
   writeRotationFromVector3,
 } from 'stackchan-util'
@@ -18,7 +17,7 @@ export type ServoGoalTimeMilliseconds = number
 export type ServoGoalTimeCentiseconds = number
 export type MotionCompletion = (error?: unknown) => void
 export type MotionResultCallback<T> = (result: T) => void
-export type SetMotionPose = (pose: Pose, time?: MotionDurationSeconds) => Promise<void>
+type WriteMotionPose = (pose: Pose, time: MotionDurationSeconds | undefined, callback: MotionCompletion) => void
 
 export type MotionDriver = {
   applyRotation: (ori: RotationType, time?: MotionDurationSeconds, callback?: MotionCompletion) => void
@@ -26,6 +25,12 @@ export type MotionDriver = {
   setTorque: (torque: boolean, callback?: MotionCompletion) => void
   onAttached?: () => void
   onDetached?: () => void
+}
+
+type TemporaryMotion = {
+  driver: MotionDriver
+  superseded: boolean
+  releaseCallbacks?: MotionCompletion[]
 }
 
 export type MotionControllerPose = {
@@ -101,7 +106,7 @@ export class MotionController {
   #driver!: MotionDriver
   #gazePoint: Vector3 | null = null
   #isMoving = false
-  #temporaryMotion: { superseded: boolean } | undefined
+  #temporaryMotion: TemporaryMotion | undefined
   #torqueRequested = false
   #nextRotation: RotationType = { y: 0, p: 0, r: 0 }
   #options: MotionControllerOptions
@@ -133,6 +138,7 @@ export class MotionController {
   }
 
   close(): void {
+    if (this.#temporaryMotion) this.#temporaryMotion.superseded = true
     this.#stopPosePolling()
     this.#clearReleaseTorqueTimer()
   }
@@ -168,24 +174,68 @@ export class MotionController {
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
     this.#torqueRequested = torque
-    this.#driver.setTorque(torque || this.#temporaryMotion !== undefined, callback)
+    const owner = this.#temporaryMotion
+    if (owner?.driver === this.#driver && owner.releaseCallbacks) {
+      if (callback) owner.releaseCallbacks.push(callback)
+      return
+    }
+    this.#driver.setTorque(torque || owner?.driver === this.#driver, callback)
   }
 
-  async withTemporaryTorque(move: (setPose: SetMotionPose) => Promise<void>): Promise<void> {
-    if (this.#temporaryMotion || this.#isMoving) return
-    const owner = { superseded: false }
+  withTemporaryTorque(
+    move: (setPose: WriteMotionPose, done: MotionCompletion) => void,
+    callback: MotionCompletion,
+  ): void {
+    if (this.#temporaryMotion || this.#isMoving) {
+      callback()
+      return
+    }
     const driver = this.#driver
+    const owner: TemporaryMotion = { driver, superseded: false }
     this.#temporaryMotion = owner
+    const finish: MotionCompletion = (motionError) => {
+      if (owner.releaseCallbacks) return
+      owner.superseded = true
+      const callbacks: MotionCompletion[] = []
+      owner.releaseCallbacks = callbacks
+      let appliedTorque = true
+      const restore: MotionCompletion = (releaseError) => {
+        if (releaseError == null && driver === this.#driver && appliedTorque !== this.#torqueRequested) {
+          appliedTorque = this.#torqueRequested
+          try {
+            driver.setTorque(appliedTorque, restore)
+            return
+          } catch (error) {
+            releaseError = error
+          }
+        }
+        if (this.#temporaryMotion !== owner) return
+        this.#temporaryMotion = undefined
+        callback(releaseError ?? motionError)
+        for (const notify of callbacks) notify(releaseError)
+      }
+      restore()
+    }
+    const setPose: WriteMotionPose = (pose, time, done) => {
+      if (owner.superseded) done()
+      else driver.applyRotation(pose.rotation, time, done)
+    }
+    const begin: MotionCompletion = (error) => {
+      if (error != null || owner.superseded) {
+        finish(error)
+        return
+      }
+      try {
+        move(setPose, finish)
+      } catch (moveError) {
+        finish(moveError)
+      }
+    }
     try {
-      if (!this.#torqueRequested) await waitForCompletion((done) => driver.setTorque(true, done))
-      await move(async (pose, time) => {
-        if (this.#temporaryMotion === owner && !owner.superseded)
-          await waitForCompletion((done) => driver.applyRotation(pose.rotation, time, done))
-      })
-    } finally {
-      this.#temporaryMotion = undefined
-      if (driver === this.#driver && !this.#torqueRequested)
-        await waitForCompletion((done) => driver.setTorque(false, done))
+      if (this.#torqueRequested) begin()
+      else driver.setTorque(true, begin)
+    } catch (error) {
+      finish(error)
     }
   }
 

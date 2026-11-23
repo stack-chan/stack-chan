@@ -20,7 +20,7 @@ The responsibilities remain separate:
 
 | Component | Decision | Does not imply |
 | --- | --- | --- |
-| WakeWordDetector, proposed | Whether to leave the waiting state | ASR result or conversation turn |
+| Local wake detector | Whether to leave the waiting state | ASR result or conversation turn |
 | VAD, proposed | Whether speech-like audio has begun or ended | Semantic completeness or turn commit |
 | STT/ASR | Recognized text and recognition stability | Permission to execute a tool |
 | TurnDetector | When client-controlled input is ready for one turn | Provider turn control |
@@ -28,22 +28,15 @@ The responsibilities remain separate:
 
 Partial recognition and partial model text are useful for display. They must not trigger irreversible tool effects. A recognized keyword can improve transcription accuracy without being an interruption or wake keyword. Agora exposes these as separate controls: [ASR vocabulary keywords](https://docs.agora.io/en/ai/platform/build/shape-the-conversation/asr-keywords) and [speech interruption modes and keywords](https://docs.agora.io/en/ai/platform/build/shape-the-conversation/interrupt-agent). Those provider features are references for the boundary, not implemented Stack-chan options.
 
-## Wake-word handoff is not implemented
+## Opt-in wake-word handoff on M5StackChan CoreS3
 
-`AudioRuntime.acquire()` currently reserves the microphone and speaker together. Two pipelines cannot concurrently acquire the same runtime. Starting a wake-word pipeline beside a conversation pipeline would fail with `device_busy`; it does not establish shared microphone access.
+The [optional M5StackChan CoreS3 host manifest](../../firmware/host/app/manifest_m5stackchan_cores3_wakeword.json) adds a local WakeNet detector for “Hi, Stack Chan.” It is used by the existing [OpenAI Live WebRTC MOD](../../firmware/mods/examples/openai_live_webrtc/README_ja.md#ウェイクワードで開始対応ホストのみ), with waiting off by default. The stock build does not include the detector or model. An unavailable detector or a known busy state that took no audio ownership does not prevent a later explicit manual conversation if audio is available.
 
-A future wake-word design needs an explicit owner transition. The owner of the microphone would retain a bounded local pre-roll buffer while waiting, detect a wake event, stop or suspend the detector, and transfer the approved pre-roll and live stream to the conversation. The handoff must define exactly when samples stop belonging to the detector and start belonging to the conversation. It must avoid duplicate or missing samples and stale callbacks after cancellation. It also needs a defined return transition after normal completion, failed startup, interruption, and provider disconnect.
+`AudioRuntime.acquire()` reserves the microphone and speaker together. While waiting, the detector holds that paired lease at 16 kHz mono and cannot run alongside another audio owner. It emits a wake event, not a transcript or a turn. The coordinator waits for confirmed release before letting the conversation acquire a new lease. It neither shares the microphone nor hands over a stream. Detection uses local samples with `preRollMs: 0`; neither the wake utterance nor preceding samples are forwarded to the conversation. The existing turn and provider boundaries stay the same.
 
-That design must resolve the following before adding a public API:
+Explicit Stop disarms waiting and stops the session; muting while waiting also disarms the detector. Only natural conversation completion can return to waiting, and only if waiting is still enabled and the same session's underlying audio lease has been positively released. Runtime detector/provider errors do not trigger a retry. An ambiguous acquisition or failed release blocks another owner rather than assuming the device is free. Late events from an earlier owner cannot start or reopen a session.
 
-- Whether waiting reserves only input or the present duplex lease, and which existing playback functions can coexist.
-- Which component owns the pre-roll memory, its sample rate, maximum duration, overwrite policy, and release point.
-- Whether wake detection is entirely local, and precisely which pre-wake samples may leave the device after user consent.
-- How a microphone mute request clears or stops capture, pre-roll retention, and any pending handoff.
-- Whether the client or provider owns turn commits after handoff, with exactly one active owner.
-- How cleanup failure keeps an unsafe device reservation isolated rather than granting it to a new owner.
-
-The current `preRollMs` is a request used by a TurnDetector within one acquired session. It is not a wake-word store, cross-session transfer mechanism, or permission to upload audio recorded before activation. Wake detection, a shared microphone lease, and cross-session handoff remain unimplemented.
+The separate `preRollMs` contract is still scoped to one acquired session. It is not a wake-word store, cross-session transfer mechanism, or permission to send audio captured before activation. On-device recognition and its latency, accuracy, and resource use still need hardware validation.
 
 ## Make the entry point executable
 

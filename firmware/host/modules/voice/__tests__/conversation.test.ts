@@ -1296,6 +1296,63 @@ test('button utterance carries pre-roll into STT and plays synthesized PCM throu
   assert.equal(device.closes(), 1)
 })
 
+test('partial STT snapshots remain provisional and only the final replacement reaches the agent', async () => {
+  const device = makeLease(),
+    talk = createPushToTalk(),
+    transcripts: string[] = []
+  let calls = 0,
+    chunks = 0
+  const stt: STT = {
+    async open({ format, utteranceId, onTranscript }) {
+      return {
+        input: createPcmSink(format, () => {
+          onTranscript({ utteranceId, text: ++chunks === 1 ? 'きょうは' : '今日は晴', final: false })
+        }),
+        async finish() {
+          onTranscript({ utteranceId, text: '今日は晴れ', final: true })
+        },
+        async close() {},
+      }
+    },
+  }
+  const tts = silentSpeech([])
+  const agent: Agent = {
+    async run(request, options) {
+      calls++
+      assert.deepEqual(request.input.at(-1), {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: '今日は晴れ' }],
+      })
+      return successfulAgent().run(request, options)
+    },
+  }
+  const runtime = bindAudioRuntime({ acquireExclusive: () => () => {} }, () => device.lease)
+  const pipeline = createConversationPipeline({
+    microphone: runtime.microphone,
+    speaker: runtime.speaker,
+    conversation: createCascadedConversation({ stt, tts, agent, turnDetector: talk.detector, voice: 'test' }),
+    mediaBudget: budget,
+    onEvent(event) {
+      if (event.type === 'input.transcript') transcripts.push(event.value.text)
+    },
+  })
+  await pipeline.start()
+  talk.press()
+  await tick()
+  device.capture.offer(Uint8Array.of(1, 2))
+  device.capture.offer(Uint8Array.of(3, 4))
+  await tick()
+  assert.deepEqual(transcripts, ['きょうは', '今日は晴'])
+  assert.equal(calls, 0)
+  talk.release()
+  await tick()
+  assert.deepEqual(transcripts, ['きょうは', '今日は晴', '今日は晴れ'])
+  assert.equal(calls, 1)
+  await pipeline.close({ mode: 'drain' })
+  assert.equal(device.closes(), 1)
+})
+
 test('only a confirmed final-answer sentence starts early and the completed reply plays its remaining suffix once', async () => {
   const device = makeLease(),
     talk = createPushToTalk(),

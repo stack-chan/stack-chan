@@ -1,11 +1,24 @@
 declare module 'realtimeConversation' {
   import type { Conversation, Delegation } from 'stackchan/voice/contracts'
   export type Transcript = { role: 'user' | 'assistant'; delta: string; start_ms: number; end_ms: number }
+  export type TranscriptDecisionTrigger = {
+    type: 'decisions'
+    event_type: 'session.input_transcript.delta' | 'session.output_transcript.delta'
+    decisions: {
+      questions: readonly {
+        type: 'choice'
+        name: string
+        instructions: string
+        choices: readonly { value: string }[]
+      }[]
+    }
+  }
   export type LiveSessionSettings = {
     model?: string
     instructions: string
     audio: { output: { voice: string } }
     delegation?: object
+    triggers?: readonly TranscriptDecisionTrigger[]
     store: false
   }
   export type Signaling = {
@@ -26,6 +39,7 @@ declare module 'realtimeConversation' {
     model?: string
     voice?: string
     instructions?: string
+    triggers?: readonly TranscriptDecisionTrigger[]
     toolTimeout?: number
     onToolResult?(result: {
       callId: string

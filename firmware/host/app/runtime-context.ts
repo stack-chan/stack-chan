@@ -421,6 +421,16 @@ export class StackchanRuntimeContext implements StackchanContext {
       setTorque(torque) {
         return context.setTorque(torque)
       },
+      withTemporaryTorque(move) {
+        return waitForCompletion((done) =>
+          context.#motionController.withTemporaryTorque((setPose, finish) => {
+            void move((pose, time) => waitForCompletion((applied) => setPose(pose, time, applied))).then(
+              () => finish(),
+              finish,
+            )
+          }, done),
+        )
+      },
     }
   }
 

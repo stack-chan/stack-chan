@@ -1,0 +1,5 @@
+{
+  "include": ["$(MODULES)/files/resource/manifest.json"],
+  "modules": { "stackchan/voice/sanotts-reading": "./sanotts-reading" },
+  "data": { "*": ["../../../../vendor/stackchan-voice/data/stackchan-ja"] }
+}

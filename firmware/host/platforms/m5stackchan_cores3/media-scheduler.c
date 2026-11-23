@@ -17,9 +17,6 @@ static BaseType_t stackchanMediaCreate(TaskFunction_t body, const char *name,
   // Measured decoder high-water use is 11.8 KB. Keep 4 KB of margin while
   // avoiding a hot codec stack competing with XS and graphics in PSRAM.
   if (!strcmp(name, "Adec")) {
-    // LOWDELAY encoding leaves room on core 1 for decoding. Keep the UI
-    // on core 0 and preserve the SDK audio priorities.
-    core = 1;
     stackSize = 16 * 1024;
     caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
   }

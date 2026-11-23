@@ -181,3 +181,44 @@ test('late error/closed callbacks from an old session cannot stop its replacemen
   assert.equal(f.states.at(-1), 'connected')
   await f.session.stop()
 })
+
+test('owned start returns a handle immediately and cancels pending network without owning audio', async () => {
+  const ready = deferred()
+  const f = fixture({ networkReady: ready.promise })
+  const outcome = []
+  const owned = f.session.startOwned((reason) => outcome.push(reason))
+  await owned.close()
+  ready.resolve({ status: 'connected' })
+  await Promise.resolve()
+  assert.deepEqual(f.events, [])
+  assert.deepEqual(outcome, ['completed'])
+  assert.equal(f.instances.length, 0)
+})
+
+test('owned close confirms local release and separately reports provider failures', async () => {
+  const f = fixture()
+  const outcome = []
+  const owned = f.session.startOwned((reason) => outcome.push(reason))
+  assert.equal(await f.session.active.starting, true)
+  const pending = f.closePending()
+  f.instances[0].options.onError(new Error('provider disconnected'))
+  const closing = owned.close()
+  assert.deepEqual(outcome, [])
+  pending.resolve()
+  await closing
+  assert.deepEqual(outcome, ['error'])
+  assert.deepEqual(f.events, ['radio acquired', 'native closing', 'native closed', 'radio released'])
+})
+
+test('owned close never certifies local audio release when the real pipeline close rejects', async () => {
+  const f = fixture()
+  const outcome = []
+  const owned = f.session.startOwned((reason) => outcome.push(reason))
+  await f.session.active.starting
+  const pending = f.closePending()
+  const closing = owned.close()
+  pending.reject(new Error('native release failure'))
+  await assert.rejects(closing, /release unconfirmed/)
+  assert.deepEqual(outcome, ['error'])
+  assert.ok(!f.events.includes('native closed'))
+})

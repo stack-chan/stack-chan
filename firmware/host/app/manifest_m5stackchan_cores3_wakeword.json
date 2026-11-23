@@ -1,0 +1,9 @@
+{
+  "include": [
+    "./manifest_m5stackchan_cores3.json",
+    "../modules/wakeword-wakenet/manifest.json"
+  ],
+  "modules": {
+    "stackchan/voice/wake-conversation": "../modules/voice/wake-conversation"
+  }
+}

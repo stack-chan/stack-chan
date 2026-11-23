@@ -124,7 +124,11 @@ export class ScreenCoordinator {
     const next: ScreenState = Object.freeze({ kind, appId, title, sessionId })
     this.#state = next
     for (const listener of this.#listeners) {
-      listener(next, previous)
+      try {
+        listener(next, previous)
+      } catch {
+        if (typeof trace === 'function') trace('[ScreenCoordinator] screen-change listener failed\n')
+      }
     }
   }
 }

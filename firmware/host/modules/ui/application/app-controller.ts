@@ -274,6 +274,10 @@ export class AppController extends Behavior {
         revokeResources,
         sessionId,
       }
+      if (closeRequested) {
+        this.#exitMiniApp()
+        return true
+      }
       this.#setAppBarMode({ kind: 'app', title: definition.title })
       this.#viewBehavior.setMain(viewport)
       return true

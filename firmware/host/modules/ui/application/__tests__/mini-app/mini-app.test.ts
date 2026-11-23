@@ -2,6 +2,7 @@ import { AppController } from 'app-controller'
 import { ChatStatusBar } from 'chat-status-bar'
 import type { MiniAppContext } from 'mini-app'
 import { Application, Container, type Container as PiuContainer } from 'piu/MC'
+import { ScreenKind } from 'screen-coordinator'
 import { assert, equal } from 'testing/assert'
 
 trace('=== mini-app lifecycle test ===\n')
@@ -131,6 +132,65 @@ assert(!controller.launchMiniApp('missing'), 'unknown mini app ids should be rej
 assert(viewBehavior.main !== viewBehavior.faceMain, 'an unknown id should leave the launcher visible')
 equal(title.string, 'ミニアプリ', 'an unknown id should preserve the launcher AppBar')
 
+let closeOnEntry: (() => void) | undefined
+let entryDisposals = 0
+controller.miniApps.register({
+  id: 'test.close-on-entry',
+  title: 'Close on entry',
+  create(context) {
+    closeOnEntry = context.close
+    context.trackResource?.(() => {
+      entryDisposals += 1
+    })
+    return new Container()
+  },
+})
+const unsubscribeEntry = controller.subscribeScreenChange((next) => {
+  if (next.appId === 'test.close-on-entry') closeOnEntry?.()
+})
+assert(controller.launchMiniApp('test.close-on-entry'), 'the app with an entry-triggered close should be created')
+unsubscribeEntry()
+equal(viewBehavior.main, viewBehavior.faceMain, 'close during the entry notification should restore the face')
+assert(controller.isFaceForeground, 'an entry-triggered close should restore Face foreground state')
+equal(entryDisposals, 1, 'close during the entry notification should revoke tracked resources')
+
+const exitCleanup: string[] = []
+controller.miniApps.register({
+  id: 'test.listener-error',
+  title: 'Listener error',
+  create(context) {
+    context.trackResource?.(() => {
+      exitCleanup.push('resource')
+    })
+    return {
+      content: new Container(null, {
+        Behavior: class extends Behavior {
+          onDispose() {
+            exitCleanup.push('content')
+          }
+        },
+      }),
+      dispose() {
+        exitCleanup.push('instance')
+      },
+    }
+  },
+})
+assert(controller.launchMiniApp('test.listener-error'), 'the app with an exit listener should launch')
+const unsubscribeThrowing = controller.subscribeScreenChange(() => {
+  throw new Error('test screen listener failure')
+})
+let sawFace = false
+const unsubscribeFace = controller.subscribeScreenChange((next) => {
+  sawFace = next.kind === ScreenKind.Face
+})
+controller.onMiniAppBack()
+unsubscribeThrowing()
+unsubscribeFace()
+assert(sawFace, 'a failing listener should not prevent notifying the next screen listener')
+equal(viewBehavior.main, viewBehavior.faceMain, 'a failing listener should not prevent returning to Face')
+equal(exitCleanup.join(','), 'content,instance,resource', 'a failing listener should not skip app cleanup')
+
 let customScreenClosed = 0
 let customBehaviorDisposed = 0
 const customScreen = new Container(null, {
@@ -193,10 +253,12 @@ const closeDismissedScreen = controller.setMain(
     dismissedOnShow += 1
   },
 )
-closeDismissedScreen()
 equal(viewBehavior.main, viewBehavior.faceMain, 'showFace called by onShow should restore the face')
 assert(controller.isFaceForeground, 'the visible face should resume its foreground updates')
 equal(dismissedOnShow, 1, 'the screen dismissed during onShow should close exactly once')
+closeDismissedScreen()
+closeDismissedScreen()
+equal(dismissedOnShow, 1, 'a cleanup handle for the dismissed screen should be idempotent')
 
 let closedReplacement = 0
 const screenOpenedInHide = new Container()

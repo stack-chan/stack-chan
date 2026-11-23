@@ -1,7 +1,7 @@
 import { EffectSprite, effectFrames, type SpriteFrame } from 'effects/effect-sprites'
 import { Container, type Container as PiuContainer, type Port as PiuPort, Port } from 'piu/MC'
 
-export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy' | 'gloom'
+export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy' | 'gloom' | 'thinking'
 
 export type EmoticonOptions = {
   name?: string
@@ -97,6 +97,18 @@ const gloom: PoseAnimation = {
   sequence: Uint8Array.of(0, 0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 3, 2, 1, 0),
 }
 
+const thinking: PoseAnimation = {
+  kind: 'pose',
+  left: 16,
+  top: 8,
+  width: 56,
+  height: 56,
+  frames: [effectFrames.thinking],
+  sequence: new Uint8Array(18),
+  offsetX: Int8Array.of(-2, -2, -1, 0, 1, 2, 3, 3, 3, 3, 3, 2, 1, 0, -1, -2, -2, -2),
+  offsetY: Int8Array.of(3, 2, 0, -2, -4, -6, -7, -8, -8, -8, -7, -6, -4, -2, 0, 2, 3, 3),
+}
+
 const sleepy: BubbleAnimation = {
   kind: 'bubble',
   left: 16,
@@ -134,7 +146,7 @@ const tear: DropAnimation = {
   minScale: 0.3,
 }
 
-const animations = { heart, angry, sweat, tear, sleepy, gloom }
+const animations = { heart, angry, sweat, tear, sleepy, gloom, thinking }
 type Animation = PoseAnimation | DropAnimation | BubbleAnimation
 
 class EmoticonPortBehavior extends Behavior {

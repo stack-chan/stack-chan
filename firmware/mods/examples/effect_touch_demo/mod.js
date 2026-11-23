@@ -13,6 +13,7 @@ const stages = [
   { key: 'sleepy', emotion: Emotion.SLEEPY, mouth: 0.03 },
   { key: 'gloom', emotion: Emotion.DOUBTFUL, mouth: 0.06 },
   { key: 'music', emotion: Emotion.NEUTRAL, mouth: 0.38 },
+  { key: 'thinking', emotion: Emotion.DOUBTFUL, mouth: 0.12 },
 ]
 
 class AdvanceOnTouch extends Behavior {

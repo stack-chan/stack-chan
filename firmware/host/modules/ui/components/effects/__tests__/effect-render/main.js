@@ -7,6 +7,7 @@ import { Application, Port } from 'piu/MC'
 const cases = [
   { emotion: Emotion.HOT, key: 'sweat', left: 58, top: 57, width: 64, height: 43 },
   { emotion: Emotion.SAD, key: 'tear', left: 60, top: 94, width: 200, height: 44 },
+  { emotion: Emotion.DOUBTFUL, key: 'thinking' },
 ]
 const framesPerCase = 29
 const face = new SimpleFace({ motions: [] })

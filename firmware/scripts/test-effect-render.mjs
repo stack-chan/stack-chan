@@ -39,7 +39,7 @@ const log = run(
 writeFileSync(path.join(directory, 'render.log'), log)
 assert.match(log, /EFFECT RENDER COMPLETE/)
 const pairsPerEffect = 29
-const effects = ['sweat', 'tear']
+const effects = ['sweat', 'tear', 'thinking']
 assert.equal([...log.matchAll(/^FRAME [0-9a-f]+$/gm)].length, 1 + pairsPerEffect * effects.length * 2, log)
 
 function load(frame) {
@@ -54,4 +54,4 @@ for (const [effectIndex, effect] of effects.entries()) {
   const removed = (effectIndex + 1) * pairsPerEffect * 2
   assert.ok(!load(removed - 2).equals(load(removed)), `${effect} must be visible on the same face before removal`)
 }
-console.log('PASS: sweat and tear match full redraw during motion and after removal')
+console.log(`PASS: ${effects.join(', ')} match full redraw during motion and after removal`)

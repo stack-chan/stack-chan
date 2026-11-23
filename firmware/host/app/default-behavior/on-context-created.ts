@@ -4,14 +4,14 @@ import type { CameraImageType } from 'camera'
 import { type CameraPreviewFrame, createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
-import { createGuruguruFace } from 'guruguru-face'
 import { type HandAnimationName, isHandAnimationName } from 'hands'
 import type { MotionType } from 'imu'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
 import { localize } from 'localization'
 import config from 'mc/config'
+import Modules from 'modules'
 import { DealWithItFace } from 'parts/image/deal-with-it-face'
-import type { Content as PiuContent } from 'piu/MC'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import { randomBetween, wait } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -168,8 +168,9 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
 
   type FaceMode = 'simple' | 'dog' | 'image' | 'jitome' | 'deal-with-it' | 'guruguru'
   const faceModes: FaceMode[] = isJitomeFaceSupported()
-    ? ['simple', 'dog', 'image', 'jitome', 'deal-with-it', 'guruguru']
-    : ['simple', 'dog', 'image', 'deal-with-it', 'guruguru']
+    ? ['simple', 'dog', 'image', 'jitome', 'deal-with-it']
+    : ['simple', 'dog', 'image', 'deal-with-it']
+  if (Modules.has('guruguru-face')) faceModes.push('guruguru')
   const configuredFace = options.config.ui.type
   let faceMode: FaceMode = faceModes.includes(configuredFace as FaceMode) ? (configuredFace as FaceMode) : 'simple'
   let handAnimation: HandAnimationName = 'none'
@@ -182,7 +183,10 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   const syncHandAnimation = () => robot.ui.setHandAnimation(handAnimation)
   const closeDrawer = () => robot.ui.closeDrawer()
   const createCurrentFace = () => {
-    if (faceMode === 'guruguru') return createGuruguruFace()
+    if (faceMode === 'guruguru') {
+      const { createGuruguruFace } = Modules.importNow('guruguru-face', true) as { createGuruguruFace(): PiuContainer }
+      return createGuruguruFace()
+    }
     if (faceMode === 'deal-with-it') return new DealWithItFace({})
     if (faceMode === 'dog') return new DogFace({})
     if (faceMode === 'image') return new ImageFace({})

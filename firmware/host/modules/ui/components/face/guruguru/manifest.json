@@ -1,10 +1,20 @@
 {
-  "modules": {
-    "guruguru-face": "./guruguru-face",
-    "guruguru-face/frames": "./frames"
-  },
-  "resources": {
-    "*-color": ["./assets/head/*", "./assets/mouth/*"],
-    "*": ["./assets/eyes/*"]
+  "platforms": {
+    "esp32": {
+      "include": ["./manifest.face.json"]
+    },
+    "lin": {
+      "include": ["./manifest.face.json"]
+    },
+    "mac": {
+      "include": ["./manifest.face.json"]
+    },
+    "win": {
+      "include": ["./manifest.face.json"]
+    },
+    "wasm": {
+      "include": ["./manifest.face.json"]
+    },
+    "esp32/m5stack": {}
   }
 }

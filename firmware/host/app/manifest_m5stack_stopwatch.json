@@ -1,5 +1,8 @@
 {
   "include": ["./manifest.json", "../modules/muse-gadget/host.manifest.json"],
+  "modules": {
+    "app-default-behavior/muse-conversation-ui": "./default-behavior/muse-conversation-ui"
+  },
   "config": {
     "enablePowerButton": false
   }

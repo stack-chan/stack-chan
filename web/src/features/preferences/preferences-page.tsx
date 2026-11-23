@@ -169,7 +169,6 @@ export function PreferencesPage() {
               {selectField('ui.type', '顔の種類', [
                 { value: 'simple', label: 'シンプル' },
                 { value: 'dog', label: 'いぬ' },
-                { value: 'guruguru', label: 'GuruguruFace', translate: false },
               ])}
               {selectField('ui.language', '本体の表示言語', [
                 { value: 'ja', label: '日本語', translate: false },

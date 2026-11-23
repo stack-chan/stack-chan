@@ -1,5 +1,3 @@
-/// <reference path="./types.d.ts" />
-
 import type { StackchanContext } from 'capabilities'
 import { MusicNotes } from 'effects/music-notes'
 import { fromPromise } from 'stackchan-result'
@@ -47,7 +45,7 @@ export function createWebRadioDeps(context: StackchanContext, stations: readonly
       context.ui.removeEffect(notes)
     },
     setConnectionIndicator(visible) {
-      context.ui.application?.distribute?.('onConnectionIndicator', visible)
+      context.ui.setConnectionIndicator?.(visible)
     },
     setFaceMotionEnabled(enabled) {
       context.ui.setFaceMotionEnabled?.(enabled)
@@ -71,7 +69,7 @@ export function createWebRadioDeps(context: StackchanContext, stations: readonly
       })
     },
     removeStationDrawer(key) {
-      context.ui.drawer.removeDrawerButton?.(key)
+      context.ui.drawer.removeDrawerButton(key)
     },
   }
 

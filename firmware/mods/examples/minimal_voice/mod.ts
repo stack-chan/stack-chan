@@ -1,48 +1,32 @@
 import { formatVoiceExampleError, runTextConversation } from 'minimal-voice-workflow'
-import { defineMod } from 'mod-kit'
+import { defineMod, type StackchanAppBehaviorOption } from 'mod-kit'
 import { ensure, isErr } from 'stackchan-result'
 import { Agent, OpenAIResponsesLLM, ToolSet } from 'stackchan/ai'
-import { CascadedConversation, ConversationPipeline, type Microphone, PushToTalk, type Speaker } from 'stackchan/voice'
+import { CascadedConversation, ConversationPipeline, PushToTalk } from 'stackchan/voice'
 import { OpenAISpeechTTS, WhisperSTT } from 'stackchan/voice/speech'
-
-type VoiceAudioEndpoints = Readonly<{
-  microphone?: Microphone
-  speaker?: Speaker
-}>
 
 type VoiceAiConfig = Readonly<{
   token?: string
   model?: string
 }>
 
-function readAudioEndpoints(context: unknown): VoiceAudioEndpoints {
-  if (!context || typeof context !== 'object' || !('audio' in context)) return {}
-  const audio = (context as { readonly audio?: unknown }).audio
-  if (!audio || typeof audio !== 'object') return {}
-  return audio as VoiceAudioEndpoints
-}
-
-function readAiConfig(option: unknown): VoiceAiConfig {
-  if (!option || typeof option !== 'object' || !('config' in option)) return {}
-  const config = (option as { readonly config?: unknown }).config
-  if (!config || typeof config !== 'object' || !('ai' in config)) return {}
-  const ai = (config as { readonly ai?: unknown }).ai
-  if (!ai || typeof ai !== 'object') return {}
-  const record = ai as { readonly token?: unknown; readonly model?: unknown }
-  return {
-    token: typeof record.token === 'string' && record.token.length > 0 ? record.token : undefined,
-    model: typeof record.model === 'string' && record.model.length > 0 ? record.model : undefined,
-  }
+function readAiConfig(option: StackchanAppBehaviorOption): VoiceAiConfig {
+  const ai = option.config.ai
+  const token = typeof ai?.token === 'string' && ai.token.length > 0 ? ai.token : undefined
+  const model = typeof ai?.model === 'string' && ai.model.length > 0 ? ai.model : undefined
+  return { token, model }
 }
 
 export const { onContextCreated, onClose } = defineMod({
   setup(context, option, scope) {
-    const { microphone, speaker } = readAudioEndpoints(context)
     const { token, model = 'gpt-4o-mini' } = readAiConfig(option)
 
-    const validMicrophone = ensure(microphone, () => new Error('This host does not provide conversation audio'))
+    const validMicrophone = ensure(
+      context.audio.microphone,
+      () => new Error('This host does not provide conversation audio'),
+    )
     if (isErr(validMicrophone)) throw validMicrophone.error
-    const validSpeaker = ensure(speaker, () => new Error('This host does not provide conversation audio'))
+    const validSpeaker = ensure(context.audio.speaker, () => new Error('This host does not provide conversation audio'))
     if (isErr(validSpeaker)) throw validSpeaker.error
     const validToken = ensure(token, () => new Error('Configure ai.token before starting this example'))
     if (isErr(validToken)) throw validToken.error

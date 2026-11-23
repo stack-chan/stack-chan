@@ -51,7 +51,7 @@ export type CameraPreviewFeatureDeps<
       onDismiss: () => void
     },
   ): TDialog
-  setMain(content: TDialog): void
+  setMain(content: TDialog, options?: { onClose?: () => void }): unknown
   showFace(): void
   closeDrawer(): void
   showBalloon(text: string): void
@@ -189,6 +189,7 @@ export function installCameraPreviewFeature<
           },
           onDismiss: restoreCameraPreview,
         }),
+        { onClose: clearPreviewTimer },
       )
       log(
         `[CameraPreview] rendered ${previewFrame.width}x${previewFrame.height} ${previewFrame.imageType} via Piu Port\n`,

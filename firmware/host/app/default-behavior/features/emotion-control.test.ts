@@ -340,6 +340,7 @@ test('camera-preview-feature clears preview timer on scope close so showFace is 
   let stopCount = 0
   let frameClosed = false
   let triggerPreview: (() => Promise<void>) | undefined
+  let onMainClosed: (() => void) | undefined
 
   const { scope, close } = createScope()
   const installed = installCameraPreviewFeature(
@@ -361,7 +362,9 @@ test('camera-preview-feature clears preview timer on scope close so showFace is 
       captureImageType: 'rgb565le',
       prepareFrame: () => ({ width: 200, height: 120, imageType: 'rgb565le' }),
       createDialog: (preview) => ({ preview }),
-      setMain() {},
+      setMain(_content, options) {
+        onMainClosed = options?.onClose
+      },
       showFace() {
         showFaceCount += 1
       },
@@ -388,6 +391,11 @@ test('camera-preview-feature clears preview timer on scope close so showFace is 
   assert.equal(frameClosed, true)
   assert.equal(stopCount, 1)
   assert.equal(showFaceCount, 0)
+  assert.equal(typeof onMainClosed, 'function')
+
+  onMainClosed?.()
+  FakeTimer.advance(6000)
+  assert.equal(showFaceCount, 0, 'replacing the preview screen cancels the pending restore timer')
 
   await close()
   FakeTimer.advance(6000)

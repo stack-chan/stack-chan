@@ -1,5 +1,3 @@
-/// <reference path="./types.d.ts" />
-
 import { defineMod } from 'mod-kit'
 import { createWebRadioDeps } from 'web-radio-adapters'
 import { STATIONS } from 'web-radio-config'

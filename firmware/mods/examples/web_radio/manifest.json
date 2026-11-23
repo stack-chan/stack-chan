@@ -5,7 +5,6 @@
     "../../../host/app/manifest_typings.json"
   ],
   "modules": {
-    "*": ["./types"],
     "mod": "./mod",
     "web-radio-config": "./config",
     "web-radio-domain": "./domain",

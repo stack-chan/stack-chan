@@ -74,6 +74,7 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
   let generation = 0
   let closed = false
   let drawerAdded = false
+  let hasActivePlayback = false
   let selectedValue: string = deps.stations[0]?.value ?? OFF_VALUE
 
   const resetToIdle = (error?: RadioError): void => {
@@ -91,7 +92,13 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     if (closed) return
     closed = true
     generation += 1
-    const stopping = deps.radio?.stop()
+    let stopping: Promise<void> | void
+    if (hasActivePlayback) {
+      hasActivePlayback = false
+      stopping = deps.radio?.stop()
+    } else {
+      stopping = undefined
+    }
     resetToIdle()
     if (drawerAdded) {
       drawerAdded = false
@@ -124,7 +131,10 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     const nextGeneration = ++generation
     selectedValue = value
     deps.ui.setConnectionIndicator(false)
-    void Promise.resolve(deps.radio?.stop()).catch(() => {})
+    if (hasActivePlayback) {
+      hasActivePlayback = false
+      void Promise.resolve(deps.radio?.stop()).catch(() => {})
+    }
     deps.ui.hideNotes()
     deps.ui.hideBalloon()
 
@@ -140,6 +150,7 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
     }
 
     deps.ui.setFaceMotionEnabled(false)
+    hasActivePlayback = true
     const started = await radioPort.value.start({
       url: selection.station.url,
       sampleRate,
@@ -149,6 +160,7 @@ export function createRadioApp(deps: RadioWorkflowDeps): RadioApp {
 
     if (closed || nextGeneration !== generation) return ok(undefined)
     if (isErr(started)) {
+      hasActivePlayback = false
       resetToIdle(started.error)
       return started
     }

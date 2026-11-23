@@ -131,11 +131,20 @@ test('web_radio reports network-offline when boot Wi-Fi is not connected', async
   installAliases()
   const { createRadioApp } = (await import('./workflow.js')) as WorkflowModule
   const recorder = createUiRecorder()
+  let stopCount = 0
 
   const app = createRadioApp({
     stations: TEST_STATIONS,
     network: {
       waitReady: async () => ok<NetworkStatus>({ status: 'failed', reason: 'timeout' }),
+    },
+    radio: {
+      async start() {
+        return ok(undefined)
+      },
+      stop() {
+        stopCount += 1
+      },
     },
     ui: recorder.ui,
   })
@@ -147,6 +156,9 @@ test('web_radio reports network-offline when boot Wi-Fi is not connected', async
   }
   assert.equal(recorder.state.balloon, 'Network unavailable: timeout')
   assert.equal(recorder.state.drawerKey, undefined)
+
+  await app.stop()
+  assert.equal(stopCount, 0, 'stopping after network failure must not stop an unstarted shared player')
 })
 
 test('web_radio reports radio-unsupported when audio.webRadio is missing and keeps face motion enabled', async () => {

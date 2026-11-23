@@ -2,6 +2,7 @@ import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
 import type { StackchanContext } from 'capabilities'
 import { Emoticon } from 'effects/emoticon'
+import { MusicNotes } from 'effects/music-notes'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
@@ -694,6 +695,21 @@ async function testEmoticonMotion() {
   equal(addedQuiet.visible, true, 'motion restore should reveal an emoticon first added while quiet')
   equal(addedQuiet.first?.running, true, 'motion restore should start an emoticon first added while quiet')
   for (const effect of [moving, stopped, addedQuiet, control, balloon]) controller.removeEffect(effect)
+
+  controller.setHandAnimation('clap')
+  controller.setFaceMotionEnabled(false)
+  const notes = new MusicNotes()
+  controller.addEffect(notes, 'radio-notes')
+  await displayed()
+  equal(notes.visible, true, 'music notes added while face motion is paused must stay visible')
+  equal(notes.first?.running, false, 'music notes added while face motion is paused must not tick')
+  equal(notes.first?.next?.running, false, 'both music note ports must pause while face motion is disabled')
+  controller.setFaceMotionEnabled(true)
+  equal(notes.visible, true, 'music notes remain visible when face motion resumes')
+  equal(notes.first?.running, true, 'music notes resume animating when face motion resumes')
+  equal(notes.first?.next?.running, true, 'both music note ports resume animating when face motion resumes')
+  controller.removeEffect(notes)
+  controller.setHandAnimation('none')
 }
 
 void testEmoticonMotion().then(

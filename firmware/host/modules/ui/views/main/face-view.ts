@@ -28,6 +28,7 @@ type FaceViewAnchors = {
   FACE?: FaceViewCustomFace
   EFFECTS?: PiuContainer
   FACE_REGION?: DieRegion
+  HANDS?: PiuContent
 }
 
 type FaceViewBaseParams = CommonViewParams
@@ -48,6 +49,11 @@ export type FaceViewCustomFace = PiuContainer & { behavior?: FaceViewCustomFaceB
 type FaceEffectBehavior = {
   onFaceSkin?: (content: PiuContent, palette: FaceSkinPalette) => void
   onFaceState?: (content: PiuContent, face: FaceState) => void
+  setMotionsEnabled?: (content: PiuContent, enabled: boolean) => void
+}
+
+type FaceHandsBehavior = {
+  onHandAnimationChanged?: (content: PiuContent, animation: HandAnimationName) => boolean
   setMotionsEnabled?: (content: PiuContent, enabled: boolean) => void
 }
 
@@ -143,6 +149,7 @@ class FaceViewBehavior extends CommonViewBehavior {
   faceMain: PiuContainer | null = null
   faceRegion: DieRegion | null = null
   faceDefaultCoordinates = new WeakMap<FaceViewCustomFace, FaceViewBaseCoordinates>()
+  hands: PiuContent | null = null
   effects: PiuContainer | null = null
   effectsSet: Set<PiuContent> | null = null
   effectsByKey: Map<string, PiuContent> | null = null
@@ -170,6 +177,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.faceRegion = data.FACE_REGION
     this.faceDefaultCoordinates.set(data.FACE, this.getFaceVisualCoordinates(data.FACE))
     this.effects = data.EFFECTS
+    this.hands = data.HANDS ?? data.EFFECTS.content?.('hands') ?? null
     this.effectsSet = new Set()
     this.effectsByKey = new Map()
     this.effectKeys = new Map()
@@ -218,6 +226,12 @@ class FaceViewBehavior extends CommonViewBehavior {
   }
 
   setHandAnimation(animation: HandAnimationName): void {
+    const hands = this.hands
+    if (hands) {
+      const behavior = hands.behavior as FaceHandsBehavior | undefined
+      behavior?.onHandAnimationChanged?.(hands, animation)
+      return
+    }
     this.effects?.distribute('onHandAnimationChanged', animation)
   }
 
@@ -339,6 +353,11 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.faceMotionEnabled = enabled
     const face = this.face
     if (face) faceBehavior(face)?.setMotionsEnabled?.(face, enabled)
+    const hands = this.hands
+    if (hands) {
+      const behavior = hands.behavior as FaceHandsBehavior | undefined
+      behavior?.setMotionsEnabled?.(hands, enabled)
+    }
     for (const effect of this.getEffectsSet()) {
       const behavior = effect.behavior as FaceEffectBehavior | undefined
       behavior?.setMotionsEnabled?.(effect, enabled)
@@ -427,7 +446,10 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
       $.FACE_REGION = faceRegion
     }
     faceRegion.add(face)
-    const hands = new Hands({})
+    const hands = new Hands($, { anchor: 'HANDS' })
+    if (!$.HANDS) {
+      $.HANDS = hands
+    }
     const effects =
       $.effects ??
       new Container($, {

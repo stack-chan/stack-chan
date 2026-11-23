@@ -13,6 +13,7 @@
   ],
   "modules": {
     "app-controller": "./application/app-controller",
+    "screen-coordinator": "./application/screen-coordinator",
     "mini-app": "./application/mini-app",
     "mini-app-launcher": "./views/mini-app/mini-app-launcher",
     "chat-status-bar": "./components/status-bar/chat-status-bar",
@@ -27,6 +28,7 @@
     "settings-status-model": "./views/settings/settings-status-model",
     "timezone-model": "../preferences/timezone-model",
     "volume-model": "../preferences/volume-model",
+    "avatar-expression": "./state/avatar-expression",
     "face-state": "./state/face-state",
     "face-skin": "./state/face-skin",
     "hand-sprites": "./components/hands/hand-sprites",

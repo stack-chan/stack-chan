@@ -75,6 +75,12 @@
       "wasm-driver": [
         "./host/modules/motion/wasm/wasm-driver.ts"
       ],
+      "avatar-expression": [
+        "./host/modules/ui/state/avatar-expression.ts"
+      ],
+      "screen-coordinator": [
+        "./host/modules/ui/application/screen-coordinator.ts"
+      ],
       "face-state": [
         "./host/modules/ui/state/face-state.ts"
       ],

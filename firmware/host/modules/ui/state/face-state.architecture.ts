@@ -82,13 +82,19 @@ test('face parts bound their outline caches and avoid allocation in onFaceState'
   }
 })
 
-test('ImageAvatar animated sprites avoid per-frame allocation in onFaceState', () => {
+test('ImageAvatar sprites avoid Skin allocation in onFaceState and updateSource', () => {
   const source = readFileSync('host/modules/ui/components/face/parts/image/image-avatar-face.ts', 'utf8')
 
-  const blocks = extractMethodBlocks(source, 'onFaceState')
-  assert.ok(blocks.length > 0, 'image-avatar-face.ts should define an onFaceState handler')
-  for (const block of blocks) {
+  const faceStateBlocks = extractMethodBlocks(source, 'onFaceState')
+  assert.ok(faceStateBlocks.length > 0, 'image-avatar-face.ts should define an onFaceState handler')
+  for (const block of faceStateBlocks) {
     assert.doesNotMatch(block, /\.\.\./)
+    assert.doesNotMatch(block, /\bnew\s+Skin\b/)
+  }
+
+  const updateSourceBlocks = extractMethodBlocks(source, 'updateSource')
+  assert.ok(updateSourceBlocks.length > 0, 'image-avatar-face.ts should define updateSource')
+  for (const block of updateSourceBlocks) {
     assert.doesNotMatch(block, /\bnew\s+Skin\b/)
   }
 })
@@ -104,6 +110,8 @@ test('UI animation hot paths do not allocate Piu skins/styles or update text eac
   const hotPathFiles = [
     'host/modules/ui/components/status-bar/chat-status-bar.ts',
     'host/modules/ui/components/effects/emoticon.ts',
+    'host/modules/ui/components/effects/music-notes.ts',
+    'host/modules/ui/components/hands/hands.ts',
     'host/modules/ui/components/face/behaviors/face.ts',
     'host/modules/ui/components/drawer/drawer.ts',
   ]
@@ -135,5 +143,18 @@ test('CommonView mutates drawer items incrementally after batch creation', () =>
     const blocks = extractMethodBlocks(commonView, methodName)
     assert.equal(blocks.length, 1, `CommonView should define one ${methodName}`)
     assert.doesNotMatch(blocks[0], /replaceDrawer\(/, `${methodName} should not rebuild the Drawer`)
+  }
+})
+
+test('pure UI state and screen models do not import piu/MC or timer', () => {
+  const pureUiModels = [
+    'host/modules/ui/application/screen-coordinator.ts',
+    'host/modules/ui/state/avatar-expression.ts',
+  ]
+
+  for (const file of pureUiModels) {
+    const source = readFileSync(file, 'utf8')
+    assert.doesNotMatch(source, /from\s+['"]piu\/MC['"]/, `${file} should not import piu/MC`)
+    assert.doesNotMatch(source, /from\s+['"]timer['"]/, `${file} should not import timer`)
   }
 })

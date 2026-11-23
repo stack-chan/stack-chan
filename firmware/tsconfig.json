@@ -37,6 +37,9 @@
       "jitome-face/geometry": [
         "./host/modules/ui/components/face/jitome/geometry"
       ],
+      "avatar-expression": [
+        "./host/modules/ui/state/avatar-expression"
+      ],
       "face-state": [
         "./host/modules/ui/state/face-state"
       ],
@@ -45,6 +48,9 @@
       ],
       "app-controller": [
         "./host/modules/ui/application/app-controller"
+      ],
+      "screen-coordinator": [
+        "./host/modules/ui/application/screen-coordinator"
       ],
       "mini-app": [
         "./host/modules/ui/application/mini-app"

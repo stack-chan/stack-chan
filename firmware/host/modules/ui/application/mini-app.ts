@@ -2,10 +2,32 @@ import type { Container as PiuContainer } from 'piu/MC'
 
 export const MINI_APP_BAR_HEIGHT = 44
 
+export type MiniAppPermission = 'audio.tone' | 'input.buttons' | 'storage.scoped'
+
+export const MINI_APP_PERMISSIONS: readonly MiniAppPermission[] = Object.freeze([
+  'audio.tone',
+  'input.buttons',
+  'storage.scoped',
+])
+
+const MINI_APP_PERMISSION_SET = new Set<string>(MINI_APP_PERMISSIONS)
+
+export type MiniAppCapabilities = Readonly<{
+  playTone?: (hz: number, durationMs: number, volume?: number) => void
+  onButton?: (handler: (event: unknown) => void) => () => void
+  storage?: Readonly<{
+    get(key: string): string | undefined
+    set(key: string, value: string): void
+    delete(key: string): void
+  }>
+}>
+
 export type MiniAppContext = Readonly<{
   width: number
   height: number
   close(): void
+  readonly capabilities?: MiniAppCapabilities
+  trackResource?(cleanup: () => void): void
 }>
 
 export type MiniAppInstance = Readonly<{
@@ -17,10 +39,11 @@ export type MiniAppDefinition = Readonly<{
   id: string
   title: string
   icon?: 'play'
+  permissions?: readonly MiniAppPermission[]
   create(context: MiniAppContext): PiuContainer | MiniAppInstance
 }>
 
-export type RegisteredMiniApp = Readonly<Pick<MiniAppDefinition, 'id' | 'title' | 'icon'>>
+export type RegisteredMiniApp = Readonly<Pick<MiniAppDefinition, 'id' | 'title' | 'icon' | 'permissions'>>
 
 export type MiniAppRegistryCapability = Readonly<{
   register(definition: MiniAppDefinition): () => void
@@ -31,6 +54,20 @@ type RegistryListener = () => void
 const MINI_APP_ID_PATTERN = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 const MAX_MINI_APP_ID_LENGTH = 64
 const MAX_MINI_APP_TITLE_LENGTH = 32
+
+function validatePermissions(permissions: MiniAppDefinition['permissions']): readonly MiniAppPermission[] | undefined {
+  if (permissions === undefined) return undefined
+  if (!Array.isArray(permissions)) throw new TypeError('mini app permissions must be an array')
+  const unique: MiniAppPermission[] = []
+  for (const permission of permissions) {
+    if (typeof permission !== 'string' || !MINI_APP_PERMISSION_SET.has(permission)) {
+      throw new TypeError(`unknown mini app permission: ${String(permission)}`)
+    }
+    const typed = permission as MiniAppPermission
+    if (!unique.includes(typed)) unique.push(typed)
+  }
+  return Object.freeze(unique)
+}
 
 function validateDefinition(definition: MiniAppDefinition): MiniAppDefinition {
   if (!definition || typeof definition !== 'object') throw new TypeError('mini app definition must be an object')
@@ -47,10 +84,12 @@ function validateDefinition(definition: MiniAppDefinition): MiniAppDefinition {
     throw new TypeError('mini app title must be 1-32 characters')
   }
   if (typeof definition.create !== 'function') throw new TypeError('mini app create must be a function')
+  const permissions = validatePermissions(definition.permissions)
   return Object.freeze({
     id: definition.id,
     title,
     ...(definition.icon ? { icon: definition.icon } : {}),
+    ...(permissions ? { permissions } : {}),
     create: definition.create,
   })
 }
@@ -80,7 +119,14 @@ export class MiniAppRegistry implements MiniAppRegistryCapability {
 
   list(): RegisteredMiniApp[] {
     return [...this.#definitions.values()]
-      .map(({ id, title, icon }) => Object.freeze({ id, title, ...(icon ? { icon } : {}) }))
+      .map(({ id, title, icon, permissions }) =>
+        Object.freeze({
+          id,
+          title,
+          ...(icon ? { icon } : {}),
+          ...(permissions ? { permissions } : {}),
+        }),
+      )
       .sort((left, right) => left.title.localeCompare(right.title))
   }
 

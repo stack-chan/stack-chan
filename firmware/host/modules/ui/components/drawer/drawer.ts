@@ -22,6 +22,11 @@ export type DrawerOption = {
   color?: string
 }
 
+export type DrawerActionEvent = Readonly<{
+  key: string
+  value?: string
+}>
+
 export type DrawerButtonViewSpec = {
   key: string
   label: string
@@ -185,7 +190,7 @@ const DrawerButton = Container.template(($: DrawerButtonViewSpec) => {
           if (this.kind === 'choice' || this.kind === 'swatch') {
             content.bubble('onDrawerChoiceOpen', this.action)
           } else {
-            content.bubble(this.action)
+            content.bubble('onDrawerAction', { key: this.action } satisfies DrawerActionEvent)
           }
         }
         this.moved = false
@@ -434,7 +439,7 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
         if (button) button.value = selection.value
         const list = this.getButtonList(container)
         if (list) this.renderButtons(list)
-        container.bubble(selection.key, selection.value)
+        container.bubble('onDrawerAction', { key: selection.key, value: selection.value } satisfies DrawerActionEvent)
         return true
       }
       renderButtons(list: PiuContainer) {

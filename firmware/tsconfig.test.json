@@ -135,6 +135,9 @@
       "settings-view": [
         "./host/app/__tests__/fakes/settings-view.ts"
       ],
+      "effects/speech-balloon": [
+        "./host/app/__tests__/fakes/speech-balloon.ts"
+      ],
       "settings-network-list": [
         "./host/modules/ui/views/settings/settings-network-list.ts"
       ],

@@ -113,6 +113,7 @@ export function createStackchanContext(
   options: {
     connectivity?: unknown
     remoteConversationSession?: unknown
+    realtimeQoS?: unknown
     closeHandlers?: ReadonlyArray<CloseHandler>
   },
 ): StackchanContext {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { registerHooks } from 'node:module'
 import test from 'node:test'
+import { createRealtimePerformanceScope, createRealtimeQoS } from '../../../host/app/realtime-qos.ts'
 import { Emotion } from '../../../host/modules/ui/state/face-state.ts'
 import { createWakeConversation } from '../../../host/modules/voice/wake-conversation.ts'
 
@@ -45,6 +46,7 @@ async function fixture({
   pendingDetectorClaim,
   lostRelease = false,
   uiPerformance = false,
+  realtimePerformance = false,
   pendingConversationClose,
 } = {}) {
   const events = [],
@@ -71,6 +73,7 @@ async function fixture({
       'network-power',
       {
         acquireLowLatency() {
+          if (realtimePerformance) events.push('direct network-power acquired')
           return { close() {} }
         },
       },
@@ -156,8 +159,23 @@ async function fixture({
   globalThis.amp = Object.create(null)
   globalThis.trace = () => {}
   const mod = await import(`./mod.js?test=${++nextId}`)
+  const performanceScope = realtimePerformance
+    ? createRealtimePerformanceScope(
+        createRealtimeQoS({
+          acquire(mode) {
+            events.push(`QoS acquired:${mode}`)
+            return {
+              release() {
+                events.push(`QoS released:${mode}`)
+              },
+            }
+          },
+        }),
+      )
+    : undefined
   mod.onContextCreated({
     face: { setEmotion: (emotion) => emotions.push(emotion) },
+    conversation: { openRealtimePerformance: performanceScope?.open },
     motion: {
       pose: { body: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } } },
       async withTemporaryTorque(move) {
@@ -463,6 +481,38 @@ test('session UI scheduling spans active audio and is released after each kind o
     await closing
     await settle()
     assert.deepEqual(f.events.slice(-2), ['conversation released', 'UI scheduler released'])
+    await f.shutdown()
+  }
+})
+
+test('host performance follows connection and teardown without direct network-power calls', async () => {
+  for (const close of ['shutdown', 'remoteClose', 'remoteError']) {
+    let finish
+    const f = await fixture({
+      realtimePerformance: true,
+      uiPerformance: true,
+      pendingConversationClose: new Promise((resolve) => {
+        finish = resolve
+      }),
+    })
+    assert.deepEqual(f.events, [])
+    f.fire('session')
+    await settle()
+    assert.deepEqual(f.events, [
+      'QoS acquired:realtime-connecting',
+      'conversation created',
+      'conversation started',
+      'QoS acquired:realtime-conversation',
+      'QoS released:realtime-connecting',
+    ])
+    const closing = f[close]()
+    await settle()
+    assert.equal(f.events.at(-1), 'QoS released:realtime-connecting')
+    finish()
+    await closing
+    await settle()
+    assert.deepEqual(f.events.slice(-2), ['conversation released', 'QoS released:realtime-conversation'])
+    assert.ok(!f.events.includes('direct network-power acquired'))
     await f.shutdown()
   }
 })

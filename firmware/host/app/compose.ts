@@ -29,6 +29,7 @@ import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
 import Preference from 'preference'
 import PY32Led from 'py32-led'
+import type { RealtimeQoSPort } from 'realtime-qos'
 import { RS30XDriver } from 'rs30x-driver'
 import { lazySpeechPlayback } from 'runtime-audio'
 import { StackchanRuntimeContext } from 'runtime-context'
@@ -62,6 +63,7 @@ type UIOptions = {
 export type StackchanContextOptions = {
   connectivity?: ConnectivityCapability
   remoteConversationSession?: RemoteConversationSession
+  realtimeQoS?: RealtimeQoSPort
   closeHandlers?: ReadonlyArray<() => void | Promise<void>>
 }
 
@@ -305,6 +307,7 @@ export function createStackchanContext(
     imu,
     connectivity: options.connectivity,
     remoteConversationSession: options.remoteConversationSession,
+    realtimeQoS: options.realtimeQoS,
     closeHandlers: options.closeHandlers,
     speaker,
     media,

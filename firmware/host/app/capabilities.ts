@@ -10,6 +10,7 @@ import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type { RealtimeConversationPerformance } from 'realtime-qos'
 import type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
@@ -30,6 +31,7 @@ export type {
 } from 'local-peer-types'
 export { LocalPeerError } from 'local-peer-types'
 
+export type { RealtimeConversationPerformance } from 'realtime-qos'
 export type { SpeakerSpeechPlayback, SpeechPlayback } from 'speech-playback-types'
 
 export type UIEffect = PiuContent
@@ -49,6 +51,10 @@ export type {
 } from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
+export type MainScreenOptions = {
+  onClose?: () => void
+}
+
 export type RobotUI = {
   readonly miniApps: MiniAppRegistryCapability
   update: (interval: number, faceState: FaceState) => void
@@ -60,8 +66,15 @@ export type RobotUI = {
   setHandAnimation(animation: HandAnimationName): void
   /** Enable or disable periodic face motions without replacing or hiding the current face. */
   setFaceMotionEnabled?(enabled: boolean): void
-  /** Replace the swappable main component (e.g. a full-area dialog) while keeping AppBar/Drawer active. */
-  setMain(content: PiuContainer): void
+  /** Show or hide the connection indicator in the status bar. */
+  setConnectionIndicator?(visible: boolean): void
+  /**
+   * Replace the swappable main component (e.g. a full-area dialog) while keeping AppBar/Drawer active.
+   * When options.onClose (or an onClose callback) is provided, it runs once whenever this screen is
+   * replaced by showFace(), another setMain(), the mini-app launcher, or context shutdown.
+   * Returns an idempotent close function that restores the face if this screen is still active.
+   */
+  setMain(content: PiuContainer, options?: MainScreenOptions | (() => void)): () => void
   /** Restore the face as the main component after a dialog was shown via setMain. */
   showFace(): void
   setDrawerButtons(buttons: DrawerButtonViewSpec[]): void
@@ -186,6 +199,8 @@ export type RemoteConversationSession = RemoteConversationSessionDelegate & {
 export type ConversationCapability = {
   say(text: string, volume?: number): Promise<Maybe<string>>
   remoteSession?: RemoteConversationSession
+  /** Open after network readiness, before connecting. The host also closes the session at context shutdown. */
+  openRealtimePerformance?(): RealtimeConversationPerformance
 }
 
 export type NetworkReadyResult =
@@ -276,7 +291,7 @@ export type StackchanLegacyFlatCapability = FaceCapability &
   InputCapability &
   LightingCapability &
   CameraCapability &
-  ConversationCapability &
+  Omit<ConversationCapability, 'openRealtimePerformance'> &
   ConnectivityCapability &
   UICapability
 

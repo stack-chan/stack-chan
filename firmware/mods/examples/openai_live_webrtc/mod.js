@@ -25,11 +25,13 @@ export function onContextCreated(robot) {
     return
   }
   const { LiveConversation } = Modules.importNow('realtimeConversation', true)
-  const power = Modules.importNow('network-power')
+  const hasRealtimePerformance = typeof robot.conversation?.openRealtimePerformance === 'function'
+  const power = !hasRealtimePerformance && Modules.has('network-power') ? Modules.importNow('network-power') : undefined
   const levels = Modules.has('io-performance') ? Modules.importNow('io-performance') : undefined
-  const uiPerformance = Modules.has('stackchan/realtime-ui-performance')
-    ? Modules.importNow('stackchan/realtime-ui-performance')
-    : undefined
+  const uiPerformance =
+    !hasRealtimePerformance && Modules.has('stackchan/realtime-ui-performance')
+      ? Modules.importNow('stackchan/realtime-ui-performance')
+      : undefined
   const drawer = robot.ui.drawer
   const settings = (Modules.has('mod/config') ? Modules.importNow('mod/config').openaiLive : undefined) ?? {}
   const microphone = robot.audio.microphone
@@ -66,7 +68,6 @@ export function onContextCreated(robot) {
     afterWake(coordinator.disable())
   }
   let changingMute = false
-  let releaseUI
   let mouthTimer,
     lastMouth = 0
   function updateMouth(value) {
@@ -88,21 +89,27 @@ export function onContextCreated(robot) {
         mediaBudget: { maxBufferedBytes: 128 * 1024, maxBufferedMs: 1000 },
       }),
     networkReady,
-    acquireLowLatency: () => power.acquireLowLatency(),
+    openRealtimePerformance: () => {
+      if (hasRealtimePerformance) return robot.conversation.openRealtimePerformance()
+      const radio = power?.acquireLowLatency()
+      let releaseUI
+      return {
+        connected() {
+          releaseUI = uiPerformance?.acquire()
+        },
+        close() {
+          try {
+            radio?.close()
+          } finally {
+            releaseUI?.()
+          }
+        },
+      }
+    },
     settings,
     reactions: settings.decisionsReactions === true ? createDecisionsReactions(robot, wait) : undefined,
     onState(state) {
       const active = ['connecting', 'connected', 'closing'].includes(state)
-      try {
-        if (state === 'connected' && !releaseUI) releaseUI = uiPerformance?.acquire()
-        else if (!active && releaseUI) {
-          const release = releaseUI
-          releaseUI = undefined
-          release()
-        }
-      } catch {
-        trace('[openai-live] realtime UI scheduling failed\n')
-      }
       if (state === 'connected' && mouthTimer === undefined && levels && robot.setMouthOpen) {
         mouthTimer = Timer.repeat(() => {
           const level = levels.levels().referenceLevel ?? 0

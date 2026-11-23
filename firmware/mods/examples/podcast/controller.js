@@ -165,7 +165,9 @@ export class PodcastController {
   }
 
   #indicator(visible) {
-    this.#context.ui.application?.distribute?.('onConnectionIndicator', visible)
+    const ui = this.#context.ui
+    if (ui.setConnectionIndicator) ui.setConnectionIndicator(visible)
+    else ui.application?.distribute?.('onConnectionIndicator', visible)
   }
   #restore() {
     this.#indicator(false)

@@ -20,6 +20,11 @@ export type RealtimeQoSPort = {
   enterMode(mode: OperatingMode): QoSLease
 }
 
+export type RealtimeConversationPerformance = {
+  connected(): void
+  close(): void
+}
+
 type ActiveLease = {
   readonly mode: OperatingMode
   readonly inner: QoSLease | undefined
@@ -54,6 +59,42 @@ export function createRealtimeQoS(adapter?: RealtimeQoSAdapter): RealtimeQoSPort
           entry.inner?.release()
         },
       }
+    },
+  }
+}
+
+export function createRealtimePerformanceScope(qos: RealtimeQoSPort) {
+  const cleanups = new Set<() => void>()
+
+  return {
+    open(): RealtimeConversationPerformance {
+      let lease = qos.enterMode('realtime-connecting')
+      let connected = false
+      const close = () => {
+        if (cleanups.delete(close)) lease.release()
+      }
+      cleanups.add(close)
+      return {
+        connected() {
+          if (connected || !cleanups.has(close)) return
+          const previous = lease
+          lease = qos.enterMode('realtime-conversation')
+          connected = true
+          previous.release()
+        },
+        close,
+      }
+    },
+    close(): void {
+      let firstError: { error: unknown } | undefined
+      for (const close of cleanups) {
+        try {
+          close()
+        } catch (error) {
+          firstError ??= { error }
+        }
+      }
+      if (firstError) throw firstError.error
     },
   }
 }

@@ -1,10 +1,18 @@
 export class LiveSession {
-  constructor({ createConversation, createPipeline, networkReady, acquireLowLatency, settings, reactions, onState }) {
+  constructor({
+    createConversation,
+    createPipeline,
+    networkReady,
+    openRealtimePerformance,
+    settings,
+    reactions,
+    onState,
+  }) {
     Object.assign(this, {
       createConversation,
       createPipeline,
       networkReady,
-      acquireLowLatency,
+      openRealtimePerformance,
       settings,
       reactions,
       onState,
@@ -42,7 +50,7 @@ export class LiveSession {
       const ready = await this.networkReady
       if (entry.cancelled || this.active !== entry) return false
       if (ready?.status !== 'connected') throw new Error('network unavailable')
-      entry.radio = this.acquireLowLatency()
+      entry.performance = this.openRealtimePerformance()
       const conversation = this.createConversation({
         apiKey: this.settings.apiKey,
         model: this.settings.model,
@@ -72,6 +80,11 @@ export class LiveSession {
       entry.pipeline.setVolume(this.settings.volume ?? 0.1)
       await entry.pipeline.start()
       if (entry.cancelled || this.active !== entry) return false
+      try {
+        entry.performance?.connected?.()
+      } catch {
+        trace('[openai-live] realtime UI scheduling failed\n')
+      }
       this.onState('connected')
       return true
     } catch {
@@ -106,7 +119,7 @@ export class LiveSession {
     } finally {
       await motion
       try {
-        entry.radio?.close()
+        entry.performance?.close()
       } catch {
         entry.failure = 'error'
       }

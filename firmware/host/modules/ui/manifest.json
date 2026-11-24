@@ -65,7 +65,6 @@
       "./assets/images/microphone",
       "./assets/images/indicator",
       "./assets/images/bubble",
-      "./assets/images/emoticon",
       "./assets/images/faces/image-face/moddable-avatar/eye",
       "./assets/images/faces/image-face/moddable-avatar/eyelid",
       "./assets/images/faces/image-face/moddable-avatar/mouth",
@@ -84,6 +83,14 @@
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"
     ]
+  },
+  "platforms": {
+    "esp32/m5stack": {
+      "resources": { "*-mask": ["./assets/images/emoticon"] }
+    },
+    "...": {
+      "resources": { "*": ["./assets/images/emoticon"] }
+    }
   },
   "preload": [
     "piu/Application",

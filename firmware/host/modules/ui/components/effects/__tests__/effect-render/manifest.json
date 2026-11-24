@@ -1,0 +1,6 @@
+{
+  "include": ["../../../../manifest.json"],
+  "modules": { "main": "./main" },
+  "config": { "startupSound": false },
+  "creation": { "stack": 1536 }
+}

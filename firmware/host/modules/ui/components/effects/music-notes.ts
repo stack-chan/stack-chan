@@ -1,14 +1,5 @@
-import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
-import {
-  Container,
-  type Container as PiuContainer,
-  type Content as PiuContent,
-  type Port as PiuPort,
-  type Texture as PiuTexture,
-  Port,
-  Texture,
-} from 'piu/MC'
+import { EffectSprite, effectFrames } from 'effects/effect-sprites'
+import { Container, type Container as PiuContainer, type Port as PiuPort, Port } from 'piu/MC'
 
 export type MusicNotesOptions = {
   left?: number
@@ -24,44 +15,33 @@ type FloatingNoteOptions = {
   right?: number
   baseY: number
   phase: number
-  variant: number
+  frame: 'mintNote' | 'goldNote'
+  drift: number
 }
 
-const SPRITE_SIZE = 32
+const PORT_WIDTH = 44
 const RISE_PIXELS = 30
-const NOTE_HEIGHT = SPRITE_SIZE + RISE_PIXELS
+const NOTE_HEIGHT = effectFrames.mintNote[3] + RISE_PIXELS
 const ANIMATION_INTERVAL_MS = 150
 const FADE_DURATION_MS = 1200
 const CYCLE_DURATION_MS = 1800
-const MUSIC_ROW = 4
-const MUSIC_ROW_Y = MUSIC_ROW * SPRITE_SIZE
-const LEFT_NOTE_X = 12
-const RIGHT_NOTE_X = 12
-const LEFT_NOTE_Y = 72
-const RIGHT_NOTE_Y = 104
-
-let texture: PiuTexture | undefined
-
-function getTexture(): PiuTexture {
-  texture ??= new Texture('emoticon.png')
-  return texture
-}
 
 class FloatingMusicNoteBehavior extends Behavior {
-  #color = DEFAULT_FACE_PRIMARY_COLOR
-  #elapsed = 0
-  #hasPalette = false
+  #sprite = new EffectSprite()
+  #elapsed: number
+  #frame: (typeof effectFrames)[FloatingNoteOptions['frame']]
+  #drift: number
   #paused = false
-  #variant = 2
 
-  onCreate(port: PiuPort, options: FloatingNoteOptions) {
+  constructor(options: FloatingNoteOptions) {
+    super()
     this.#elapsed = options.phase
-    this.#variant = options.variant
-    port.interval = ANIMATION_INTERVAL_MS
+    this.#frame = effectFrames[options.frame]
+    this.#drift = options.drift
   }
 
   onDisplaying(port: PiuPort) {
-    port.invalidate()
+    this.#update(port)
     if (!this.#paused) port.start()
   }
 
@@ -77,61 +57,33 @@ class FloatingMusicNoteBehavior extends Behavior {
     } else if (port.application) {
       port.start()
     }
-    port.invalidate()
-  }
-
-  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-    this.#hasPalette = true
-    if (this.#color === palette.primaryColor) return
-    this.#color = palette.primaryColor
-    port.invalidate()
-  }
-
-  onFaceState(port: PiuPort, face: FaceState) {
-    if (this.#hasPalette) return
-    const color = toPiuColorNumber(face.theme.primary)
-    if (color === this.#color) return
-    this.#color = color
-    port.invalidate()
+    this.#update(port)
   }
 
   onTimeChanged(port: PiuPort) {
     if (this.#paused) return
-    const wasVisible = this.#elapsed < FADE_DURATION_MS
-    this.#elapsed += ANIMATION_INTERVAL_MS
-    if (this.#elapsed >= CYCLE_DURATION_MS) this.#elapsed -= CYCLE_DURATION_MS
-    if (wasVisible || this.#elapsed < FADE_DURATION_MS) port.invalidate()
+    this.#elapsed = (this.#elapsed + ANIMATION_INTERVAL_MS) % CYCLE_DURATION_MS
+    this.#update(port)
   }
 
   onDraw(port: PiuPort) {
-    port.fillColor('transparent', 0, 0, SPRITE_SIZE, NOTE_HEIGHT)
+    this.#sprite.draw(port)
+  }
+
+  #update(port: PiuPort) {
+    const center = PORT_WIDTH / 2
     if (this.#paused) {
-      port.drawTexture(
-        getTexture(),
-        (this.#color * 256 + 255) >>> 0,
-        0,
-        Math.round(RISE_PIXELS / 2),
-        this.#variant * SPRITE_SIZE,
-        MUSIC_ROW_Y,
-        SPRITE_SIZE,
-        SPRITE_SIZE,
-      )
-      return
+      this.#sprite.place(port, this.#frame, center, NOTE_HEIGHT / 2)
+    } else if (this.#elapsed >= FADE_DURATION_MS) {
+      this.#sprite.hide(port)
+    } else {
+      const progress = this.#elapsed / FADE_DURATION_MS
+      const rise = RISE_PIXELS * progress * (2 - progress)
+      const x = center + this.#drift * progress
+      const y = NOTE_HEIGHT - this.#frame[3] / 2 - rise
+      const alpha = Math.round(255 * (1 - progress * progress))
+      this.#sprite.place(port, this.#frame, x, y, alpha)
     }
-    if (this.#elapsed >= FADE_DURATION_MS) return
-    const progress = this.#elapsed / FADE_DURATION_MS
-    const rise = Math.round(RISE_PIXELS * progress * (2 - progress))
-    const alpha = Math.round(255 * (1 - progress))
-    port.drawTexture(
-      getTexture(),
-      (this.#color * 256 + alpha) >>> 0,
-      0,
-      RISE_PIXELS - rise,
-      this.#variant * SPRITE_SIZE,
-      MUSIC_ROW_Y,
-      SPRITE_SIZE,
-      SPRITE_SIZE,
-    )
   }
 }
 
@@ -139,11 +91,12 @@ const FloatingNote = Port.template((options: FloatingNoteOptions) => ({
   left: options.left,
   right: options.right,
   top: options.baseY - RISE_PIXELS,
-  width: SPRITE_SIZE,
+  width: PORT_WIDTH,
   height: NOTE_HEIGHT,
+  interval: ANIMATION_INTERVAL_MS,
   Behavior: class extends FloatingMusicNoteBehavior {
-    onCreate(port: PiuPort) {
-      super.onCreate(port, options)
+    constructor() {
+      super(options)
     }
   },
 }))
@@ -163,7 +116,7 @@ class MusicNotesBehavior extends Behavior {
 
   #syncChildren(container: PiuContainer): void {
     const paused = !this.#enabled
-    let child: PiuContent | undefined = container.first
+    let child = container.first
     while (child) {
       const behavior = child.behavior as FloatingMusicNoteBehavior | undefined
       if (behavior && typeof behavior.setPaused === 'function') {
@@ -188,7 +141,7 @@ export const MusicNotes = Container.template((options: MusicNotesOptions = {}) =
   active: false,
   Behavior: MusicNotesBehavior,
   contents: [
-    new FloatingNote({ left: LEFT_NOTE_X, baseY: LEFT_NOTE_Y, phase: 0, variant: 2 }),
-    new FloatingNote({ right: RIGHT_NOTE_X, baseY: RIGHT_NOTE_Y, phase: CYCLE_DURATION_MS / 2, variant: 1 }),
+    new FloatingNote({ left: 12, baseY: 72, phase: 0, frame: 'mintNote', drift: 8 }),
+    new FloatingNote({ right: 12, baseY: 104, phase: CYCLE_DURATION_MS / 2, frame: 'goldNote', drift: -8 }),
   ],
 }))

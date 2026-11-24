@@ -149,14 +149,14 @@ const surprised: PoseAnimation = {
 
 const blush: PoseAnimation = {
   kind: 'pose',
-  left: 72,
-  top: 120,
-  width: 176,
+  left: 52,
+  top: 108,
+  width: 216,
   height: 28,
   frames: [effectFrames.blush],
   sequence: new Uint8Array(16),
   opacity: Uint8Array.of(48, 72, 104, 144, 184, 220, 248, 255, 255, 255, 248, 218, 184, 144, 104, 72),
-  spread: 67,
+  spread: 91,
 }
 
 const shiver: PoseAnimation = {

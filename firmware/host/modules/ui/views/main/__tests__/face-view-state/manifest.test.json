@@ -1,5 +1,6 @@
 {
   "include": [
+    "$(MODDABLE)/modules/base/modules/manifest.json",
     "../../../../manifest.json",
     "../../../../../audio/manifest.json",
     "../../../../../camera/manifest.json",

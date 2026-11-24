@@ -16,7 +16,7 @@ export const ChatStatusBarState = Object.freeze({
 
 export type ChatStatusBarState = (typeof ChatStatusBarState)[keyof typeof ChatStatusBarState]
 
-const barHeight = 44
+const barHeight = UI.touchTarget
 export const FACE_ACTIONS_VISIBLE_MS = 4000
 const levelHeight = 16
 const levelWidth = 4

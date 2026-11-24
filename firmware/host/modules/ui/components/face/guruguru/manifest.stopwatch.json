@@ -1,0 +1,10 @@
+{
+  "resources": {
+    "*-color": ["./assets/stopwatch/head/*", "./assets/stopwatch/mouth/*"],
+    "*": ["./assets/stopwatch/eyes/*"]
+  },
+  "modules": {
+    "guruguru-face": "./guruguru-face",
+    "guruguru-face/frames": "./frames.stopwatch"
+  }
+}

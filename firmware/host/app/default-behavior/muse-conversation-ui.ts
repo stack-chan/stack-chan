@@ -23,9 +23,11 @@ export function installMuseConversationUI(robot: StackchanContext): (() => Promi
     width: UI.screenWidth - 72,
     measure: (character) => style.measure(character).width ?? 0,
   })
+  const captionOptions =
+    UI.faceViewport.height > UI.screenHeight ? { top: UI.touchTarget, paddingY: UI.space } : undefined
   const drawCaption = (text: string) => {
     const lines = captions.append(text)
-    robot.ui.showBalloonLines?.(lines)
+    robot.ui.showBalloonLines?.(lines, captionOptions)
   }
   let talking = false
   let phase: MuseConversationState['phase'] = 'idle'

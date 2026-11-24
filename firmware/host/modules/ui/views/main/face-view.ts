@@ -108,8 +108,8 @@ function measureFaceLayout(face: FaceViewCustomFace): FaceLayout {
 
 function faceViewportCoordinates(left: number, top: number): FaceViewBaseCoordinates {
   return {
-    left: left + UI.safeInset,
-    top: top + (UI.safeInset ? UI.safeInset + (UI.screenWidth - UI.screenHeight) / 2 : 0),
+    left: left + Math.floor((UI.faceViewport.width - UI.screenWidth) / 2),
+    top: top + Math.floor((UI.faceViewport.height - UI.screenHeight) / 2),
   }
 }
 

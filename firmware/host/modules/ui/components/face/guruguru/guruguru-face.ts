@@ -2,6 +2,7 @@ import { FaceBase } from 'behaviors/face'
 import type { FaceState } from 'face-state'
 import { GURUGURU_FRAMES, GURUGURU_SIZE } from 'guruguru-face/frames'
 import { Container, Content, type Container as PiuContainer, type Content as PiuContent, Skin } from 'piu/MC'
+import { UI } from 'ui-theme'
 
 const CENTER_DIRECTION = 4
 const OPEN_THRESHOLD = 0.5
@@ -81,8 +82,8 @@ export function createGuruguruFace(): PiuContainer {
     contents: poses.map((pose) => pose.container),
   })
   const face = new FaceBase({
-    left: (320 - GURUGURU_SIZE) / 2,
-    top: (240 - GURUGURU_SIZE) / 2,
+    left: (UI.screenWidth - GURUGURU_SIZE) / 2,
+    top: (UI.screenHeight - GURUGURU_SIZE) / 2,
     width: GURUGURU_SIZE,
     height: GURUGURU_SIZE,
     breathPixels: 0,

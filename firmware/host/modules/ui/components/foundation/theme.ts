@@ -3,9 +3,16 @@ import config from 'mc/config'
 import type { Skin as PiuSkin, Style as PiuStyle } from 'piu/MC'
 import { Skin, Style } from 'piu/MC'
 
+const screenWidth = 320
+const screenHeight = 240
+
 export const UI = Object.freeze({
-  screenWidth: 320,
-  screenHeight: 240,
+  screenWidth,
+  screenHeight,
+  faceViewport: {
+    width: Number(config.faceViewportWidth ?? screenWidth),
+    height: Number(config.faceViewportHeight ?? screenHeight),
+  },
   safeInset: Number(config.screenSafeInset ?? 0),
   headerHeight: 40,
   touchTarget: 44,

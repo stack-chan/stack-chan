@@ -15,6 +15,9 @@
     "wasm": {
       "include": ["./manifest.face.json"]
     },
-    "esp32/m5stack": {}
+    "esp32/m5stack": {},
+    "esp32/m5stack_stopwatch": {
+      "include": ["./manifest.stopwatch.json"]
+    }
   }
 }

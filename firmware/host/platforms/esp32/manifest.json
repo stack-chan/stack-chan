@@ -179,6 +179,8 @@
           "sampleRate": 16000
         },
         "touchCount": 1,
+        "faceViewportWidth": 466,
+        "faceViewportHeight": 466,
         "screenSafeInset": 73,
         "talkButton": "a"
       },

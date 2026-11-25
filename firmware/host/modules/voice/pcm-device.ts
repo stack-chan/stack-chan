@@ -184,7 +184,10 @@ function openPcmLease({ requirements, budget, signal, onLevel }: LeaseOptions): 
   }
 }
 
-function openPlayback(formats: readonly PcmFormat[], { signal, budget, onLevel }: PlaybackOptions): PlaybackLease {
+function openPlayback(
+  formats: readonly PcmFormat[],
+  { signal, budget, onLevel, nativeBuffering }: PlaybackOptions,
+): PlaybackLease {
   requireActive(signal)
   const format = monoFormat(formats)
   const limit = capacity(budget, format)
@@ -195,6 +198,7 @@ function openPlayback(formats: readonly PcmFormat[], { signal, budget, onLevel }
     limit,
     undefined,
     onLevel && ((value) => onLevel({ direction: 'output', value })),
+    nativeBuffering,
   )
 }
 
@@ -205,12 +209,16 @@ function createPlayback(
   directLimit: number,
   suspendCapture?: (value: boolean) => void,
   onLevel?: (value: number) => void,
+  nativeBuffering = false,
 ): PlaybackLease {
   const AudioOut = Modules.importNow('pins/audioout') as typeof AudioOutput
   const deviceOutput = Modules.has('stackchan/voice/cores3-pcm-output')
     ? (Modules.importNow('stackchan/voice/cores3-pcm-output', true) as PcmOutputModule)
     : undefined
   const directOutput = deviceOutput && directLimit >= deviceOutput.minimumOutputBytes ? deviceOutput : undefined
+  const openDirect = nativeBuffering ? directOutput?.openBufferedOutput : directOutput?.openOutput
+  if (nativeBuffering && (!openDirect || onLevel))
+    throw voiceError('unsupported_capability', 'buffered speaker output without level metering required')
   let out: (InstanceType<typeof AudioOutput> & { callback?: (value: number) => void }) | undefined
   let failedClose: unknown
   let closed = false,
@@ -219,7 +227,7 @@ function createPlayback(
   const slotBytes = Math.min(2048, Math.floor(outputLimit / 4) * 2)
   if (slotBytes < 2) throw voiceError('resource_exhausted', 'output requires two PCM slots')
   const flushDelayMs = Math.min(12, Math.floor((slotBytes * 500) / outputFormat.sampleRate))
-  const slotsOut = directOutput ? [] : [new SharedArrayBuffer(slotBytes), new SharedArrayBuffer(slotBytes)]
+  const slotsOut = openDirect ? [] : [new SharedArrayBuffer(slotBytes), new SharedArrayBuffer(slotBytes)]
   let active: OutputSegment | undefined
   function wake(item: OutputSegment) {
     item.wake?.resolve()
@@ -283,8 +291,8 @@ function createPlayback(
     if (active) throw voiceError('device_busy')
     suspendCapture?.(true)
     try {
-      if (directOutput) {
-        const direct = directOutput.openOutput(outputFormat.sampleRate, volume, directLimit, onLevel)
+      if (openDirect) {
+        const direct = openDirect(outputFormat.sampleRate, volume, directLimit, onLevel)
         const item: OutputSegment = {
           id,
           generation,

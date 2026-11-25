@@ -217,6 +217,8 @@ export type AudioLevel = {
   readonly value: number
 }
 export type PlaybackOptions = Scope & {
+  /** Require device-managed buffering. The CoreS3 queued output supports unmetered playback. */
+  readonly nativeBuffering?: boolean
   readonly budget: MediaBudget
   readonly onLevel?: (level: AudioLevel) => void
   /** A background stream can yield its device when foreground audio is requested. */

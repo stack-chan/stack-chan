@@ -160,3 +160,122 @@ export function openOutput(
     },
   }
 }
+
+export function openBufferedOutput(sampleRate: number, volume: number, limit: number): PcmOutput {
+  const pageBytes = dmaBlockBytes * 4
+  const dmaHorizon = minimumOutputBytes + dmaBlockBytes
+  const maxPadding = dmaHorizon + dmaBlockBytes
+  const pages = Math.min(4, Math.floor((limit - minimumOutputBytes - maxPadding) / pageBytes))
+  if (pages < 3) throw voiceError('resource_exhausted', 'buffered speaker needs three PCM pages')
+  // ESP feeds I2S from its audio task only for nonrelocatable buffers.
+  const free: Uint8Array[] = Array.from({ length: pages }, () => new Uint8Array(new SharedArrayBuffer(pageBytes)))
+  let staged: Uint8Array | undefined
+  let filled = 0,
+    queuedPages = 0,
+    received = 0,
+    accepted = 0
+  let started = false,
+    sealed = false,
+    closed = false,
+    tailAccepted = false
+  let failure: Error | undefined
+  let changed: ReturnType<typeof deferred<void>> | undefined
+  const signal = () => {
+    changed?.resolve()
+    changed = undefined
+  }
+  const wait = () => {
+    changed ??= deferred<void>()
+    return changed.promise
+  }
+  function requireOpen() {
+    if (closed) throw voiceError('cancelled')
+    if (failure) throw failure
+  }
+  const audio = new AudioOut.Async({ sampleRate, bitsPerSample: 16, channels: 1 })
+  try {
+    if (audio.sampleRate !== sampleRate || audio.channels !== 1 || audio.bitsPerSample !== 16)
+      throw voiceError('unsupported_capability', 'speaker format negotiation failed')
+    const amp = (globalThis as typeof globalThis & { amp?: { sampleRate: number } }).amp
+    if (amp) amp.sampleRate = audio.sampleRate
+    audio.volume = volume
+  } catch (error) {
+    audio.close()
+    throw error
+  }
+  function start() {
+    if (started) return
+    audio.start()
+    started = true
+  }
+  function flush() {
+    if (!staged || !filled) return
+    const page = staged,
+      length = filled
+    audio.write(page.subarray(0, length), (error) => {
+      if (closed) return
+      if (error) failure ??= error
+      else accepted += length
+      queuedPages--
+      free.push(page)
+      signal()
+    })
+    queuedPages++
+    staged = undefined
+    filled = 0
+    if (queuedPages >= 3) start()
+  }
+  return {
+    async write(bytes, onAccepted) {
+      let offset = 0
+      while (offset < bytes.length) {
+        requireOpen()
+        if (sealed) throw voiceError('cancelled')
+        staged ??= free.pop()
+        if (!staged) {
+          await wait()
+          continue
+        }
+        const size = Math.min(pageBytes - filled, bytes.length - offset)
+        staged.set(bytes.subarray(offset, offset + size), filled)
+        offset += size
+        filled += size
+        received += size
+        onAccepted?.(size)
+        if (filled === pageBytes) flush()
+      }
+    },
+    get frames() {
+      return tailAccepted ? received / 2 : Math.max(0, accepted - dmaHorizon) / 2
+    },
+    setVolume(gain) {
+      audio.volume = gain
+    },
+    async drain() {
+      requireOpen()
+      if (!received) return
+      sealed = true
+      flush()
+      // Async completion releases memory. A full DMA horizon of silence puts the final real sample past the peripheral.
+      const padding = dmaHorizon + ((dmaBlockBytes - (received % dmaBlockBytes)) % dmaBlockBytes)
+      audio.write(new Uint8Array(new SharedArrayBuffer(padding)), (error) => {
+        if (closed) return
+        if (error) failure ??= error
+        else tailAccepted = true
+        signal()
+      })
+      start()
+      while (!tailAccepted) {
+        requireOpen()
+        await wait()
+      }
+      requireOpen()
+    },
+    close() {
+      if (closed) return
+      closed = true
+      signal()
+      audio.close()
+    },
+  }
+}

@@ -11,6 +11,9 @@ let constructorFailure: unknown
 const instances: AudioOut[] = []
 
 export default class AudioOut {
+  static get Async(): typeof AsyncAudioOut {
+    return AsyncAudioOut
+  }
   static readonly Samples = 1
   static readonly Flush = 2
   static readonly Callback = 3
@@ -78,6 +81,19 @@ export default class AudioOut {
 
   close(): void {
     this.closed = true
+  }
+}
+
+class AsyncAudioOut extends AudioOut {
+  readonly pending: { bytes: Uint8Array; done?: (error: Error | null) => void }[] = []
+  write(bytes: Uint8Array, done?: (error: Error | null) => void) {
+    this.pending.push({ bytes, done })
+  }
+  accept(error: Error | null = null) {
+    const item = this.pending.shift()
+    if (!item) throw new Error('no pending PCM')
+    this.writes.push(item.bytes.slice())
+    item.done?.(error)
   }
 }
 

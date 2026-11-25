@@ -1975,3 +1975,89 @@ test('a slow PCM consumer is cancelled while a synchronous sibling continues rec
   await second.done
   assert.deepEqual(seen, [1, 2])
 })
+
+test('buffered playback owns its PCM until native acceptance and the final DMA horizon before played', async () => {
+  const hook = registerHooks({
+    resolve(specifier, context, next) {
+      if (specifier === 'embedded:io/audio/out')
+        return { shortCircuit: true, url: new URL('../../testing/fakes/audio-out.js', import.meta.url).href }
+      return next(specifier, context)
+    },
+  })
+  const driver = await import('../cores3-pcm-output.js')
+  hook.deregister()
+  const { resetModules } = await import('../../testing/fakes/modules.js')
+  const { default: FakeAudioOut, getAudioOutInstances } = await import('../../testing/fakes/audio-out.js')
+  const { createAudioRuntime } = await import('../pcm-device.js')
+  const { writeSink } = await import('../media.js')
+  resetModules({ 'stackchan/voice/cores3-pcm-output': driver })
+  const runtime = createAudioRuntime({ acquireExclusive: () => () => {} })
+  const lease = await runtime.acquirePlayback(runtime.speaker, [mono(24000)], {
+    ...createVoiceScope(),
+    budget: { maxBufferedMs: 1280, maxBufferedBytes: 61440 },
+    nativeBuffering: true,
+  })
+  try {
+    const sink = lease.output.begin('native', 0)
+    const device = getAudioOutInstances().at(-1)
+    assert.ok(device instanceof FakeAudioOut.Async)
+    const source = new Uint8Array(8192 * 4).fill(37)
+    await writeSink(sink, source)
+    source.fill(0)
+    assert.equal(device.started, 1)
+    assert.equal(device.pending.length, 4)
+    assert.ok(device.pending.every((page) => page.bytes.buffer instanceof SharedArrayBuffer && page.bytes[0] === 37))
+    let accepted = false
+    const waiting = writeSink(sink, Uint8Array.of(217, 0)).then(() => {
+      accepted = true
+    })
+    await tick()
+    assert.equal(accepted, false)
+    device.accept()
+    await waiting
+    let played = false
+    const finish = lease.output.finish('native').then((receipt) => {
+      played = true
+      return receipt
+    })
+    await tick()
+    while (device.pending.length > 1) device.accept()
+    await tick()
+    assert.equal(played, false)
+    assert.deepEqual(Array.from(device.writes.at(-1) ?? []), [217, 0])
+    const tail = device.pending[0].bytes
+    assert.equal((source.length + 2 + tail.length) % 2048, 0)
+    assert.ok(tail.length >= 12288 && tail.every((sample) => sample === 0))
+    device.accept()
+    const receipt = await finish
+    assert.equal(receipt.state, 'played')
+    assert.deepEqual(receipt.position, {
+      basis: 'estimate',
+      sampleRate: 24000,
+      renderedFrames: (source.length + 2) / 2,
+    })
+
+    const interrupted = lease.output.begin('cancel-native', 0)
+    const interruptedDevice = getAudioOutInstances().at(-1)
+    assert.ok(interruptedDevice instanceof FakeAudioOut.Async)
+    await writeSink(interrupted, source)
+    const blocked = writeSink(interrupted, source.subarray(0, 2))
+    const cancelled = assert.rejects(blocked, { code: 'cancelled' })
+    await lease.output.fence(1)
+    await cancelled
+    assert.equal(interruptedDevice.closed, true)
+    interruptedDevice.accept()
+    const short = lease.output.begin('short', 1)
+    const shortDevice = getAudioOutInstances().at(-1)
+    assert.ok(shortDevice instanceof FakeAudioOut.Async)
+    await writeSink(short, Uint8Array.of(2, 0))
+    assert.equal(shortDevice.started, 0)
+    const drainingShort = lease.output.finish('short')
+    await tick()
+    assert.equal(shortDevice.started, 1)
+    while (shortDevice.pending.length) shortDevice.accept()
+    assert.equal((await drainingShort).state, 'played')
+  } finally {
+    await lease.close()
+  }
+})

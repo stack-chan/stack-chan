@@ -16,7 +16,8 @@ import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
+import { prepareBufferedAudioDriver } from './lib/buffered-audio-driver.mjs'
+import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { devices, resolveDevice } from './lib/devices.mjs'
 import { startXsdbSession, stopProcessGroup } from './lib/xsdb-session.mjs'
 
@@ -61,6 +62,7 @@ ensureBuildOutputDirectory()
 const outputArgs = moddableOutputArguments()
 
 function flashHostFirmware() {
+  if (deviceName === 'm5stackchan_cores3') prepareBufferedAudioDriver(process.env.MODDABLE, buildOutputDirectory)
   console.log(`[device-smoke] building and deploying host firmware for ${device.label}`)
   const result = spawnSync(
     'mcconfig',

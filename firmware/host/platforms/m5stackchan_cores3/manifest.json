@@ -72,6 +72,11 @@
     }
   },
   "defines": {
+    "audioOut": {
+      "i2s": {
+        "format_i2s": 1
+      }
+    },
     "audioIn": {
       "sampleRate": 16000,
       "bitsPerSample": 16,

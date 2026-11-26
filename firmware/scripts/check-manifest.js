@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { prepareBufferedAudioDriver } from './lib/buffered-audio-driver.mjs'
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const targets = [
@@ -102,6 +104,7 @@ async function checkTarget({ platform, manifest }) {
   return failures
 }
 
+prepareBufferedAudioDriver(process.env.MODDABLE, join(root, 'dist'))
 const results = await Promise.all(
   targets.map(async (target) => {
     console.log(`Checking ${target.platform} with ${target.manifest}`)

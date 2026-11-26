@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { prepareBufferedAudioDriver } from './buffered-audio-driver.mjs'
 import { webRtcComponents } from './webrtc-solution.mjs'
 
 const dependenciesByPlatform = {
@@ -33,10 +34,12 @@ export function prepareCoreS3IdfDependencies({
   platformName,
   applicationName,
   mode,
+  moddableDirectory = process.env.MODDABLE,
   realtime = false,
   solutionDirectory,
 }) {
   if (!outputDirectory) throw new Error('Build output directory is required')
+  if (platformName === 'm5stackchan_cores3') prepareBufferedAudioDriver(moddableDirectory, outputDirectory)
   const dependencies = dependenciesByPlatform[platformName]
   if (!dependencies) throw new Error(`Unsupported CoreS3 platform: ${platformName}`)
   if (!applicationName) throw new Error('Application name is required')

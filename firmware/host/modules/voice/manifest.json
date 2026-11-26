@@ -21,6 +21,8 @@
     "esp32/m5stackchan_cores3": {
       "include": ["../../../vendor/stackchan-voice/manifest.json"],
       "modules": {
+        "~": "$(MODDABLE)/modules/embedded/io/audio/out/esp32/audioout-esp32.c",
+        "*": "../../../dist/tmp/sdk-audioout/audioout-esp32.c",
         "stackchan/voice/cores3-pcm-output": "./cores3-pcm-output",
         "stackchan/voice/pcm-magnitude": "./pcm-magnitude",
         "stackchan/voice/play-speech": "./play-speech",

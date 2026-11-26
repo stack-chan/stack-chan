@@ -127,6 +127,7 @@ export function buildFirmwareBundleTarget(
   if (target.idfDependencyPlatform) {
     prepareCoreS3IdfDependencies({
       outputDirectory,
+      moddableDirectory,
       platformName: target.idfDependencyPlatform,
       applicationName: hostApplicationName,
       mode: 'release',

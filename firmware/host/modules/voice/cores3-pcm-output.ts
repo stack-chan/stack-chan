@@ -192,7 +192,8 @@ export function openBufferedOutput(sampleRate: number, volume: number, limit: nu
     if (closed) throw voiceError('cancelled')
     if (failure) throw failure
   }
-  const audio = new AudioOut.Async({ sampleRate, bitsPerSample: 16, channels: 1 })
+  const format = { sampleRate, bitsPerSample: 16, channels: 1, nativeBuffering: true } as const
+  const audio = new AudioOut.Async(format)
   try {
     if (audio.sampleRate !== sampleRate || audio.channels !== 1 || audio.bitsPerSample !== 16)
       throw voiceError('unsupported_capability', 'speaker format negotiation failed')
@@ -256,7 +257,7 @@ export function openBufferedOutput(sampleRate: number, volume: number, limit: nu
       if (!received) return
       sealed = true
       flush()
-      // Async completion releases memory. A full DMA horizon of silence puts the final real sample past the peripheral.
+      // Completion makes a page reusable while its samples can still be in DMA. Queue silence to drain them.
       const padding = dmaHorizon + ((dmaBlockBytes - (received % dmaBlockBytes)) % dmaBlockBytes)
       audio.write(new Uint8Array(new SharedArrayBuffer(padding)), (error) => {
         if (closed) return

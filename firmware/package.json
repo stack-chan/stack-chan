@@ -32,6 +32,7 @@
     "test:package-mod": "node scripts/test-package-mod.mjs",
     "test:providers": "node --experimental-vm-modules --test --test-concurrency=1 host/platforms/provider.test.mjs",
     "test:moddable": "node scripts/run-module-tests.js",
+    "test:voice-buffered-audio-native": "python3 host/modules/voice/__tests__/buffered-audio-native/verify.py",
     "test:opus-decoder-device:build": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"host/modules/audio/__tests__/opus-decoder-device/manifest.device.json\"",
     "test:web-radio-device:build": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/modules/audio/__tests__/web-radio-device/manifest.json\"",
     "test:web-radio-device:flash": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 \"$PWD/host/modules/audio/__tests__/web-radio-device/manifest.json\"",

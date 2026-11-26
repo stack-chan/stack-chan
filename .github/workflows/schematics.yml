@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: INTI-CMNB/KiBot@v2_k7
+      - uses: INTI-CMNB/KiBot@317e09bfc19bac90e9f8d0cf803c6fd52437bd78 # v2_k7_1_9_0
         with:
           config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
           schema: schematics/m5-pantilt/m5-pantilt.kicad_sch
